@@ -1,0 +1,134 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-dark-bg: #050505;
+  --color-dark-card: #111111;
+  --color-dark-card-hover: #1a1a1a;
+  --color-dark-border: #222222;
+  --color-dark-text: #f5f5f5;
+  --color-dark-muted: #888888;
+  --color-dark-subtle: #555555;
+  --color-accent: #8b5cf6;
+  --color-accent-glow: #7c3aed;
+}
+
+:root {
+  --background: #050505;
+  --foreground: #f5f5f5;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior: none;
+}
+
+/* ── Scrollbar Hidden ── */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Feed Container ── */
+.feed-container {
+  height: 100dvh;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  touch-action: pan-y;
+}
+
+/* ── Card Slot ── */
+.card-slot {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Reading Typography ── */
+.reading-text {
+  font-family: 'Merriweather', Georgia, serif;
+  line-height: 1.9;
+  letter-spacing: 0.01em;
+  word-spacing: 0.05em;
+}
+
+.code-text {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+
+/* ── Gradient Overlays ── */
+.gradient-top {
+  background: linear-gradient(to bottom, rgba(5,5,5,0.95) 0%, rgba(5,5,5,0.6) 40%, transparent 100%);
+}
+
+.gradient-bottom {
+  background: linear-gradient(to top, rgba(5,5,5,0.98) 0%, rgba(5,5,5,0.7) 30%, transparent 100%);
+}
+
+/* ── Glow Effects ── */
+.glow-accent {
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.15), 0 0 60px rgba(139, 92, 246, 0.05);
+}
+
+.glow-card {
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5), 0 0 100px rgba(139, 92, 246, 0.03);
+}
+
+/* ── Selection ── */
+::selection {
+  background-color: rgba(139, 92, 246, 0.3);
+  color: #f5f5f5;
+}
+
+/* ── Progress Bar ── */
+.reading-progress {
+  background: linear-gradient(90deg, #8b5cf6, #06b6d4);
+  transition: width 0.3s ease;
+}
+
+/* ── Pulse animation ── */
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* ── Topic chip hover ── */
+.topic-chip {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.topic-chip:hover {
+  transform: translateY(-2px);
+}
+
+.topic-chip.selected {
+  transform: scale(1.05);
+}
