@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import { AuthProviderWrapper } from '@/components/AuthProviderWrapper'
 
 export const metadata: Metadata = {
   title: 'Plax — Read Smarter',
@@ -24,7 +25,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className="bg-dark-bg text-dark-text antialiased overflow-hidden">
-        {children}
+        <AuthProviderWrapper>{children}</AuthProviderWrapper>
       </body>
     </html>
   )

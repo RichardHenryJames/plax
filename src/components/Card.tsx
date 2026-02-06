@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CardData } from '@/lib/sample-data'
 import { usePlaxStore, TOPICS } from '@/lib/store'
+import { useAuth } from '@/components/AuthProvider'
+import { addBookmarkToCloud, removeBookmarkFromCloud } from '@/lib/cloud-sync'
 
 interface CardProps {
   card: CardData
@@ -12,6 +14,7 @@ interface CardProps {
 
 export function Card({ card, isActive }: CardProps) {
   const { bookmarkedIds, toggleBookmark } = usePlaxStore()
+  const { user } = useAuth()
   const isBookmarked = bookmarkedIds.includes(card.id)
   const [showBookmarkFeedback, setShowBookmarkFeedback] = useState(false)
   const [readProgress, setReadProgress] = useState(0)
@@ -29,9 +32,24 @@ export function Card({ card, isActive }: CardProps) {
   }, [isActive, card.readTime])
 
   const handleBookmark = () => {
+    const wasBookmarked = isBookmarked
     toggleBookmark(card.id)
     setShowBookmarkFeedback(true)
     setTimeout(() => setShowBookmarkFeedback(false), 1200)
+
+    // Sync to cloud if signed in
+    if (user) {
+      if (wasBookmarked) {
+        removeBookmarkFromCloud(user, card.id)
+      } else {
+        addBookmarkToCloud(user, {
+          id: card.id,
+          title: card.title,
+          category: card.category,
+          content: card.content,
+        })
+      }
+    }
   }
 
   const topicMeta = TOPICS.find((t) => t.id === card.category)

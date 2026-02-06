@@ -57,6 +57,16 @@ interface PlaxState {
   setCurrentCardIndex: (index: number) => void
   cardsRead: number
   incrementCardsRead: () => void
+
+  // Cloud sync
+  syncedUserId: string | null
+  setSyncedUserId: (id: string | null) => void
+  hydrateFromCloud: (data: {
+    selectedTopics: string[]
+    hasOnboarded: boolean
+    cardsRead: number
+    bookmarkedIds: string[]
+  }) => void
 }
 
 const safeStorage = createJSONStorage(() => {
@@ -130,6 +140,17 @@ export const usePlaxStore = create<PlaxState>()(
       setCurrentCardIndex: (index) => set({ currentCardIndex: index }),
       cardsRead: 0,
       incrementCardsRead: () => set((s) => ({ cardsRead: s.cardsRead + 1 })),
+
+      // Cloud sync
+      syncedUserId: null,
+      setSyncedUserId: (id) => set({ syncedUserId: id }),
+      hydrateFromCloud: (data) =>
+        set({
+          selectedTopics: data.selectedTopics,
+          hasOnboarded: data.hasOnboarded,
+          cardsRead: data.cardsRead,
+          bookmarkedIds: data.bookmarkedIds,
+        }),
     }),
     {
       name: 'plax-store-v2',
