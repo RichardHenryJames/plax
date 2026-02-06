@@ -204,6 +204,12 @@ export function Card({ card, isActive }: CardProps) {
                 </svg>
               }
               label="Discuss"
+              onClick={() => {
+                const text = `${card.title || card.content.slice(0, 80)}... — via Plax`
+                navigator.clipboard.writeText(text)
+                  .then(() => alert('Copied to clipboard!'))
+                  .catch(() => {})
+              }}
             />
             <ActionButton
               icon={
@@ -212,6 +218,20 @@ export function Card({ card, isActive }: CardProps) {
                 </svg>
               }
               label="Share"
+              onClick={() => {
+                const shareData = {
+                  title: card.title || 'Plax',
+                  text: card.content.slice(0, 200) + '...',
+                  url: window.location.origin,
+                }
+                if (navigator.share) {
+                  navigator.share(shareData).catch(() => {})
+                } else {
+                  navigator.clipboard.writeText(`${card.title || ''} — ${window.location.origin}`)
+                    .then(() => alert('Link copied!'))
+                    .catch(() => {})
+                }
+              }}
             />
           </div>
 

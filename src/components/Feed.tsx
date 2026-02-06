@@ -139,7 +139,7 @@ export function Feed() {
       </div>
 
       {/* Card counter */}
-      <div className="fixed top-4 right-4 z-50">
+      <div className="fixed top-16 right-4 z-40">
         <div className="flex items-center gap-2 text-dark-subtle text-xs bg-dark-card/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-dark-border">
           <span className="text-white font-medium">{currentIndex + 1}</span>
           <span>/</span>
