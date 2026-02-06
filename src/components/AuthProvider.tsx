@@ -43,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('[Plax Auth] Initial session:', session ? `✅ ${session.user.email}` : '❌ No session')
       setSession(session)
       setUser(session?.user ?? null)
       setLoading(false)
@@ -52,6 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log('[Plax Auth] State change:', _event, session ? `✅ ${session.user.email}` : '❌ Signed out')
       setSession(session)
       setUser(session?.user ?? null)
       setLoading(false)

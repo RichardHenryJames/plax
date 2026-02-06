@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence, useMotionValue, useTransform, PanInfo } from 'framer-motion'
 import { Card } from './Card'
-import { allCards, getPersonalizedFeed, CardData } from '@/lib/sample-data'
+import { getPersonalizedFeed, CardData } from '@/lib/sample-data'
 import { usePlaxStore } from '@/lib/store'
 
 const SWIPE_THRESHOLD = 80
@@ -13,15 +13,66 @@ export function Feed() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [direction, setDirection] = useState(0) // 1 = up, -1 = down
   const cardEntryTime = useRef(Date.now())
+  const [liveCards, setLiveCards] = useState<CardData[]>([])
+  const [feedLoading, setFeedLoading] = useState(true)
 
-  // Personalized feed
+  // Fetch real content from API
+  useEffect(() => {
+    const fetchFeed = async () => {
+      try {
+        const cats = selectedTopics.join(',')
+        const res = await fetch(`/api/feed?categories=${cats}&limit=30`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data.cards && data.cards.length > 0) {
+            // Map API cards to CardData format
+            const mapped: CardData[] = data.cards.map((c: Record<string, string>) => ({
+              id: c.id || Math.random().toString(36).slice(2),
+              type: c.type || 'microessay',
+              title: c.title,
+              content: c.content,
+              author: c.author,
+              source: c.source,
+              sourceUrl: c.sourceUrl,
+              category: c.category,
+              readTime: c.readTime || '30s',
+              emoji: c.emoji,
+            }))
+            setLiveCards(mapped)
+            console.log(`[Plax Feed] Loaded ${mapped.length} live cards`)
+          }
+        }
+      } catch (err) {
+        console.log('[Plax Feed] API unavailable, using static content')
+      } finally {
+        setFeedLoading(false)
+      }
+    }
+    fetchFeed()
+  }, [selectedTopics])
+
+  // Personalized feed — merge live + static
   const cards = useMemo(() => {
     const scores: Record<string, number> = {}
     engagements.forEach((e) => {
       scores[e.category] = (scores[e.category] || 0) + e.timeSpent / 1000 + (e.bookmarked ? 15 : 0)
     })
-    return getPersonalizedFeed(selectedTopics, scores, bookmarkedIds)
-  }, [selectedTopics, engagements.length, bookmarkedIds]) // eslint-disable-line react-hooks/exhaustive-deps
+    const staticFeed = getPersonalizedFeed(selectedTopics, scores, bookmarkedIds)
+    if (liveCards.length > 0) {
+      // Interleave: 70% live, 30% static
+      const merged: CardData[] = []
+      let li = 0, si = 0
+      while (li < liveCards.length || si < staticFeed.length) {
+        if (li < liveCards.length && (merged.length % 10 < 7 || si >= staticFeed.length)) {
+          merged.push(liveCards[li++])
+        } else if (si < staticFeed.length) {
+          merged.push(staticFeed[si++])
+        } else break
+      }
+      return merged
+    }
+    return staticFeed
+  }, [selectedTopics, engagements.length, bookmarkedIds, liveCards]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const y = useMotionValue(0)
   const opacity = useTransform(y, [-200, 0, 200], [0.3, 1, 0.3])
