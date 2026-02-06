@@ -1,4 +1,4 @@
-import { RawContent } from './types'
+import { RawContent, CATEGORY_MAP } from './types'
 
 // ─── Wikipedia "Did You Know" & Random Articles ───
 // Free, no API key, generous limits
