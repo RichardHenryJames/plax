@@ -557,6 +557,23 @@ The Mona Lisa wasn't just a painting. It was a **proof of concept** that art cou
   },
 ]
 
+// Deterministic shuffle using a seed — same seed = same order
+function seededShuffle<T>(arr: T[], seed: number): T[] {
+  const shuffled = [...arr]
+  let s = seed
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    s = (s * 16807 + 0) % 2147483647 // Park-Miller PRNG
+    const j = s % (i + 1)
+    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+  return shuffled
+}
+
+// Session seed — stable for the lifetime of the tab, so scroll-up shows same cards
+const SESSION_SEED = typeof window !== 'undefined'
+  ? Math.floor(Math.random() * 2147483647)
+  : 42
+
 // Get cards filtered and sorted by user preferences
 export function getPersonalizedFeed(
   selectedTopics: string[],
@@ -570,17 +587,29 @@ export function getPersonalizedFeed(
     cards = cards.filter((c) => selectedTopics.includes(c.category))
   }
 
-  // Score and sort
-  cards.sort((a, b) => {
-    const scoreA = (engagementScores[a.category] || 0) + (bookmarkedIds.includes(a.id) ? -10 : 0) // deprioritize already bookmarked
-    const scoreB = (engagementScores[b.category] || 0) + (bookmarkedIds.includes(b.id) ? -10 : 0)
-
-    // 70% preference-based, 30% random for serendipity
-    const randomA = Math.random() * 0.3
-    const randomB = Math.random() * 0.3
-
-    return scoreB + randomB - (scoreA + randomA)
+  // Score each card
+  const scored = cards.map((card) => {
+    const engScore = engagementScores[card.category] || 0
+    const bookmarkPenalty = bookmarkedIds.includes(card.id) ? -10 : 0
+    return { card, score: engScore + bookmarkPenalty }
   })
 
-  return cards
+  // Sort by score (high engagement categories first)
+  scored.sort((a, b) => b.score - a.score)
+
+  // Within same-score tiers, apply deterministic shuffle for variety
+  // Group into tiers (cards with similar scores)
+  const result: CardData[] = []
+  let tierStart = 0
+  for (let i = 1; i <= scored.length; i++) {
+    // New tier when score differs by more than 5 or end of array
+    if (i === scored.length || Math.abs(scored[i].score - scored[tierStart].score) > 5) {
+      const tier = scored.slice(tierStart, i).map((s) => s.card)
+      const shuffledTier = seededShuffle(tier, SESSION_SEED + tierStart)
+      result.push(...shuffledTier)
+      tierStart = i
+    }
+  }
+
+  return result
 }

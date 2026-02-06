@@ -84,7 +84,8 @@ export function Feed() {
     initial.forEach((c) => seenIdsRef.current.add(c.id))
     setCards(initial)
 
-    // Then fetch live cards and prepend
+    // Then fetch live cards and APPEND (never prepend — prepending shifts indices
+    // and causes scroll-up to show wrong articles)
     const fetchInitialLive = async () => {
       try {
         const cats = selectedTopics.join(',')
@@ -95,7 +96,7 @@ export function Feed() {
             const liveCards = mapApiCards(data.cards)
             liveCards.forEach((c) => seenIdsRef.current.add(c.id))
             console.log(`[Plax Feed] Initial live: ${liveCards.length} cards`)
-            setCards((prev) => [...liveCards, ...prev])
+            setCards((prev) => [...prev, ...liveCards])
           }
         }
       } catch {
