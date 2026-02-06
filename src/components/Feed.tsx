@@ -1,78 +1,118 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence, useMotionValue, useTransform, PanInfo } from 'framer-motion'
 import { Card } from './Card'
 import { getPersonalizedFeed, CardData } from '@/lib/sample-data'
 import { usePlaxStore } from '@/lib/store'
 
 const SWIPE_THRESHOLD = 80
+const LOAD_MORE_THRESHOLD = 5 // fetch more when 5 cards from end
 
 export function Feed() {
   const { selectedTopics, bookmarkedIds, engagements, addEngagement, incrementCardsRead } = usePlaxStore()
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [direction, setDirection] = useState(0) // 1 = up, -1 = down
+  const [direction, setDirection] = useState(0)
   const cardEntryTime = useRef(Date.now())
-  const [liveCards, setLiveCards] = useState<CardData[]>([])
-  const [feedLoading, setFeedLoading] = useState(true)
+  const [cards, setCards] = useState<CardData[]>([])
+  const [isFetching, setIsFetching] = useState(false)
+  const fetchCountRef = useRef(0)
+  const seenIdsRef = useRef(new Set<string>())
 
-  // Fetch real content from API
-  useEffect(() => {
-    const fetchFeed = async () => {
-      try {
-        const cats = selectedTopics.join(',')
-        const res = await fetch(`/api/feed?categories=${cats}&limit=30`)
-        if (res.ok) {
-          const data = await res.json()
-          if (data.cards && data.cards.length > 0) {
-            // Map API cards to CardData format
-            const mapped: CardData[] = data.cards.map((c: Record<string, string>) => ({
-              id: c.id || Math.random().toString(36).slice(2),
-              type: c.type || 'microessay',
-              title: c.title,
-              content: c.content,
-              author: c.author,
-              source: c.source,
-              sourceUrl: c.sourceUrl,
-              category: c.category,
-              readTime: c.readTime || '30s',
-              emoji: c.emoji,
-            }))
-            setLiveCards(mapped)
-            console.log(`[Plax Feed] Loaded ${mapped.length} live cards`)
-          }
+  // Map API response to CardData
+  const mapApiCards = (apiCards: Record<string, string>[]): CardData[] => {
+    return apiCards
+      .map((c) => ({
+        id: c.id || Math.random().toString(36).slice(2),
+        type: (c.type || 'microessay') as CardData['type'],
+        title: c.title,
+        content: c.content,
+        author: c.author,
+        source: c.source,
+        sourceUrl: c.sourceUrl,
+        category: c.category,
+        readTime: c.readTime || '30s',
+        emoji: c.emoji,
+      }))
+      .filter((c) => !seenIdsRef.current.has(c.id)) // deduplicate
+  }
+
+  // Fetch a batch of cards
+  const fetchMore = useCallback(async (refresh = false) => {
+    if (isFetching) return
+    setIsFetching(true)
+    fetchCountRef.current++
+
+    try {
+      const cats = selectedTopics.join(',')
+      const res = await fetch(`/api/feed?categories=${cats}&limit=20&refresh=${refresh}`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.cards?.length > 0) {
+          const newCards = mapApiCards(data.cards)
+          newCards.forEach((c) => seenIdsRef.current.add(c.id))
+          console.log(`[Plax Feed] Loaded ${newCards.length} new cards (batch #${fetchCountRef.current})`)
+          setCards((prev) => [...prev, ...newCards])
+          setIsFetching(false)
+          return
         }
-      } catch (err) {
-        console.log('[Plax Feed] API unavailable, using static content')
-      } finally {
-        setFeedLoading(false)
       }
+    } catch {
+      console.log('[Plax Feed] API fetch failed, adding static cards')
     }
-    fetchFeed()
-  }, [selectedTopics])
 
-  // Personalized feed — merge live + static
-  const cards = useMemo(() => {
+    // Fallback: add shuffled static cards
     const scores: Record<string, number> = {}
     engagements.forEach((e) => {
       scores[e.category] = (scores[e.category] || 0) + e.timeSpent / 1000 + (e.bookmarked ? 15 : 0)
     })
-    const staticFeed = getPersonalizedFeed(selectedTopics, scores, bookmarkedIds)
-    if (liveCards.length > 0) {
-      // Interleave: 70% live, 30% static
-      const merged: CardData[] = []
-      let li = 0, si = 0
-      while (li < liveCards.length || si < staticFeed.length) {
-        if (li < liveCards.length && (merged.length % 10 < 7 || si >= staticFeed.length)) {
-          merged.push(liveCards[li++])
-        } else if (si < staticFeed.length) {
-          merged.push(staticFeed[si++])
-        } else break
+    const staticBatch = getPersonalizedFeed(selectedTopics, scores, bookmarkedIds)
+      // Re-ID static cards so they don't deduplicate across batches
+      .map((c) => ({ ...c, id: `${c.id}-${fetchCountRef.current}` }))
+    setCards((prev) => [...prev, ...staticBatch])
+    setIsFetching(false)
+  }, [isFetching, selectedTopics, engagements, bookmarkedIds]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Initial load
+  useEffect(() => {
+    // Start with static cards immediately (instant), then fetch live
+    const scores: Record<string, number> = {}
+    engagements.forEach((e) => {
+      scores[e.category] = (scores[e.category] || 0) + e.timeSpent / 1000 + (e.bookmarked ? 15 : 0)
+    })
+    const initial = getPersonalizedFeed(selectedTopics, scores, bookmarkedIds)
+    initial.forEach((c) => seenIdsRef.current.add(c.id))
+    setCards(initial)
+
+    // Then fetch live cards and prepend
+    const fetchInitialLive = async () => {
+      try {
+        const cats = selectedTopics.join(',')
+        const res = await fetch(`/api/feed?categories=${cats}&limit=20`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data.cards?.length > 0) {
+            const liveCards = mapApiCards(data.cards)
+            liveCards.forEach((c) => seenIdsRef.current.add(c.id))
+            console.log(`[Plax Feed] Initial live: ${liveCards.length} cards`)
+            setCards((prev) => [...liveCards, ...prev])
+          }
+        }
+      } catch {
+        // Static cards already loaded, no problem
       }
-      return merged
     }
-    return staticFeed
-  }, [selectedTopics, engagements.length, bookmarkedIds, liveCards]) // eslint-disable-line react-hooks/exhaustive-deps
+    fetchInitialLive()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Infinite scroll: auto-fetch when near end ──
+  useEffect(() => {
+    const remaining = cards.length - currentIndex
+    if (remaining <= LOAD_MORE_THRESHOLD && !isFetching && cards.length > 0) {
+      console.log(`[Plax Feed] ${remaining} cards left, fetching more...`)
+      fetchMore(true)
+    }
+  }, [currentIndex, cards.length, isFetching, fetchMore])
 
   const y = useMotionValue(0)
   const opacity = useTransform(y, [-200, 0, 200], [0.3, 1, 0.3])
@@ -100,14 +140,18 @@ export function Feed() {
 
   const goToCard = useCallback(
     (newIndex: number, dir: number) => {
-      if (newIndex >= 0 && newIndex < cards.length) {
-        trackEngagement(currentIndex)
-        setDirection(dir)
-        setCurrentIndex(newIndex)
-        incrementCardsRead()
+      if (newIndex < 0) return // can't go before first card
+      if (newIndex >= cards.length) {
+        // At the edge — trigger fetch & don't move yet
+        if (!isFetching) fetchMore(true)
+        return
       }
+      trackEngagement(currentIndex)
+      setDirection(dir)
+      setCurrentIndex(newIndex)
+      incrementCardsRead()
     },
-    [cards.length, currentIndex, trackEngagement, incrementCardsRead]
+    [cards.length, currentIndex, trackEngagement, incrementCardsRead, isFetching, fetchMore]
   )
 
   // Handle drag end
@@ -181,20 +225,30 @@ export function Feed() {
 
   return (
     <div className="feed-container">
-      {/* Progress bar at top */}
-      <div className="fixed top-0 left-0 right-0 z-50 h-0.5 bg-dark-border">
-        <div
-          className="reading-progress h-full"
-          style={{ width: `${((currentIndex + 1) / cards.length) * 100}%` }}
-        />
-      </div>
+      {/* Infinite progress pulse at top */}
+      {isFetching && (
+        <div className="fixed top-0 left-0 right-0 z-50 h-0.5 bg-dark-border overflow-hidden">
+          <motion.div
+            className="h-full bg-gradient-to-r from-transparent via-plax-accent to-transparent w-1/3"
+            animate={{ x: ['-100%', '400%'] }}
+            transition={{ repeat: Infinity, duration: 1.2, ease: 'easeInOut' }}
+          />
+        </div>
+      )}
 
       {/* Card counter */}
       <div className="fixed top-16 right-4 z-40">
         <div className="flex items-center gap-2 text-dark-subtle text-xs bg-dark-card/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-dark-border">
-          <span className="text-white font-medium">{currentIndex + 1}</span>
-          <span>/</span>
-          <span>{cards.length}</span>
+          <span className="text-white font-medium">#{currentIndex + 1}</span>
+          {isFetching && (
+            <motion.span
+              animate={{ opacity: [0.3, 1, 0.3] }}
+              transition={{ repeat: Infinity, duration: 1 }}
+              className="text-plax-accent"
+            >
+              ⟳
+            </motion.span>
+          )}
         </div>
       </div>
 
@@ -243,6 +297,24 @@ export function Feed() {
           )
         })}
       </div>
+
+      {/* Loading indicator when fetching more at the end */}
+      {isFetching && currentIndex >= cards.length - 2 && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed bottom-24 left-1/2 -translate-x-1/2 z-30"
+        >
+          <div className="flex items-center gap-2 bg-dark-card/90 backdrop-blur-md px-4 py-2 rounded-full border border-dark-border">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+              className="w-4 h-4 border-2 border-plax-accent border-t-transparent rounded-full"
+            />
+            <span className="text-dark-subtle text-xs">Loading more...</span>
+          </div>
+        </motion.div>
+      )}
 
       {/* Swipe hint on first card */}
       {currentIndex === 0 && (
