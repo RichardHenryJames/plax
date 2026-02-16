@@ -52,7 +52,7 @@ JSON response only:
       try {
         const completion = await groq.chat.completions.create({
           messages: [{ role: 'user', content: prompt }],
-          model: 'llama-3.1-70b-versatile',
+          model: 'llama-3.3-70b-versatile',
           max_tokens: 500,
         })
         const text = completion.choices[0]?.message?.content || ''
