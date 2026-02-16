@@ -113,7 +113,8 @@ async function enhanceSingle(
  * Returns a Map of index → EnhancedCard for cards that were successfully enhanced.
  * Cards that fail are simply not in the map (caller uses raw content).
  */
-const AI_CONCURRENCY = 5
+const AI_CONCURRENCY = 2
+const BATCH_DELAY_MS = 1000 // wait between batches to avoid rate limits
 
 export async function enhanceBatch(
   cards: { title: string; content: string; source: string }[]
@@ -127,7 +128,7 @@ export async function enhanceBatch(
   const results = new Map<number, EnhancedCard>()
   const startTime = Date.now()
 
-  // Process in chunks to respect rate limits
+  // Process in small chunks with delays to respect rate limits
   for (let i = 0; i < cards.length; i += AI_CONCURRENCY) {
     const chunk = cards.slice(i, i + AI_CONCURRENCY)
     const promises = chunk.map((card, j) =>
@@ -136,6 +137,10 @@ export async function enhanceBatch(
       })
     )
     await Promise.allSettled(promises)
+    // Delay between batches to avoid rate limiting
+    if (i + AI_CONCURRENCY < cards.length) {
+      await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS))
+    }
   }
 
   const elapsed = Date.now() - startTime
