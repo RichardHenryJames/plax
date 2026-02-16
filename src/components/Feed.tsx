@@ -60,8 +60,14 @@ export function Feed() {
         readTime: c.readTime || '30s',
         emoji: c.emoji,
       }))
-      .filter((c) => !seenIdsRef.current.has(c.id)) // deduplicate within session
+      .filter((c) => !seenIdsRef.current.has(c.id)) // deduplicate by ID within session
       .filter((c) => !readCardIds.includes(c.id)) // skip already-read cards
+      .filter((c) => { // deduplicate by title within session
+        const titleKey = (c.title || c.content.slice(0, 80)).toLowerCase().trim()
+        if (seenIdsRef.current.has(`t:${titleKey}`)) return false
+        seenIdsRef.current.add(`t:${titleKey}`)
+        return true
+      })
   }
 
   // Fetch a batch of cards
@@ -102,7 +108,11 @@ export function Feed() {
     // 1. Instant: load from localStorage cache (skip already-read cards)
     const cached = getCachedCards().filter((c) => !readCardIds.includes(c.id))
     if (cached.length > 0) {
-      cached.forEach((c) => seenIdsRef.current.add(c.id))
+      cached.forEach((c) => {
+        seenIdsRef.current.add(c.id)
+        const titleKey = (c.title || c.content.slice(0, 80)).toLowerCase().trim()
+        seenIdsRef.current.add(`t:${titleKey}`)
+      })
       setCards(cached)
       console.log(`[Plax Feed] Instant load: ${cached.length} cached cards`)
     }

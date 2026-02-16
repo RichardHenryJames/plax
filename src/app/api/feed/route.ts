@@ -7,6 +7,17 @@ import { ProcessedCard, EMOJI_MAP } from '@/lib/types'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+// Simple deterministic hash for stable card IDs
+function stableHash(str: string): string {
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash |= 0 // Convert to 32-bit integer
+  }
+  return Math.abs(hash).toString(36)
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const categories = searchParams.get('categories')?.split(',') || []
@@ -39,20 +50,34 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Quick processing (no AI for initial response - faster)
-    const cards: ProcessedCard[] = rawContents.map((raw, i) => ({
-      id: `${raw.source.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${i}-${Date.now().toString(36)}`,
-      type: determineType(raw.content, raw.source),
-      title: raw.title || undefined,
-      content: raw.content.slice(0, 800),
-      author: raw.author,
-      source: raw.source,
-      sourceUrl: raw.url,
-      category: raw.category,
-      readTime: estimateReadTime(raw.content),
-      emoji: EMOJI_MAP[raw.category] || '📖',
-      fetchedAt: Date.now(),
-    }))
+    // Deduplicate raw content by title (same HN story, same Wikipedia event, etc.)
+    const seenTitles = new Set<string>()
+    const uniqueRaw = rawContents.filter((raw) => {
+      const key = (raw.title || raw.content.slice(0, 80)).toLowerCase().trim()
+      if (seenTitles.has(key)) return false
+      seenTitles.add(key)
+      return true
+    })
+    console.log(`[Plax API] After dedup: ${uniqueRaw.length} unique items (removed ${rawContents.length - uniqueRaw.length} duplicates)`)
+
+    // Quick processing — stable IDs based on content so same article always = same ID
+    const cards: ProcessedCard[] = uniqueRaw.map((raw) => {
+      const src = raw.source.toLowerCase().replace(/[^a-z0-9]/g, '-')
+      const contentKey = `${src}-${(raw.title || '').slice(0, 60)}-${raw.content.slice(0, 120)}`
+      return {
+        id: `${src}-${stableHash(contentKey)}`,
+        type: determineType(raw.content, raw.source),
+        title: raw.title || undefined,
+        content: raw.content.slice(0, 800),
+        author: raw.author,
+        source: raw.source,
+        sourceUrl: raw.url,
+        category: raw.category,
+        readTime: estimateReadTime(raw.content),
+        emoji: EMOJI_MAP[raw.category] || '📖',
+        fetchedAt: Date.now(),
+      }
+    })
 
     // Cache the result
     setCache(cacheKey, cards, 5 * 60 * 1000) // 5 minutes
@@ -80,7 +105,7 @@ export async function GET(request: NextRequest) {
 }
 
 function determineType(content: string, source: string): ProcessedCard['type'] {
-  if (source === 'Quotable' || content.startsWith('"')) return 'quote'
+  if (source === 'ZenQuotes' || content.startsWith('"')) return 'quote'
   if (source.includes('On This Day')) return 'fact'
   if (content.length < 200) return 'did-you-know'
   return 'microessay'
