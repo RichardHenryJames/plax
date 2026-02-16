@@ -1,5 +1,4 @@
 import { ProcessedCard } from './types'
-import { allCards as staticCards } from './sample-data'
 
 // ─── In-Memory Cache ───
 // On Vercel Edge, this persists across warm invocations
@@ -40,11 +39,8 @@ export function clearCache(): void {
 
 // ─── Get Feed with Fallback ───
 export function getStaticFallback(): ProcessedCard[] {
-  // Convert static cards to ProcessedCard format
-  return staticCards.map((card) => ({
-    ...card,
-    fetchedAt: Date.now(),
-  })) as ProcessedCard[]
+  // No hardcoded static cards — returns empty when API is unavailable
+  return []
 }
 
 // ─── Merge Static + Dynamic Content ───

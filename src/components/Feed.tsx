@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence, useMotionValue, useTransform, PanInfo } from 'framer-motion'
 import { Card } from './Card'
-import { getPersonalizedFeed, CardData } from '@/lib/sample-data'
+import { CardData } from '@/lib/sample-data'
 import { usePlaxStore } from '@/lib/store'
 
 const SWIPE_THRESHOLD = 80
@@ -61,32 +61,15 @@ export function Feed() {
       console.log('[Plax Feed] API fetch failed, adding static cards')
     }
 
-    // Fallback: add shuffled static cards
-    const scores: Record<string, number> = {}
-    engagements.forEach((e) => {
-      scores[e.category] = (scores[e.category] || 0) + e.timeSpent / 1000 + (e.bookmarked ? 15 : 0)
-    })
-    const staticBatch = getPersonalizedFeed(selectedTopics, scores, bookmarkedIds)
-      // Re-ID static cards so they don't deduplicate across batches
-      .map((c) => ({ ...c, id: `${c.id}-${fetchCountRef.current}` }))
-    setCards((prev) => [...prev, ...staticBatch])
+    // No static fallback — content is live-only
+    console.log('[Plax Feed] API fetch failed, no fallback available')
     setIsFetching(false)
   }, [isFetching, selectedTopics, engagements, bookmarkedIds]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Initial load
+  // Initial load — fetch live content from API
   useEffect(() => {
-    // Start with static cards immediately (instant), then fetch live
-    const scores: Record<string, number> = {}
-    engagements.forEach((e) => {
-      scores[e.category] = (scores[e.category] || 0) + e.timeSpent / 1000 + (e.bookmarked ? 15 : 0)
-    })
-    const initial = getPersonalizedFeed(selectedTopics, scores, bookmarkedIds)
-    initial.forEach((c) => seenIdsRef.current.add(c.id))
-    setCards(initial)
-
-    // Then fetch live cards and APPEND (never prepend — prepending shifts indices
-    // and causes scroll-up to show wrong articles)
     const fetchInitialLive = async () => {
+      setIsFetching(true)
       try {
         const cats = selectedTopics.join(',')
         const res = await fetch(`/api/feed?categories=${cats}&limit=20`)
@@ -95,12 +78,14 @@ export function Feed() {
           if (data.cards?.length > 0) {
             const liveCards = mapApiCards(data.cards)
             liveCards.forEach((c) => seenIdsRef.current.add(c.id))
-            console.log(`[Plax Feed] Initial live: ${liveCards.length} cards`)
-            setCards((prev) => [...prev, ...liveCards])
+            console.log(`[Plax Feed] Initial load: ${liveCards.length} cards`)
+            setCards(liveCards)
           }
         }
-      } catch {
-        // Static cards already loaded, no problem
+      } catch (err) {
+        console.error('[Plax Feed] Initial fetch failed:', err)
+      } finally {
+        setIsFetching(false)
       }
     }
     fetchInitialLive()
@@ -204,7 +189,34 @@ export function Feed() {
   const prevCard = currentIndex > 0 ? cards[currentIndex - 1] : null
   const nextCard = currentIndex < cards.length - 1 ? cards[currentIndex + 1] : null
 
-  if (!currentCard) return null
+  if (!currentCard) {
+    return (
+      <div className="feed-container flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4 px-6 text-center">
+          {isFetching ? (
+            <>
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                className="w-10 h-10 border-2 border-plax-accent border-t-transparent rounded-full"
+              />
+              <p className="text-dark-muted text-sm">Fetching fresh content…</p>
+            </>
+          ) : (
+            <>
+              <p className="text-dark-muted text-lg">No content available</p>
+              <button
+                onClick={() => fetchMore(true)}
+                className="px-5 py-2.5 bg-gradient-to-r from-violet-500 to-cyan-500 text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity"
+              >
+                Try Again
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   const variants = {
     enter: (dir: number) => ({

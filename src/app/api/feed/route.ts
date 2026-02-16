@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { fetchAllContent, fetchWikipediaContent, fetchHackerNews, fetchQuotes, fetchReddit } from '@/lib/sources'
-import { getCached, setCache, getStaticFallback, mergeFeed } from '@/lib/cache'
+import { getCached, setCache } from '@/lib/cache'
 import { ProcessedCard, EMOJI_MAP } from '@/lib/types'
 
 // Force edge runtime for minimal latency
@@ -47,17 +47,13 @@ export async function GET(request: NextRequest) {
       fetchedAt: Date.now(),
     }))
 
-    // Merge with static content for reliability
-    const staticCards = getStaticFallback()
-    const mergedFeed = mergeFeed(cards, staticCards, 0.7)
-
     // Cache the result
-    setCache(cacheKey, mergedFeed, 5 * 60 * 1000) // 5 minutes
+    setCache(cacheKey, cards, 5 * 60 * 1000) // 5 minutes
 
     return NextResponse.json({
-      cards: filterAndLimit(mergedFeed, categories, limit),
+      cards: filterAndLimit(cards, categories, limit),
       cached: false,
-      count: mergedFeed.length,
+      count: cards.length,
       sources: {
         wikipedia: rawContents.filter(r => r.source.includes('Wikipedia')).length,
         hackernews: rawContents.filter(r => r.source === 'Hacker News').length,
@@ -68,14 +64,12 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Feed API error:', error)
     
-    // Return static fallback on error
-    const fallback = getStaticFallback()
+    // No static fallback — return empty with error info
     return NextResponse.json({
-      cards: filterAndLimit(fallback, categories, limit),
+      cards: [],
       cached: false,
-      fallback: true,
       error: 'Failed to fetch live content',
-    })
+    }, { status: 503 })
   }
 }
 
