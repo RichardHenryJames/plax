@@ -93,6 +93,7 @@ export async function GET(request: NextRequest) {
         readTime: estimateReadTime(finalContent),
         emoji: EMOJI_MAP[raw.category] || '📖',
         fetchedAt: Date.now(),
+        aiEnhanced: !!enhanced,
       }
     })
 

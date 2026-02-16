@@ -21,6 +21,7 @@ export interface ProcessedCard {
   readTime: string
   emoji?: string
   fetchedAt: number
+  aiEnhanced?: boolean
 }
 
 // ─── Category mapping for sources ───

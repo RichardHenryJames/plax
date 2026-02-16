@@ -7,6 +7,10 @@ export const metadata: Metadata = {
   description: 'Swipe through knowledge. Bite-sized content for curious minds.',
   keywords: ['reading', 'learning', 'knowledge', 'microessays', 'education'],
   authors: [{ name: 'Plax Labs' }],
+  icons: {
+    icon: '/plaxlabs_logo.png',
+    apple: '/plaxlabs_logo.png',
+  },
 }
 
 export const viewport: Viewport = {

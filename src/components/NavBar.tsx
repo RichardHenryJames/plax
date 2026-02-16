@@ -13,10 +13,12 @@ export function NavBar() {
     <nav className="fixed top-0 left-0 right-0 z-50 gradient-top pointer-events-none">
       <div className="flex items-center justify-between px-5 py-4 pointer-events-auto">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-cyan-500 rounded-lg flex items-center justify-center group-hover:shadow-lg group-hover:shadow-violet-500/20 transition-shadow">
-            <span className="text-white font-bold text-lg">P</span>
-          </div>
+        <Link href="/" className="flex items-center gap-2 group">
+          <img
+            src="/plaxlabs_logo.png"
+            alt="Plax"
+            className="w-8 h-8 rounded-lg group-hover:shadow-lg group-hover:shadow-violet-500/20 transition-shadow"
+          />
           <span className="text-lg font-bold text-white/90">Plax</span>
         </Link>
 
