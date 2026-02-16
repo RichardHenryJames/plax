@@ -61,44 +61,28 @@ export async function GET(request: NextRequest) {
     })
     console.log(`[Plax API] After dedup: ${uniqueRaw.length} unique items (removed ${rawContents.length - uniqueRaw.length} duplicates)`)
 
-    // ── AI Enhancement: rewrite content to be engaging ──
-    // Pass all unique items through AI in parallel; failures fall back to raw
-    const aiEnhancements = await enhanceBatch(
-      uniqueRaw.map((raw) => ({
-        title: raw.title || '',
-        content: raw.content,
-        source: raw.source,
-      }))
-    )
-    console.log(`[Plax API] AI enhanced ${aiEnhancements.size}/${uniqueRaw.length} cards`)
-
-    // Build cards — use AI-enhanced version when available, raw otherwise
-    const cards: ProcessedCard[] = uniqueRaw.map((raw, idx) => {
+    // Build cards directly from raw content (AI disabled for speed)
+    const cards: ProcessedCard[] = uniqueRaw.map((raw) => {
       const src = raw.source.toLowerCase().replace(/[^a-z0-9]/g, '-')
       const contentKey = `${src}-${(raw.title || '').slice(0, 60)}-${raw.content.slice(0, 120)}`
-      const enhanced = aiEnhancements.get(idx)
-
-      const finalTitle = enhanced?.title || raw.title || undefined
-      const finalContent = enhanced?.content || raw.content.slice(0, 800)
 
       return {
         id: `${src}-${stableHash(contentKey)}`,
         type: determineType(raw.content, raw.source),
-        title: finalTitle,
-        content: finalContent,
+        title: raw.title || undefined,
+        content: raw.content.slice(0, 800),
         author: raw.author,
         source: raw.source,
         sourceUrl: raw.url,
         category: raw.category,
-        readTime: estimateReadTime(finalContent),
+        readTime: estimateReadTime(raw.content),
         emoji: EMOJI_MAP[raw.category] || '📖',
         fetchedAt: Date.now(),
-        aiEnhanced: !!enhanced,
       }
     })
 
-    // Cache the result (longer TTL since AI processing is expensive)
-    setCache(cacheKey, cards, 15 * 60 * 1000) // 15 minutes
+    // Cache the result
+    setCache(cacheKey, cards, 5 * 60 * 1000) // 5 minutes
 
     return NextResponse.json({
       cards: filterAndLimit(cards, categories, limit),
