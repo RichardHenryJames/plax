@@ -145,6 +145,13 @@ export function Feed() {
     }
   }, [currentIndex, cards.length, isFetching, fetchMore])
 
+  // Mark the current card as read as soon as it's displayed
+  useEffect(() => {
+    if (cards.length > 0 && currentIndex < cards.length) {
+      markCardRead(cards[currentIndex].id)
+    }
+  }, [currentIndex, cards]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Track engagement on card change
   const trackEngagement = useCallback(
     (cardIndex: number) => {
