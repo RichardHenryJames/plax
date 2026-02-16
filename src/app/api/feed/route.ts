@@ -93,7 +93,6 @@ export async function GET(request: NextRequest) {
         reddit: rawContents.filter(r => r.source.includes('Reddit')).length,
         quotes: rawContents.filter(r => r.source === 'ZenQuotes').length,
       },
-      aiEnhanced: aiEnhancements.size,
     })
   } catch (error) {
     console.error('Feed API error:', error instanceof Error ? error.message : error)
