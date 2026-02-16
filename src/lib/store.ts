@@ -57,6 +57,8 @@ interface PlaxState {
   setCurrentCardIndex: (index: number) => void
   cardsRead: number
   incrementCardsRead: () => void
+  readCardIds: string[]
+  markCardRead: (id: string) => void
 
   // Cloud sync
   syncedUserId: string | null
@@ -140,6 +142,13 @@ export const usePlaxStore = create<PlaxState>()(
       setCurrentCardIndex: (index) => set({ currentCardIndex: index }),
       cardsRead: 0,
       incrementCardsRead: () => set((s) => ({ cardsRead: s.cardsRead + 1 })),
+      readCardIds: [],
+      markCardRead: (id) =>
+        set((s) => ({
+          readCardIds: s.readCardIds.includes(id)
+            ? s.readCardIds
+            : [...s.readCardIds.slice(-500), id], // keep last 500
+        })),
 
       // Cloud sync
       syncedUserId: null,

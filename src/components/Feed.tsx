@@ -36,7 +36,7 @@ function setCachedCards(cards: CardData[]) {
 }
 
 export function Feed() {
-  const { selectedTopics, bookmarkedIds, engagements, addEngagement, incrementCardsRead } = usePlaxStore()
+  const { selectedTopics, bookmarkedIds, engagements, addEngagement, incrementCardsRead, readCardIds, markCardRead } = usePlaxStore()
   const [currentIndex, setCurrentIndex] = useState(0)
   const [direction, setDirection] = useState(0)
   const cardEntryTime = useRef(Date.now())
@@ -60,7 +60,8 @@ export function Feed() {
         readTime: c.readTime || '30s',
         emoji: c.emoji,
       }))
-      .filter((c) => !seenIdsRef.current.has(c.id)) // deduplicate
+      .filter((c) => !seenIdsRef.current.has(c.id)) // deduplicate within session
+      .filter((c) => !readCardIds.includes(c.id)) // skip already-read cards
   }
 
   // Fetch a batch of cards
@@ -98,8 +99,8 @@ export function Feed() {
 
   // Initial load — show cached cards instantly, then fetch fresh in background
   useEffect(() => {
-    // 1. Instant: load from localStorage cache
-    const cached = getCachedCards()
+    // 1. Instant: load from localStorage cache (skip already-read cards)
+    const cached = getCachedCards().filter((c) => !readCardIds.includes(c.id))
     if (cached.length > 0) {
       cached.forEach((c) => seenIdsRef.current.add(c.id))
       setCards(cached)
@@ -150,6 +151,7 @@ export function Feed() {
       if (cardIndex >= 0 && cardIndex < cards.length) {
         const card = cards[cardIndex]
         const timeSpent = Date.now() - cardEntryTime.current
+        markCardRead(card.id)
         addEngagement({
           cardId: card.id,
           category: card.category,
