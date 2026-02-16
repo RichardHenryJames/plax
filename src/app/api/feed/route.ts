@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { fetchAllContent, fetchWikipediaContent, fetchHackerNews, fetchQuotes, fetchReddit } from '@/lib/sources'
+import { fetchAllContent } from '@/lib/sources'
 import { getCached, setCache } from '@/lib/cache'
 import { ProcessedCard, EMOJI_MAP } from '@/lib/types'
 
-// Force edge runtime for minimal latency
-export const runtime = 'edge'
-
-// Revalidate every 5 minutes
-export const revalidate = 300
+// Use Node.js runtime for reliable external API fetches
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -31,7 +29,16 @@ export async function GET(request: NextRequest) {
 
     // Fetch from all sources in parallel
     const rawContents = await fetchAllContent()
-    
+    console.log(`[Plax API] Fetched ${rawContents.length} raw items`)
+
+    if (rawContents.length === 0) {
+      return NextResponse.json({
+        cards: [],
+        cached: false,
+        error: 'All content sources returned empty',
+      })
+    }
+
     // Quick processing (no AI for initial response - faster)
     const cards: ProcessedCard[] = rawContents.map((raw, i) => ({
       id: `${raw.source.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${i}-${Date.now().toString(36)}`,
@@ -62,13 +69,12 @@ export async function GET(request: NextRequest) {
       }
     })
   } catch (error) {
-    console.error('Feed API error:', error)
+    console.error('Feed API error:', error instanceof Error ? error.message : error)
     
-    // No static fallback — return empty with error info
     return NextResponse.json({
       cards: [],
       cached: false,
-      error: 'Failed to fetch live content',
+      error: error instanceof Error ? error.message : 'Failed to fetch live content',
     }, { status: 503 })
   }
 }
