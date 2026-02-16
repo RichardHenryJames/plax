@@ -23,22 +23,28 @@ export async function GET(request: NextRequest) {
   const categories = searchParams.get('categories')?.split(',') || []
   const refresh = searchParams.get('refresh') === 'true'
   const limit = parseInt(searchParams.get('limit') || '30')
+  // Client sends IDs it already has — we skip those
+  const excludeIds = new Set((searchParams.get('exclude') || '').split(',').filter(Boolean))
 
   try {
-    // Check cache first
+    // Check cache first (only for non-refresh requests)
     const cacheKey = `feed-${categories.sort().join(',')}`
     if (!refresh) {
       const cached = getCached(cacheKey)
       if (cached && cached.length > 0) {
-        return NextResponse.json({
-          cards: filterAndLimit(cached, categories, limit),
-          cached: true,
-          count: cached.length,
-        })
+        const filtered = cached.filter((c) => !excludeIds.has(c.id))
+        if (filtered.length > 0) {
+          return NextResponse.json({
+            cards: filterAndLimit(filtered, categories, limit),
+            cached: true,
+            count: filtered.length,
+          })
+        }
+        // All cached cards already seen — fall through to fresh fetch
       }
     }
 
-    // Fetch from all sources in parallel
+    // Fetch from all sources in parallel (always fresh on refresh)
     const rawContents = await fetchAllContent()
     console.log(`[Plax API] Fetched ${rawContents.length} raw items`)
 
@@ -79,13 +85,16 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Cache the result
-    setCache(cacheKey, cards, 5 * 60 * 1000) // 5 minutes
+    // Cache the full set (before excluding client's read cards)
+    setCache(cacheKey, cards, 5 * 60 * 1000)
+
+    // Remove cards the client already has
+    const freshCards = excludeIds.size > 0 ? cards.filter((c) => !excludeIds.has(c.id)) : cards
 
     return NextResponse.json({
-      cards: filterAndLimit(cards, categories, limit),
+      cards: filterAndLimit(freshCards, categories, limit),
       cached: false,
-      count: cards.length,
+      count: freshCards.length,
       sources: {
         wikipedia: rawContents.filter(r => r.source.includes('Wikipedia')).length,
         hackernews: rawContents.filter(r => r.source === 'Hacker News').length,

@@ -1,13 +1,12 @@
 import { RawContent, CATEGORY_MAP } from './types'
 
-// ─── Wikipedia "Did You Know" & Random Articles ───
-// Free, no API key, generous limits
+// ─── Wikipedia Random Articles (truly random each call) ───
 
-export async function fetchWikipediaContent(count: number = 10): Promise<RawContent[]> {
+export async function fetchWikipediaContent(count: number = 12): Promise<RawContent[]> {
   const results: RawContent[] = []
 
-  // Fetch multiple random articles in parallel
-  const articlePromises = Array.from({ length: Math.min(count, 4) }, () =>
+  // Fetch many random articles in parallel (each call = genuinely different article)
+  const articlePromises = Array.from({ length: count }, () =>
     fetch('https://en.wikipedia.org/api/rest_v1/page/random/summary', { cache: 'no-store' })
       .then(async (r) => {
         if (!r.ok) return null
@@ -81,23 +80,28 @@ function categorizeWikipedia(description: string): string {
   return 'science' // default
 }
 
-// ─── Hacker News Top Stories ───
-// Free, no API key, no limits
+// ─── Hacker News (random slice from top + new + best stories) ───
 
-export async function fetchHackerNews(count: number = 10): Promise<RawContent[]> {
+export async function fetchHackerNews(count: number = 15): Promise<RawContent[]> {
   const results: RawContent[] = []
 
   try {
-    const idsResponse = await fetch(
-      'https://hacker-news.firebaseio.com/v0/topstories.json',
-      { cache: 'no-store' }
+    // Fetch from multiple HN feeds for variety
+    const feeds = ['topstories', 'newstories', 'beststories']
+    const feedPromises = feeds.map((feed) =>
+      fetch(`https://hacker-news.firebaseio.com/v0/${feed}.json`, { cache: 'no-store' })
+        .then((r) => r.ok ? r.json() : [])
+        .catch(() => [])
     )
+    const feedResults = await Promise.all(feedPromises)
+    const allIds: number[] = [...new Set(feedResults.flat())] // merge & deduplicate IDs
 
-    if (!idsResponse.ok) return results
-    const ids: number[] = await idsResponse.json()
+    // Pick a RANDOM slice instead of always the first N — this is key for freshness
+    const shuffled = allIds.sort(() => Math.random() - 0.5)
+    const selectedIds = shuffled.slice(0, count)
 
-    // Fetch top N stories in parallel
-    const storyPromises = ids.slice(0, count).map(async (id) => {
+    // Fetch stories in parallel
+    const storyPromises = selectedIds.map(async (id) => {
       try {
         const res = await fetch(
           `https://hacker-news.firebaseio.com/v0/item/${id}.json`,
@@ -113,7 +117,7 @@ export async function fetchHackerNews(count: number = 10): Promise<RawContent[]>
 
     stories.forEach((story) => {
       if (story && story.title && story.type === 'story') {
-        if (story.score > 50) {
+        if (story.score > 20) {
           results.push({
             title: story.title,
             content:
@@ -249,10 +253,14 @@ function cleanRedditTitle(title: string): string {
 export async function fetchAllContent(): Promise<RawContent[]> {
   // Use Promise.allSettled so one failing source doesn't kill the rest
   const results = await Promise.allSettled([
-    fetchWikipediaContent(5),
-    fetchHackerNews(10),
-    fetchQuotes(8),
-    fetchReddit(['todayilearned', 'explainlikeimfive', 'Showerthoughts', 'science']),
+    fetchWikipediaContent(12),   // ~12 truly random articles + 5 On This Day
+    fetchHackerNews(15),         // ~15 from random slice of top/new/best
+    fetchQuotes(10),             // ~10 quotes
+    fetchReddit([                // ~20 from many subreddits
+      'todayilearned', 'explainlikeimfive', 'Showerthoughts', 'science',
+      'space', 'history', 'philosophy', 'psychology', 'AskScience',
+      'Futurology', 'LifeProTips', 'YouShouldKnow',
+    ]),
   ])
 
   const all: RawContent[] = []

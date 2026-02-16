@@ -63,7 +63,6 @@ export function Feed() {
         emoji: c.emoji,
       }))
       .filter((c) => !seenIdsRef.current.has(c.id)) // deduplicate by ID within session
-      .filter((c) => !readCardIds.includes(c.id)) // skip already-read cards
       .filter((c) => { // deduplicate by title within session
         const titleKey = (c.title || c.content.slice(0, 80)).toLowerCase().trim()
         if (seenIdsRef.current.has(`t:${titleKey}`)) return false
@@ -76,12 +75,12 @@ export function Feed() {
   const fetchMore = useCallback(async (refresh = false) => {
     if (isFetching) return
 
-    // Cooldown: don't re-fetch within 10 seconds
+    // Cooldown: don't re-fetch within 5 seconds
     const now = Date.now()
-    if (now - lastFetchTimeRef.current < 10_000) return
+    if (now - lastFetchTimeRef.current < 5_000) return
 
-    // Stop after 3 consecutive empty fetches (all cards already seen/read)
-    if (emptyFetchCountRef.current >= 3) {
+    // Stop after 5 consecutive empty fetches (genuinely exhausted)
+    if (emptyFetchCountRef.current >= 5) {
       console.log('[Plax Feed] Stopped fetching — 3 consecutive empty responses (all content read)')
       return
     }
@@ -92,7 +91,9 @@ export function Feed() {
 
     try {
       const cats = selectedTopics.join(',')
-      const res = await fetch(`/api/feed?categories=${cats}&limit=20&refresh=${refresh}`)
+      // Send IDs the client already has so server skips them
+      const excludeIds = [...seenIdsRef.current].filter((id) => !id.startsWith('t:')).join(',')
+      const res = await fetch(`/api/feed?categories=${cats}&limit=30&refresh=${refresh}&exclude=${encodeURIComponent(excludeIds)}`)
       if (res.ok) {
         const data = await res.json()
         if (data.cards?.length > 0) {
@@ -140,7 +141,8 @@ export function Feed() {
       setIsFetching(true)
       try {
         const cats = selectedTopics.join(',')
-        const res = await fetch(`/api/feed?categories=${cats}&limit=20&refresh=true`)
+        const excludeIds = [...seenIdsRef.current].filter((id) => !id.startsWith('t:')).join(',')
+        const res = await fetch(`/api/feed?categories=${cats}&limit=30&refresh=true&exclude=${encodeURIComponent(excludeIds)}`)
         if (res.ok) {
           const data = await res.json()
           if (data.cards?.length > 0) {

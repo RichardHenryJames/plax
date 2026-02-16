@@ -32,6 +32,7 @@ export const CATEGORY_MAP: Record<string, string> = {
   'science': 'science',
   'space': 'space',
   'askscience': 'science',
+  'AskScience': 'science',
   'philosophy': 'philosophy',
   'psychology': 'psychology',
   'history': 'history',
@@ -40,6 +41,10 @@ export const CATEGORY_MAP: Record<string, string> = {
   'books': 'books',
   'personalfinance': 'finance',
   'futurology': 'technology',
+  'Futurology': 'technology',
+  'Showerthoughts': 'philosophy',
+  'LifeProTips': 'psychology',
+  'YouShouldKnow': 'science',
   // Wikipedia categories
   'Physics': 'physics',
   'Biology': 'science',
