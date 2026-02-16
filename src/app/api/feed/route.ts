@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { fetchAllContent } from '@/lib/sources'
 import { getCached, setCache } from '@/lib/cache'
 import { ProcessedCard, EMOJI_MAP } from '@/lib/types'
-import { enhanceBatch, isAIAvailable } from '@/lib/ai'
 
 // Use Node.js runtime for reliable external API fetches
 export const runtime = 'nodejs'
