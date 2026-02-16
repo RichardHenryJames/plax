@@ -7,7 +7,33 @@ import { CardData } from '@/lib/sample-data'
 import { usePlaxStore } from '@/lib/store'
 
 const SWIPE_THRESHOLD = 80
-const LOAD_MORE_THRESHOLD = 5 // fetch more when 5 cards from end
+const LOAD_MORE_THRESHOLD = 10 // fetch more when 10 cards from end
+const CARD_CACHE_KEY = 'plax-card-cache'
+const CARD_CACHE_MAX_AGE = 30 * 60 * 1000 // 30 minutes
+
+// ── Client-side card cache (localStorage) ──
+function getCachedCards(): CardData[] {
+  try {
+    const raw = localStorage.getItem(CARD_CACHE_KEY)
+    if (!raw) return []
+    const { cards, ts } = JSON.parse(raw)
+    if (Date.now() - ts > CARD_CACHE_MAX_AGE) {
+      localStorage.removeItem(CARD_CACHE_KEY)
+      return []
+    }
+    return cards || []
+  } catch {
+    return []
+  }
+}
+
+function setCachedCards(cards: CardData[]) {
+  try {
+    // Keep last 60 cards in cache
+    const toStore = cards.slice(-60)
+    localStorage.setItem(CARD_CACHE_KEY, JSON.stringify({ cards: toStore, ts: Date.now() }))
+  } catch { /* quota exceeded — ignore */ }
+}
 
 export function Feed() {
   const { selectedTopics, bookmarkedIds, engagements, addEngagement, incrementCardsRead } = usePlaxStore()
@@ -52,7 +78,11 @@ export function Feed() {
           const newCards = mapApiCards(data.cards)
           newCards.forEach((c) => seenIdsRef.current.add(c.id))
           console.log(`[Plax Feed] Loaded ${newCards.length} new cards (batch #${fetchCountRef.current})`)
-          setCards((prev) => [...prev, ...newCards])
+          setCards((prev) => {
+            const updated = [...prev, ...newCards]
+            setCachedCards(updated)
+            return updated
+          })
           setIsFetching(false)
           return
         }
@@ -66,29 +96,43 @@ export function Feed() {
     setIsFetching(false)
   }, [isFetching, selectedTopics, engagements, bookmarkedIds]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Initial load — fetch live content from API
+  // Initial load — show cached cards instantly, then fetch fresh in background
   useEffect(() => {
-    const fetchInitialLive = async () => {
+    // 1. Instant: load from localStorage cache
+    const cached = getCachedCards()
+    if (cached.length > 0) {
+      cached.forEach((c) => seenIdsRef.current.add(c.id))
+      setCards(cached)
+      console.log(`[Plax Feed] Instant load: ${cached.length} cached cards`)
+    }
+
+    // 2. Background: fetch fresh cards and append
+    const fetchLive = async () => {
       setIsFetching(true)
       try {
         const cats = selectedTopics.join(',')
-        const res = await fetch(`/api/feed?categories=${cats}&limit=20`)
+        const res = await fetch(`/api/feed?categories=${cats}&limit=20&refresh=true`)
         if (res.ok) {
           const data = await res.json()
           if (data.cards?.length > 0) {
             const liveCards = mapApiCards(data.cards)
             liveCards.forEach((c) => seenIdsRef.current.add(c.id))
-            console.log(`[Plax Feed] Initial load: ${liveCards.length} cards`)
-            setCards(liveCards)
+            console.log(`[Plax Feed] Live refresh: ${liveCards.length} new cards`)
+            setCards((prev) => {
+              // If we had cache, append new; if empty, set fresh
+              const updated = prev.length > 0 ? [...prev, ...liveCards] : liveCards
+              setCachedCards(updated)
+              return updated
+            })
           }
         }
       } catch (err) {
-        console.error('[Plax Feed] Initial fetch failed:', err)
+        console.error('[Plax Feed] Live fetch failed:', err)
       } finally {
         setIsFetching(false)
       }
     }
-    fetchInitialLive()
+    fetchLive()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Infinite scroll: auto-fetch when near end ──

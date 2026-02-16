@@ -6,30 +6,27 @@ import { RawContent, CATEGORY_MAP } from './types'
 export async function fetchWikipediaContent(count: number = 10): Promise<RawContent[]> {
   const results: RawContent[] = []
 
-  // Fetch multiple random articles
-  for (let i = 0; i < Math.min(count, 5); i++) {
-    try {
-      const response = await fetch(
-        'https://en.wikipedia.org/api/rest_v1/page/random/summary',
-        { cache: 'no-store' }
-      )
-
-      if (!response.ok) continue
-      const data = await response.json()
-
-      if (data.extract && data.extract.length > 100) {
-        results.push({
-          title: data.title,
-          content: data.extract,
-          url: data.content_urls?.desktop?.page,
-          source: 'Wikipedia',
-          category: categorizeWikipedia(data.description || data.title),
-        })
-      }
-    } catch (error) {
-      console.error('Wikipedia random article error:', error)
-    }
-  }
+  // Fetch multiple random articles in parallel
+  const articlePromises = Array.from({ length: Math.min(count, 4) }, () =>
+    fetch('https://en.wikipedia.org/api/rest_v1/page/random/summary', { cache: 'no-store' })
+      .then(async (r) => {
+        if (!r.ok) return null
+        const data = await r.json()
+        if (data.extract && data.extract.length > 100) {
+          return {
+            title: data.title,
+            content: data.extract,
+            url: data.content_urls?.desktop?.page,
+            source: 'Wikipedia',
+            category: categorizeWikipedia(data.description || data.title),
+          } as RawContent
+        }
+        return null
+      })
+      .catch(() => null)
+  )
+  const articles = await Promise.all(articlePromises)
+  articles.forEach((a) => { if (a) results.push(a) })
 
   // Fetch "On this day" facts
   try {
@@ -198,48 +195,46 @@ export async function fetchQuotes(count: number = 5): Promise<RawContent[]> {
 export async function fetchReddit(
   subreddits: string[] = ['todayilearned', 'explainlikeimfive', 'Showerthoughts']
 ): Promise<RawContent[]> {
-  const results: RawContent[] = []
-
-  for (const subreddit of subreddits) {
-    try {
-      const response = await fetch(
-        `https://www.reddit.com/r/${subreddit}/top.json?t=day&limit=5`,
-        {
-          cache: 'no-store',
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; Plax/1.0)',
-            Accept: 'application/json',
-          },
-        }
-      )
-
-      if (!response.ok) continue
-      const data = await response.json()
-
-      if (data.data?.children) {
-        data.data.children.forEach((child: any) => {
-          const post = child.data
-          if (post.selftext || post.title) {
-            const content = post.selftext || post.title
-            if (content.length > 50) {
-              results.push({
-                title: cleanRedditTitle(post.title),
-                content: post.selftext || post.title,
-                url: `https://reddit.com${post.permalink}`,
-                author: `u/${post.author}`,
-                source: `Reddit r/${subreddit}`,
-                category: CATEGORY_MAP[subreddit] || 'science',
-              })
+  // Fetch all subreddits in parallel
+  const subPromises = subreddits.map((subreddit) =>
+    fetch(`https://www.reddit.com/r/${subreddit}/top.json?t=day&limit=5`, {
+      cache: 'no-store',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; Plax/1.0)',
+        Accept: 'application/json',
+      },
+    })
+      .then(async (response) => {
+        if (!response.ok) return []
+        const data = await response.json()
+        const items: RawContent[] = []
+        if (data.data?.children) {
+          data.data.children.forEach((child: any) => {
+            const post = child.data
+            if (post.selftext || post.title) {
+              const content = post.selftext || post.title
+              if (content.length > 50) {
+                items.push({
+                  title: cleanRedditTitle(post.title),
+                  content: post.selftext || post.title,
+                  url: `https://reddit.com${post.permalink}`,
+                  author: `u/${post.author}`,
+                  source: `Reddit r/${subreddit}`,
+                  category: CATEGORY_MAP[subreddit] || 'science',
+                })
+              }
             }
-          }
-        })
-      }
-    } catch (error) {
-      console.error(`Reddit r/${subreddit} fetch error:`, error)
-    }
-  }
-
-  return results
+          })
+        }
+        return items
+      })
+      .catch((error) => {
+        console.error(`Reddit r/${subreddit} fetch error:`, error)
+        return [] as RawContent[]
+      })
+  )
+  const subResults = await Promise.all(subPromises)
+  return subResults.flat()
 }
 
 function cleanRedditTitle(title: string): string {
