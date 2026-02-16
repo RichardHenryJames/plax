@@ -54,27 +54,40 @@ async function enhanceSingle(
   try {
     let responseText = ''
 
+    // Try Gemini first
     if (genAI) {
-      const model = genAI.getGenerativeModel({
-        model: 'gemini-2.0-flash-exp',
-        generationConfig: {
-          temperature: 0.9,
-          maxOutputTokens: 400,
-        },
-      })
-      const result = await model.generateContent(prompt)
-      responseText = result.response.text()
-    } else if (groq) {
-      const completion = await groq.chat.completions.create({
-        messages: [{ role: 'user', content: prompt }],
-        model: 'llama-3.1-70b-versatile',
-        max_tokens: 400,
-        temperature: 0.9,
-      })
-      responseText = completion.choices[0]?.message?.content || ''
-    } else {
-      return null
+      try {
+        const model = genAI.getGenerativeModel({
+          model: 'gemini-2.0-flash',
+          generationConfig: {
+            temperature: 0.9,
+            maxOutputTokens: 400,
+          },
+        })
+        const result = await model.generateContent(prompt)
+        responseText = result.response.text()
+      } catch (geminiErr) {
+        console.error(`[Plax AI] Gemini failed:`, geminiErr instanceof Error ? geminiErr.message : geminiErr)
+        // Fall through to Groq
+      }
     }
+
+    // Groq fallback (if Gemini unavailable or failed)
+    if (!responseText && groq) {
+      try {
+        const completion = await groq.chat.completions.create({
+          messages: [{ role: 'user', content: prompt }],
+          model: 'llama-3.1-70b-versatile',
+          max_tokens: 400,
+          temperature: 0.9,
+        })
+        responseText = completion.choices[0]?.message?.content || ''
+      } catch (groqErr) {
+        console.error(`[Plax AI] Groq failed:`, groqErr instanceof Error ? groqErr.message : groqErr)
+      }
+    }
+
+    if (!responseText) return null
 
     // Parse JSON from response
     const jsonMatch = responseText.match(/\{[\s\S]*\}/)
