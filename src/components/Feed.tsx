@@ -44,8 +44,6 @@ export function Feed() {
   const [isFetching, setIsFetching] = useState(false)
   const fetchCountRef = useRef(0)
   const seenIdsRef = useRef(new Set<string>())
-  const lastFetchTimeRef = useRef(0)
-  const FETCH_COOLDOWN = 30000 // 30 seconds between fetches
 
   // Map API response to CardData
   const mapApiCards = (apiCards: Record<string, string>[]): CardData[] => {
@@ -75,11 +73,7 @@ export function Feed() {
   // Fetch a batch of cards
   const fetchMore = useCallback(async (refresh = false) => {
     if (isFetching) return
-    // Cooldown: don't fetch again within 30s if last fetch returned 0 new cards
-    const now = Date.now()
-    if (now - lastFetchTimeRef.current < FETCH_COOLDOWN) return
     setIsFetching(true)
-    lastFetchTimeRef.current = now
     fetchCountRef.current++
 
     try {
