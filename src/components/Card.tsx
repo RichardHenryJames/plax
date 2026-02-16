@@ -167,21 +167,21 @@ export function Card({ card, isActive }: CardProps) {
         <div className="max-w-xl mx-auto flex items-center justify-between">
           {/* Left: Read progress */}
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full border-2 border-dark-border relative">
+            <div className="w-8 h-8 relative">
               <svg className="w-8 h-8 -rotate-90" viewBox="0 0 36 36">
                 <circle
-                  cx="18" cy="18" r="14"
+                  cx="18" cy="18" r="15"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2"
                   className="text-dark-border"
                 />
                 <circle
-                  cx="18" cy="18" r="14"
+                  cx="18" cy="18" r="15"
                   fill="none"
                   stroke="url(#grad)"
-                  strokeWidth="2"
-                  strokeDasharray={`${readProgress * 0.88} 88`}
+                  strokeWidth="2.5"
+                  strokeDasharray={`${readProgress * 0.94} 94`}
                   strokeLinecap="round"
                   className="transition-all duration-300"
                 />
