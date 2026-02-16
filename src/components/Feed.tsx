@@ -237,10 +237,12 @@ export function Feed() {
         <div className="flex flex-col items-center gap-4 px-6 text-center">
           {isFetching ? (
             <>
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-                className="w-10 h-10 border-2 border-plax-accent border-t-transparent rounded-full"
+              <motion.img
+                src="/plaxlabs_logo.png"
+                alt="Plax"
+                className="w-14 h-14 rounded-2xl"
+                animate={{ opacity: [0.4, 1, 0.4] }}
+                transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
               />
               <p className="text-dark-muted text-sm">Fetching fresh content…</p>
             </>

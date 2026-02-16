@@ -18,8 +18,12 @@ export default function Home() {
   if (!mounted) {
     return (
       <main className="h-screen bg-dark-bg flex items-center justify-center">
-        <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-cyan-500 rounded-2xl flex items-center justify-center animate-pulse">
-          <span className="text-white font-bold text-xl">P</span>
+        <div className="flex flex-col items-center gap-4 animate-pulse">
+          <img
+            src="/plaxlabs_logo.png"
+            alt="Plax"
+            className="w-16 h-16 rounded-2xl"
+          />
         </div>
       </main>
     )
