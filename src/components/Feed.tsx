@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { motion, AnimatePresence, useMotionValue, useTransform, PanInfo } from 'framer-motion'
+import { motion, AnimatePresence, PanInfo } from 'framer-motion'
 import { Card } from './Card'
 import { CardData } from '@/lib/sample-data'
 import { usePlaxStore } from '@/lib/store'
@@ -99,10 +99,6 @@ export function Feed() {
       fetchMore(true)
     }
   }, [currentIndex, cards.length, isFetching, fetchMore])
-
-  const y = useMotionValue(0)
-  const opacity = useTransform(y, [-200, 0, 200], [0.3, 1, 0.3])
-  const scale = useTransform(y, [-200, 0, 200], [0.92, 1, 0.92])
 
   // Track engagement on card change
   const trackEngagement = useCallback(
@@ -220,19 +216,16 @@ export function Feed() {
 
   const variants = {
     enter: (dir: number) => ({
-      y: dir > 0 ? '100%' : '-100%',
+      y: dir > 0 ? '60%' : '-60%',
       opacity: 0,
-      scale: 0.95,
     }),
     center: {
       y: 0,
       opacity: 1,
-      scale: 1,
     },
     exit: (dir: number) => ({
-      y: dir > 0 ? '-100%' : '100%',
+      y: dir > 0 ? '-60%' : '60%',
       opacity: 0,
-      scale: 0.95,
     }),
   }
 
@@ -266,7 +259,7 @@ export function Feed() {
       </div>
 
       {/* Main swipe area */}
-      <AnimatePresence initial={false} custom={direction} mode="popLayout">
+      <AnimatePresence initial={false} custom={direction} mode="wait">
         <motion.div
           key={currentCard.id}
           custom={direction}
@@ -275,15 +268,13 @@ export function Feed() {
           animate="center"
           exit="exit"
           transition={{
-            y: { type: 'spring', stiffness: 400, damping: 40 },
-            opacity: { duration: 0.25 },
-            scale: { duration: 0.25 },
+            y: { type: 'tween', duration: 0.3, ease: [0.32, 0.72, 0, 1] },
+            opacity: { duration: 0.2 },
           }}
           drag="y"
           dragConstraints={{ top: 0, bottom: 0 }}
           dragElastic={0.15}
           onDragEnd={handleDragEnd}
-          style={{ opacity, scale }}
           className="card-slot cursor-grab active:cursor-grabbing"
         >
           <Card card={currentCard} isActive={true} />
