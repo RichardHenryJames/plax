@@ -59,16 +59,15 @@ export function Card({ card, isActive }: CardProps) {
     <div className="h-full w-full flex flex-col relative overflow-hidden select-none">
       {/* Background glow */}
       <div className={`absolute inset-0 bg-gradient-to-b ${gradientClass} opacity-[0.04]`} />
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-gradient-to-b from-violet-500/5 to-transparent rounded-full blur-3xl" />
 
       {/* Main content area */}
       <div className="flex-1 flex flex-col justify-center px-6 sm:px-10 py-24 relative z-10">
         <div className="max-w-xl mx-auto w-full">
           {/* Category + metadata */}
           <motion.div
-            initial={{ opacity: 0, x: -10 }}
+            initial={{ opacity: 0, x: -5 }}
             animate={isActive ? { opacity: 1, x: 0 } : {}}
-            transition={{ delay: 0.1, duration: 0.3 }}
+            transition={{ duration: 0.15 }}
             className="flex items-center gap-3 mb-5"
           >
             <span className={`px-3 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-gradient-to-r ${gradientClass} text-white shadow-lg`}>
@@ -85,9 +84,9 @@ export function Card({ card, isActive }: CardProps) {
           {/* Title */}
           {card.title && card.type !== 'quote' && (
             <motion.h1
-              initial={{ opacity: 0, y: 15 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={isActive ? { opacity: 1, y: 0 } : {}}
-              transition={{ delay: 0.15, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
               className="text-2xl sm:text-[28px] font-bold text-white mb-6 leading-[1.3] tracking-tight"
             >
               {card.title}
@@ -97,9 +96,9 @@ export function Card({ card, isActive }: CardProps) {
           {/* Content */}
           <motion.div
             ref={contentRef}
-            initial={{ opacity: 0, y: 15 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={isActive ? { opacity: 1, y: 0 } : {}}
-            transition={{ delay: 0.2, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ delay: 0.05, duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
           >
             {card.type === 'quote' ? (
               <blockquote className="relative py-8">
@@ -129,15 +128,12 @@ export function Card({ card, isActive }: CardProps) {
             ) : (
               <div className="space-y-4">
                 {card.content.split('\n\n').map((paragraph, i) => (
-                  <motion.p
+                  <p
                     key={i}
-                    initial={{ opacity: 0 }}
-                    animate={isActive ? { opacity: 1 } : {}}
-                    transition={{ delay: 0.25 + i * 0.05 }}
                     className="reading-text text-dark-text/85 text-[15px] sm:text-base"
                   >
                     {formatText(paragraph)}
-                  </motion.p>
+                  </p>
                 ))}
               </div>
             )}

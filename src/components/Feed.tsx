@@ -271,7 +271,7 @@ export function Feed() {
 
   const variants = {
     enter: (dir: number) => ({
-      y: dir > 0 ? '60%' : '-60%',
+      y: dir > 0 ? '40%' : '-40%',
       opacity: 0,
     }),
     center: {
@@ -279,7 +279,7 @@ export function Feed() {
       opacity: 1,
     },
     exit: (dir: number) => ({
-      y: dir > 0 ? '-60%' : '60%',
+      y: dir > 0 ? '-20%' : '20%',
       opacity: 0,
     }),
   }
@@ -314,7 +314,7 @@ export function Feed() {
       </div>
 
       {/* Main swipe area */}
-      <AnimatePresence initial={false} custom={direction} mode="wait">
+      <AnimatePresence initial={false} custom={direction} mode="popLayout">
         <motion.div
           key={currentCard.id}
           custom={direction}
@@ -323,8 +323,8 @@ export function Feed() {
           animate="center"
           exit="exit"
           transition={{
-            y: { type: 'tween', duration: 0.3, ease: [0.32, 0.72, 0, 1] },
-            opacity: { duration: 0.2 },
+            y: { type: 'tween', duration: 0.15, ease: [0.25, 0.1, 0.25, 1] },
+            opacity: { duration: 0.12 },
           }}
           drag="y"
           dragConstraints={{ top: 0, bottom: 0 }}
