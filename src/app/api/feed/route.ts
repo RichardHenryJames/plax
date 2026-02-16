@@ -60,11 +60,10 @@ export async function GET(request: NextRequest) {
     })
     console.log(`[Plax API] After dedup: ${uniqueRaw.length} unique items (removed ${rawContents.length - uniqueRaw.length} duplicates)`)
 
-    // Build cards directly from raw content (AI disabled for speed)
+    // Quick processing — stable IDs based on content so same article always = same ID
     const cards: ProcessedCard[] = uniqueRaw.map((raw) => {
       const src = raw.source.toLowerCase().replace(/[^a-z0-9]/g, '-')
       const contentKey = `${src}-${(raw.title || '').slice(0, 60)}-${raw.content.slice(0, 120)}`
-
       return {
         id: `${src}-${stableHash(contentKey)}`,
         type: determineType(raw.content, raw.source),
@@ -91,8 +90,8 @@ export async function GET(request: NextRequest) {
         wikipedia: rawContents.filter(r => r.source.includes('Wikipedia')).length,
         hackernews: rawContents.filter(r => r.source === 'Hacker News').length,
         reddit: rawContents.filter(r => r.source.includes('Reddit')).length,
-        quotes: rawContents.filter(r => r.source === 'ZenQuotes').length,
-      },
+        quotes: rawContents.filter(r => r.source === 'Quotable').length,
+      }
     })
   } catch (error) {
     console.error('Feed API error:', error instanceof Error ? error.message : error)
