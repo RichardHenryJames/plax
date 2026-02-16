@@ -44,6 +44,8 @@ export function Feed() {
   const [isFetching, setIsFetching] = useState(false)
   const fetchCountRef = useRef(0)
   const seenIdsRef = useRef(new Set<string>())
+  const lastFetchTimeRef = useRef(0)
+  const emptyFetchCountRef = useRef(0) // tracks consecutive fetches that returned 0 new cards
 
   // Map API response to CardData
   const mapApiCards = (apiCards: Record<string, string>[]): CardData[] => {
@@ -73,7 +75,19 @@ export function Feed() {
   // Fetch a batch of cards
   const fetchMore = useCallback(async (refresh = false) => {
     if (isFetching) return
+
+    // Cooldown: don't re-fetch within 10 seconds
+    const now = Date.now()
+    if (now - lastFetchTimeRef.current < 10_000) return
+
+    // Stop after 3 consecutive empty fetches (all cards already seen/read)
+    if (emptyFetchCountRef.current >= 3) {
+      console.log('[Plax Feed] Stopped fetching — 3 consecutive empty responses (all content read)')
+      return
+    }
+
     setIsFetching(true)
+    lastFetchTimeRef.current = now
     fetchCountRef.current++
 
     try {
@@ -83,23 +97,27 @@ export function Feed() {
         const data = await res.json()
         if (data.cards?.length > 0) {
           const newCards = mapApiCards(data.cards)
-          newCards.forEach((c) => seenIdsRef.current.add(c.id))
-          console.log(`[Plax Feed] Loaded ${newCards.length} new cards (batch #${fetchCountRef.current})`)
-          setCards((prev) => {
-            const updated = [...prev, ...newCards]
-            setCachedCards(updated)
-            return updated
-          })
-          setIsFetching(false)
-          return
+          if (newCards.length > 0) {
+            emptyFetchCountRef.current = 0 // reset — we got fresh cards
+            newCards.forEach((c) => seenIdsRef.current.add(c.id))
+            console.log(`[Plax Feed] Loaded ${newCards.length} new cards (batch #${fetchCountRef.current})`)
+            setCards((prev) => {
+              const updated = [...prev, ...newCards]
+              setCachedCards(updated)
+              return updated
+            })
+            setIsFetching(false)
+            return
+          }
         }
       }
     } catch {
-      console.log('[Plax Feed] API fetch failed, adding static cards')
+      console.log('[Plax Feed] API fetch failed')
     }
 
-    // No static fallback — content is live-only
-    console.log('[Plax Feed] API fetch failed, no fallback available')
+    // API returned cards but all were duplicates/read, or request failed
+    emptyFetchCountRef.current++
+    console.log(`[Plax Feed] No new cards (empty fetch #${emptyFetchCountRef.current}/3)`)
     setIsFetching(false)
   }, [isFetching, selectedTopics, engagements, bookmarkedIds]) // eslint-disable-line react-hooks/exhaustive-deps
 
