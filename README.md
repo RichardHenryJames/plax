@@ -4,79 +4,108 @@
 
 A short-form reading platform that delivers personalized microessays, quotes, explainers, and fascinating facts — optimized for addictive, distraction-free reading.
 
-## 🚀 Live Demo
+## 🚀 Live
 
 **[plaxlabs.com](https://plaxlabs.com)**
 
 ## ✨ Features
 
-- **📱 TikTok-style swipe** — Vertical full-screen cards with smooth spring animations
-- **🧠 Personalized feed** — Learns your interests from engagement (time spent, bookmarks, completion)
-- **📚 Rich content sources** — Wikipedia, Hacker News, Reddit, curated quotes + AI summarization
-- **🎯 Topic preferences** — Choose from 16 categories during onboarding
-- **🔖 Bookmarks** — Save cards for later with instant feedback
-- **🌙 Dark mode** — Optimized for comfortable reading
-- **⚡ Minimal latency** — Edge runtime + aggressive caching
-- **💸 Free stack** — Runs entirely on free tiers
+### Core Experience
+- **📱 TikTok-style swipe** — Vertical full-screen cards with spring animations (drag, keyboard, scroll wheel)
+- **🧠 Personalized feed** — Learns your interests from engagement (time spent, bookmarks, completion rate)
+- **🎯 16 topic categories** — Science, Technology, Philosophy, Psychology, History, Finance, Space, Programming, Books, Health, Math, Nature, Art, Physics, Business, Language
+- **🔖 Bookmarks** — Save cards with instant animated feedback, synced to cloud when signed in
+- **♾️ Infinite scroll** — Auto-fetches more content as you approach the end of your card stack
+- **🌙 Dark mode** — Fully dark UI optimized for comfortable reading
+
+### Content Sources (All Free, No API Keys Required)
+- **Wikipedia** — Random articles + "On This Day" historical facts
+- **Hacker News** — Trending tech/startup stories from top, new, and best feeds
+- **Reddit** — TIL, ELI5, Showerthoughts, science, space, history, philosophy, and more (12 subreddits)
+- **ZenQuotes** — Curated quotes from thinkers and leaders
+
+### Authentication & Cloud Sync
+- **Google & GitHub OAuth** via Supabase Auth
+- **Cloud-synced bookmarks** — Save on any device, access everywhere
+- **Reading streaks** — Daily streak tracking with automatic reset logic
+- **Engagement analytics** — Per-card time tracking, completion rates, category preferences
+- **Profile page** — Stats, top interests, bookmarks, account management
+
+### AI Summarization
+- **Google Gemini 2.5 Flash** (primary) — Content summarization and quiz generation
+- **Groq Llama 3.3 70B** (fallback) — Automatic failover if Gemini is unavailable
+
+### Smart Feed Logic
+- **Related category expansion** — If you pick "Programming", you also get Technology/Science/Math content
+- **3-tier filtering** — Exact match → related categories → all cards (never returns empty)
+- **Client-side deduplication** — By card ID and title, across sessions
+- **Server-side deduplication** — By title before processing
+- **Stable card IDs** — Same article always generates the same ID (deterministic hashing)
+- **Exclude-already-seen** — Client sends seen IDs to server so they're skipped
 
 ## 🛠 Tech Stack
 
-| Layer | Technology | Cost |
-|-------|------------|------|
-| **Framework** | Next.js 15 (App Router) | Free |
-| **UI** | React 19 + Tailwind CSS v4 | Free |
-| **Animations** | Framer Motion | Free |
-| **State** | Zustand (persisted) | Free |
-| **AI** | Google Gemini Flash | Free (1500 req/day) |
-| **AI Fallback** | Groq (Llama 3.1) | Free (14k req/day) |
-| **Hosting** | Vercel (Edge Runtime) | Free |
-| **Domain** | plaxlabs.com | Owned |
-
-**Total monthly cost: $0**
-
-## 📡 Content Sources (All Free)
-
-| Source | What | API Limits |
-|--------|------|------------|
-| **Wikipedia** | Random articles + "On This Day" facts | Unlimited |
-| **Hacker News** | Top trending tech/startup stories | Unlimited |
-| **Reddit** | r/todayilearned, r/explainlikeimfive, r/science | ~60 req/min |
-| **Quotable** | Curated quotes from thinkers & leaders | Unlimited |
-| **Static fallback** | 25+ hand-curated high-quality cards | N/A |
+| Layer | Technology | Version |
+|-------|------------|---------|
+| **Framework** | Next.js (App Router) | 16.x |
+| **UI** | React + Tailwind CSS | 19.x / 4.x |
+| **Animations** | Framer Motion | 12.x |
+| **State** | Zustand (persisted to localStorage) | 5.x |
+| **Auth & DB** | Supabase (Auth + Postgres + RLS) | 2.x |
+| **AI (Primary)** | Google Gemini 2.5 Flash | via @google/generative-ai |
+| **AI (Fallback)** | Groq (Llama 3.3 70B) | via groq-sdk |
+| **Hosting** | Vercel | Auto-deploy on push |
+| **Domain** | plaxlabs.com | Vercel DNS |
+| **Language** | TypeScript | 5.x |
 
 ## 🏃‍♂️ Quick Start
 
 ```bash
 # Clone
-git clone https://github.com/yourusername/plax.git
+git clone https://github.com/RichardHenryJames/plax.git
 cd plax
 
-# Install dependencies
+# Install
 npm install
 
-# Set up environment variables
+# Environment variables
 cp .env.example .env.local
-# Edit .env.local with your API keys
+```
 
-# Run dev server
+Edit `.env.local`:
+
+```env
+# AI Summarization (optional — feed works without these)
+GEMINI_API_KEY=your_key_here
+GROQ_API_KEY=your_key_here
+
+# Supabase (required for auth & cloud sync)
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+```
+
+```bash
+# Run
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000)
 
-## 🔑 Environment Variables
+### Get Free API Keys
 
-```env
-# Required for AI summarization
-GEMINI_API_KEY=your_gemini_api_key
+| Service | URL | Free Tier |
+|---------|-----|-----------|
+| **Gemini** | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | 1500 req/day |
+| **Groq** | [console.groq.com](https://console.groq.com) | 14k req/day |
+| **Supabase** | [supabase.com](https://supabase.com) | 50k MAU, 500MB DB |
 
-# Optional fallback
-GROQ_API_KEY=your_groq_api_key
-```
+### Supabase Setup
 
-Get your free API keys:
-- **Gemini**: [aistudio.google.com/apikeys](https://aistudio.google.com/apikeys)
-- **Groq**: [console.groq.com](https://console.groq.com)
+1. Create a project at [supabase.com](https://supabase.com)
+2. Go to **SQL Editor** and run the contents of `supabase-schema.sql`
+3. Go to **Authentication → Providers** and enable Google and/or GitHub OAuth
+4. Copy your project URL and keys into `.env.local`
 
 ## 📁 Project Structure
 
@@ -84,94 +113,97 @@ Get your free API keys:
 plax/
 ├── src/
 │   ├── app/
-│   │   ├── globals.css          # Tailwind + custom styles
-│   │   ├── layout.tsx           # Root layout
-│   │   ├── page.tsx             # Main app (onboarding or feed)
-│   │   └── api/
-│   │       ├── feed/route.ts    # Content feed endpoint
-│   │       └── summarize/route.ts # AI summarization endpoint
+│   │   ├── globals.css                # Tailwind v4 + custom styles
+│   │   ├── layout.tsx                 # Root layout (AuthProviderWrapper)
+│   │   ├── page.tsx                   # Main page (Onboarding or Feed)
+│   │   ├── api/
+│   │   │   ├── feed/route.ts          # Content feed API (Node.js runtime)
+│   │   │   └── summarize/route.ts     # AI summarization API (Edge runtime)
+│   │   ├── auth/
+│   │   │   └── callback/route.ts      # Supabase OAuth callback handler
+│   │   └── profile/
+│   │       └── page.tsx               # User profile, stats, bookmarks
 │   ├── components/
-│   │   ├── Card.tsx             # Content card with animations
-│   │   ├── Feed.tsx             # Swipeable feed container
-│   │   ├── NavBar.tsx           # Top navigation
-│   │   └── Onboarding.tsx       # Topic selection wizard
+│   │   ├── AuthProvider.tsx           # Supabase auth context (user, session)
+│   │   ├── AuthProviderWrapper.tsx    # Conditionally wraps app with auth
+│   │   ├── Card.tsx                   # Content card (typography, actions, bookmark)
+│   │   ├── CloudSync.tsx              # Invisible bridge: Zustand ↔ Supabase
+│   │   ├── Feed.tsx                   # Swipeable feed (drag, keyboard, scroll)
+│   │   ├── NavBar.tsx                 # Top nav (logo, search, auth dropdown)
+│   │   └── Onboarding.tsx             # Topic selection wizard (min 3 topics)
 │   └── lib/
-│       ├── store.ts             # Zustand state (prefs, bookmarks, engagement)
-│       ├── sample-data.ts       # Static fallback content
-│       ├── sources.ts           # Content fetchers (Wikipedia, HN, Reddit)
-│       ├── cache.ts             # In-memory caching layer
-│       ├── types.ts             # TypeScript types
-│       └── ai.ts                # AI summarization (Gemini/Groq)
-├── .env.local                   # API keys (gitignored)
-├── .env.example                 # Template for env vars
-└── package.json
+│       ├── ai.ts                      # Gemini/Groq summarization & quiz gen
+│       ├── cache.ts                   # In-memory server cache (Map-based)
+│       ├── cloud-sync.ts              # Supabase CRUD: prefs, bookmarks, engagements
+│       ├── database.types.ts          # Supabase generated types
+│       ├── sample-data.ts             # CardData type + personalization helpers
+│       ├── sources.ts                 # Content fetchers (Wikipedia, HN, Reddit, ZenQuotes)
+│       ├── store.ts                   # Zustand store (topics, bookmarks, engagements)
+│       ├── supabase.ts                # Supabase client (browser + server)
+│       └── types.ts                   # RawContent, ProcessedCard, category maps
+├── public/
+│   └── plaxlabs_logo.png             # App logo
+├── supabase-schema.sql               # Full database schema
+├── package.json
+├── next.config.js
+├── tailwind.config.js
+├── tsconfig.json
+└── postcss.config.js
 ```
 
 ## 🚀 Deploy to Vercel
 
-1. Push code to GitHub
-2. Connect repo to [Vercel](https://vercel.com)
-3. Add environment variables in Vercel dashboard:
+1. Push to GitHub — Vercel auto-deploys on every push to `main`
+2. Add environment variables in **Vercel → Project → Settings → Environment Variables**:
    - `GEMINI_API_KEY`
    - `GROQ_API_KEY`
-4. Deploy!
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+3. Custom domain: **Vercel → Settings → Domains** → add `plaxlabs.com`
 
-**Custom domain**: Add `plaxlabs.com` in Vercel → Settings → Domains
+## 🗄️ Database
 
-## 📊 Performance & Caching
+Three tables with Row Level Security (RLS):
+
+| Table | Purpose | RLS Policy |
+|-------|---------|------------|
+| `user_profiles` | Topics, streak, cards read, onboarding state | Users read/write own row only |
+| `bookmarks` | Saved cards with title, category, content preview | Users CRUD own bookmarks only |
+| `engagements` | Per-card analytics (time, completion, shares) | Users insert/read own only |
+
+- Auto-created on signup via Postgres trigger
+- Reading streak managed by `update_reading_streak()` RPC function
+- Full schema in `supabase-schema.sql`
+
+## 📊 How It Works
 
 ```
-Request Flow:
-
-BROWSER → VERCEL CDN (global, <50ms) → EDGE RUNTIME → CACHE
-                                                        ↓
-                                               [HIT] Return cached
-                                               [MISS] Fetch sources
-                                                        ↓
-                                        Wikipedia/HN/Reddit/Quotes
-                                                        ↓
-                                              Cache for 5-15 min
-                                                        ↓
-                                              Return + store
+User opens app
+    │
+    ├─ First visit? → Onboarding (pick ≥3 topics) → Save to Zustand + Cloud
+    │
+    └─ Returning? → Load cached cards from localStorage instantly
+                     │
+                     └─ Background fetch: GET /api/feed?categories=...&exclude=...
+                            │
+                            ├─ Cache hit? → Return cached cards
+                            │
+                            └─ Cache miss? → Fetch in parallel:
+                                   ├─ Wikipedia (12 random + 5 On This Day)
+                                   ├─ Hacker News (15 from top/new/best)
+                                   ├─ ZenQuotes (10 quotes)
+                                   └─ Reddit (12 subreddits, 5 posts each)
+                                         │
+                                         ├─ Deduplicate by title
+                                         ├─ Categorize content
+                                         ├─ Generate stable IDs
+                                         ├─ Filter by user's categories
+                                         │   ├─ 1. Exact match
+                                         │   ├─ 2. Related categories
+                                         │   └─ 3. All cards (fallback)
+                                         └─ Cache 5 min → return to client
 ```
-
-**Caching TTLs:**
-- Wikipedia: 5 minutes
-- Hacker News: 10 minutes
-- Reddit: 15 minutes
-- Quotes: 30 minutes
-- Static fallback: Always available
-
-**Result**: First paint <1s, feed loads <200ms
-
-## 🧠 Personalization
-
-```javascript
-// Engagement score per category
-score = (timeSpent / 1000) * 1     // seconds on card
-      + (bookmarked ? 15 : 0)       // strong signal
-      + (completed ? 5 : 0)         // read fully
-
-// Feed composition
-70% → preference-weighted (high score categories first)
-30% → serendipity (random for discovery)
-```
-
-All data stored locally in browser. No server-side tracking.
-
-## 🛣 Roadmap
-
-- [x] MVP with static content
-- [x] Smooth swipe animations
-- [x] Topic preferences & onboarding
-- [x] Engagement tracking & personalization
-- [x] Live content from Wikipedia, HN, Reddit
-- [x] AI summarization (Gemini + Groq)
-- [x] Caching layer for minimal latency
-- [ ] Supabase auth
-- [ ] Cloud-synced bookmarks
-- [ ] Mobile app (React Native)
-- [ ] Reading streaks
 
 ## 📄 License
 
