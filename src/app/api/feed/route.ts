@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
         wikipedia: rawContents.filter(r => r.source.includes('Wikipedia')).length,
         hackernews: rawContents.filter(r => r.source === 'Hacker News').length,
         reddit: rawContents.filter(r => r.source.includes('Reddit')).length,
-        quotes: rawContents.filter(r => r.source === 'Quotable').length,
+        quotes: rawContents.filter(r => r.source === 'ZenQuotes').length,
       }
     })
   } catch (error) {
@@ -127,19 +127,54 @@ function estimateReadTime(content: string): string {
   return `${Math.ceil(minutes)}m`
 }
 
+// Related categories — if someone picks "programming", also show "technology", etc.
+const RELATED_CATEGORIES: Record<string, string[]> = {
+  programming: ['technology', 'science', 'math'],
+  technology: ['programming', 'science', 'business'],
+  science: ['nature', 'physics', 'space', 'health', 'math'],
+  physics: ['science', 'math', 'space'],
+  math: ['science', 'physics', 'programming'],
+  space: ['science', 'physics', 'technology'],
+  finance: ['business', 'technology'],
+  business: ['finance', 'technology'],
+  philosophy: ['psychology', 'history'],
+  psychology: ['philosophy', 'health'],
+  history: ['philosophy', 'art'],
+  health: ['science', 'psychology', 'nature'],
+  nature: ['science', 'health', 'space'],
+  art: ['history', 'philosophy'],
+  books: ['philosophy', 'history', 'psychology'],
+  language: ['philosophy', 'psychology'],
+}
+
 function filterAndLimit(
   cards: ProcessedCard[],
   categories: string[],
   limit: number
 ): ProcessedCard[] {
   let filtered = cards
-  
+
   if (categories.length > 0) {
+    // Exact category match first
     filtered = cards.filter(c => categories.includes(c.category))
+
+    // If too few results, expand to related categories
+    if (filtered.length < limit) {
+      const expanded = new Set(categories)
+      categories.forEach(cat => {
+        (RELATED_CATEGORIES[cat] || []).forEach(r => expanded.add(r))
+      })
+      filtered = cards.filter(c => expanded.has(c.category))
+    }
+
+    // If STILL empty (no related match either), return all cards instead of nothing
+    if (filtered.length === 0) {
+      filtered = cards
+    }
   }
-  
+
   // Shuffle for variety
   filtered = filtered.sort(() => Math.random() - 0.5)
-  
+
   return filtered.slice(0, limit)
 }

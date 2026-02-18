@@ -42,6 +42,8 @@ export function Feed() {
   const cardEntryTime = useRef(Date.now())
   const [cards, setCards] = useState<CardData[]>([])
   const [isFetching, setIsFetching] = useState(false)
+  const isFetchingRef = useRef(false) // ref to avoid stale closure
+  const [isInitialLoad, setIsInitialLoad] = useState(true) // true until first fetch completes
   const fetchCountRef = useRef(0)
   const seenIdsRef = useRef(new Set<string>())
   const lastFetchTimeRef = useRef(0)
@@ -73,7 +75,7 @@ export function Feed() {
 
   // Fetch a batch of cards
   const fetchMore = useCallback(async (refresh = false) => {
-    if (isFetching) return
+    if (isFetchingRef.current) return
 
     // Cooldown: don't re-fetch within 5 seconds
     const now = Date.now()
@@ -81,11 +83,12 @@ export function Feed() {
 
     // Stop after 5 consecutive empty fetches (genuinely exhausted)
     if (emptyFetchCountRef.current >= 5) {
-      console.log('[Plax Feed] Stopped fetching — 3 consecutive empty responses (all content read)')
+      console.log('[Plax Feed] Stopped fetching — 5 consecutive empty responses (all content read)')
       return
     }
 
     setIsFetching(true)
+    isFetchingRef.current = true
     lastFetchTimeRef.current = now
     fetchCountRef.current++
 
@@ -108,6 +111,8 @@ export function Feed() {
               return updated
             })
             setIsFetching(false)
+            isFetchingRef.current = false
+            setIsInitialLoad(false)
             return
           }
         }
@@ -118,9 +123,11 @@ export function Feed() {
 
     // API returned cards but all were duplicates/read, or request failed
     emptyFetchCountRef.current++
-    console.log(`[Plax Feed] No new cards (empty fetch #${emptyFetchCountRef.current}/3)`)
+    console.log(`[Plax Feed] No new cards (empty fetch #${emptyFetchCountRef.current}/5)`)
     setIsFetching(false)
-  }, [isFetching, selectedTopics, engagements, bookmarkedIds]) // eslint-disable-line react-hooks/exhaustive-deps
+    isFetchingRef.current = false
+    setIsInitialLoad(false)
+  }, [selectedTopics, engagements, bookmarkedIds]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Initial load — show cached cards instantly, then fetch fresh in background
   useEffect(() => {
@@ -139,6 +146,7 @@ export function Feed() {
     // 2. Background: fetch fresh cards and append
     const fetchLive = async () => {
       setIsFetching(true)
+      isFetchingRef.current = true
       try {
         const cats = selectedTopics.join(',')
         const excludeIds = [...seenIdsRef.current].filter((id) => !id.startsWith('t:')).join(',')
@@ -161,6 +169,8 @@ export function Feed() {
         console.error('[Plax Feed] Live fetch failed:', err)
       } finally {
         setIsFetching(false)
+        isFetchingRef.current = false
+        setIsInitialLoad(false)
       }
     }
     fetchLive()
@@ -272,7 +282,7 @@ export function Feed() {
     return (
       <div className="feed-container flex items-center justify-center">
         <div className="flex flex-col items-center gap-4 px-6 text-center">
-          {isFetching ? (
+          {isFetching || isInitialLoad ? (
             <>
               <motion.img
                 src="/plaxlabs_logo.png"
@@ -287,7 +297,10 @@ export function Feed() {
             <>
               <p className="text-dark-muted text-lg">No content available</p>
               <button
-                onClick={() => fetchMore(true)}
+                onClick={() => {
+                  emptyFetchCountRef.current = 0
+                  fetchMore(true)
+                }}
                 className="px-5 py-2.5 bg-gradient-to-r from-violet-500 to-cyan-500 text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity"
               >
                 Try Again

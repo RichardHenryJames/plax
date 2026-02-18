@@ -38,7 +38,7 @@ Respond in this JSON format:
   try {
     // Try Gemini first
     if (genAI) {
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' })
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
       const result = await model.generateContent(prompt)
       const response = result.response.text()
       return parseAIResponse(response)
@@ -48,7 +48,7 @@ Respond in this JSON format:
     if (groq) {
       const completion = await groq.chat.completions.create({
         messages: [{ role: 'user', content: prompt }],
-        model: 'llama-3.1-70b-versatile',
+        model: 'llama-3.3-70b-versatile',
       })
       const response = completion.choices[0]?.message?.content || ''
       return parseAIResponse(response)
@@ -99,7 +99,7 @@ Respond in JSON:
 
   try {
     if (genAI) {
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' })
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
       const result = await model.generateContent(prompt)
       const response = result.response.text()
       const jsonMatch = response.match(/\{[\s\S]*\}/)

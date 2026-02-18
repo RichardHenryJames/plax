@@ -72,7 +72,9 @@ function categorizeWikipedia(description: string): string {
   if (desc.includes('philosoph')) return 'philosophy'
   if (desc.includes('psycholog')) return 'psychology'
   if (desc.includes('histor') || desc.includes('war') || desc.includes('empire')) return 'history'
-  if (desc.includes('computer') || desc.includes('software') || desc.includes('programming'))
+  if (desc.includes('computer') || desc.includes('software') || desc.includes('programming') ||
+    desc.includes('algorithm') || desc.includes('engineer') || desc.includes('internet') ||
+    desc.includes('digital') || desc.includes('database') || desc.includes('cryptograph'))
     return 'programming'
   if (desc.includes('econom') || desc.includes('business')) return 'finance'
   if (desc.includes('art') || desc.includes('painter') || desc.includes('artist')) return 'art'
@@ -140,16 +142,24 @@ export async function fetchHackerNews(count: number = 15): Promise<RawContent[]>
 
 function categorizeHN(title: string): string {
   const t = title.toLowerCase()
-  if (t.includes('ai') || t.includes('gpt') || t.includes('llm') || t.includes('machine learning'))
-    return 'technology'
   if (
-    t.includes('rust') ||
-    t.includes('python') ||
-    t.includes('javascript') ||
-    t.includes('code') ||
-    t.includes('programming')
+    t.includes('rust') || t.includes('python') || t.includes('javascript') ||
+    t.includes('typescript') || t.includes('code') || t.includes('programming') ||
+    t.includes('compiler') || t.includes('git') || t.includes('linux') ||
+    t.includes('api') || t.includes('database') || t.includes('sql') ||
+    t.includes('open source') || t.includes('github') || t.includes('docker') ||
+    t.includes('kubernetes') || t.includes('golang') || t.includes('java ') ||
+    t.includes('c++') || t.includes('swift') || t.includes('react') ||
+    t.includes('node') || t.includes('algorithm') || t.includes('debug') ||
+    t.includes('server') || t.includes('deploy') || t.includes('framework') ||
+    t.includes('library') || t.includes('engineer') || t.includes('developer') ||
+    t.includes('backend') || t.includes('frontend') || t.includes('fullstack') ||
+    t.includes('devops') || t.includes('bug') || t.includes('kernel') ||
+    t.includes('cpu') || t.includes('gpu') || t.includes('wasm')
   )
     return 'programming'
+  if (t.includes('ai') || t.includes('gpt') || t.includes('llm') || t.includes('machine learning') || t.includes('neural'))
+    return 'technology'
   if (t.includes('startup') || t.includes('funding') || t.includes('vc') || t.includes('business'))
     return 'business'
   if (t.includes('crypto') || t.includes('bitcoin') || t.includes('finance')) return 'finance'
