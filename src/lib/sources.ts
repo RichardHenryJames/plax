@@ -1,5 +1,31 @@
 import { RawContent, CATEGORY_MAP } from './types'
 
+// ─── HTML Cleaning (for HN and Reddit raw content) ───
+
+function stripHtml(html: string): string {
+  return html
+    // Replace <p> and <br> with newlines
+    .replace(/<p>/gi, '\n\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    // Remove all other HTML tags
+    .replace(/<[^>]*>/g, '')
+    // Decode common HTML entities
+    .replace(/&#x27;/g, "'")
+    .replace(/&#x2F;/g, '/')
+    .replace(/&#39;/g, "'")
+    .replace(/&#47;/g, '/')
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, code) => String.fromCharCode(parseInt(code, 16)))
+    // Clean up whitespace
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
 // ─── Wikipedia Random Articles (truly random each call) ───
 
 export async function fetchWikipediaContent(count: number = 12): Promise<RawContent[]> {
@@ -122,9 +148,9 @@ export async function fetchHackerNews(count: number = 15): Promise<RawContent[]>
         if (story.score > 20) {
           results.push({
             title: story.title,
-            content:
-              story.text ||
-              `${story.title} — A trending discussion on Hacker News with ${story.score} points and ${story.descendants || 0} comments.`,
+            content: story.text
+              ? stripHtml(story.text)
+              : `${story.title} — A trending discussion on Hacker News with ${story.score} points and ${story.descendants || 0} comments.`,
             url: story.url || `https://news.ycombinator.com/item?id=${story.id}`,
             author: story.by,
             source: 'Hacker News',
@@ -226,11 +252,12 @@ export async function fetchReddit(
           data.data.children.forEach((child: any) => {
             const post = child.data
             if (post.selftext || post.title) {
-              const content = post.selftext || post.title
+              const rawContent = post.selftext || post.title
+              const content = stripHtml(rawContent)
               if (content.length > 50) {
                 items.push({
                   title: cleanRedditTitle(post.title),
-                  content: post.selftext || post.title,
+                  content,
                   url: `https://reddit.com${post.permalink}`,
                   author: `u/${post.author}`,
                   source: `Reddit r/${subreddit}`,
