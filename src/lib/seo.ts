@@ -4,10 +4,13 @@
 // (sitemap, topic pages) stay lightweight.
 // ────────────────────────────────────────────────────────────────────────────
 
-// The canonical host. Set NEXT_PUBLIC_SITE_URL in the environment to the primary
-// domain (must match whichever host your platform serves as primary — apex or www).
+// The canonical host. Set NEXT_PUBLIC_SITE_URL in the environment to override.
+// Default is the www host because the live site + Google Search Console property
+// are www (the apex 307-redirects to www). The sitemap URLs, canonical tags,
+// robots directives and OG URLs must all match this exact host so Google can
+// fetch the sitemap and index the correct URLs (no cross-host / redirect issues).
 export const SITE_URL = (
-  process.env.NEXT_PUBLIC_SITE_URL || 'https://plaxlabs.com'
+  process.env.NEXT_PUBLIC_SITE_URL || 'https://www.plaxlabs.com'
 ).replace(/\/$/, '')
 
 export const SITE = {
