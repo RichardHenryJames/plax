@@ -14,31 +14,31 @@ export function NavBar() {
   return (
     <nav className="lg:hidden absolute top-0 left-0 right-0 z-50 pointer-events-none">
       {/* Solid glass header bar (Inshorts-style fixed chrome) */}
-      <div className="glass border-b border-white/[0.06] flex items-center justify-between px-5 py-3 pt-[calc(0.75rem+env(safe-area-inset-top))] pointer-events-auto">
+      <div className="glass border-b border-white/[0.06] flex items-center justify-between px-4 py-2 pt-[calc(0.5rem+env(safe-area-inset-top))] pointer-events-auto">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group">
           <img
             src="/plaxlabs_logo.png"
             alt="Plax"
-            className="w-8 h-8 rounded-lg group-hover:shadow-lg group-hover:shadow-violet-500/20 transition-shadow"
+            className="w-7 h-7 rounded-lg group-hover:shadow-lg group-hover:shadow-violet-500/20 transition-shadow"
           />
-          <span className="text-lg font-bold text-white/90">Plax</span>
+          <span className="text-base font-bold text-white/90">Plax</span>
         </Link>
 
         {/* Right actions */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5">
           <button
             onClick={() => setCommandOpen(true)}
             aria-label="Search"
-            className="p-3 text-dark-muted hover:text-white transition-colors rounded-full hover:bg-white/5"
+            className="p-2 text-dark-muted hover:text-white transition-colors rounded-full hover:bg-white/5"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </button>
 
-          <Link href="/profile" aria-label="Bookmarks" className="p-3 text-dark-muted hover:text-white transition-colors rounded-full hover:bg-white/5">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <Link href="/profile" aria-label="Bookmarks" className="p-2 text-dark-muted hover:text-white transition-colors rounded-full hover:bg-white/5">
+            <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
             </svg>
           </Link>
@@ -49,17 +49,17 @@ export function NavBar() {
               {user ? (
                 <button
                   onClick={() => setShowMenu(!showMenu)}
-                  className="ml-1 p-1"
+                  className="ml-0.5 p-0.5"
                 >
                   {user.user_metadata?.avatar_url ? (
                     <img
                       src={user.user_metadata.avatar_url}
                       alt="Avatar"
-                      className="w-10 h-10 rounded-full ring-2 ring-violet-500/30 hover:ring-violet-500/60 transition"
+                      className="w-8 h-8 rounded-full ring-2 ring-violet-500/30 hover:ring-violet-500/60 transition"
                     />
                   ) : (
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center hover:shadow-lg hover:shadow-violet-500/20 transition">
-                      <span className="text-base font-bold text-white">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center hover:shadow-lg hover:shadow-violet-500/20 transition">
+                      <span className="text-sm font-bold text-white">
                         {(user.user_metadata?.full_name || user.email || 'U')[0].toUpperCase()}
                       </span>
                     </div>
@@ -68,7 +68,7 @@ export function NavBar() {
               ) : (
                 <button
                   onClick={() => setShowMenu(!showMenu)}
-                  className="px-4 py-2 bg-gradient-to-r from-violet-600 to-cyan-600 rounded-xl text-white text-sm font-semibold hover:shadow-lg hover:shadow-violet-500/20 transition ml-1"
+                  className="px-3.5 py-1.5 bg-gradient-to-r from-violet-600 to-cyan-600 rounded-lg text-white text-sm font-semibold hover:shadow-lg hover:shadow-violet-500/20 transition ml-1"
                 >
                   Sign in
                 </button>

@@ -1,4 +1,4 @@
-import { RawContent, CATEGORY_MAP } from './types'
+import { RawContent, CATEGORY_MAP, TOPIC_SUBREDDITS, TOPIC_WIKI_QUERIES } from './types'
 
 // ─── HTML Cleaning (for HN and Reddit raw content) ───
 
@@ -106,6 +106,84 @@ function categorizeWikipedia(description: string): string {
   if (desc.includes('art') || desc.includes('painter') || desc.includes('artist')) return 'art'
   if (desc.includes('space') || desc.includes('planet') || desc.includes('star')) return 'space'
   return 'science' // default
+}
+
+// ─── Wikipedia topic search (on-topic articles for the user's selected topics) ───
+// Reddit blocks datacenter IPs (Vercel), so niche topics need a reliable on-topic
+// source. Wikipedia's search generator returns real articles matching a query and
+// is never IP-blocked, so this guarantees relevant content for every picked topic.
+export async function fetchWikipediaByTopics(
+  categories: string[],
+  perTopic: number = 5
+): Promise<RawContent[]> {
+  if (!categories.length) return []
+
+  const perCat = await Promise.all(
+    categories.map(async (category) => {
+      const queries = TOPIC_WIKI_QUERIES[category]
+      if (!queries || !queries.length) return [] as RawContent[]
+      // Random seed term + random offset → different articles across refreshes.
+      const term = queries[Math.floor(Math.random() * queries.length)]
+      const offset = Math.floor(Math.random() * 8)
+      const url =
+        'https://en.wikipedia.org/w/api.php?action=query&format=json' +
+        '&generator=search&gsrnamespace=0&gsrsearch=' +
+        encodeURIComponent(term) +
+        `&gsrlimit=${perTopic}&gsroffset=${offset}` +
+        '&prop=extracts|info&exintro=1&explaintext=1&inprop=url&redirects=1&origin=*'
+      try {
+        const r = await fetch(url, {
+          cache: 'no-store',
+          headers: { Accept: 'application/json', 'User-Agent': 'PlaxReader/1.0 (plaxlabs.com)' },
+        })
+        if (!r.ok) return [] as RawContent[]
+        const data = await r.json()
+        const pages = data?.query?.pages
+        if (!pages) return [] as RawContent[]
+        const out: RawContent[] = []
+        for (const key of Object.keys(pages)) {
+          const p = pages[key]
+          const extract: string = (p?.extract || '').trim()
+          // Skip stubs, disambiguation pages, and list articles (poor reading cards).
+          if (!extract || extract.length < 140) continue
+          if (/may refer to:?$/i.test(extract)) continue
+          if (/^List of /i.test(p.title || '')) continue
+          out.push({
+            title: p.title,
+            content: trimToSentence(extract, 700),
+            url: p.fullurl || `https://en.wikipedia.org/?curid=${p.pageid}`,
+            source: 'Wikipedia',
+            category,
+          })
+        }
+        return out
+      } catch {
+        return [] as RawContent[]
+      }
+    })
+  )
+
+  // Flatten + dedupe by title.
+  const seen = new Set<string>()
+  const merged: RawContent[] = []
+  for (const arr of perCat) {
+    for (const item of arr) {
+      const k = item.title.toLowerCase()
+      if (seen.has(k)) continue
+      seen.add(k)
+      merged.push(item)
+    }
+  }
+  return merged
+}
+
+// Trim text to <= max chars, cutting cleanly at the last sentence boundary.
+function trimToSentence(text: string, max: number): string {
+  if (text.length <= max) return text
+  const slice = text.slice(0, max)
+  const lastStop = Math.max(slice.lastIndexOf('. '), slice.lastIndexOf('! '), slice.lastIndexOf('? '))
+  if (lastStop > max * 0.5) return slice.slice(0, lastStop + 1)
+  return slice.trim() + '…'
 }
 
 // ─── Hacker News (random slice from top + new + best stories) ───
@@ -287,21 +365,29 @@ function cleanRedditTitle(title: string): string {
 }
 
 // ─── Aggregate all sources (each one is independently error-safe) ───
-export async function fetchAllContent(): Promise<RawContent[]> {
+export async function fetchAllContent(categories: string[] = []): Promise<RawContent[]> {
+  // Base subreddits (broad coverage) + topic-specific subreddits for the user's
+  // selected categories, so niche picks (health, books, finance…) get real
+  // on-topic content instead of leaning on random Wikipedia/quotes.
+  const baseSubs = [
+    'todayilearned', 'explainlikeimfive', 'Showerthoughts', 'science',
+    'space', 'history', 'philosophy', 'psychology', 'AskScience',
+    'Futurology', 'LifeProTips', 'YouShouldKnow',
+  ]
+  const topicSubs = categories.flatMap((c) => TOPIC_SUBREDDITS[c] || [])
+  const subreddits = [...new Set([...topicSubs, ...baseSubs])].slice(0, 18)
+
   // Use Promise.allSettled so one failing source doesn't kill the rest
   const results = await Promise.allSettled([
     fetchWikipediaContent(12),   // ~12 truly random articles + 5 On This Day
     fetchHackerNews(15),         // ~15 from random slice of top/new/best
     fetchQuotes(10),             // ~10 quotes
-    fetchReddit([                // ~20 from many subreddits
-      'todayilearned', 'explainlikeimfive', 'Showerthoughts', 'science',
-      'space', 'history', 'philosophy', 'psychology', 'AskScience',
-      'Futurology', 'LifeProTips', 'YouShouldKnow',
-    ]),
+    fetchReddit(subreddits),     // topic-aware subreddit set
+    fetchWikipediaByTopics(categories), // on-topic articles for picked topics
   ])
 
   const all: RawContent[] = []
-  const sourceNames = ['Wikipedia', 'HackerNews', 'Quotes', 'Reddit']
+  const sourceNames = ['Wikipedia', 'HackerNews', 'Quotes', 'Reddit', 'WikipediaTopics']
 
   results.forEach((result, i) => {
     if (result.status === 'fulfilled') {

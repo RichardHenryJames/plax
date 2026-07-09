@@ -408,6 +408,19 @@ export function Feed() {
   const prevCard = currentIndex > 0 ? visibleCards[currentIndex - 1] : null
   const nextCard = currentIndex < visibleCards.length - 1 ? visibleCards[currentIndex + 1] : null
 
+  // Single source of read-progress (drives the top segmented bar + card dock),
+  // restarts each time the visible card changes.
+  const [readProgress, setReadProgress] = useState(0)
+  useEffect(() => {
+    setReadProgress(0)
+    if (!currentCard) return
+    const rt = currentCard.readTime || '30s'
+    const readTimeMs = rt.includes('m') ? parseInt(rt) * 60000 : parseInt(rt) * 1000
+    const step = Math.max(60, readTimeMs / 50)
+    const interval = setInterval(() => setReadProgress((p) => Math.min(p + 2, 100)), step)
+    return () => clearInterval(interval)
+  }, [currentCard?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!currentCard) {
     const filterEmpty = feedFilter && cards.length > 0 && visibleCards.length === 0
     // Premium skeleton while first content loads
@@ -497,21 +510,26 @@ export function Feed() {
         </div>
       )}
 
-      {/* Card counter */}
-      <div className="absolute top-16 right-4 z-40 lg:top-4">
-        <div className="flex items-center gap-2 text-dark-subtle text-xs glass px-3 py-1.5 rounded-full">
-          <span className="text-white font-semibold tabular-nums">#{currentIndex + 1}</span>
-          {isFetching && (
-            <motion.span
-              animate={{ rotate: 360 }}
-              transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-              className="text-violet-400 inline-block"
-            >
-              ⟳
-            </motion.span>
-          )}
-        </div>
-      </div>
+      {/* Fetching indicator (subtle, no card numbering) */}
+      <AnimatePresence>
+        {isFetching && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            className="absolute top-16 right-4 z-40 lg:top-4"
+          >
+            <div className="flex items-center gap-2 text-dark-subtle text-xs glass px-3 py-1.5 rounded-full">
+              <motion.span
+                animate={{ rotate: 360 }}
+                transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                className="w-3.5 h-3.5 border-[1.5px] border-violet-400 border-t-transparent rounded-full inline-block"
+              />
+              <span>Loading</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Main swipe area */}
       <AnimatePresence initial={false} custom={direction} mode="popLayout">
@@ -538,27 +556,30 @@ export function Feed() {
       {/* Fixed action dock (Inshorts-style) — stays put while cards flip */}
       <CardActions card={currentCard} />
 
-      {/* Side progress dots */}
-      <div className="absolute right-3 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-1.5">
-        {visibleCards.slice(
-          Math.max(0, currentIndex - 4),
-          Math.min(visibleCards.length, currentIndex + 5)
-        ).map((card, i) => {
-          const actualIndex = Math.max(0, currentIndex - 4) + i
-          const active = actualIndex === currentIndex
-          return (
-            <motion.div
-              key={card.id}
-              animate={{
-                height: active ? 22 : 6,
-                opacity: active ? 1 : 0.25,
-              }}
-              className={`w-1 rounded-full ${active ? 'bg-gradient-to-b from-violet-400 to-cyan-400' : 'bg-white'}`}
-              transition={{ duration: 0.2 }}
-            />
-          )
-        })}
-      </div>
+      {/* Segmented stories progress (Instagram/Inshorts-style) — a window of
+          segments; past filled, current fills by read progress, future dim. */}
+      {(() => {
+        const WINDOW = 7
+        const start = Math.max(0, Math.min(currentIndex - Math.floor(WINDOW / 2), Math.max(0, visibleCards.length - WINDOW)))
+        const segs = visibleCards.slice(start, start + WINDOW)
+        return (
+          <div className="absolute left-1/2 -translate-x-1/2 z-40 top-14 lg:top-6 w-[min(70%,26rem)] flex items-center gap-1">
+            {segs.map((card, i) => {
+              const idx = start + i
+              const isPast = idx < currentIndex
+              const isCurrent = idx === currentIndex
+              return (
+                <div key={card.id} className="h-[3px] flex-1 rounded-full bg-white/15 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-violet-400 to-cyan-400 transition-[width] duration-200 ease-out"
+                    style={{ width: isPast ? '100%' : isCurrent ? `${readProgress}%` : '0%' }}
+                  />
+                </div>
+              )
+            })}
+          </div>
+        )
+      })()}
 
       {/* Loading indicator when fetching more at the end */}
       {isFetching && currentIndex >= visibleCards.length - 2 && (

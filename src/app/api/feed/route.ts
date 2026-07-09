@@ -44,8 +44,9 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Fetch from all sources in parallel (always fresh on refresh)
-    const rawContents = await fetchAllContent()
+    // Fetch from all sources in parallel (always fresh on refresh).
+    // Pass the user's categories so Reddit pulls topic-relevant subreddits.
+    const rawContents = await fetchAllContent(categories)
     console.log(`[Plax API] Fetched ${rawContents.length} raw items`)
 
     if (rawContents.length === 0) {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CardData } from '@/lib/sample-data'
 import { usePlaxStore } from '@/lib/store'
@@ -8,17 +8,17 @@ import { useAuth } from '@/components/AuthProvider'
 import { addBookmarkToCloud, removeBookmarkFromCloud } from '@/lib/cloud-sync'
 
 /**
- * CardActions — the Copy / Share / Save dock + reading-progress bar.
+ * CardActions — the Copy / Share / Save dock.
  * Rendered by the Feed as FIXED chrome (a sibling of the animating card), so it
- * stays put while cards flip — the Inshorts-style fixed-bottom pattern. It reads
- * the currently-visible card via props (not animated).
+ * stays put while cards flip — the Inshorts-style fixed-bottom pattern. Reads the
+ * currently-visible card via props (not animated). Read progress is owned by the
+ * Feed and shown in the top segmented bar.
  */
 export function CardActions({ card }: { card: CardData | null }) {
   const { bookmarkedIds, toggleBookmark } = usePlaxStore()
   const { user } = useAuth()
   const [showBookmarkFeedback, setShowBookmarkFeedback] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
-  const [readProgress, setReadProgress] = useState(0)
 
   const isBookmarked = card ? bookmarkedIds.includes(card.id) : false
 
@@ -26,17 +26,6 @@ export function CardActions({ card }: { card: CardData | null }) {
     setToast(msg)
     setTimeout(() => setToast(null), 1600)
   }
-
-  // Reading progress — restarts each time the visible card changes.
-  useEffect(() => {
-    if (!card) return
-    setReadProgress(0)
-    const readTimeMs = parseReadTime(card.readTime)
-    const interval = setInterval(() => {
-      setReadProgress((prev) => Math.min(prev + 2, 100))
-    }, readTimeMs / 50)
-    return () => clearInterval(interval)
-  }, [card?.id, card?.readTime]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!card) return null
 
@@ -53,14 +42,6 @@ export function CardActions({ card }: { card: CardData | null }) {
 
   return (
     <div className="absolute inset-x-0 bottom-0 z-40 pointer-events-none">
-      {/* Reading progress (mobile stories-style scrubber) */}
-      <div className="lg:hidden absolute bottom-0 inset-x-0 h-[3px] bg-white/[0.06]">
-        <div
-          className="h-full bg-gradient-to-r from-violet-500 to-cyan-400 transition-[width] duration-300 ease-out"
-          style={{ width: `${readProgress}%` }}
-        />
-      </div>
-
       {/* Bottom scrim (mobile only — desktop dock floats over the panel) */}
       <div className="lg:hidden absolute inset-x-0 bottom-0 h-32 gradient-bottom" />
 
@@ -172,9 +153,4 @@ function ActionButton({ icon, label, onClick }: { icon: React.ReactNode; label: 
       {icon}
     </button>
   )
-}
-
-function parseReadTime(readTime: string): number {
-  if (readTime.includes('m')) return parseInt(readTime) * 60000
-  return parseInt(readTime) * 1000
 }
