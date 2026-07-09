@@ -517,7 +517,7 @@ export function Feed() {
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
-            className="absolute top-16 right-4 z-40 lg:top-4"
+            className="absolute top-[calc(4.5rem+env(safe-area-inset-top))] right-4 z-40 lg:top-4"
           >
             <div className="flex items-center gap-2 text-dark-subtle text-xs glass px-3 py-1.5 rounded-full">
               <motion.span
@@ -563,7 +563,7 @@ export function Feed() {
         const start = Math.max(0, Math.min(currentIndex - Math.floor(WINDOW / 2), Math.max(0, visibleCards.length - WINDOW)))
         const segs = visibleCards.slice(start, start + WINDOW)
         return (
-          <div className="absolute left-1/2 -translate-x-1/2 z-40 top-14 lg:top-6 w-[min(70%,26rem)] flex items-center gap-1">
+          <div className="absolute left-1/2 -translate-x-1/2 z-40 top-[calc(3.75rem+env(safe-area-inset-top))] lg:top-6 w-[min(70%,26rem)] flex items-center gap-1">
             {segs.map((card, i) => {
               const idx = start + i
               const isPast = idx < currentIndex
