@@ -32,6 +32,10 @@ export default function ProfilePage() {
   const [tab, setTab] = useState<'stats' | 'bookmarks' | 'settings'>('stats')
   const [loading, setLoading] = useState(true)
   const selectedTopics = usePlaxStore((s) => s.selectedTopics)
+  const localCardsRead = usePlaxStore((s) => s.cardsRead)
+  const localBookmarks = usePlaxStore((s) => s.bookmarkedIds)
+  const localEngagements = usePlaxStore((s) => s.engagements)
+  const getTopCategories = usePlaxStore((s) => s.getTopCategories)
 
   useEffect(() => {
     if (!user) {
@@ -73,28 +77,6 @@ export default function ProfilePage() {
     )
   }
 
-  if (!user) {
-    return (
-      <main className="min-h-screen bg-dark-bg flex items-center justify-center p-6">
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center max-w-sm"
-        >
-          <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl">👤</div>
-          <h1 className="text-xl font-bold text-white mb-2 font-display">Sign in to see your profile</h1>
-          <p className="text-dark-muted text-sm mb-6">Track your streak, save bookmarks across devices, and see your top interests.</p>
-          <Link
-            href="/"
-            className="btn-primary focus-ring inline-flex px-6 py-3 text-sm"
-          >
-            Back to feed
-          </Link>
-        </motion.div>
-      </main>
-    )
-  }
-
   const EMOJI_MAP: Record<string, string> = {
     science: '🔬', technology: '💻', philosophy: '🤔', psychology: '🧠',
     history: '📜', finance: '💰', space: '🚀', programming: '⚡',
@@ -102,47 +84,134 @@ export default function ProfilePage() {
     art: '🎨', physics: '⚛️', business: '📈', language: '🗣️',
   }
 
+  if (!user) {
+    // Signed-out: show the user's LOCAL reading activity (from the on-device store)
+    // with a prompt to sign in and sync across devices.
+    const localMinutes = Math.round(localEngagements.reduce((sum, e) => sum + (e.timeSpent || 0), 0) / 60000)
+    const localTop = getTopCategories().slice(0, 5)
+    return (
+      <main className="min-h-screen bg-dark-bg text-dark-text">
+        <div className="max-w-3xl mx-auto">
+          {/* Cover banner */}
+          <div className="relative h-36 sm:h-44 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-violet-600/40 via-indigo-600/25 to-cyan-500/30" />
+            <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_20%_0%,rgba(139,92,246,0.35),transparent_60%)]" />
+            <div className="absolute inset-0 bg-gradient-to-t from-dark-bg via-dark-bg/40 to-transparent" />
+            <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-5 pt-5">
+              <Link href="/" className="focus-ring flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg glass text-white/90 hover:text-white transition text-sm">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Feed
+              </Link>
+            </div>
+          </div>
+
+          {/* Header — guest avatar */}
+          <div className="px-5 -mt-12 relative z-10">
+            <div className="flex items-end gap-4 mb-6">
+              <div className="relative shrink-0">
+                <div className="absolute -inset-1 bg-gradient-to-br from-violet-500 to-cyan-500 rounded-full blur-md opacity-40" />
+                <div className="relative w-[88px] h-[88px] rounded-full bg-gradient-to-br from-dark-card to-dark-card-hover border border-white/10 flex items-center justify-center ring-4 ring-dark-bg text-4xl">
+                  👋
+                </div>
+              </div>
+              <div className="min-w-0 pb-1">
+                <h2 className="text-2xl font-bold font-display">Your reading</h2>
+                <p className="text-dark-muted text-sm">Saved on this device</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Local stats */}
+          <div className="px-5 mb-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <StatCard emoji="📖" label="Cards Read" value={localCardsRead.toString()} tint="from-violet-500/20 to-violet-500/5" />
+            <StatCard emoji="🔖" label="Bookmarks" value={localBookmarks.length.toString()} tint="from-emerald-500/20 to-emerald-500/5" />
+            <StatCard emoji="⏱️" label="Minutes" value={localMinutes.toString()} tint="from-cyan-500/20 to-cyan-500/5" />
+            <StatCard emoji="✨" label="Interests" value={localTop.length.toString()} tint="from-fuchsia-500/20 to-fuchsia-500/5" />
+          </div>
+
+          {/* Sync prompt */}
+          <div className="mx-5 mb-6 relative overflow-hidden rounded-2xl border border-violet-500/25 p-5">
+            <div className="absolute inset-0 bg-gradient-to-br from-violet-600/15 to-cyan-500/10" />
+            <div className="relative flex items-start gap-4">
+              <div className="w-11 h-11 shrink-0 rounded-xl bg-white/8 border border-white/10 flex items-center justify-center text-xl">☁️</div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-white">Sync across your devices</h3>
+                <p className="text-dark-muted text-sm mt-0.5 mb-3">Sign in to back up your bookmarks, keep your streak, and read anywhere.</p>
+                <Link href="/" className="btn-primary focus-ring inline-flex px-4 py-2 text-sm">
+                  Sign in to sync
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Local top interests */}
+          {localTop.length > 0 && (
+            <div className="px-5 pb-12">
+              <h3 className="text-sm font-semibold text-dark-muted uppercase tracking-wider mb-3">Top Interests</h3>
+              <div className="space-y-2">
+                {localTop.map((cat, i) => (
+                  <div key={cat} className="flex items-center gap-3 p-3.5 card-elevated">
+                    <span className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-lg shrink-0">{EMOJI_MAP[cat] || '📄'}</span>
+                    <span className="font-medium capitalize flex-1">{cat}</span>
+                    <span className="text-dark-subtle text-xs font-semibold tabular-nums">#{i + 1}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+    )
+  }
+
   return (
     <main className="min-h-screen bg-dark-bg text-dark-text">
       <div className="max-w-3xl mx-auto">
-        {/* Header */}
-        <div className="pt-6 px-5">
-          <div className="flex items-center justify-between mb-8">
-            <Link href="/" className="focus-ring flex items-center gap-1.5 -ml-1 px-2.5 py-1.5 rounded-lg text-dark-muted hover:text-white hover:bg-white/5 transition text-sm">
+        {/* Cover banner */}
+        <div className="relative h-36 sm:h-44 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-violet-600/40 via-indigo-600/25 to-cyan-500/30" />
+          <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_20%_0%,rgba(139,92,246,0.35),transparent_60%)]" />
+          <div className="absolute inset-0 bg-gradient-to-t from-dark-bg via-dark-bg/40 to-transparent" />
+          {/* Back button over banner */}
+          <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-5 pt-5">
+            <Link href="/" className="focus-ring flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg glass text-white/90 hover:text-white transition text-sm">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
               Feed
             </Link>
-            <h1 className="text-base font-semibold">Profile</h1>
-            <div className="w-14" />
           </div>
+        </div>
 
-          {/* Avatar + Name */}
-          <div className="flex items-center gap-4 mb-8">
+        {/* Header — avatar overlaps banner */}
+        <div className="px-5 -mt-12 relative z-10">
+          <div className="flex items-end gap-4 mb-6">
             <div className="relative shrink-0">
-              <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-cyan-500 rounded-full blur-lg opacity-30" />
+              <div className="absolute -inset-1 bg-gradient-to-br from-violet-500 to-cyan-500 rounded-full blur-md opacity-40" />
               {user.user_metadata?.avatar_url ? (
                 <img
                   src={user.user_metadata.avatar_url}
                   alt="Avatar"
-                  className="relative w-[70px] h-[70px] rounded-full ring-2 ring-white/10"
+                  className="relative w-[88px] h-[88px] rounded-full ring-4 ring-dark-bg"
                 />
               ) : (
-                <div className="relative w-[70px] h-[70px] rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center">
-                  <span className="text-2xl font-bold text-white">
+                <div className="relative w-[88px] h-[88px] rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center ring-4 ring-dark-bg">
+                  <span className="text-3xl font-bold text-white">
                     {(user.user_metadata?.full_name || user.email || 'U')[0].toUpperCase()}
                   </span>
                 </div>
               )}
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 pb-1">
               <h2 className="text-2xl font-bold font-display truncate">
                 {user.user_metadata?.full_name || user.email?.split('@')[0]}
               </h2>
               <p className="text-dark-muted text-sm truncate">{user.email}</p>
               {stats && (
-                <p className="text-dark-subtle text-xs mt-1">
+                <p className="text-dark-subtle text-xs mt-1 inline-flex items-center gap-1.5">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                   Member since {new Date(stats.memberSince).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                 </p>
               )}
@@ -153,10 +222,10 @@ export default function ProfilePage() {
         {/* Stats Cards */}
         {stats && (
           <div className="px-5 mb-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <StatCard emoji="📖" label="Cards Read" value={stats.cardsRead.toString()} />
-            <StatCard emoji="🔥" label="Day Streak" value={stats.readingStreak.toString()} />
-            <StatCard emoji="⏱️" label="Minutes" value={stats.totalMinutes.toString()} />
-            <StatCard emoji="🔖" label="Bookmarks" value={stats.bookmarkCount.toString()} />
+            <StatCard emoji="📖" label="Cards Read" value={stats.cardsRead.toString()} tint="from-violet-500/20 to-violet-500/5" />
+            <StatCard emoji="🔥" label="Day Streak" value={stats.readingStreak.toString()} tint="from-orange-500/20 to-orange-500/5" />
+            <StatCard emoji="⏱️" label="Minutes" value={stats.totalMinutes.toString()} tint="from-cyan-500/20 to-cyan-500/5" />
+            <StatCard emoji="🔖" label="Bookmarks" value={stats.bookmarkCount.toString()} tint="from-emerald-500/20 to-emerald-500/5" />
           </div>
         )}
 
@@ -312,12 +381,15 @@ export default function ProfilePage() {
   )
 }
 
-function StatCard({ emoji, label, value }: { emoji: string; label: string; value: string }) {
+function StatCard({ emoji, label, value, tint }: { emoji: string; label: string; value: string; tint: string }) {
   return (
-    <div className="card-elevated p-4">
-      <span className="text-2xl">{emoji}</span>
-      <p className="text-2xl font-bold mt-2">{value}</p>
-      <p className="text-xs text-dark-muted mt-0.5">{label}</p>
+    <div className="card-elevated relative p-4 overflow-hidden group">
+      <div className={`absolute inset-0 bg-gradient-to-br ${tint} opacity-70 group-hover:opacity-100 transition-opacity`} />
+      <div className="relative">
+        <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-white/8 border border-white/10 text-lg">{emoji}</span>
+        <p className="text-[26px] font-bold mt-3 tabular-nums leading-none font-display">{value}</p>
+        <p className="text-xs text-dark-muted mt-1.5">{label}</p>
+      </div>
     </div>
   )
 }
