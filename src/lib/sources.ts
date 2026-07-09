@@ -136,9 +136,26 @@ function isLowQualityWikipedia(description: string, title: string, extract: stri
 
   // Biography openers in the extract (catches people whose Wikidata description is
   // empty): "Name (born 1987)…", "(1901–1980)…", or "… was an American politician".
-  const head = extract.slice(0, 160)
+  const head = extract.slice(0, 180)
   if (/\(born \d|\(\d{3,4}\s*[–-]\s*\d{3,4}\)|\bb\.\s*\d{4}\b/i.test(head)) return true
   if (/\b(is|was) (a|an|the) [a-z-]+ (politician|footballer|player|actor|actress|singer|musician|writer|author|poet|painter|general|officer|bishop|saint|monarch|king|queen|emperor|businessman|businesswoman|lawyer|physician)\b/i.test(head))
+    return true
+
+  // Place/geography openers in the extract (catches stubs whose Wikidata
+  // description is empty — e.g. "Samowicze is a village in eastern Poland").
+  if (/\b(is|was) (a|an) [a-z\s,'-]*?\b(village|hamlet|town|city|municipality|commune|comune|locality|settlement|county|district|province|region|neighbou?rhood|suburb|civil parish|rural locality|census-designated place|unincorporated community)\b/i.test(head))
+    return true
+  if (/\b(is|was) (a|an) [a-z\s,'-]*?\b(river|creek|stream|mountain|peak|hill|lake|reservoir|island|islet|bay|glacier|railway station|airport|airfield)\b/i.test(head))
+    return true
+
+  // Media / creative-work openers in the extract (catches albums, songs, films,
+  // shows, games with empty Wikidata descriptions — e.g. "X is the ninth studio
+  // album by…", "Y is a 2019 film…", "Z is a video game developed by…").
+  if (/\b(is|was) (a|an|the) [a-z0-9\s,'-]*?\b(studio album|live album|compilation album|album|extended play|ep|song|single|soundtrack|mixtape)\b\s+(by|from|released|recorded)/i.test(head))
+    return true
+  if (/\b(is|was) (a|an|the) \d{4}\s+[a-z\s-]*?\b(film|movie|television film|documentary|short film)\b/i.test(head))
+    return true
+  if (/\b(is|was) (a|an|the) [a-z\s-]*?\b(television series|tv series|television sitcom|sitcom|miniseries|web series|anime television|drama series|reality (television|show)|video game|role-playing game|first-person shooter|comic book|manga|graphic novel)\b/i.test(head))
     return true
 
   // Geographic / administrative stubs ("village in India", "commune in France"…)
