@@ -73,6 +73,21 @@ body {
   display: none;
 }
 
+/* ── Screen-reader-only (accessible + crawlable, visually hidden).
+   Uses clipping rather than display:none so the content stays in the
+   accessibility tree and is followed by search crawlers. ── */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* ── Refined thin scrollbar (desktop rails) ── */
 .thin-scrollbar {
   scrollbar-width: thin;

@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { AuthProviderWrapper } from '@/components/AuthProviderWrapper'
-import { SITE, SITE_URL } from '@/lib/seo'
+import { SITE, SITE_URL, TOPIC_SEO } from '@/lib/seo'
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -106,6 +106,16 @@ export default function RootLayout({
         />
       </head>
       <body className="bg-dark-bg text-dark-text antialiased">
+        {/* Server-rendered, screen-reader-only site nav. Present in the raw HTML
+            (no JS needed) so crawlers reliably discover the topic hub + every
+            topic page directly from the homepage, independent of client render. */}
+        <nav aria-label="Browse topics" className="sr-only">
+          <a href="/">Home</a>
+          <a href="/topics">Explore all topics</a>
+          {TOPIC_SEO.map((t) => (
+            <a key={t.id} href={`/topics/${t.id}`}>{t.label}</a>
+          ))}
+        </nav>
         <AuthProviderWrapper>{children}</AuthProviderWrapper>
       </body>
     </html>
