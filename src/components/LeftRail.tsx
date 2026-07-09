@@ -35,7 +35,7 @@ export function LeftRail() {
       </div>
 
       {/* Search / command palette trigger */}
-      <div className="px-3 mb-2">
+      <div className="px-2 mb-3">
         <button
           onClick={() => setCommandOpen(true)}
           className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-dark-bg/60 border border-dark-border text-dark-muted hover:text-white hover:border-dark-subtle transition-colors text-sm"
@@ -49,7 +49,7 @@ export function LeftRail() {
       </div>
 
       {/* Primary nav */}
-      <nav className="px-3 space-y-0.5">
+      <nav className="px-2 space-y-0.5">
         <NavItem
           href="/"
           active={feedFilter === null}
@@ -73,8 +73,8 @@ export function LeftRail() {
       </nav>
 
       {/* Topic filters */}
-      <div className="mt-6 px-3 flex-1 min-h-0 flex flex-col">
-        <div className="flex items-center justify-between px-2 mb-2">
+      <div className="mt-6 px-2 flex-1 min-h-0 flex flex-col">
+        <div className="flex items-center justify-between px-3 mb-2.5">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-dark-subtle">Your Topics</span>
           {feedFilter && (
             <button
@@ -113,9 +113,9 @@ export function LeftRail() {
       </div>
 
       {/* Auth */}
-      <div className="p-3 border-t border-dark-border">
+      <div className="px-2 py-4 border-t border-dark-border">
         {user ? (
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 px-1">
             {user.user_metadata?.avatar_url ? (
               <img src={user.user_metadata.avatar_url} alt="" className="w-9 h-9 rounded-full ring-2 ring-violet-500/30" />
             ) : (

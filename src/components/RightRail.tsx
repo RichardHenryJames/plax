@@ -43,7 +43,7 @@ export function RightRail() {
   return (
     <aside className="hidden xl:flex flex-col w-80 shrink-0 h-full border-l border-dark-border bg-dark-card/30 backdrop-blur-xl overflow-y-auto thin-scrollbar">
       {/* Now reading */}
-      <div className="p-4">
+      <div className="px-5 pt-6 pb-4">
         <span className="text-[11px] font-semibold uppercase tracking-wider text-dark-subtle">Now Reading</span>
         {currentCard ? (
           <motion.div
@@ -94,9 +94,9 @@ export function RightRail() {
       </div>
 
       {/* Stats */}
-      <div className="px-4 pb-2">
+      <div className="px-5 pb-2">
         <span className="text-[11px] font-semibold uppercase tracking-wider text-dark-subtle">Your Activity</span>
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="mt-3 grid grid-cols-2 gap-2.5">
           <Stat label="Cards read" value={cardsRead} accent="🔥" />
           <Stat label="Bookmarks" value={bookmarkedIds.length} accent="🔖" />
           <Stat label="Minutes" value={minutes} accent="⏱️" />
@@ -106,7 +106,7 @@ export function RightRail() {
 
       {/* Top interests */}
       {topCategories.length > 0 && (
-        <div className="px-4 py-4">
+        <div className="px-5 py-5">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-dark-subtle">Top Interests</span>
           <div className="mt-3 flex flex-wrap gap-1.5">
             {topCategories.map((cat) => {
@@ -122,9 +122,9 @@ export function RightRail() {
       )}
 
       {/* Keyboard shortcuts */}
-      <div className="mt-auto p-4 border-t border-dark-border">
+      <div className="mt-auto px-5 py-5 border-t border-dark-border">
         <span className="text-[11px] font-semibold uppercase tracking-wider text-dark-subtle">Shortcuts</span>
-        <div className="mt-3 space-y-1.5">
+        <div className="mt-3 space-y-2">
           <Shortcut keys={['↓', 'Space', 'J']} label="Next card" />
           <Shortcut keys={['↑', 'K']} label="Previous card" />
           <Shortcut keys={['⌘', 'K']} label="Search & jump" />

@@ -29,11 +29,13 @@
   --foreground: #fafafa;
 }
 
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
-}
+/*
+ * NOTE: do NOT add an unlayered star reset that zeroes padding/margin here.
+ * Tailwind v4 ships its utilities inside cascade layers, and unlayered rules
+ * win over layered ones, so an unlayered reset silently zeroes out every
+ * spacing utility (px, py, m) app-wide. Tailwind preflight already resets
+ * margin, padding and box-sizing within its base layer, so nothing is needed.
+ */
 
 html {
   scroll-behavior: smooth;
