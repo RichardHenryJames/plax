@@ -70,14 +70,16 @@ export function Card({ card, isActive }: CardProps) {
       {/* Top category accent line */}
       <div className={`absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r ${gradientClass} opacity-70 z-10`} />
 
-      {/* Main content area — margin:auto centers short cards, but lets long
-          articles scroll from the top without clipping the title (justify-center
-          would clip the top in a scroll container). Padding clears the navbar
-          (top) and the floating action pill (bottom). */}
-      <div data-card-scroll className="flex-1 flex flex-col px-6 sm:px-10 lg:px-14 pt-20 pb-28 lg:pt-16 lg:pb-24 relative z-10 overflow-y-auto hide-scrollbar overscroll-contain">
-        <div className="max-w-xl lg:max-w-2xl mx-auto w-full my-auto">
-          {/* Category + metadata */}
-          <motion.div
+      {/* Main content area — plain-block scroll container + an inner `min-h-full`
+          flex wrapper. Short cards center vertically; long cards top-align and
+          ALWAYS scroll from the top so the title is never clipped (a flex scroll
+          container with margin:auto/justify-center clips the overflowing top in
+          Chrome). Padding clears the navbar (top) + floating action pill (bottom). */}
+      <div data-card-scroll className="flex-1 relative z-10 overflow-y-auto hide-scrollbar overscroll-contain">
+        <div className="min-h-full flex flex-col justify-center px-6 sm:px-10 lg:px-14 pt-20 pb-28 lg:pt-16 lg:pb-24">
+          <div className="max-w-xl lg:max-w-2xl mx-auto w-full">
+            {/* Category + metadata */}
+            <motion.div
             initial={{ opacity: 0, y: 6 }}
             animate={isActive ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.2 }}
@@ -224,6 +226,7 @@ export function Card({ card, isActive }: CardProps) {
               </div>
             </motion.div>
           )}
+          </div>
         </div>
       </div>
 
