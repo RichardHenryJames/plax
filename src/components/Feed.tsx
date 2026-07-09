@@ -556,23 +556,24 @@ export function Feed() {
       {/* Fixed action dock (Inshorts-style) — stays put while cards flip */}
       <CardActions card={currentCard} />
 
-      {/* Segmented stories progress (Instagram/Inshorts-style) — a window of
-          segments; past filled, current fills by read progress, future dim. */}
+      {/* Segmented reading-progress bar (Instagram/Inshorts-style). A FIXED set
+          of segments whose combined fill tracks the current card's read progress,
+          so the fill sweeps smoothly left→right across the whole bar for EVERY
+          card and resets on each new card. (A windowed one-segment-per-card bar
+          pins the active segment in place on an unbounded/infinite-scroll feed,
+          which looked stuck — this avoids that entirely.) */}
       {(() => {
-        const WINDOW = 7
-        const start = Math.max(0, Math.min(currentIndex - Math.floor(WINDOW / 2), Math.max(0, visibleCards.length - WINDOW)))
-        const segs = visibleCards.slice(start, start + WINDOW)
+        const SEG = 7
+        const per = 100 / SEG
         return (
           <div className="absolute left-1/2 -translate-x-1/2 z-40 top-[calc(4.5rem+env(safe-area-inset-top))] lg:top-6 w-[min(70%,26rem)] flex items-center gap-1">
-            {segs.map((card, i) => {
-              const idx = start + i
-              const isPast = idx < currentIndex
-              const isCurrent = idx === currentIndex
+            {Array.from({ length: SEG }).map((_, k) => {
+              const fill = Math.max(0, Math.min(100, ((readProgress - k * per) / per) * 100))
               return (
-                <div key={card.id} className="h-[3px] flex-1 rounded-full bg-white/15 overflow-hidden">
+                <div key={k} className="h-[3px] flex-1 rounded-full bg-white/15 overflow-hidden">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-violet-400 to-cyan-400 transition-[width] duration-200 ease-out"
-                    style={{ width: isPast ? '100%' : isCurrent ? `${readProgress}%` : '0%' }}
+                    style={{ width: `${fill}%` }}
                   />
                 </div>
               )
