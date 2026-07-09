@@ -62,14 +62,16 @@ export function Card({ card, isActive }: CardProps) {
   const gradientClass = topicMeta?.color || 'from-gray-500 to-gray-600'
 
   return (
-    <div className="h-full w-full flex flex-col relative overflow-hidden select-none">
+    <div className="relative flex flex-col overflow-hidden select-none h-full w-full lg:h-[86vh] lg:max-h-[880px] lg:max-w-3xl lg:mx-auto lg:rounded-[28px] lg:border lg:border-white/[0.08] lg:bg-[#0f0f15] lg:shadow-2xl lg:shadow-black/60">
+      {/* Desktop panel sheen */}
+      <div className="hidden lg:block absolute inset-0 rounded-[28px] pointer-events-none bg-[radial-gradient(130%_85%_at_50%_0%,rgba(139,92,246,0.08),transparent_55%)]" />
       {/* Background glow */}
       <div className={`absolute inset-0 bg-gradient-to-b ${gradientClass} opacity-[0.05]`} />
       {/* Top category accent line */}
       <div className={`absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r ${gradientClass} opacity-70 z-10`} />
 
       {/* Main content area */}
-      <div className="flex-1 flex flex-col justify-center px-6 sm:px-10 lg:px-12 py-24 relative z-10 overflow-y-auto hide-scrollbar">
+      <div className="flex-1 flex flex-col justify-center px-6 sm:px-10 lg:px-14 py-24 lg:py-16 relative z-10 overflow-y-auto hide-scrollbar">
         <div className="max-w-xl lg:max-w-2xl mx-auto w-full">
           {/* Category + metadata */}
           <motion.div
@@ -164,13 +166,32 @@ export function Card({ card, isActive }: CardProps) {
             )}
           </motion.div>
 
+          {/* Read full story CTA */}
+          {card.sourceUrl && card.type !== 'quote' && (
+            <motion.a
+              href={card.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0, y: 8 }}
+              animate={isActive ? { opacity: 1, y: 0 } : {}}
+              transition={{ delay: 0.28 }}
+              className="btn-secondary focus-ring group mt-7 inline-flex items-center gap-2 px-4 py-2.5 text-sm"
+            >
+              Read full story
+              <svg className="w-4 h-4 text-dark-muted group-hover:text-violet-300 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </motion.a>
+          )}
+
           {/* Author / Source credibility */}
           {(card.author || card.source) && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={isActive ? { opacity: 1 } : {}}
               transition={{ delay: 0.35 }}
-              className="mt-7 pt-4 border-t border-dark-border/50 flex items-center gap-2.5"
+              className="mt-5 pt-4 border-t border-dark-border/50 flex items-center gap-2.5"
             >
               <div className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-xs shrink-0">
                 {card.emoji || '📄'}
