@@ -31,31 +31,41 @@ function stripHtml(html: string): string {
 export async function fetchWikipediaContent(count: number = 12): Promise<RawContent[]> {
   const results: RawContent[] = []
 
-  // Fetch many random articles in parallel (each call = genuinely different article)
-  const articlePromises = Array.from({ length: count }, () =>
-    fetch('https://en.wikipedia.org/api/rest_v1/page/random/summary', { cache: 'no-store' })
-      .then(async (r) => {
-        if (!r.ok) return null
-        const data = await r.json()
-        const description: string = data.description || ''
-        // Quality gate: random Wikipedia is our serendipity ("TIL") source, so skip
-        // the boring stubs — individual people, tiny places, admin/sport/event
-        // entries — which make dull, off-topic cards. Keep concepts & phenomena.
-        if (data.extract && data.extract.length > 100 && !isLowQualityWikipedia(description, data.title, data.extract)) {
-          return {
-            title: data.title,
-            content: data.extract,
-            url: data.content_urls?.desktop?.page,
-            source: 'Wikipedia',
-            category: categorizeWikipedia(description || data.title),
-          } as RawContent
-        }
-        return null
-      })
-      .catch(() => null)
-  )
-  const articles = await Promise.all(articlePromises)
-  articles.forEach((a) => { if (a) results.push(a) })
+  // ONE request for `count` random articles via generator=random — far fewer HTTP
+  // calls than N parallel /random/summary fetches. Those bursts get rate-limited
+  // (429) from shared serverless IPs (Vercel) → an EMPTY Wikipedia feed. A single
+  // batched call is reliable. (extracts API caps at 20 intros per query.)
+  try {
+    const grnlimit = Math.min(Math.max(count, 1), 20)
+    const url =
+      'https://en.wikipedia.org/w/api.php?action=query&format=json' +
+      `&generator=random&grnnamespace=0&grnlimit=${grnlimit}` +
+      '&prop=extracts|info|description&exintro=1&explaintext=1&inprop=url&origin=*'
+    const r = await fetch(url, {
+      cache: 'no-store',
+      headers: { Accept: 'application/json', 'User-Agent': 'PlaxReader/1.0 (plaxlabs.com)' },
+    })
+    if (r.ok) {
+      const data = await r.json()
+      const pages = data?.query?.pages || {}
+      for (const key of Object.keys(pages)) {
+        const p = pages[key]
+        const extract: string = (p?.extract || '').trim()
+        // Skip stubs + the boring biography/place/species/media/product entries.
+        if (!extract || extract.length < 120) continue
+        if (isLowQualityWikipedia(p.description || '', p.title || '', extract)) continue
+        results.push({
+          title: p.title,
+          content: trimToSentence(extract, 700),
+          url: p.fullurl || `https://en.wikipedia.org/?curid=${p.pageid}`,
+          source: 'Wikipedia',
+          category: categorizeWikipedia(p.description || p.title),
+        })
+      }
+    }
+  } catch (error) {
+    console.error('Wikipedia random error:', error)
+  }
 
   // Fetch "On this day" facts
   try {
@@ -124,6 +134,13 @@ function isLowQualityWikipedia(description: string, title: string, extract: stri
     return true
   if (/\bborn \d{3,4}\b/.test(d) || /\(\d{4}[-–]/.test(title)) return true
 
+  // Biography openers in the extract (catches people whose Wikidata description is
+  // empty): "Name (born 1987)…", "(1901–1980)…", or "… was an American politician".
+  const head = extract.slice(0, 160)
+  if (/\(born \d|\(\d{3,4}\s*[–-]\s*\d{3,4}\)|\bb\.\s*\d{4}\b/i.test(head)) return true
+  if (/\b(is|was) (a|an|the) [a-z-]+ (politician|footballer|player|actor|actress|singer|musician|writer|author|poet|painter|general|officer|bishop|saint|monarch|king|queen|emperor|businessman|businesswoman|lawyer|physician)\b/i.test(head))
+    return true
+
   // Geographic / administrative stubs ("village in India", "commune in France"…)
   if (/\b(village|hamlet|town|city|municipality|commune|comune|locality|settlement|county|district|province|prefecture|region|department|census-designated|unincorporated|neighborhood|suburb|civil parish|ward)\b.*\b(in|of)\b/.test(d))
     return true
@@ -159,15 +176,22 @@ export async function fetchWikipediaByTopics(
 ): Promise<RawContent[]> {
   if (!categories.length) return []
 
+  // Keep the total Wikipedia search requests small (≤6) so we never trigger rate
+  // limits from shared serverless IPs. Few topics → 2 seed terms each (variety);
+  // many topics → 1 term each, capped at 6 topics.
+  const MAX_REQUESTS = 6
+  const cats = categories.slice(0, MAX_REQUESTS)
+  const useTwoTerms = cats.length * 2 <= MAX_REQUESTS
+
   const perCat = await Promise.all(
-    categories.map(async (category) => {
+    cats.map(async (category) => {
       const queries = TOPIC_WIKI_QUERIES[category]
       if (!queries || !queries.length) return [] as RawContent[]
-      // Pick up to 2 DISTINCT random seed terms so we don't get 5 near-identical
-      // articles from one term (e.g. five "Public Health Service" variants). Two
-      // angles (e.g. "human nutrition" + "mental health") = varied, on-topic cards.
+      // Pick DISTINCT random seed terms so we don't get near-identical articles
+      // from one term (e.g. five "Public Health Service" variants).
       const shuffled = [...queries].sort(() => Math.random() - 0.5)
-      const terms = shuffled.slice(0, Math.min(2, shuffled.length))
+      const nTerms = useTwoTerms ? Math.min(2, shuffled.length) : 1
+      const terms = shuffled.slice(0, nTerms)
       const perTerm = Math.max(2, Math.ceil(perTopic / terms.length))
       const batches = await Promise.all(
         terms.map((term) => fetchWikiSearch(term, perTerm, category))
