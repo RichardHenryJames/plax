@@ -61,8 +61,8 @@ export function Card({ card, isActive }: CardProps) {
       <div className={`absolute inset-0 bg-gradient-to-b ${gradientClass} opacity-[0.04]`} />
 
       {/* Main content area */}
-      <div className="flex-1 flex flex-col justify-center px-6 sm:px-10 py-24 relative z-10">
-        <div className="max-w-xl mx-auto w-full">
+      <div className="flex-1 flex flex-col justify-center px-6 sm:px-10 lg:px-12 py-24 relative z-10">
+        <div className="max-w-xl lg:max-w-2xl mx-auto w-full">
           {/* Category + metadata */}
           <motion.div
             initial={{ opacity: 0, x: -5 }}
@@ -74,6 +74,11 @@ export function Card({ card, isActive }: CardProps) {
               {card.emoji} {topicMeta?.label || card.category}
             </span>
             <span className="text-dark-subtle text-xs font-medium">{card.readTime} read</span>
+            {card.aiEnhanced && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-violet-300 bg-violet-500/10 border border-violet-500/20 rounded-full px-2 py-0.5">
+                ✨ AI
+              </span>
+            )}
             {card.type !== 'quote' && (
               <span className="text-dark-subtle/60 text-xs capitalize">
                 {card.type.replace('-', ' ')}
@@ -189,7 +194,7 @@ export function Card({ card, isActive }: CardProps) {
       </div>
 
       {/* Bottom action bar */}
-      <div className="fixed bottom-0 left-0 right-0 gradient-bottom pt-16 pb-6 px-6 z-40">
+      <div className="absolute bottom-0 left-0 right-0 gradient-bottom pt-16 pb-6 px-6 z-40">
         <div className="max-w-xl mx-auto flex items-center justify-between">
           {/* Left: Read progress */}
           <div className="flex items-center gap-2">

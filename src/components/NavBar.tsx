@@ -10,7 +10,7 @@ export function NavBar() {
   const [showMenu, setShowMenu] = useState(false)
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 gradient-top pointer-events-none">
+    <nav className="lg:hidden absolute top-0 left-0 right-0 z-50 gradient-top pointer-events-none">
       <div className="flex items-center justify-between px-5 py-4 pointer-events-auto">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group">

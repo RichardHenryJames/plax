@@ -9,6 +9,8 @@ export interface CardData {
   category: string
   readTime: string
   emoji?: string
+  aiEnhanced?: boolean
+  originalContent?: string
 }
 
 // No hardcoded cards — all content comes from live API sources

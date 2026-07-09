@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence, PanInfo } from 'framer-motion'
 import { Card } from './Card'
 import { CardData } from '@/lib/sample-data'
 import { usePlaxStore } from '@/lib/store'
+import { useUIStore } from '@/lib/ui-store'
 
 const SWIPE_THRESHOLD = 80
 const LOAD_MORE_THRESHOLD = 10 // fetch more when 10 cards from end
@@ -35,8 +36,21 @@ function setCachedCards(cards: CardData[]) {
   } catch { /* quota exceeded — ignore */ }
 }
 
+// ── Personalization: sort an incoming batch so the user's high-engagement
+//    categories surface first. Stable within equal scores; a no-op for new users. ──
+function rankByEngagement(batch: CardData[], scoreOf: (category: string) => number): CardData[] {
+  const cache: Record<string, number> = {}
+  const score = (cat: string) => (cache[cat] ??= scoreOf(cat))
+  return batch
+    .map((c, i) => ({ c, i, s: score(c.category) }))
+    .sort((a, b) => b.s - a.s || a.i - b.i)
+    .map((x) => x.c)
+}
+
 export function Feed() {
   const { selectedTopics, bookmarkedIds, engagements, addEngagement, incrementCardsRead, readCardIds, markCardRead } = usePlaxStore()
+  const feedFilter = useUIStore((s) => s.feedFilter)
+  const setCurrentCard = useUIStore((s) => s.setCurrentCard)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [direction, setDirection] = useState(0)
   const cardEntryTime = useRef(Date.now())
@@ -93,14 +107,14 @@ export function Feed() {
     fetchCountRef.current++
 
     try {
-      const cats = selectedTopics.join(',')
+      const cats = useUIStore.getState().feedFilter || selectedTopics.join(',')
       // Send IDs the client already has so server skips them
       const excludeIds = [...seenIdsRef.current].filter((id) => !id.startsWith('t:')).join(',')
       const res = await fetch(`/api/feed?categories=${cats}&limit=30&refresh=${refresh}&exclude=${encodeURIComponent(excludeIds)}`)
       if (res.ok) {
         const data = await res.json()
         if (data.cards?.length > 0) {
-          const newCards = mapApiCards(data.cards)
+          const newCards = rankByEngagement(mapApiCards(data.cards), usePlaxStore.getState().getCategoryScore)
           if (newCards.length > 0) {
             emptyFetchCountRef.current = 0 // reset — we got fresh cards
             newCards.forEach((c) => seenIdsRef.current.add(c.id))
@@ -154,7 +168,7 @@ export function Feed() {
         if (res.ok) {
           const data = await res.json()
           if (data.cards?.length > 0) {
-            const liveCards = mapApiCards(data.cards)
+            const liveCards = rankByEngagement(mapApiCards(data.cards), usePlaxStore.getState().getCategoryScore)
             liveCards.forEach((c) => seenIdsRef.current.add(c.id))
             console.log(`[Plax Feed] Live refresh: ${liveCards.length} new cards`)
             setCards((prev) => {
@@ -176,27 +190,103 @@ export function Feed() {
     fetchLive()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Filter loaded cards by the active desktop topic filter ──
+  const visibleCards = useMemo(
+    () => (feedFilter ? cards.filter((c) => c.category === feedFilter) : cards),
+    [cards, feedFilter]
+  )
+
+  // Reset to the top whenever the filter changes
+  useEffect(() => {
+    setCurrentIndex(0)
+    cardEntryTime.current = Date.now()
+  }, [feedFilter])
+
+  // Publish the current card so the desktop right rail can show it
+  useEffect(() => {
+    setCurrentCard(visibleCards[currentIndex] ?? null)
+  }, [currentIndex, visibleCards, setCurrentCard])
+
+  // ── Lazy AI enhancement: rewrite the raw extract of the card being read ──
+  const enhanceAttempted = useRef(new Set<string>())
+  const enhanceCard = useCallback(async (card: CardData | undefined) => {
+    if (!card || card.aiEnhanced || enhanceAttempted.current.has(card.id)) return
+    // Only transform long-form raw extracts (skip quotes, short facts)
+    if (card.type !== 'microessay' || (card.content?.length ?? 0) < 240) return
+    enhanceAttempted.current.add(card.id)
+    try {
+      const res = await fetch('/api/summarize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: card.content, type: 'microessay' }),
+      })
+      if (!res.ok) return
+      const data = await res.json()
+      if (!data?.title || !data?.content) return // no AI key / failed → keep raw extract
+      setCards((prev) => {
+        const updated = prev.map((c) =>
+          c.id === card.id
+            ? { ...c, title: data.title || c.title, content: data.content, aiEnhanced: true, originalContent: c.content }
+            : c
+        )
+        setCachedCards(updated)
+        return updated
+      })
+    } catch {
+      /* keep the original extract on failure */
+    }
+  }, [])
+
+  // Enhance the current card + prefetch the next for a smooth read
+  useEffect(() => {
+    enhanceCard(visibleCards[currentIndex])
+    enhanceCard(visibleCards[currentIndex + 1])
+  }, [currentIndex, visibleCards, enhanceCard])
+
+  // Publish a searchable index of loaded cards for the ⌘K palette
+  const setSearchItems = useUIStore((s) => s.setSearchItems)
+  useEffect(() => {
+    setSearchItems(cards.map((c) => ({ id: c.id, title: c.title, category: c.category, content: c.content.slice(0, 200) })))
+  }, [cards, setSearchItems])
+
+  // Jump the feed to a specific card (from search); clears the filter if needed
+  const pendingJumpId = useUIStore((s) => s.pendingJumpId)
+  useEffect(() => {
+    if (!pendingJumpId) return
+    const idx = visibleCards.findIndex((c) => c.id === pendingJumpId)
+    if (idx >= 0) {
+      setDirection(idx >= currentIndex ? 1 : -1)
+      setCurrentIndex(idx)
+      cardEntryTime.current = Date.now()
+      useUIStore.getState().setPendingJumpId(null)
+    } else if (useUIStore.getState().feedFilter) {
+      useUIStore.getState().setFeedFilter(null) // filtered out → clear filter, retry next pass
+    } else {
+      useUIStore.getState().setPendingJumpId(null) // not loaded → give up
+    }
+  }, [pendingJumpId, visibleCards, currentIndex])
+
   // ── Infinite scroll: auto-fetch when near end ──
   useEffect(() => {
-    const remaining = cards.length - currentIndex
+    const remaining = visibleCards.length - currentIndex
     if (remaining <= LOAD_MORE_THRESHOLD && !isFetching && cards.length > 0) {
       console.log(`[Plax Feed] ${remaining} cards left, fetching more...`)
       fetchMore(true)
     }
-  }, [currentIndex, cards.length, isFetching, fetchMore])
+  }, [currentIndex, visibleCards.length, cards.length, isFetching, fetchMore])
 
   // Mark the current card as read as soon as it's displayed
   useEffect(() => {
-    if (cards.length > 0 && currentIndex < cards.length) {
-      markCardRead(cards[currentIndex].id)
+    if (visibleCards.length > 0 && currentIndex < visibleCards.length) {
+      markCardRead(visibleCards[currentIndex].id)
     }
-  }, [currentIndex, cards]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentIndex, visibleCards]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Track engagement on card change
   const trackEngagement = useCallback(
     (cardIndex: number) => {
-      if (cardIndex >= 0 && cardIndex < cards.length) {
-        const card = cards[cardIndex]
+      if (cardIndex >= 0 && cardIndex < visibleCards.length) {
+        const card = visibleCards[cardIndex]
         const timeSpent = Date.now() - cardEntryTime.current
         markCardRead(card.id)
         addEngagement({
@@ -210,13 +300,13 @@ export function Feed() {
       }
       cardEntryTime.current = Date.now()
     },
-    [cards, bookmarkedIds, addEngagement]
+    [visibleCards, bookmarkedIds, addEngagement]
   )
 
   const goToCard = useCallback(
     (newIndex: number, dir: number) => {
       if (newIndex < 0) return // can't go before first card
-      if (newIndex >= cards.length) {
+      if (newIndex >= visibleCards.length) {
         // At the edge — trigger fetch & don't move yet
         if (!isFetching) fetchMore(true)
         return
@@ -226,7 +316,7 @@ export function Feed() {
       setCurrentIndex(newIndex)
       incrementCardsRead()
     },
-    [cards.length, currentIndex, trackEngagement, incrementCardsRead, isFetching, fetchMore]
+    [visibleCards.length, currentIndex, trackEngagement, incrementCardsRead, isFetching, fetchMore]
   )
 
   // Handle drag end
@@ -245,6 +335,9 @@ export function Feed() {
   // Keyboard navigation
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
+      if (useUIStore.getState().commandOpen) return
+      const target = e.target as HTMLElement | null
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return
       if (e.key === 'ArrowDown' || e.key === ' ' || e.key === 'j') {
         e.preventDefault()
         goToCard(currentIndex + 1, 1)
@@ -262,6 +355,7 @@ export function Feed() {
   const scrollTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
+      if (useUIStore.getState().commandOpen) return
       e.preventDefault()
       if (scrollTimeout.current) return
       scrollTimeout.current = setTimeout(() => {
@@ -274,15 +368,27 @@ export function Feed() {
     return () => window.removeEventListener('wheel', handleWheel)
   }, [currentIndex, goToCard])
 
-  const currentCard = cards[currentIndex]
-  const prevCard = currentIndex > 0 ? cards[currentIndex - 1] : null
-  const nextCard = currentIndex < cards.length - 1 ? cards[currentIndex + 1] : null
+  const currentCard = visibleCards[currentIndex]
+  const prevCard = currentIndex > 0 ? visibleCards[currentIndex - 1] : null
+  const nextCard = currentIndex < visibleCards.length - 1 ? visibleCards[currentIndex + 1] : null
 
   if (!currentCard) {
+    const filterEmpty = feedFilter && cards.length > 0 && visibleCards.length === 0
     return (
       <div className="feed-container flex items-center justify-center">
         <div className="flex flex-col items-center gap-4 px-6 text-center">
-          {isFetching || isInitialLoad ? (
+          {filterEmpty ? (
+            <>
+              <p className="text-dark-muted text-lg">No cards for this topic yet</p>
+              <p className="text-dark-subtle text-sm">Loading more — or browse everything.</p>
+              <button
+                onClick={() => useUIStore.getState().setFeedFilter(null)}
+                className="px-5 py-2.5 bg-gradient-to-r from-violet-500 to-cyan-500 text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity"
+              >
+                Show all topics
+              </button>
+            </>
+          ) : isFetching || isInitialLoad ? (
             <>
               <motion.img
                 src="/plaxlabs_logo.png"
@@ -331,7 +437,7 @@ export function Feed() {
     <div className="feed-container">
       {/* Infinite progress pulse at top */}
       {isFetching && (
-        <div className="fixed top-0 left-0 right-0 z-50 h-0.5 bg-dark-border overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 z-50 h-0.5 bg-dark-border overflow-hidden">
           <motion.div
             className="h-full bg-gradient-to-r from-transparent via-plax-accent to-transparent w-1/3"
             animate={{ x: ['-100%', '400%'] }}
@@ -341,7 +447,7 @@ export function Feed() {
       )}
 
       {/* Card counter */}
-      <div className="fixed top-16 right-4 z-40">
+      <div className="absolute top-16 right-4 z-40 lg:top-4">
         <div className="flex items-center gap-2 text-dark-subtle text-xs bg-dark-card/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-dark-border">
           <span className="text-white font-medium">#{currentIndex + 1}</span>
           {isFetching && (
@@ -380,10 +486,10 @@ export function Feed() {
       </AnimatePresence>
 
       {/* Side progress dots */}
-      <div className="fixed right-3 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-1">
-        {cards.slice(
+      <div className="absolute right-3 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-1">
+        {visibleCards.slice(
           Math.max(0, currentIndex - 4),
-          Math.min(cards.length, currentIndex + 5)
+          Math.min(visibleCards.length, currentIndex + 5)
         ).map((card, i) => {
           const actualIndex = Math.max(0, currentIndex - 4) + i
           return (
@@ -401,11 +507,11 @@ export function Feed() {
       </div>
 
       {/* Loading indicator when fetching more at the end */}
-      {isFetching && currentIndex >= cards.length - 2 && (
+      {isFetching && currentIndex >= visibleCards.length - 2 && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="fixed bottom-24 left-1/2 -translate-x-1/2 z-30"
+          className="absolute bottom-24 left-1/2 -translate-x-1/2 z-30"
         >
           <div className="flex items-center gap-2 bg-dark-card/90 backdrop-blur-md px-4 py-2 rounded-full border border-dark-border">
             <motion.div
@@ -424,7 +530,7 @@ export function Feed() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 2 }}
-          className="fixed bottom-8 left-1/2 -translate-x-1/2 z-30 text-dark-subtle text-xs flex flex-col items-center gap-2"
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 text-dark-subtle text-xs flex flex-col items-center gap-2"
         >
           <motion.div
             animate={{ y: [0, -10, 0] }}
