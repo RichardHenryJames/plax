@@ -197,7 +197,7 @@ AI-powered content summarization. Runtime: `edge`.
 
 **AI Model Priority:**
 1. Gemini 2.5 Flash (`gemini-2.5-flash`) — primary
-2. Groq Llama 3.3 70B (`llama-3.3-70b-versatile`) — fallback
+2. Groq GPT-OSS 120B (`openai/gpt-oss-120b`) — fallback
 3. Raw truncation (first 500 chars) — last resort
 
 ---
@@ -598,7 +598,7 @@ The session seed ensures scrolling back up shows the same card order.
 Summarizes long content into card format.
 
 - **Primary:** Gemini 2.5 Flash (`gemini-2.5-flash`)
-- **Fallback:** Groq Llama 3.3 70B (`llama-3.3-70b-versatile`)
+- **Fallback:** Groq GPT-OSS 120B (`openai/gpt-oss-120b`)
 - **Last resort:** Raw truncation (first 500 chars)
 
 Prompt instructs the model to:
@@ -618,7 +618,7 @@ Generates a multiple-choice quiz from card content.
 ### File: `api/summarize/route.ts`
 
 Edge runtime API endpoint. Same Gemini → Groq → raw fallback chain.
-Uses `gemini-2.5-flash` and `llama-3.3-70b-versatile`.
+Uses `gemini-2.5-flash` and `openai/gpt-oss-120b`.
 
 ---
 

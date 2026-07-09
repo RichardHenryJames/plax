@@ -33,7 +33,7 @@ A short-form reading platform that delivers personalized microessays, quotes, ex
 
 ### AI Summarization
 - **Google Gemini 2.5 Flash** (primary) — Content summarization and quiz generation
-- **Groq Llama 3.3 70B** (fallback) — Automatic failover if Gemini is unavailable
+- **Groq GPT-OSS 120B** (fallback) — Automatic failover if Gemini is unavailable
 
 ### Smart Feed Logic
 - **Related category expansion** — If you pick "Programming", you also get Technology/Science/Math content
@@ -53,7 +53,7 @@ A short-form reading platform that delivers personalized microessays, quotes, ex
 | **State** | Zustand (persisted to localStorage) | 5.x |
 | **Auth & DB** | Supabase (Auth + Postgres + RLS) | 2.x |
 | **AI (Primary)** | Google Gemini 2.5 Flash | via @google/generative-ai |
-| **AI (Fallback)** | Groq (Llama 3.3 70B) | via groq-sdk |
+| **AI (Fallback)** | Groq (GPT-OSS 120B) | via groq-sdk |
 | **Hosting** | Vercel | Auto-deploy on push |
 | **Domain** | plaxlabs.com | Vercel DNS |
 | **Language** | TypeScript | 5.x |
