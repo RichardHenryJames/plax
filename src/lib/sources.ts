@@ -122,44 +122,16 @@ export async function fetchWikipediaByTopics(
     categories.map(async (category) => {
       const queries = TOPIC_WIKI_QUERIES[category]
       if (!queries || !queries.length) return [] as RawContent[]
-      // Random seed term + random offset → different articles across refreshes.
-      const term = queries[Math.floor(Math.random() * queries.length)]
-      const offset = Math.floor(Math.random() * 8)
-      const url =
-        'https://en.wikipedia.org/w/api.php?action=query&format=json' +
-        '&generator=search&gsrnamespace=0&gsrsearch=' +
-        encodeURIComponent(term) +
-        `&gsrlimit=${perTopic}&gsroffset=${offset}` +
-        '&prop=extracts|info&exintro=1&explaintext=1&inprop=url&redirects=1&origin=*'
-      try {
-        const r = await fetch(url, {
-          cache: 'no-store',
-          headers: { Accept: 'application/json', 'User-Agent': 'PlaxReader/1.0 (plaxlabs.com)' },
-        })
-        if (!r.ok) return [] as RawContent[]
-        const data = await r.json()
-        const pages = data?.query?.pages
-        if (!pages) return [] as RawContent[]
-        const out: RawContent[] = []
-        for (const key of Object.keys(pages)) {
-          const p = pages[key]
-          const extract: string = (p?.extract || '').trim()
-          // Skip stubs, disambiguation pages, and list articles (poor reading cards).
-          if (!extract || extract.length < 140) continue
-          if (/may refer to:?$/i.test(extract)) continue
-          if (/^List of /i.test(p.title || '')) continue
-          out.push({
-            title: p.title,
-            content: trimToSentence(extract, 700),
-            url: p.fullurl || `https://en.wikipedia.org/?curid=${p.pageid}`,
-            source: 'Wikipedia',
-            category,
-          })
-        }
-        return out
-      } catch {
-        return [] as RawContent[]
-      }
+      // Pick up to 2 DISTINCT random seed terms so we don't get 5 near-identical
+      // articles from one term (e.g. five "Public Health Service" variants). Two
+      // angles (e.g. "human nutrition" + "mental health") = varied, on-topic cards.
+      const shuffled = [...queries].sort(() => Math.random() - 0.5)
+      const terms = shuffled.slice(0, Math.min(2, shuffled.length))
+      const perTerm = Math.max(2, Math.ceil(perTopic / terms.length))
+      const batches = await Promise.all(
+        terms.map((term) => fetchWikiSearch(term, perTerm, category))
+      )
+      return batches.flat()
     })
   )
 
@@ -175,6 +147,50 @@ export async function fetchWikipediaByTopics(
     }
   }
   return merged
+}
+
+// One Wikipedia full-text search → intro extracts, tagged with the given category.
+async function fetchWikiSearch(
+  term: string,
+  limit: number,
+  category: string
+): Promise<RawContent[]> {
+  const offset = Math.floor(Math.random() * 8) // vary results across refreshes
+  const url =
+    'https://en.wikipedia.org/w/api.php?action=query&format=json' +
+    '&generator=search&gsrnamespace=0&gsrsearch=' +
+    encodeURIComponent(term) +
+    `&gsrlimit=${limit}&gsroffset=${offset}` +
+    '&prop=extracts|info&exintro=1&explaintext=1&inprop=url&redirects=1&origin=*'
+  try {
+    const r = await fetch(url, {
+      cache: 'no-store',
+      headers: { Accept: 'application/json', 'User-Agent': 'PlaxReader/1.0 (plaxlabs.com)' },
+    })
+    if (!r.ok) return []
+    const data = await r.json()
+    const pages = data?.query?.pages
+    if (!pages) return []
+    const out: RawContent[] = []
+    for (const key of Object.keys(pages)) {
+      const p = pages[key]
+      const extract: string = (p?.extract || '').trim()
+      // Skip stubs, disambiguation pages, and list articles (poor reading cards).
+      if (!extract || extract.length < 140) continue
+      if (/may refer to:?$/i.test(extract)) continue
+      if (/^List of /i.test(p.title || '')) continue
+      out.push({
+        title: p.title,
+        content: trimToSentence(extract, 700),
+        url: p.fullurl || `https://en.wikipedia.org/?curid=${p.pageid}`,
+        source: 'Wikipedia',
+        category,
+      })
+    }
+    return out
+  } catch {
+    return []
+  }
 }
 
 // Trim text to <= max chars, cutting cleanly at the last sentence boundary.
