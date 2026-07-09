@@ -49,9 +49,25 @@ export default function ProfilePage() {
 
   if (authLoading || loading) {
     return (
-      <main className="h-screen bg-dark-bg flex items-center justify-center">
-        <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-cyan-500 rounded-2xl flex items-center justify-center animate-pulse">
-          <span className="text-white font-bold text-xl">P</span>
+      <main className="min-h-screen bg-dark-bg text-dark-text">
+        <div className="max-w-3xl mx-auto px-5 pt-6">
+          <div className="flex items-center gap-4 mb-8">
+            <div className="skeleton w-16 h-16 rounded-full" />
+            <div className="flex-1 space-y-2">
+              <div className="skeleton h-5 w-40 rounded" />
+              <div className="skeleton h-3.5 w-56 rounded" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="skeleton h-24 rounded-2xl" />
+            ))}
+          </div>
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="skeleton h-16 rounded-2xl" />
+            ))}
+          </div>
         </div>
       </main>
     )
@@ -59,16 +75,22 @@ export default function ProfilePage() {
 
   if (!user) {
     return (
-      <main className="h-screen bg-dark-bg flex items-center justify-center p-6">
-        <div className="text-center">
-          <p className="text-dark-muted text-lg mb-4">Sign in to view your profile</p>
+      <main className="min-h-screen bg-dark-bg flex items-center justify-center p-6">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center max-w-sm"
+        >
+          <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl">👤</div>
+          <h1 className="text-xl font-bold text-white mb-2 font-display">Sign in to see your profile</h1>
+          <p className="text-dark-muted text-sm mb-6">Track your streak, save bookmarks across devices, and see your top interests.</p>
           <Link
             href="/"
-            className="px-6 py-3 bg-gradient-to-r from-violet-600 to-cyan-600 rounded-xl text-white font-semibold"
+            className="btn-primary focus-ring inline-flex px-6 py-3 text-sm"
           >
-            Go Home
+            Back to feed
           </Link>
-        </div>
+        </motion.div>
       </main>
     )
   }
@@ -82,66 +104,71 @@ export default function ProfilePage() {
 
   return (
     <main className="min-h-screen bg-dark-bg text-dark-text">
-      {/* Header */}
-      <div className="pt-6 px-5">
-        <div className="flex items-center justify-between mb-6">
-          <Link href="/" className="p-2 -ml-2 text-dark-muted hover:text-white transition">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </Link>
-          <h1 className="text-lg font-bold">Profile</h1>
-          <div className="w-10" />
-        </div>
+      <div className="max-w-3xl mx-auto">
+        {/* Header */}
+        <div className="pt-6 px-5">
+          <div className="flex items-center justify-between mb-8">
+            <Link href="/" className="focus-ring flex items-center gap-1.5 -ml-1 px-2.5 py-1.5 rounded-lg text-dark-muted hover:text-white hover:bg-white/5 transition text-sm">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Feed
+            </Link>
+            <h1 className="text-base font-semibold">Profile</h1>
+            <div className="w-14" />
+          </div>
 
-        {/* Avatar + Name */}
-        <div className="flex items-center gap-4 mb-8">
-          {user.user_metadata?.avatar_url ? (
-            <img
-              src={user.user_metadata.avatar_url}
-              alt="Avatar"
-              className="w-16 h-16 rounded-full ring-2 ring-violet-500/30"
-            />
-          ) : (
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center">
-              <span className="text-2xl font-bold text-white">
-                {(user.user_metadata?.full_name || user.email || 'U')[0].toUpperCase()}
-              </span>
+          {/* Avatar + Name */}
+          <div className="flex items-center gap-4 mb-8">
+            <div className="relative shrink-0">
+              <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-cyan-500 rounded-full blur-lg opacity-30" />
+              {user.user_metadata?.avatar_url ? (
+                <img
+                  src={user.user_metadata.avatar_url}
+                  alt="Avatar"
+                  className="relative w-[70px] h-[70px] rounded-full ring-2 ring-white/10"
+                />
+              ) : (
+                <div className="relative w-[70px] h-[70px] rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center">
+                  <span className="text-2xl font-bold text-white">
+                    {(user.user_metadata?.full_name || user.email || 'U')[0].toUpperCase()}
+                  </span>
+                </div>
+              )}
             </div>
-          )}
-          <div>
-            <h2 className="text-xl font-bold">
-              {user.user_metadata?.full_name || user.email?.split('@')[0]}
-            </h2>
-            <p className="text-dark-muted text-sm">{user.email}</p>
-            {stats && (
-              <p className="text-dark-subtle text-xs mt-1">
-                Member since {new Date(stats.memberSince).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-              </p>
-            )}
+            <div className="min-w-0">
+              <h2 className="text-2xl font-bold font-display truncate">
+                {user.user_metadata?.full_name || user.email?.split('@')[0]}
+              </h2>
+              <p className="text-dark-muted text-sm truncate">{user.email}</p>
+              {stats && (
+                <p className="text-dark-subtle text-xs mt-1">
+                  Member since {new Date(stats.memberSince).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                </p>
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Stats Cards */}
-      {stats && (
-        <div className="px-5 mb-6 grid grid-cols-2 gap-3">
-          <StatCard emoji="📖" label="Cards Read" value={stats.cardsRead.toString()} />
-          <StatCard emoji="🔥" label="Day Streak" value={stats.readingStreak.toString()} />
-          <StatCard emoji="⏱️" label="Minutes Read" value={stats.totalMinutes.toString()} />
-          <StatCard emoji="🔖" label="Bookmarks" value={stats.bookmarkCount.toString()} />
-        </div>
-      )}
+        {/* Stats Cards */}
+        {stats && (
+          <div className="px-5 mb-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <StatCard emoji="📖" label="Cards Read" value={stats.cardsRead.toString()} />
+            <StatCard emoji="🔥" label="Day Streak" value={stats.readingStreak.toString()} />
+            <StatCard emoji="⏱️" label="Minutes" value={stats.totalMinutes.toString()} />
+            <StatCard emoji="🔖" label="Bookmarks" value={stats.bookmarkCount.toString()} />
+          </div>
+        )}
 
-      {/* Tabs */}
-      <div className="px-5 flex gap-1 mb-4 bg-dark-card rounded-xl p-1 mx-5">
-        {(['stats', 'bookmarks', 'settings'] as const).map((t) => (
-          <button
-            key={t}
+        {/* Tabs */}
+        <div className="mx-5 flex gap-1 mb-5 bg-dark-card border border-dark-border rounded-xl p-1">
+          {(['stats', 'bookmarks', 'settings'] as const).map((t) => (
+            <button
+              key={t}
             onClick={() => setTab(t)}
-            className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
+            className={`focus-ring flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
               tab === t
-                ? 'bg-violet-600/20 text-violet-400'
+                ? 'bg-white/10 text-white shadow-sm'
                 : 'text-dark-muted hover:text-white'
             }`}
           >
@@ -168,11 +195,11 @@ export default function ProfilePage() {
                   stats.topCategories.map((cat, i) => (
                     <div
                       key={cat}
-                      className="flex items-center gap-3 p-3 bg-dark-card rounded-xl"
+                      className="flex items-center gap-3 p-3.5 card-elevated"
                     >
-                      <span className="text-xl">{EMOJI_MAP[cat] || '📄'}</span>
+                      <span className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-lg shrink-0">{EMOJI_MAP[cat] || '📄'}</span>
                       <span className="font-medium capitalize flex-1">{cat}</span>
-                      <span className="text-dark-muted text-sm">#{i + 1}</span>
+                      <span className="text-dark-subtle text-xs font-semibold tabular-nums">#{i + 1}</span>
                     </div>
                   ))
                 ) : (
@@ -189,7 +216,7 @@ export default function ProfilePage() {
                   return (
                     <span
                       key={topicId}
-                      className="px-3 py-1.5 bg-dark-card rounded-full text-sm"
+                      className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-sm"
                     >
                       {topic?.emoji} {topic?.label || topicId}
                     </span>
@@ -209,34 +236,51 @@ export default function ProfilePage() {
             >
               {bookmarks.length > 0 ? (
                 bookmarks.map((bm) => (
-                  <div
-                    key={bm.id}
-                    className="p-4 bg-dark-card rounded-xl border border-dark-border"
-                  >
-                    <div className="flex items-start gap-2 mb-2">
-                      <span className="text-lg">
-                        {EMOJI_MAP[bm.card_category || ''] || '📄'}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-sm truncate">
-                          {bm.card_title || 'Untitled'}
-                        </h4>
-                        <span className="text-xs text-dark-muted capitalize">
-                          {bm.card_category}
+                  bm.card_content ? (
+                    <a
+                      key={bm.id}
+                      href={`#${bm.card_id}`}
+                      className="block p-4 card-elevated"
+                    >
+                      <div className="flex items-start gap-2.5 mb-2">
+                        <span className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-base shrink-0">
+                          {EMOJI_MAP[bm.card_category || ''] || '📄'}
                         </span>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-sm leading-snug line-clamp-2">
+                            {bm.card_title || 'Untitled'}
+                          </h4>
+                          <span className="text-xs text-dark-subtle capitalize">
+                            {bm.card_category}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                    {bm.card_content && (
-                      <p className="text-xs text-dark-muted line-clamp-2">
+                      <p className="text-xs text-dark-muted line-clamp-2 leading-relaxed">
                         {bm.card_content}
                       </p>
-                    )}
-                  </div>
+                    </a>
+                  ) : (
+                    <div key={bm.id} className="p-4 card-elevated">
+                      <div className="flex items-start gap-2.5">
+                        <span className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-base shrink-0">
+                          {EMOJI_MAP[bm.card_category || ''] || '📄'}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-sm leading-snug line-clamp-2">
+                            {bm.card_title || 'Untitled'}
+                          </h4>
+                          <span className="text-xs text-dark-subtle capitalize">{bm.card_category}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )
                 ))
               ) : (
-                <p className="text-dark-muted text-sm text-center py-8">
-                  No bookmarks yet. Tap 🔖 on cards you love!
-                </p>
+                <div className="text-center py-14">
+                  <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl">🔖</div>
+                  <p className="text-white font-medium mb-1">No bookmarks yet</p>
+                  <p className="text-dark-muted text-sm">Tap Save on cards you want to revisit.</p>
+                </div>
               )}
             </motion.div>
           )}
@@ -251,9 +295,9 @@ export default function ProfilePage() {
             >
               <button
                 onClick={signOut}
-                className="w-full p-4 bg-dark-card rounded-xl border border-dark-border text-left flex items-center gap-3 hover:bg-dark-card-hover transition"
+                className="focus-ring w-full p-4 card-elevated text-left flex items-center gap-3"
               >
-                <span className="text-xl">🚪</span>
+                <span className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-lg shrink-0">🚪</span>
                 <div>
                   <p className="font-medium text-red-400">Sign Out</p>
                   <p className="text-xs text-dark-muted">{user.email}</p>
@@ -263,13 +307,14 @@ export default function ProfilePage() {
           )}
         </AnimatePresence>
       </div>
+      </div>
     </main>
   )
 }
 
 function StatCard({ emoji, label, value }: { emoji: string; label: string; value: string }) {
   return (
-    <div className="p-4 bg-dark-card rounded-xl border border-dark-border">
+    <div className="card-elevated p-4">
       <span className="text-2xl">{emoji}</span>
       <p className="text-2xl font-bold mt-2">{value}</p>
       <p className="text-xs text-dark-muted mt-0.5">{label}</p>

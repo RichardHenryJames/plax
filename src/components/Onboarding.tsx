@@ -1,155 +1,223 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TOPICS, usePlaxStore } from '@/lib/store'
+
+const VALUE_PROPS = [
+  { icon: '🧠', text: 'Get smarter in 5 minutes a day' },
+  { icon: '✨', text: 'AI-summarized, not endless scrolling' },
+  { icon: '🎯', text: 'Personalized to what you care about' },
+]
 
 export function Onboarding() {
   const { selectedTopics, toggleTopic, setOnboarded } = usePlaxStore()
   const [step, setStep] = useState(0)
+  const [query, setQuery] = useState('')
 
   const canProceed = selectedTopics.length >= 3
+  const progress = Math.min(selectedTopics.length / 3, 1)
+
+  const filteredTopics = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return TOPICS
+    return TOPICS.filter((t) => t.label.toLowerCase().includes(q))
+  }, [query])
 
   return (
     <div className="fixed inset-0 bg-dark-bg z-50 flex items-center justify-center">
-      {/* Subtle animated background */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 -left-32 w-96 h-96 bg-violet-500/5 rounded-full blur-3xl animate-pulse-glow" />
-        <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl animate-pulse-glow" style={{ animationDelay: '1s' }} />
+      {/* Ambient background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-[15%] -left-40 w-[28rem] h-[28rem] bg-violet-500/10 rounded-full blur-[120px] animate-float-slow" />
+        <div className="absolute bottom-[10%] -right-40 w-[28rem] h-[28rem] bg-cyan-500/10 rounded-full blur-[120px] animate-float-slow" style={{ animationDelay: '2s' }} />
       </div>
 
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="popLayout">
         {step === 0 && (
           <motion.div
             key="welcome"
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -30 }}
+            exit={{ opacity: 0, y: -24 }}
             transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
             className="relative z-10 text-center px-6 max-w-md"
           >
             {/* Logo */}
             <motion.div
-              initial={{ scale: 0, rotate: -180 }}
-              animate={{ scale: 1, rotate: 0 }}
-              transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
-              className="w-20 h-20 mx-auto mb-8 bg-gradient-to-br from-violet-500 to-cyan-500 rounded-2xl flex items-center justify-center glow-accent"
+              initial={{ scale: 0.6, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
+              className="w-[76px] h-[76px] mx-auto mb-8 relative"
             >
-              <span className="text-white font-bold text-3xl">P</span>
+              <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-cyan-500 rounded-[22px] blur-xl opacity-40" />
+              <img
+                src="/plaxlabs_logo.png"
+                alt="Plax"
+                className="relative w-[76px] h-[76px] rounded-[22px] shadow-2xl"
+              />
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="inline-flex items-center gap-2 px-3 py-1 mb-6 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-dark-muted"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Your daily knowledge feed
             </motion.div>
 
             <motion.h1
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
-              className="text-4xl font-bold text-white mb-3"
+              className="text-[2.6rem] leading-[1.05] font-bold text-white mb-4 font-display"
             >
-              Welcome to Plax
+              Become smarter,
+              <br />
+              <span className="text-gradient">one swipe at a time</span>
             </motion.h1>
 
             <motion.p
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
-              className="text-dark-muted text-lg mb-2"
+              className="text-dark-muted text-[15px] leading-relaxed mb-8 max-w-sm mx-auto"
             >
-              Swipe through knowledge.
+              Short, AI-summarized insights on the topics you care about — from science and startups to AI and philosophy.
             </motion.p>
 
-            <motion.p
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
+            {/* Value props */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               transition={{ delay: 0.6 }}
-              className="text-dark-subtle text-sm mb-12"
+              className="flex flex-col gap-2.5 mb-10 text-left max-w-xs mx-auto"
             >
-              Bite-sized insights from science, philosophy, history, and more — personalized for you.
-            </motion.p>
+              {VALUE_PROPS.map((v, i) => (
+                <motion.div
+                  key={v.text}
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.65 + i * 0.08 }}
+                  className="flex items-center gap-3 text-sm text-dark-text/90"
+                >
+                  <span className="w-8 h-8 shrink-0 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-base">
+                    {v.icon}
+                  </span>
+                  {v.text}
+                </motion.div>
+              ))}
+            </motion.div>
 
             <motion.button
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.7 }}
+              transition={{ delay: 0.9 }}
               onClick={() => setStep(1)}
-              className="px-8 py-4 bg-gradient-to-r from-violet-500 to-cyan-500 text-white font-semibold rounded-xl hover:opacity-90 transition-opacity glow-accent text-lg"
+              className="btn-primary focus-ring w-full py-4 text-[15px]"
             >
-              Get Started
+              Get started
             </motion.button>
+            <p className="text-dark-subtle text-xs mt-4">Free • No account needed to start</p>
           </motion.div>
         )}
 
         {step === 1 && (
           <motion.div
             key="topics"
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -30 }}
+            exit={{ opacity: 0, y: -24 }}
             transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className="relative z-10 w-full max-w-lg px-6"
+            className="relative z-10 w-full max-w-2xl px-6 flex flex-col max-h-[100dvh] py-8"
           >
-            <h2 className="text-2xl font-bold text-white text-center mb-2">
-              What are you curious about?
-            </h2>
-            <p className="text-dark-muted text-center mb-2">
-              Pick at least 3 topics. We&apos;ll personalize your feed.
-            </p>
-            <p className="text-dark-subtle text-xs text-center mb-8">
-              You can always change these later.
-            </p>
+            <div className="text-center mb-6">
+              <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2 font-display">
+                What are you curious about?
+              </h2>
+              <p className="text-dark-muted text-[15px]">
+                Pick at least 3 — we&apos;ll craft your feed around them.
+              </p>
+            </div>
+
+            {/* Search */}
+            <div className="relative mb-5 max-w-md mx-auto w-full">
+              <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-subtle" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search topics…"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-dark-card border border-dark-border text-white placeholder:text-dark-subtle text-sm outline-none focus:border-violet-500/50 focus-ring transition-colors"
+              />
+            </div>
 
             {/* Topic grid */}
-            <div className="grid grid-cols-2 gap-3 mb-8 max-h-[55vh] overflow-y-auto hide-scrollbar pr-1">
-              {TOPICS.map((topic, i) => {
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 overflow-y-auto thin-scrollbar pr-1 pb-2 -mx-1 px-1">
+              {filteredTopics.map((topic, i) => {
                 const isSelected = selectedTopics.includes(topic.id)
                 return (
                   <motion.button
                     key={topic.id}
-                    initial={{ opacity: 0, scale: 0.8 }}
+                    initial={{ opacity: 0, scale: 0.92 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: i * 0.04, duration: 0.3 }}
+                    transition={{ delay: Math.min(i * 0.025, 0.4), duration: 0.3 }}
                     onClick={() => toggleTopic(topic.id)}
-                    className={`topic-chip flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-all ${
+                    aria-pressed={isSelected}
+                    className={`topic-chip focus-ring relative flex items-center gap-2.5 px-3.5 py-3 rounded-xl border text-left ${
                       isSelected
-                        ? `border-violet-500/50 bg-violet-500/10 selected`
-                        : 'border-dark-border bg-dark-card hover:border-dark-subtle'
+                        ? 'border-violet-500/60 bg-violet-500/12 selected'
+                        : 'border-dark-border bg-dark-card hover:bg-dark-card-hover'
                     }`}
                   >
-                    <span className="text-2xl">{topic.emoji}</span>
-                    <span className={`text-sm font-medium ${isSelected ? 'text-white' : 'text-dark-muted'}`}>
+                    <span className="text-xl shrink-0">{topic.emoji}</span>
+                    <span className={`text-sm font-medium truncate ${isSelected ? 'text-white' : 'text-dark-muted'}`}>
                       {topic.label}
                     </span>
-                    {isSelected && (
-                      <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="ml-auto w-5 h-5 bg-violet-500 rounded-full flex items-center justify-center"
-                      >
-                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                        </svg>
-                      </motion.div>
-                    )}
+                    <AnimatePresence>
+                      {isSelected && (
+                        <motion.span
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0, opacity: 0 }}
+                          className="ml-auto shrink-0 w-4 h-4 bg-gradient-to-br from-violet-500 to-cyan-500 rounded-full flex items-center justify-center"
+                        >
+                          <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
                   </motion.button>
                 )
               })}
             </div>
 
-            {/* Continue button */}
-            <div className="flex flex-col items-center gap-2">
-              <motion.button
-                animate={{ opacity: canProceed ? 1 : 0.4 }}
-                onClick={() => {
-                  if (canProceed) {
-                    setOnboarded()
-                  }
-                }}
+            {/* Footer: progress + CTA */}
+            <div className="pt-5 mt-auto">
+              <div className="flex items-center justify-between mb-2 text-xs">
+                <span className="text-dark-muted">
+                  {selectedTopics.length} selected
+                  {!canProceed && <span className="text-dark-subtle"> · {3 - selectedTopics.length} more to continue</span>}
+                </span>
+                {canProceed && <span className="text-emerald-400 font-medium">Ready ✓</span>}
+              </div>
+              <div className="h-1 w-full rounded-full bg-dark-border overflow-hidden mb-4">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-violet-500 to-cyan-500 rounded-full"
+                  animate={{ width: `${progress * 100}%` }}
+                  transition={{ ease: [0.22, 1, 0.36, 1] }}
+                />
+              </div>
+              <button
+                onClick={() => canProceed && setOnboarded()}
                 disabled={!canProceed}
-                className="w-full py-4 bg-gradient-to-r from-violet-500 to-cyan-500 text-white font-semibold rounded-xl transition-opacity glow-accent text-lg disabled:cursor-not-allowed"
+                className="btn-primary focus-ring w-full py-4 text-[15px]"
               >
-                Start Reading →
-              </motion.button>
-              <span className="text-dark-subtle text-xs">
-                {selectedTopics.length}/3 minimum selected
-              </span>
+                Start reading →
+              </button>
             </div>
           </motion.div>
         )}

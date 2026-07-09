@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence, PanInfo } from 'framer-motion'
 import { Card } from './Card'
+import { CardSkeleton } from './Skeleton'
 import { CardData } from '@/lib/sample-data'
 import { usePlaxStore } from '@/lib/store'
 import { useUIStore } from '@/lib/ui-store'
@@ -374,46 +375,58 @@ export function Feed() {
 
   if (!currentCard) {
     const filterEmpty = feedFilter && cards.length > 0 && visibleCards.length === 0
+    // Premium skeleton while first content loads
+    if (!filterEmpty && (isFetching || isInitialLoad)) {
+      return (
+        <div className="feed-container">
+          <CardSkeleton />
+          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-2 text-dark-subtle text-xs">
+            <span className="w-3.5 h-3.5 border-2 border-violet-500/60 border-t-transparent rounded-full animate-spin" />
+            Curating your feed…
+          </div>
+        </div>
+      )
+    }
     return (
       <div className="feed-container flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4 px-6 text-center">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col items-center gap-5 px-6 text-center max-w-sm"
+        >
           {filterEmpty ? (
             <>
-              <p className="text-dark-muted text-lg">No cards for this topic yet</p>
-              <p className="text-dark-subtle text-sm">Loading more — or browse everything.</p>
+              <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl">🔭</div>
+              <div>
+                <p className="text-white text-lg font-semibold mb-1">Nothing here yet</p>
+                <p className="text-dark-muted text-sm">We&apos;re still gathering cards for this topic. Browse everything in the meantime.</p>
+              </div>
               <button
                 onClick={() => useUIStore.getState().setFeedFilter(null)}
-                className="px-5 py-2.5 bg-gradient-to-r from-violet-500 to-cyan-500 text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity"
+                className="btn-primary focus-ring px-5 py-2.5 text-sm"
               >
                 Show all topics
               </button>
             </>
-          ) : isFetching || isInitialLoad ? (
-            <>
-              <motion.img
-                src="/plaxlabs_logo.png"
-                alt="Plax"
-                className="w-14 h-14 rounded-2xl"
-                animate={{ opacity: [0.4, 1, 0.4] }}
-                transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
-              />
-              <p className="text-dark-muted text-sm">Fetching fresh content…</p>
-            </>
           ) : (
             <>
-              <p className="text-dark-muted text-lg">No content available</p>
+              <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl">📭</div>
+              <div>
+                <p className="text-white text-lg font-semibold mb-1">You&apos;re all caught up</p>
+                <p className="text-dark-muted text-sm">You&apos;ve read everything we have right now. Check back soon for fresh insights.</p>
+              </div>
               <button
                 onClick={() => {
                   emptyFetchCountRef.current = 0
                   fetchMore(true)
                 }}
-                className="px-5 py-2.5 bg-gradient-to-r from-violet-500 to-cyan-500 text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity"
+                className="btn-primary focus-ring px-5 py-2.5 text-sm"
               >
-                Try Again
+                Refresh feed
               </button>
             </>
           )}
-        </div>
+        </motion.div>
       </div>
     )
   }
@@ -437,9 +450,9 @@ export function Feed() {
     <div className="feed-container">
       {/* Infinite progress pulse at top */}
       {isFetching && (
-        <div className="absolute top-0 left-0 right-0 z-50 h-0.5 bg-dark-border overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 z-50 h-0.5 bg-white/5 overflow-hidden">
           <motion.div
-            className="h-full bg-gradient-to-r from-transparent via-plax-accent to-transparent w-1/3"
+            className="h-full bg-gradient-to-r from-transparent via-violet-500 to-transparent w-1/3"
             animate={{ x: ['-100%', '400%'] }}
             transition={{ repeat: Infinity, duration: 1.2, ease: 'easeInOut' }}
           />
@@ -448,13 +461,13 @@ export function Feed() {
 
       {/* Card counter */}
       <div className="absolute top-16 right-4 z-40 lg:top-4">
-        <div className="flex items-center gap-2 text-dark-subtle text-xs bg-dark-card/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-dark-border">
-          <span className="text-white font-medium">#{currentIndex + 1}</span>
+        <div className="flex items-center gap-2 text-dark-subtle text-xs glass px-3 py-1.5 rounded-full">
+          <span className="text-white font-semibold tabular-nums">#{currentIndex + 1}</span>
           {isFetching && (
             <motion.span
-              animate={{ opacity: [0.3, 1, 0.3] }}
-              transition={{ repeat: Infinity, duration: 1 }}
-              className="text-plax-accent"
+              animate={{ rotate: 360 }}
+              transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+              className="text-violet-400 inline-block"
             >
               ⟳
             </motion.span>
@@ -486,20 +499,21 @@ export function Feed() {
       </AnimatePresence>
 
       {/* Side progress dots */}
-      <div className="absolute right-3 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-1">
+      <div className="absolute right-3 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-1.5">
         {visibleCards.slice(
           Math.max(0, currentIndex - 4),
           Math.min(visibleCards.length, currentIndex + 5)
         ).map((card, i) => {
           const actualIndex = Math.max(0, currentIndex - 4) + i
+          const active = actualIndex === currentIndex
           return (
             <motion.div
               key={card.id}
               animate={{
-                height: actualIndex === currentIndex ? 24 : 6,
-                opacity: actualIndex === currentIndex ? 1 : 0.3,
+                height: active ? 22 : 6,
+                opacity: active ? 1 : 0.25,
               }}
-              className="w-1 rounded-full bg-white"
+              className={`w-1 rounded-full ${active ? 'bg-gradient-to-b from-violet-400 to-cyan-400' : 'bg-white'}`}
               transition={{ duration: 0.2 }}
             />
           )
@@ -509,17 +523,17 @@ export function Feed() {
       {/* Loading indicator when fetching more at the end */}
       {isFetching && currentIndex >= visibleCards.length - 2 && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
           className="absolute bottom-24 left-1/2 -translate-x-1/2 z-30"
         >
-          <div className="flex items-center gap-2 bg-dark-card/90 backdrop-blur-md px-4 py-2 rounded-full border border-dark-border">
+          <div className="flex items-center gap-2 glass px-4 py-2 rounded-full">
             <motion.div
               animate={{ rotate: 360 }}
               transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-              className="w-4 h-4 border-2 border-plax-accent border-t-transparent rounded-full"
+              className="w-4 h-4 border-2 border-violet-400 border-t-transparent rounded-full"
             />
-            <span className="text-dark-subtle text-xs">Loading more...</span>
+            <span className="text-dark-text/80 text-xs font-medium">Loading more…</span>
           </div>
         </motion.div>
       )}
@@ -530,17 +544,18 @@ export function Feed() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 2 }}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 text-dark-subtle text-xs flex flex-col items-center gap-2"
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 text-dark-subtle text-xs flex flex-col items-center gap-1.5 pointer-events-none"
         >
           <motion.div
-            animate={{ y: [0, -10, 0] }}
+            animate={{ y: [0, -8, 0] }}
             transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
+            className="w-9 h-9 rounded-full glass flex items-center justify-center"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 15l7-7 7 7" />
             </svg>
           </motion.div>
-          <span>Swipe up or press ↓</span>
+          <span className="hidden sm:block">Swipe up or press ↓</span>
         </motion.div>
       )}
     </div>

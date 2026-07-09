@@ -134,7 +134,7 @@ export function CommandPalette() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: -8 }}
             transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
-            className="w-full max-w-xl bg-dark-card border border-dark-border rounded-2xl shadow-2xl shadow-black/60 overflow-hidden"
+            className="w-full max-w-xl glass-strong rounded-2xl shadow-2xl shadow-black/60 overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Search input */}
@@ -156,7 +156,10 @@ export function CommandPalette() {
             {/* Results */}
             <div className="max-h-[50vh] overflow-y-auto hide-scrollbar py-2">
               {filtered.length === 0 && (
-                <p className="px-4 py-6 text-center text-sm text-dark-muted">No matches for “{query}”.</p>
+                <div className="px-4 py-10 text-center">
+                  <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-xl">🔍</div>
+                  <p className="text-sm text-dark-muted">No matches for &ldquo;{query}&rdquo;</p>
+                </div>
               )}
               {filtered.map((cmd, i) => {
                 const showGroup = cmd.group !== lastGroup

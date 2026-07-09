@@ -85,7 +85,7 @@ export function LeftRail() {
             </button>
           )}
         </div>
-        <div className="overflow-y-auto hide-scrollbar space-y-0.5 pr-1">
+        <div className="overflow-y-auto thin-scrollbar space-y-0.5 pr-1">
           {topics.map((topic) => {
             const active = feedFilter === topic.id
             return (

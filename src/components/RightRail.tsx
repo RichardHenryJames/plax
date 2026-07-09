@@ -41,7 +41,7 @@ export function RightRail() {
   const cardTopic = currentCard ? TOPICS.find((t) => t.id === currentCard.category) : undefined
 
   return (
-    <aside className="hidden xl:flex flex-col w-80 shrink-0 h-full border-l border-dark-border bg-dark-card/30 backdrop-blur-xl overflow-y-auto hide-scrollbar">
+    <aside className="hidden xl:flex flex-col w-80 shrink-0 h-full border-l border-dark-border bg-dark-card/30 backdrop-blur-xl overflow-y-auto thin-scrollbar">
       {/* Now reading */}
       <div className="p-4">
         <span className="text-[11px] font-semibold uppercase tracking-wider text-dark-subtle">Now Reading</span>
@@ -50,7 +50,7 @@ export function RightRail() {
             key={currentCard.id}
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-3 p-4 rounded-2xl bg-dark-bg/60 border border-dark-border"
+            className="mt-3 p-4 card-elevated"
           >
             <div className="flex items-center gap-2 mb-3">
               <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r ${cardTopic?.color || 'from-gray-500 to-gray-600'} text-white`}>
@@ -136,8 +136,8 @@ export function RightRail() {
 
 function Stat({ label, value, accent }: { label: string; value: number; accent: string }) {
   return (
-    <div className="p-3 rounded-xl bg-dark-bg/60 border border-dark-border">
-      <div className="text-lg font-bold text-white">{accent} {value}</div>
+    <div className="card-elevated p-3">
+      <div className="text-lg font-bold text-white tabular-nums">{accent} {value}</div>
       <div className="text-[11px] text-dark-muted mt-0.5">{label}</div>
     </div>
   )
