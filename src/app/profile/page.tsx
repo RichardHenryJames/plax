@@ -53,7 +53,7 @@ export default function ProfilePage() {
 
   if (authLoading || loading) {
     return (
-      <main className="min-h-screen bg-dark-bg text-dark-text">
+      <main className="h-[100dvh] overflow-y-auto bg-dark-bg text-dark-text">
         <div className="max-w-3xl mx-auto px-5 pt-6">
           <div className="flex items-center gap-4 mb-8">
             <div className="skeleton w-16 h-16 rounded-full" />
@@ -90,7 +90,7 @@ export default function ProfilePage() {
     const localMinutes = Math.round(localEngagements.reduce((sum, e) => sum + (e.timeSpent || 0), 0) / 60000)
     const localTop = getTopCategories().slice(0, 5)
     return (
-      <main className="min-h-screen bg-dark-bg text-dark-text">
+      <main className="h-[100dvh] overflow-y-auto bg-dark-bg text-dark-text">
         <div className="max-w-3xl mx-auto">
           {/* Cover banner */}
           <div className="relative h-36 sm:h-44 overflow-hidden">
@@ -167,7 +167,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className="min-h-screen bg-dark-bg text-dark-text">
+    <main className="h-[100dvh] overflow-y-auto bg-dark-bg text-dark-text">
       <div className="max-w-3xl mx-auto">
         {/* Cover banner */}
         <div className="relative h-36 sm:h-44 overflow-hidden">
