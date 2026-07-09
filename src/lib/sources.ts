@@ -37,13 +37,17 @@ export async function fetchWikipediaContent(count: number = 12): Promise<RawCont
       .then(async (r) => {
         if (!r.ok) return null
         const data = await r.json()
-        if (data.extract && data.extract.length > 100) {
+        const description: string = data.description || ''
+        // Quality gate: random Wikipedia is our serendipity ("TIL") source, so skip
+        // the boring stubs — individual people, tiny places, admin/sport/event
+        // entries — which make dull, off-topic cards. Keep concepts & phenomena.
+        if (data.extract && data.extract.length > 100 && !isLowQualityWikipedia(description, data.title, data.extract)) {
           return {
             title: data.title,
             content: data.extract,
             url: data.content_urls?.desktop?.page,
             source: 'Wikipedia',
-            category: categorizeWikipedia(data.description || data.title),
+            category: categorizeWikipedia(description || data.title),
           } as RawContent
         }
         return null
@@ -108,6 +112,43 @@ function categorizeWikipedia(description: string): string {
   return 'science' // default
 }
 
+// True for the boring random-Wikipedia stubs we don't want as reading cards:
+// individual people, tiny geographic places, administrative units, sports/season
+// pages, single crime/disaster events, and media/product entries. Uses the
+// Wikidata short description (very reliable signal) plus title/extract heuristics.
+function isLowQualityWikipedia(description: string, title: string, extract: string): boolean {
+  const d = description.toLowerCase()
+
+  // People (roles in the description = it's a biography, which makes a dull card)
+  if (/\b(footballer|football player|basketball player|baseball player|cricketer|rugby player|tennis player|golfer|athlete|swimmer|boxer|wrestler|cyclist|racing driver|racecar driver|jockey|politician|senator|congressman|governor|mayor|minister|diplomat|actor|actress|singer|rapper|musician|drummer|guitarist|pianist|composer|dj|painter|sculptor|illustrator|photographer|architect|novelist|poet|playwright|author|writer|journalist|blogger|bishop|archbishop|priest|pastor|rabbi|imam|saint|monk|nun|general|colonel|admiral|soldier|officer|pilot|aviator|flying ace|lawyer|judge|physician|surgeon|nurse|businessperson|businessman|businesswoman|entrepreneur|ceo|model|youtuber|streamer|influencer|chef|monarch|king|queen|emperor|prince|princess|duke|duchess|earl|nobleman|noblewoman|aristocrat)\b/.test(d))
+    return true
+  if (/\bborn \d{3,4}\b/.test(d) || /\(\d{4}[-–]/.test(title)) return true
+
+  // Geographic / administrative stubs ("village in India", "commune in France"…)
+  if (/\b(village|hamlet|town|city|municipality|commune|comune|locality|settlement|county|district|province|prefecture|region|department|census-designated|unincorporated|neighborhood|suburb|civil parish|ward)\b.*\b(in|of)\b/.test(d))
+    return true
+  if (/\b(river|creek|stream|mountain|peak|hill|lake|reservoir|island|islet|bay|glacier|valley|railway station|metro station|airport|airfield|air base|highway|road|bridge)\b/.test(d))
+    return true
+
+  // Sports seasons, teams, competitions, and single events
+  if (/\b(season|football club|f\.c\.|sports team|squad|roster|tournament|championship|league|olympic|world cup|grand prix)\b/.test(d))
+    return true
+
+  // Taxonomy / species stubs (a single moth species = boring card)
+  if (/\b(genus|species|moth|beetle|spider|butterfly|fungus|mollusc|snail|orchid|plant in|family of)\b/.test(d))
+    return true
+
+  // Media & product entries (films, shows, albums, games, phones, companies…)
+  if (/\b(film|movie|documentary|television series|tv series|tv program|sitcom|miniseries|web series|anime|manga|album|studio album|ep by|song by|single by|soundtrack|band|musical group|video game|board game|mobile app|software|operating system|programming library|smartphone|mobile phone|product|brand|manufacturer|company|corporation|automobile|car model|magazine|newspaper|comic|novel by)\b/.test(d))
+    return true
+
+  // Disambiguation & list pages
+  if (/may refer to:?$/i.test(extract)) return true
+  if (/^(List of|Lists of|Index of|Outline of) /i.test(title)) return true
+
+  return false
+}
+
 // ─── Wikipedia topic search (on-topic articles for the user's selected topics) ───
 // Reddit blocks datacenter IPs (Vercel), so niche topics need a reliable on-topic
 // source. Wikipedia's search generator returns real articles matching a query and
@@ -161,7 +202,7 @@ async function fetchWikiSearch(
     '&generator=search&gsrnamespace=0&gsrsearch=' +
     encodeURIComponent(term) +
     `&gsrlimit=${limit}&gsroffset=${offset}` +
-    '&prop=extracts|info&exintro=1&explaintext=1&inprop=url&redirects=1&origin=*'
+    '&prop=extracts|info|description&exintro=1&explaintext=1&inprop=url&redirects=1&origin=*'
   try {
     const r = await fetch(url, {
       cache: 'no-store',
@@ -175,10 +216,10 @@ async function fetchWikiSearch(
     for (const key of Object.keys(pages)) {
       const p = pages[key]
       const extract: string = (p?.extract || '').trim()
-      // Skip stubs, disambiguation pages, and list articles (poor reading cards).
+      // Skip stubs, disambiguation, list, and biography/media/product entries so
+      // topic results are substantive concept articles, not a person or a phone.
       if (!extract || extract.length < 140) continue
-      if (/may refer to:?$/i.test(extract)) continue
-      if (/^List of /i.test(p.title || '')) continue
+      if (isLowQualityWikipedia(p.description || '', p.title || '', extract)) continue
       out.push({
         title: p.title,
         content: trimToSentence(extract, 700),
@@ -393,13 +434,19 @@ export async function fetchAllContent(categories: string[] = []): Promise<RawCon
   const topicSubs = categories.flatMap((c) => TOPIC_SUBREDDITS[c] || [])
   const subreddits = [...new Set([...topicSubs, ...baseSubs])].slice(0, 18)
 
+  // For the no-topic feed (new user / cleared filters) seed the topic search with
+  // a broadly-interesting default set so first impressions are curated-quality,
+  // not random-stub roulette.
+  const DEFAULT_TOPICS = ['science', 'history', 'psychology', 'technology', 'space', 'philosophy']
+  const topicsForSearch = categories.length ? categories : DEFAULT_TOPICS
+
   // Use Promise.allSettled so one failing source doesn't kill the rest
   const results = await Promise.allSettled([
-    fetchWikipediaContent(12),   // ~12 truly random articles + 5 On This Day
+    fetchWikipediaContent(18),   // ~18 random (most are stubs → filtered) + 5 On This Day
     fetchHackerNews(15),         // ~15 from random slice of top/new/best
     fetchQuotes(10),             // ~10 quotes
     fetchReddit(subreddits),     // topic-aware subreddit set
-    fetchWikipediaByTopics(categories), // on-topic articles for picked topics
+    fetchWikipediaByTopics(topicsForSearch), // on-topic articles (defaults when no picks)
   ])
 
   const all: RawContent[] = []
