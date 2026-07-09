@@ -105,10 +105,10 @@ body {
 /* ── Reading Typography ── */
 .reading-text {
   font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
-  font-size: 1.075rem;
-  line-height: 1.75;
+  font-size: 1.03rem;
+  line-height: 1.68;
   letter-spacing: -0.003em;
-  color: rgba(255, 255, 255, 0.82);
+  color: rgba(255, 255, 255, 0.84);
 }
 
 .code-text {
@@ -207,6 +207,61 @@ body {
 .focus-ring:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px #0a0a0c, 0 0 0 4px rgba(139, 92, 246, 0.6);
+}
+
+/* ── Icon action button (consistent circular/pill hit targets) ── */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-dark-muted);
+  border-radius: 999px;
+  transition: color 0.18s var(--ease-smooth), background 0.18s var(--ease-smooth), transform 0.18s var(--ease-spring);
+}
+.icon-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+.icon-btn:active {
+  transform: scale(0.92);
+}
+
+/* ── Action pill (glass container for card actions) ── */
+.action-pill {
+  background: rgba(20, 20, 24, 0.55);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: var(--shadow-sm);
+  border-radius: 999px;
+}
+
+/* ── Tooltip ── */
+.tooltip {
+  position: relative;
+}
+.tooltip::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(20, 20, 24, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fafafa;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s var(--ease-smooth), transform 0.15s var(--ease-spring);
+  z-index: 60;
+}
+.tooltip:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 /* ── Glow Effects ── */

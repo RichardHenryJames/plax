@@ -70,9 +70,12 @@ export function Card({ card, isActive }: CardProps) {
       {/* Top category accent line */}
       <div className={`absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r ${gradientClass} opacity-70 z-10`} />
 
-      {/* Main content area */}
-      <div className="flex-1 flex flex-col justify-center px-6 sm:px-10 lg:px-14 py-24 lg:py-16 relative z-10 overflow-y-auto hide-scrollbar">
-        <div className="max-w-xl lg:max-w-2xl mx-auto w-full">
+      {/* Main content area — margin:auto centers short cards, but lets long
+          articles scroll from the top without clipping the title (justify-center
+          would clip the top in a scroll container). Padding clears the navbar
+          (top) and the floating action pill (bottom). */}
+      <div data-card-scroll className="flex-1 flex flex-col px-6 sm:px-10 lg:px-14 pt-20 pb-28 lg:pt-16 lg:pb-24 relative z-10 overflow-y-auto hide-scrollbar overscroll-contain">
+        <div className="max-w-xl lg:max-w-2xl mx-auto w-full my-auto">
           {/* Category + metadata */}
           <motion.div
             initial={{ opacity: 0, y: 6 }}
@@ -224,60 +227,37 @@ export function Card({ card, isActive }: CardProps) {
         </div>
       </div>
 
-      {/* Bottom action bar */}
-      <div className="absolute bottom-0 left-0 right-0 gradient-bottom pt-16 pb-6 px-6 z-40">
-        <div className="max-w-xl lg:max-w-2xl mx-auto flex items-center justify-between">
-          {/* Left: Read progress */}
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 relative">
-              <svg className="w-8 h-8 -rotate-90" viewBox="0 0 36 36">
-                <circle
-                  cx="18" cy="18" r="15"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  className="text-dark-border"
-                />
-                <circle
-                  cx="18" cy="18" r="15"
-                  fill="none"
-                  stroke="url(#grad)"
-                  strokeWidth="2.5"
-                  strokeDasharray={`${readProgress * 0.94} 94`}
-                  strokeLinecap="round"
-                  className="transition-all duration-300"
-                />
-                <defs>
-                  <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#8b5cf6" />
-                    <stop offset="100%" stopColor="#06b6d4" />
-                  </linearGradient>
-                </defs>
-              </svg>
-            </div>
-          </div>
+      {/* Reading progress scrubber (clips to card radius) */}
+      <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-white/[0.06] z-40">
+        <div
+          className="h-full bg-gradient-to-r from-violet-500 to-cyan-400 transition-[width] duration-300 ease-out"
+          style={{ width: `${readProgress}%` }}
+        />
+      </div>
 
-          {/* Center actions */}
-          <div className="flex items-center gap-2.5">
+      {/* Bottom action bar */}
+      <div className="absolute bottom-0 left-0 right-0 gradient-bottom pt-16 pb-7 px-6 z-40 pointer-events-none">
+        <div className="max-w-xl lg:max-w-2xl mx-auto flex items-center justify-center">
+          <div className="action-pill pointer-events-auto flex items-center gap-1 p-1.5">
             <ActionButton
+              label="Copy"
               icon={
-                <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-[19px] h-[19px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M8 7h8M8 11h5M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                 </svg>
               }
-              label="Copy"
               onClick={() => {
                 const text = `${card.title || card.content.slice(0, 80)}… — via Plax`
                 navigator.clipboard.writeText(text).then(() => flashToast('Copied to clipboard')).catch(() => {})
               }}
             />
             <ActionButton
+              label="Share"
               icon={
-                <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-[19px] h-[19px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                 </svg>
               }
-              label="Share"
               onClick={() => {
                 const shareData = {
                   title: card.title || 'Plax',
@@ -292,47 +272,47 @@ export function Card({ card, isActive }: CardProps) {
                 }
               }}
             />
-          </div>
 
-          {/* Right: Bookmark */}
-          <div className="relative">
-            <button
-              onClick={handleBookmark}
-              aria-label={isBookmarked ? 'Remove bookmark' : 'Save bookmark'}
-              className={`focus-ring flex items-center gap-1.5 pl-2.5 pr-3 py-2 rounded-full transition-all duration-200 border ${
-                isBookmarked
-                  ? 'text-violet-200 bg-violet-500/15 border-violet-400/30'
-                  : 'text-dark-muted hover:text-white border-white/10 bg-white/5 hover:bg-white/10'
-              }`}
-            >
-              <motion.svg
-                key={String(isBookmarked)}
-                initial={{ scale: 0.6 }}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 15 }}
-                className="w-[18px] h-[18px]"
-                fill={isBookmarked ? 'currentColor' : 'none'}
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+            <span className="w-px h-6 bg-white/10 mx-0.5" />
+
+            {/* Save */}
+            <div className="relative">
+              <button
+                onClick={handleBookmark}
+                aria-label={isBookmarked ? 'Remove bookmark' : 'Save bookmark'}
+                data-tip={isBookmarked ? 'Saved' : 'Save'}
+                className={`tooltip focus-ring flex items-center justify-center w-11 h-11 rounded-full transition-all duration-200 ${
+                  isBookmarked ? 'text-violet-300 bg-violet-500/15' : 'text-dark-muted hover:text-white hover:bg-white/10'
+                }`}
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-              </motion.svg>
-              <span className="text-xs font-medium">{isBookmarked ? 'Saved' : 'Save'}</span>
-            </button>
-
-            {/* Bookmark feedback */}
-            <AnimatePresence>
-              {showBookmarkFeedback && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10, scale: 0.8 }}
-                  animate={{ opacity: 1, y: -44, scale: 1 }}
-                  exit={{ opacity: 0, y: -60, scale: 0.8 }}
-                  className="absolute bottom-full right-0 glass-strong px-3 py-1.5 rounded-lg text-xs text-white whitespace-nowrap shadow-lg"
+                <motion.svg
+                  key={String(isBookmarked)}
+                  initial={{ scale: 0.6 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+                  className="w-[19px] h-[19px]"
+                  fill={isBookmarked ? 'currentColor' : 'none'}
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                 >
-                  {isBookmarked ? '✓ Saved to bookmarks' : 'Removed'}
-                </motion.div>
-              )}
-            </AnimatePresence>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                </motion.svg>
+              </button>
+
+              {/* Bookmark feedback */}
+              <AnimatePresence>
+                {showBookmarkFeedback && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.8 }}
+                    animate={{ opacity: 1, y: -46, scale: 1 }}
+                    exit={{ opacity: 0, y: -60, scale: 0.8 }}
+                    className="absolute bottom-full left-1/2 -translate-x-1/2 glass-strong px-3 py-1.5 rounded-lg text-xs text-white whitespace-nowrap shadow-lg"
+                  >
+                    {isBookmarked ? '✓ Saved to bookmarks' : 'Removed'}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </div>
 
@@ -361,10 +341,11 @@ function ActionButton({ icon, label, onClick }: { icon: React.ReactNode; label: 
   return (
     <button
       onClick={onClick}
-      className="focus-ring flex items-center gap-1.5 px-3 py-2 rounded-full text-dark-muted hover:text-white border border-white/10 bg-white/5 hover:bg-white/10 transition-all"
+      aria-label={label}
+      data-tip={label}
+      className="tooltip icon-btn focus-ring flex items-center justify-center w-11 h-11"
     >
       {icon}
-      <span className="text-xs font-medium">{label}</span>
     </button>
   )
 }

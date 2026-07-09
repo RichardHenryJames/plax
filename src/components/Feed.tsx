@@ -1,14 +1,13 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
-import { motion, AnimatePresence, PanInfo } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Card } from './Card'
 import { CardSkeleton } from './Skeleton'
 import { CardData } from '@/lib/sample-data'
 import { usePlaxStore } from '@/lib/store'
 import { useUIStore } from '@/lib/ui-store'
 
-const SWIPE_THRESHOLD = 80
 const LOAD_MORE_THRESHOLD = 10 // fetch more when 10 cards from end
 const CARD_CACHE_KEY = 'plax-card-cache'
 const CARD_CACHE_MAX_AGE = 30 * 60 * 1000 // 30 minutes
@@ -320,18 +319,28 @@ export function Feed() {
     [visibleCards.length, currentIndex, trackEngagement, incrementCardsRead, isFetching, fetchMore]
   )
 
-  // Handle drag end
-  const handleDragEnd = useCallback(
-    (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-      const { offset, velocity } = info
-      if (offset.y < -SWIPE_THRESHOLD || velocity.y < -500) {
-        goToCard(currentIndex + 1, 1) // Swipe up → next
-      } else if (offset.y > SWIPE_THRESHOLD || velocity.y > 500) {
-        goToCard(currentIndex - 1, -1) // Swipe down → prev
-      }
-    },
-    [currentIndex, goToCard]
-  )
+  // Touch navigation — lets long article content scroll natively, and only
+  // navigates on a decisive swipe when the content is at its scroll boundary.
+  const touchStartRef = useRef<{ y: number; atTop: boolean; atBottom: boolean } | null>(null)
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const scroller = (e.currentTarget as HTMLElement).querySelector<HTMLElement>('[data-card-scroll]')
+    let atTop = true
+    let atBottom = true
+    if (scroller) {
+      atTop = scroller.scrollTop <= 1
+      atBottom = Math.ceil(scroller.scrollTop + scroller.clientHeight) >= scroller.scrollHeight - 1
+    }
+    touchStartRef.current = { y: e.touches[0].clientY, atTop, atBottom }
+  }, [])
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    const start = touchStartRef.current
+    touchStartRef.current = null
+    if (!start) return
+    const dy = e.changedTouches[0].clientY - start.y
+    const SWIPE = 55
+    if (dy < -SWIPE && start.atBottom) goToCard(currentIndex + 1, 1) // swipe up → next
+    else if (dy > SWIPE && start.atTop) goToCard(currentIndex - 1, -1) // swipe down → prev
+  }, [currentIndex, goToCard])
 
   // Keyboard navigation
   useEffect(() => {
@@ -352,11 +361,24 @@ export function Feed() {
     return () => window.removeEventListener('keydown', handleKey)
   }, [currentIndex, goToCard])
 
-  // Scroll wheel navigation
+  // Scroll wheel navigation — scroll long article content first, only advance
+  // to the next/prev card once the content reaches its scroll boundary.
   const scrollTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
       if (useUIStore.getState().commandOpen) return
+
+      // Let the active card's content scroll while it still can in this direction
+      const scroller = document.querySelector<HTMLElement>('[data-card-scroll]')
+      if (scroller) {
+        const { scrollTop, scrollHeight, clientHeight } = scroller
+        const canScrollDown = Math.ceil(scrollTop + clientHeight) < scrollHeight - 1
+        const canScrollUp = scrollTop > 1
+        if ((e.deltaY > 0 && canScrollDown) || (e.deltaY < 0 && canScrollUp)) {
+          return // native scroll handles it; don't navigate
+        }
+      }
+
       e.preventDefault()
       if (scrollTimeout.current) return
       scrollTimeout.current = setTimeout(() => {
@@ -433,16 +455,19 @@ export function Feed() {
 
   const variants = {
     enter: (dir: number) => ({
-      y: dir > 0 ? '40%' : '-40%',
+      y: dir > 0 ? '38%' : '-38%',
       opacity: 0,
+      scale: 0.96,
     }),
     center: {
       y: 0,
       opacity: 1,
+      scale: 1,
     },
     exit: (dir: number) => ({
-      y: dir > 0 ? '-20%' : '20%',
+      y: dir > 0 ? '-18%' : '18%',
       opacity: 0,
+      scale: 0.97,
     }),
   }
 
@@ -485,14 +510,13 @@ export function Feed() {
           animate="center"
           exit="exit"
           transition={{
-            y: { type: 'tween', duration: 0.15, ease: [0.25, 0.1, 0.25, 1] },
-            opacity: { duration: 0.12 },
+            y: { type: 'tween', duration: 0.28, ease: [0.22, 1, 0.36, 1] },
+            scale: { duration: 0.28, ease: [0.22, 1, 0.36, 1] },
+            opacity: { duration: 0.18 },
           }}
-          drag="y"
-          dragConstraints={{ top: 0, bottom: 0 }}
-          dragElastic={0.15}
-          onDragEnd={handleDragEnd}
-          className="card-slot cursor-grab active:cursor-grabbing"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          className="card-slot"
         >
           <Card card={currentCard} isActive={true} />
         </motion.div>
