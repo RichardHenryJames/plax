@@ -368,6 +368,11 @@ export function Feed() {
     const handleWheel = (e: WheelEvent) => {
       if (useUIStore.getState().commandOpen) return
 
+      // Ignore wheel events over the desktop rails / any other scrollable chrome
+      // so they scroll natively instead of navigating the feed.
+      const target = e.target as HTMLElement | null
+      if (target?.closest('aside, [data-no-feed-scroll]')) return
+
       // Let the active card's content scroll while it still can in this direction
       const scroller = document.querySelector<HTMLElement>('[data-card-scroll]')
       if (scroller) {
