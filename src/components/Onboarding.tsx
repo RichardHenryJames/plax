@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TOPICS, usePlaxStore } from '@/lib/store'
 
@@ -120,6 +121,13 @@ export function Onboarding() {
               Get started
             </motion.button>
             <p className="text-dark-subtle text-xs mt-4">Free • No account needed to start</p>
+            {/* Crawlable link so search engines discover the topic hub from the homepage */}
+            <p className="mt-6 text-sm text-dark-muted">
+              Or{' '}
+              <Link href="/topics" className="text-violet-400 hover:text-violet-300 underline underline-offset-4 transition-colors">
+                explore all topics
+              </Link>
+            </p>
           </motion.div>
         )}
 

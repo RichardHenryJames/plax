@@ -66,6 +66,11 @@ export function LeftRail() {
           icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />}
         />
         <NavItem
+          href="/topics"
+          label="Explore Topics"
+          icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM17.25 3.75a3.5 3.5 0 100 7 3.5 3.5 0 000-7zM13.5 16.5a3.75 3.75 0 117.5 0 3.75 3.75 0 01-7.5 0z" />}
+        />
+        <NavItem
           href="/profile"
           label="Profile & Stats"
           icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.25a8.25 8.25 0 0115 0" />}
