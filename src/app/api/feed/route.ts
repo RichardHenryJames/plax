@@ -147,34 +147,46 @@ const RELATED_CATEGORIES: Record<string, string[]> = {
   language: ['philosophy', 'psychology'],
 }
 
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
 function filterAndLimit(
   cards: ProcessedCard[],
   categories: string[],
   limit: number
 ): ProcessedCard[] {
-  let filtered = cards
-
-  if (categories.length > 0) {
-    // Exact category match first
-    filtered = cards.filter(c => categories.includes(c.category))
-
-    // If too few results, expand to related categories
-    if (filtered.length < limit) {
-      const expanded = new Set(categories)
-      categories.forEach(cat => {
-        (RELATED_CATEGORIES[cat] || []).forEach(r => expanded.add(r))
-      })
-      filtered = cards.filter(c => expanded.has(c.category))
-    }
-
-    // If STILL empty (no related match either), return all cards instead of nothing
-    if (filtered.length === 0) {
-      filtered = cards
-    }
+  if (categories.length === 0) {
+    return shuffle(cards).slice(0, limit)
   }
 
-  // Shuffle for variety
-  filtered = filtered.sort(() => Math.random() - 0.5)
+  const exactSet = new Set(categories)
+  const relatedSet = new Set<string>()
+  categories.forEach((cat) => {
+    ;(RELATED_CATEGORIES[cat] || []).forEach((r) => {
+      if (!exactSet.has(r)) relatedSet.add(r)
+    })
+  })
 
-  return filtered.slice(0, limit)
+  // Tiered ordering so the user's SELECTED topics always lead the feed:
+  //   1. exact matches (shuffled within the tier for variety)
+  //   2. related-topic matches (only to fill toward the limit)
+  //   3. everything else — ONLY as a last resort if the first two tiers are
+  //      empty (prevents an empty feed for very niche topic picks, but never
+  //      lets unrelated content jump ahead of what the user asked for).
+  const exact = shuffle(cards.filter((c) => exactSet.has(c.category)))
+  const related = shuffle(cards.filter((c) => relatedSet.has(c.category)))
+  const primary = [...exact, ...related]
+
+  const ordered =
+    primary.length > 0
+      ? primary
+      : shuffle(cards) // nothing relevant in this batch → don't return an empty feed
+
+  return ordered.slice(0, limit)
 }

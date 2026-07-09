@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Card } from './Card'
+import { CardActions } from './CardActions'
 import { CardSkeleton } from './Skeleton'
 import { CardData } from '@/lib/sample-data'
 import { usePlaxStore } from '@/lib/store'
@@ -12,13 +13,20 @@ const LOAD_MORE_THRESHOLD = 10 // fetch more when 10 cards from end
 const CARD_CACHE_KEY = 'plax-card-cache'
 const CARD_CACHE_MAX_AGE = 30 * 60 * 1000 // 30 minutes
 
-// ── Client-side card cache (localStorage) ──
-function getCachedCards(): CardData[] {
+// A stable signature of the current topic selection, so the cache is scoped to
+// the topics it was built for (prevents stale cards from a previous topic pick
+// showing first when the user changes what they follow).
+function topicsSig(topics: string[]): string {
+  return [...topics].sort().join(',')
+}
+
+// ── Client-side card cache (localStorage), scoped to the topic selection ──
+function getCachedCards(sig: string): CardData[] {
   try {
     const raw = localStorage.getItem(CARD_CACHE_KEY)
     if (!raw) return []
-    const { cards, ts } = JSON.parse(raw)
-    if (Date.now() - ts > CARD_CACHE_MAX_AGE) {
+    const { cards, ts, sig: cachedSig } = JSON.parse(raw)
+    if (Date.now() - ts > CARD_CACHE_MAX_AGE || cachedSig !== sig) {
       localStorage.removeItem(CARD_CACHE_KEY)
       return []
     }
@@ -28,11 +36,11 @@ function getCachedCards(): CardData[] {
   }
 }
 
-function setCachedCards(cards: CardData[]) {
+function setCachedCards(cards: CardData[], sig: string) {
   try {
     // Keep last 60 cards in cache
     const toStore = cards.slice(-60)
-    localStorage.setItem(CARD_CACHE_KEY, JSON.stringify({ cards: toStore, ts: Date.now() }))
+    localStorage.setItem(CARD_CACHE_KEY, JSON.stringify({ cards: toStore, ts: Date.now(), sig }))
   } catch { /* quota exceeded — ignore */ }
 }
 
@@ -121,7 +129,7 @@ export function Feed() {
             console.log(`[Plax Feed] Loaded ${newCards.length} new cards (batch #${fetchCountRef.current})`)
             setCards((prev) => {
               const updated = [...prev, ...newCards]
-              setCachedCards(updated)
+              setCachedCards(updated, topicsSig(selectedTopics))
               return updated
             })
             setIsFetching(false)
@@ -146,7 +154,7 @@ export function Feed() {
   // Initial load — show cached cards instantly, then fetch fresh in background
   useEffect(() => {
     // 1. Instant: load from localStorage cache (skip already-read cards)
-    const cached = getCachedCards().filter((c) => !readCardIds.includes(c.id))
+    const cached = getCachedCards(topicsSig(selectedTopics)).filter((c) => !readCardIds.includes(c.id))
     if (cached.length > 0) {
       cached.forEach((c) => {
         seenIdsRef.current.add(c.id)
@@ -174,7 +182,7 @@ export function Feed() {
             setCards((prev) => {
               // If we had cache, append new; if empty, set fresh
               const updated = prev.length > 0 ? [...prev, ...liveCards] : liveCards
-              setCachedCards(updated)
+              setCachedCards(updated, topicsSig(selectedTopics))
               return updated
             })
           }
@@ -229,7 +237,7 @@ export function Feed() {
             ? { ...c, title: data.title || c.title, content: data.content, aiEnhanced: true, originalContent: c.content }
             : c
         )
-        setCachedCards(updated)
+        setCachedCards(updated, topicsSig(selectedTopics))
         return updated
       })
     } catch {
@@ -526,6 +534,9 @@ export function Feed() {
           <Card card={currentCard} isActive={true} />
         </motion.div>
       </AnimatePresence>
+
+      {/* Fixed action dock (Inshorts-style) — stays put while cards flip */}
+      <CardActions card={currentCard} />
 
       {/* Side progress dots */}
       <div className="absolute right-3 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-1.5">

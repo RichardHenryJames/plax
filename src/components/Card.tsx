@@ -1,11 +1,8 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { CardData } from '@/lib/sample-data'
-import { usePlaxStore, TOPICS } from '@/lib/store'
-import { useAuth } from '@/components/AuthProvider'
-import { addBookmarkToCloud, removeBookmarkFromCloud } from '@/lib/cloud-sync'
+import { TOPICS } from '@/lib/store'
 
 interface CardProps {
   card: CardData
@@ -13,51 +10,6 @@ interface CardProps {
 }
 
 export function Card({ card, isActive }: CardProps) {
-  const { bookmarkedIds, toggleBookmark } = usePlaxStore()
-  const { user } = useAuth()
-  const isBookmarked = bookmarkedIds.includes(card.id)
-  const [showBookmarkFeedback, setShowBookmarkFeedback] = useState(false)
-  const [readProgress, setReadProgress] = useState(0)
-  const [toast, setToast] = useState<string | null>(null)
-  const contentRef = useRef<HTMLDivElement>(null)
-
-  const flashToast = (msg: string) => {
-    setToast(msg)
-    setTimeout(() => setToast(null), 1600)
-  }
-
-  // Simulate read progress based on time
-  useEffect(() => {
-    if (!isActive) return
-    setReadProgress(0)
-    const readTimeMs = parseReadTime(card.readTime)
-    const interval = setInterval(() => {
-      setReadProgress((prev) => Math.min(prev + 2, 100))
-    }, readTimeMs / 50)
-    return () => clearInterval(interval)
-  }, [isActive, card.readTime])
-
-  const handleBookmark = () => {
-    const wasBookmarked = isBookmarked
-    toggleBookmark(card.id)
-    setShowBookmarkFeedback(true)
-    setTimeout(() => setShowBookmarkFeedback(false), 1200)
-
-    // Sync to cloud if signed in
-    if (user) {
-      if (wasBookmarked) {
-        removeBookmarkFromCloud(user, card.id)
-      } else {
-        addBookmarkToCloud(user, {
-          id: card.id,
-          title: card.title,
-          category: card.category,
-          content: card.content,
-        })
-      }
-    }
-  }
-
   const topicMeta = TOPICS.find((t) => t.id === card.category)
   const gradientClass = topicMeta?.color || 'from-gray-500 to-gray-600'
 
@@ -129,7 +81,6 @@ export function Card({ card, isActive }: CardProps) {
 
           {/* Content */}
           <motion.div
-            ref={contentRef}
             initial={{ opacity: 0, y: 10 }}
             animate={isActive ? { opacity: 1, y: 0 } : {}}
             transition={{ delay: 0.08, duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
@@ -229,127 +180,7 @@ export function Card({ card, isActive }: CardProps) {
           </div>
         </div>
       </div>
-
-      {/* Reading progress scrubber (clips to card radius) */}
-      <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-white/[0.06] z-40">
-        <div
-          className="h-full bg-gradient-to-r from-violet-500 to-cyan-400 transition-[width] duration-300 ease-out"
-          style={{ width: `${readProgress}%` }}
-        />
-      </div>
-
-      {/* Bottom action bar */}
-      <div className="absolute bottom-0 left-0 right-0 gradient-bottom pt-16 pb-7 px-6 z-40 pointer-events-none">
-        <div className="max-w-xl lg:max-w-2xl mx-auto flex items-center justify-center">
-          <div className="action-pill pointer-events-auto flex items-center gap-1 p-1.5">
-            <ActionButton
-              label="Copy"
-              icon={
-                <svg className="w-[19px] h-[19px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M8 7h8M8 11h5M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-              }
-              onClick={() => {
-                const text = `${card.title || card.content.slice(0, 80)}… — via Plax`
-                navigator.clipboard.writeText(text).then(() => flashToast('Copied to clipboard')).catch(() => {})
-              }}
-            />
-            <ActionButton
-              label="Share"
-              icon={
-                <svg className="w-[19px] h-[19px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                </svg>
-              }
-              onClick={() => {
-                const shareData = {
-                  title: card.title || 'Plax',
-                  text: card.content.slice(0, 200) + '…',
-                  url: card.sourceUrl || window.location.origin,
-                }
-                if (navigator.share) {
-                  navigator.share(shareData).catch(() => {})
-                } else {
-                  navigator.clipboard.writeText(`${card.title || ''} — ${card.sourceUrl || window.location.origin}`)
-                    .then(() => flashToast('Link copied')).catch(() => {})
-                }
-              }}
-            />
-
-            <span className="w-px h-6 bg-white/10 mx-0.5" />
-
-            {/* Save */}
-            <div className="relative">
-              <button
-                onClick={handleBookmark}
-                aria-label={isBookmarked ? 'Remove bookmark' : 'Save bookmark'}
-                data-tip={isBookmarked ? 'Saved' : 'Save'}
-                className={`tooltip focus-ring flex items-center justify-center w-11 h-11 rounded-full transition-all duration-200 ${
-                  isBookmarked ? 'text-violet-300 bg-violet-500/15' : 'text-dark-muted hover:text-white hover:bg-white/10'
-                }`}
-              >
-                <motion.svg
-                  key={String(isBookmarked)}
-                  initial={{ scale: 0.6 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 15 }}
-                  className="w-[19px] h-[19px]"
-                  fill={isBookmarked ? 'currentColor' : 'none'}
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                </motion.svg>
-              </button>
-
-              {/* Bookmark feedback */}
-              <AnimatePresence>
-                {showBookmarkFeedback && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10, scale: 0.8 }}
-                    animate={{ opacity: 1, y: -46, scale: 1 }}
-                    exit={{ opacity: 0, y: -60, scale: 0.8 }}
-                    className="absolute bottom-full left-1/2 -translate-x-1/2 glass-strong px-3 py-1.5 rounded-lg text-xs text-white whitespace-nowrap shadow-lg"
-                  >
-                    {isBookmarked ? '✓ Saved to bookmarks' : 'Removed'}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
-        </div>
-
-        {/* Copy / share toast */}
-        <AnimatePresence>
-          {toast && (
-            <motion.div
-              initial={{ opacity: 0, y: 12, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 12, scale: 0.9 }}
-              className="absolute left-1/2 -translate-x-1/2 bottom-24 glass-strong px-4 py-2 rounded-full text-xs font-medium text-white shadow-lg flex items-center gap-2"
-            >
-              <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
-              {toast}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
     </div>
-  )
-}
-
-// ─── Helpers ───
-
-function ActionButton({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick?: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      aria-label={label}
-      data-tip={label}
-      className="tooltip icon-btn focus-ring flex items-center justify-center w-11 h-11"
-    >
-      {icon}
-    </button>
   )
 }
 

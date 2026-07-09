@@ -12,8 +12,9 @@ export function NavBar() {
   const setCommandOpen = useUIStore((s) => s.setCommandOpen)
 
   return (
-    <nav className="lg:hidden absolute top-0 left-0 right-0 z-50 gradient-top pointer-events-none">
-      <div className="flex items-center justify-between px-5 py-4 pointer-events-auto">
+    <nav className="lg:hidden absolute top-0 left-0 right-0 z-50 pointer-events-none">
+      {/* Solid glass header bar (Inshorts-style fixed chrome) */}
+      <div className="glass border-b border-white/[0.06] flex items-center justify-between px-5 py-3 pt-[calc(0.75rem+env(safe-area-inset-top))] pointer-events-auto">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group">
           <img
