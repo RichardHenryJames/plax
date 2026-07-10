@@ -27,7 +27,7 @@ export function LeftRail() {
   const topics = TOPICS.filter((t) => selectedTopics.includes(t.id))
 
   return (
-    <aside className="hidden lg:flex flex-col w-64 shrink-0 h-full border-r border-dark-border bg-dark-card/30 backdrop-blur-xl overflow-y-auto overscroll-contain thin-scrollbar">
+    <aside className="hidden lg:flex flex-col w-64 shrink-0 h-full border-r border-dark-border bg-dark-card overflow-y-auto overscroll-contain thin-scrollbar">
       {/* Logo */}
       <div className="px-5 pt-5 pb-4">
         <Link href="/" className="flex items-center gap-2.5 group">

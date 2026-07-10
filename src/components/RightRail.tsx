@@ -54,7 +54,7 @@ export function RightRail() {
   const cardTopic = currentCard ? TOPICS.find((t) => t.id === currentCard.category) : undefined
 
   return (
-    <aside className="hidden xl:flex flex-col w-80 shrink-0 h-full border-l border-dark-border bg-dark-card/30 backdrop-blur-xl overflow-y-auto overscroll-contain thin-scrollbar">
+    <aside className="hidden xl:flex flex-col w-80 shrink-0 h-full border-l border-dark-border bg-dark-card overflow-y-auto overscroll-contain thin-scrollbar">
       {/* Now reading */}
       <div className="px-5 pt-6 pb-4">
         <span className={`text-[11px] font-semibold uppercase tracking-wider text-dark-subtle ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('nowReading')}</span>

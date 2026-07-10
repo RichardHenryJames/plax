@@ -179,19 +179,15 @@ body {
   background: linear-gradient(to top, rgba(10, 10, 12, 0.97) 0%, rgba(10, 10, 12, 0.6) 35%, transparent 100%);
 }
 
-/* ── Glass surfaces ── */
+/* ── Solid surfaces (glassmorphism removed for editorial look) ── */
 .glass {
-  background: rgba(20, 20, 24, 0.6);
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #16161a;
+  border: 1px solid var(--hair-strong);
 }
 
 .glass-strong {
-  background: rgba(20, 20, 24, 0.85);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #131316;
+  border: 1px solid var(--hair-strong);
 }
 
 /* ── Elevated card ── */
@@ -276,12 +272,10 @@ body {
   transform: scale(0.92);
 }
 
-/* ── Action pill (glass container for card actions) ── */
+/* ── Action pill (solid container for card actions) ── */
 .action-pill {
-  background: rgba(20, 20, 24, 0.55);
-  backdrop-filter: blur(18px) saturate(160%);
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: #16161a;
+  border: 1px solid var(--hair-strong);
   box-shadow: var(--shadow-sm);
   border-radius: 999px;
 }
