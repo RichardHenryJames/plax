@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { SITE, SITE_URL, TOPIC_SEO } from '@/lib/seo'
+import { TopicHubCard } from '@/components/TopicHubCard'
 
 export const metadata: Metadata = {
   title: 'Explore Topics — Personalized Knowledge Feeds',
@@ -83,22 +84,7 @@ export default function TopicsHubPage() {
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {TOPIC_SEO.map((t) => (
-            <Link
-              key={t.id}
-              href={`/topics/${t.id}`}
-              className="card-elevated group p-5 focus-ring"
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <span className="w-11 h-11 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
-                  {t.emoji}
-                </span>
-                <h3 className="text-base font-semibold text-white">{t.label}</h3>
-                <svg className="w-4 h-4 ml-auto text-dark-subtle group-hover:text-violet-400 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </div>
-              <p className="text-sm text-dark-muted leading-relaxed line-clamp-2">{t.description}</p>
-            </Link>
+            <TopicHubCard key={t.id} id={t.id} emoji={t.emoji} label={t.label} description={t.description} />
           ))}
         </div>
       </div>
