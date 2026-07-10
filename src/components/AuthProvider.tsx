@@ -39,15 +39,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const supabase = getSupabase()
-
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('[Plax Auth] Initial session:', session ? `✅ ${session.user.email}` : '❌ No session')
-      setSession(session)
-      setUser(session?.user ?? null)
+    let supabase: ReturnType<typeof getSupabase>
+    try {
+      supabase = getSupabase()
+    } catch (err) {
+      // Missing/invalid Supabase env → run the app in signed-out mode instead of
+      // leaving `loading` stuck true (which hides the whole auth UI).
+      console.error('[Plax Auth] Supabase client unavailable:', err)
       setLoading(false)
-    })
+      return
+    }
+
+    // Get initial session. IMPORTANT: if Supabase is unreachable (paused project,
+    // bad env, offline) getSession() REJECTS — without .catch, loading stays true
+    // forever and the whole auth UI (incl. the Sign in button) never renders.
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        console.log('[Plax Auth] Initial session:', session ? `✅ ${session.user.email}` : '❌ No session')
+        setSession(session)
+        setUser(session?.user ?? null)
+      })
+      .catch((err) => {
+        console.error('[Plax Auth] getSession failed (Supabase unreachable?):', err?.message || err)
+        setSession(null)
+        setUser(null)
+      })
+      .finally(() => setLoading(false))
 
     // Listen for auth changes
     const {
@@ -63,28 +81,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signInWithGoogle = useCallback(async () => {
-    const supabase = getSupabase()
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
+    try {
+      const supabase = getSupabase()
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+      if (error) throw error
+    } catch (err) {
+      console.error('[Plax Auth] Google sign-in failed:', err)
+      alert('Sign-in is temporarily unavailable. Please try again in a moment.')
+    }
   }, [])
 
   const signInWithGithub = useCallback(async () => {
-    const supabase = getSupabase()
-    await supabase.auth.signInWithOAuth({
-      provider: 'github',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
+    try {
+      const supabase = getSupabase()
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'github',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+      if (error) throw error
+    } catch (err) {
+      console.error('[Plax Auth] GitHub sign-in failed:', err)
+      alert('Sign-in is temporarily unavailable. Please try again in a moment.')
+    }
   }, [])
 
   const signOut = useCallback(async () => {
-    const supabase = getSupabase()
-    await supabase.auth.signOut()
+    try {
+      const supabase = getSupabase()
+      await supabase.auth.signOut()
+    } catch (err) {
+      console.error('[Plax Auth] Sign-out failed:', err)
+    }
   }, [])
 
   return (
