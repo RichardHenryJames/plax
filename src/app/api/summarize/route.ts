@@ -1,20 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { GoogleGenerativeAI } from '@google/generative-ai'
-import Groq from 'groq-sdk'
+import { generateJSON } from '@/lib/llm'
 import { translateBatch } from '@/lib/translate'
 
 export const runtime = 'edge'
-
-const geminiApiKey = process.env.GEMINI_API_KEY
-const groqApiKey = process.env.GROQ_API_KEY
-
-const genAI = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : null
-const groq = groqApiKey ? new Groq({ apiKey: groqApiKey }) : null
-
-// Models are env-overridable so we can tune limits/quality without a code change.
-// Default to gemini-2.0-flash: ~1,500 requests/day free (vs ~20/day for 2.5-flash).
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash'
-const GROQ_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b'
 
 export async function POST(request: NextRequest) {
   try {
@@ -55,48 +43,11 @@ Respond with JSON only:
     // the LLM is unavailable.
     let enTitle = title || ''
     let enContent = content.slice(0, 700)
-    let llmWrote = false // did the LLM actually produce an essay?
 
-    const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T> =>
-      Promise.race([
-        p,
-        new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
-      ])
-
-    // Try Gemini (fail fast — 7s — then fall through to Groq)
-    if (genAI) {
-      try {
-        const model = genAI.getGenerativeModel({ model: GEMINI_MODEL })
-        const response = await withTimeout(model.generateContent(prompt), 7000)
-        const text = response.response.text()
-        const match = text.match(/\{[\s\S]*\}/)
-        if (match) {
-          const j = JSON.parse(match[0])
-          if (j.content) { enTitle = j.title || enTitle; enContent = j.content; llmWrote = true }
-        }
-      } catch (e) {
-        console.error('Gemini error:', (e as Error)?.message || e)
-      }
-    }
-
-    // Fallback to Groq
-    if (!llmWrote && groq) {
-      try {
-        const completion = await withTimeout(groq.chat.completions.create({
-          messages: [{ role: 'user', content: prompt }],
-          model: GROQ_MODEL,
-          reasoning_effort: 'low',
-          max_tokens: 1024,
-        }), 15000)
-        const text = completion.choices[0]?.message?.content || ''
-        const match = text.match(/\{[\s\S]*\}/)
-        if (match) {
-          const j = JSON.parse(match[0])
-          if (j.content) { enTitle = j.title || enTitle; enContent = j.content; llmWrote = true }
-        }
-      } catch (e) {
-        console.error('Groq error:', (e as Error)?.message || e)
-      }
+    const j = await generateJSON<{ title?: string; content?: string }>(prompt, 1024)
+    if (j?.content) {
+      enTitle = j.title || enTitle
+      enContent = j.content
     }
 
     // English request → return whatever we have (LLM essay if it worked, else raw).
