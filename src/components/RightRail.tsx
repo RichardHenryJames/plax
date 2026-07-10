@@ -66,7 +66,7 @@ export function RightRail() {
             className="mt-3 p-4 card-elevated"
           >
             <div className="flex items-center gap-2 mb-3">
-              <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r ${cardTopic?.color || 'from-gray-500 to-gray-600'} text-white`}>
+              <span className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider border border-[color:var(--hair-strong)] bg-dark-card text-dark-text">
                 {currentCard.emoji} {cardTopic ? tp(currentCard.category, cardTopic.label) : (currentCard.category === 'general' ? tp('general', 'Discover') : currentCard.category)}
               </span>
               <span className="text-dark-subtle text-[11px]">{currentCard.readTime} {t('read')}</span>

@@ -25,10 +25,8 @@ export function Card({ card, isActive, translating = false }: CardProps) {
   return (
     <div className={`relative flex flex-col overflow-hidden select-none h-full w-full lg:h-[86vh] lg:max-h-[880px] lg:max-w-3xl lg:mx-auto lg:rounded-[28px] lg:border lg:border-white/[0.08] lg:bg-[#0f0f15] lg:shadow-2xl lg:shadow-black/60 ${isHindi ? 'lang-hi' : ''}`}>      {/* Desktop panel sheen */}
       <div className="hidden lg:block absolute inset-0 rounded-[28px] pointer-events-none bg-[radial-gradient(130%_85%_at_50%_0%,rgba(245,177,58,0.06),transparent_55%)]" />
-      {/* Background glow */}
-      <div className={`absolute inset-0 bg-gradient-to-b ${gradientClass} opacity-[0.05]`} />
       {/* Top category accent line */}
-      <div className={`absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r ${gradientClass} opacity-70 z-10`} />
+      <div className="absolute top-0 left-0 right-0 h-[2px] bg-[color:var(--signal)] z-10" />
 
       {/* Main content area — plain-block scroll container + an inner `min-h-full`
           flex wrapper. Short cards center vertically; long cards top-align and
@@ -287,7 +285,7 @@ function CategoryChip({
           e.stopPropagation()
           if (isTopic) setOpen((v) => !v)
         }}
-        className={`inline-flex items-center gap-1.5 pl-2 pr-3 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-gradient-to-r ${gradientClass} text-white shadow-lg ${isTopic ? 'cursor-pointer' : 'cursor-default'}`}
+        className={`inline-flex items-center gap-1.5 pl-2 pr-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider border border-[color:var(--hair-strong)] bg-dark-card text-dark-text hover:border-[color:var(--signal)] transition-colors ${isTopic ? 'cursor-pointer' : 'cursor-default'}`}
         aria-haspopup={isTopic || undefined}
         aria-expanded={open || undefined}
       >
