@@ -373,7 +373,8 @@ export function Feed() {
   // Keyboard navigation
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (useUIStore.getState().commandOpen) return
+      const ui = useUIStore.getState()
+      if (ui.commandOpen || ui.topicsOpen) return
       const target = e.target as HTMLElement | null
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return
       if (e.key === 'ArrowDown' || e.key === ' ' || e.key === 'j') {
@@ -394,7 +395,8 @@ export function Feed() {
   const scrollTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
-      if (useUIStore.getState().commandOpen) return
+      const ui = useUIStore.getState()
+      if (ui.commandOpen || ui.topicsOpen) return
 
       // Ignore wheel events over the desktop rails / any other scrollable chrome
       // so they scroll natively instead of navigating the feed.
