@@ -127,34 +127,40 @@ export function Card({ card, isActive }: CardProps) {
             )}
           </motion.div>
 
-          {/* Read full story CTA */}
-          {card.sourceUrl && card.type !== 'quote' && (
-            <motion.a
-              href={card.sourceUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              initial={{ opacity: 0, y: 8 }}
-              animate={isActive ? { opacity: 1, y: 0 } : {}}
-              transition={{ delay: 0.28 }}
-              className="btn-secondary focus-ring group mt-7 inline-flex items-center gap-2 px-4 py-2.5 text-sm"
-            >
-              {t('readFullStory')}
-              <svg className="w-4 h-4 text-dark-muted group-hover:text-violet-300 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-              </svg>
-            </motion.a>
-          )}
+          {/* Actions row — the trigger buttons sit horizontally (wrapping as needed)
+              so they take less vertical space, especially on desktop; the expanded
+              panels (Go deeper insights / Test yourself quiz) use `basis-full` to
+              break onto their own full-width line below the button row. */}
+          <div className="mt-7 flex flex-wrap items-start gap-2.5">
+            {/* Read full story CTA */}
+            {card.sourceUrl && card.type !== 'quote' && (
+              <motion.a
+                href={card.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                initial={{ opacity: 0, y: 8 }}
+                animate={isActive ? { opacity: 1, y: 0 } : {}}
+                transition={{ delay: 0.28 }}
+                className="btn-secondary focus-ring group inline-flex items-center gap-2 px-4 py-2.5 text-sm"
+              >
+                {t('readFullStory')}
+                <svg className="w-4 h-4 text-dark-muted group-hover:text-violet-300 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </motion.a>
+            )}
 
-          {/* Go deeper — AI-generated bonus insights on tap */}
-          {card.type !== 'quote' && (card.content?.length ?? 0) > 120 && (
-            <DeeperSection card={card} isHindi={isHindi} />
-          )}
+            {/* Go deeper — AI-generated bonus insights on tap */}
+            {card.type !== 'quote' && (card.content?.length ?? 0) > 120 && (
+              <DeeperSection card={card} isHindi={isHindi} />
+            )}
 
-          {/* Test yourself — AI-generated one-question quiz for active recall */}
-          {card.type !== 'quote' && (card.content?.length ?? 0) > 160 && (
-            <QuizSection card={card} isHindi={isHindi} />
-          )}
+            {/* Test yourself — AI-generated one-question quiz for active recall */}
+            {card.type !== 'quote' && (card.content?.length ?? 0) > 160 && (
+              <QuizSection card={card} isHindi={isHindi} />
+            )}
+          </div>
 
           {/* Author / Source credibility */}
           {(card.author || card.source) && (
@@ -332,7 +338,7 @@ function DeeperSection({ card, isHindi }: { card: CardData; isHindi: boolean }) 
   }
 
   return (
-    <div className={`mt-4 ${isHindi ? 'lang-hi' : ''}`}>
+    <>
       {state !== 'done' && (
         <button
           onClick={load}
@@ -351,7 +357,7 @@ function DeeperSection({ card, isHindi }: { card: CardData; isHindi: boolean }) 
       )}
 
       {state === 'error' && (
-        <p className="mt-2 text-xs text-dark-subtle">{t('deeperError')}</p>
+        <p className="basis-full w-full text-xs text-dark-subtle">{t('deeperError')}</p>
       )}
 
       <AnimatePresence>
@@ -359,7 +365,7 @@ function DeeperSection({ card, isHindi }: { card: CardData; isHindi: boolean }) 
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-1 space-y-2.5"
+            className={`basis-full w-full space-y-2.5 ${isHindi ? 'lang-hi' : ''}`}
           >
             <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-violet-300 mb-1">
               <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
@@ -382,7 +388,7 @@ function DeeperSection({ card, isHindi }: { card: CardData; isHindi: boolean }) 
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </>
   )
 }
 
@@ -392,6 +398,7 @@ type Quiz = { question: string; options: string[]; correct: number; explanation:
 
 function QuizSection({ card, isHindi }: { card: CardData; isHindi: boolean }) {
   const { t, lang } = useT()
+  const recordQuizAnswer = usePlaxStore((s) => s.recordQuizAnswer)
   const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
   const [quiz, setQuiz] = useState<Quiz | null>(null)
   const [picked, setPicked] = useState<number | null>(null)
@@ -417,8 +424,15 @@ function QuizSection({ card, isHindi }: { card: CardData; isHindi: boolean }) {
     }
   }
 
+  // Record the attempt once, on the first answer the user picks for this card.
+  const answer = (i: number) => {
+    if (picked !== null || !quiz) return
+    setPicked(i)
+    recordQuizAnswer(i === quiz.correct)
+  }
+
   return (
-    <div className={`mt-3 ${isHindi ? 'lang-hi' : ''}`}>
+    <>
       {state !== 'ready' && (
         <button
           onClick={load}
@@ -437,7 +451,7 @@ function QuizSection({ card, isHindi }: { card: CardData; isHindi: boolean }) {
       )}
 
       {state === 'error' && (
-        <p className="mt-2 text-xs text-dark-subtle">{t('quizError')}</p>
+        <p className="basis-full w-full text-xs text-dark-subtle">{t('quizError')}</p>
       )}
 
       <AnimatePresence>
@@ -445,7 +459,7 @@ function QuizSection({ card, isHindi }: { card: CardData; isHindi: boolean }) {
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-1 rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4"
+            className={`basis-full w-full rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4 ${isHindi ? 'lang-hi' : ''}`}
           >
             <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-cyan-300 mb-3">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -465,7 +479,7 @@ function QuizSection({ card, isHindi }: { card: CardData; isHindi: boolean }) {
                   <button
                     key={i}
                     disabled={answered}
-                    onClick={(e) => { e.stopPropagation(); setPicked(i) }}
+                    onClick={(e) => { e.stopPropagation(); answer(i) }}
                     className={`w-full text-left flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-sm transition ${cls} disabled:cursor-default`}
                   >
                     <span className="w-5 h-5 shrink-0 rounded-md bg-white/5 border border-white/10 text-[11px] font-bold flex items-center justify-center">
@@ -498,7 +512,7 @@ function QuizSection({ card, isHindi }: { card: CardData; isHindi: boolean }) {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </>
   )
 }
 

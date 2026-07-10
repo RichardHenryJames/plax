@@ -1,4 +1,4 @@
-import { RawContent, CATEGORY_MAP, TOPIC_SUBREDDITS, TOPIC_WIKI_QUERIES, TOPIC_WIKI_QUERIES_HI } from './types'
+import { RawContent, CATEGORY_MAP, TOPIC_SUBREDDITS, TOPIC_WIKI_QUERIES, TOPIC_WIKI_QUERIES_HI, TOPIC_NEWS_KEYWORD } from './types'
 
 // ─── HTML Cleaning (for HN and Reddit raw content) ───
 
@@ -597,6 +597,70 @@ export async function fetchGutenberg(count = 3): Promise<RawContent[]> {
   }))
 }
 
+// ─── Real-time news (Event Registry / NewsAPI.ai) ───
+// For fast-moving topics (tech, science, finance, business, health…) we surface
+// fresh headlines so the feed feels current, not just evergreen. Gated per topic
+// and only active when the EVENTREGISTRY_API_KEY env var is set. The AI-enhance
+// step turns the article body into a crisp, faithful explainer.
+export async function fetchNews(categories: string[], perTopic = 3): Promise<RawContent[]> {
+  const apiKey = process.env.EVENTREGISTRY_API_KEY
+  if (!apiKey) return []
+  const newsTopics = categories.filter((c) => TOPIC_NEWS_KEYWORD[c])
+  if (newsTopics.length === 0) return []
+
+  // Query a few relevant topics in parallel (cap at 3 to stay fast + within quota).
+  const picks = newsTopics.slice(0, 3)
+  const results = await Promise.allSettled(
+    picks.map(async (topic) => {
+      const reqBody = {
+        action: 'getArticles',
+        keyword: TOPIC_NEWS_KEYWORD[topic],
+        keywordLoc: 'title',
+        lang: 'eng',
+        articlesPage: 1,
+        articlesCount: perTopic,
+        articlesSortBy: 'date',
+        dataType: ['news'],
+        includeArticleImage: true,
+        includeArticleBasicInfo: true,
+        articleBodyLen: 500,
+        isDuplicateFilter: 'skipDuplicates',
+        startSourceRankPercentile: 0,
+        endSourceRankPercentile: 30, // only reputable, higher-ranked sources
+        apiKey,
+        resultType: 'articles',
+      }
+      const r = await fetch('https://eventregistry.org/api/v1/article/getArticles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(reqBody),
+        cache: 'no-store',
+      })
+      if (!r.ok) return []
+      const data = await r.json()
+      const articles: any[] = data?.articles?.results || []
+      return articles
+        .filter((a) => a.title && a.body && String(a.body).length > 160)
+        .map((a) => {
+          const text = String(a.body).replace(/\s+/g, ' ').trim()
+          return {
+            title: String(a.title).trim(),
+            content: text.length > 900 ? text.slice(0, 900) + '…' : text,
+            url: a.url,
+            source: a.source?.title ? String(a.source.title) : 'News',
+            category: topic,
+          } as RawContent
+        })
+    })
+  )
+
+  const out: RawContent[] = []
+  results.forEach((res) => {
+    if (res.status === 'fulfilled') out.push(...res.value)
+  })
+  return out
+}
+
 
 
 
@@ -716,6 +780,9 @@ export async function fetchAllContent(categories: string[] = [], lang: string = 
   const includeArxiv = arxivTopics.length > 0
   // Project Gutenberg gives real classic-literature excerpts for the Books topic.
   const includeGutenberg = categories.includes('books')
+  // Real-time news for fast-moving topics (only if API key present + topic matches).
+  const newsTopics = categories.filter((c) => TOPIC_NEWS_KEYWORD[c])
+  const includeNews = newsTopics.length > 0
 
   // Use Promise.allSettled so one failing source doesn't kill the rest
   const results = await Promise.allSettled([
@@ -726,10 +793,11 @@ export async function fetchAllContent(categories: string[] = [], lang: string = 
     fetchWikipediaByTopics(topicsForSearch), // on-topic articles (defaults when no picks)
     includeArxiv ? fetchArxiv(arxivTopics) : Promise.resolve([]),
     includeGutenberg ? fetchGutenberg(3) : Promise.resolve([]),
+    includeNews ? fetchNews(newsTopics, 3) : Promise.resolve([]),
   ])
 
   const all: RawContent[] = []
-  const sourceNames = ['Wikipedia', 'HackerNews', 'Quotes', 'Reddit', 'WikipediaTopics', 'arXiv', 'Gutenberg']
+  const sourceNames = ['Wikipedia', 'HackerNews', 'Quotes', 'Reddit', 'WikipediaTopics', 'arXiv', 'Gutenberg', 'News']
 
   results.forEach((result, i) => {
     if (result.status === 'fulfilled') {

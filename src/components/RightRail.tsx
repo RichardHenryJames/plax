@@ -16,6 +16,8 @@ export function RightRail() {
   const cardsRead = usePlaxStore((s) => s.cardsRead)
   const bookmarkedIds = usePlaxStore((s) => s.bookmarkedIds)
   const engagements = usePlaxStore((s) => s.engagements)
+  const quizAttempted = usePlaxStore((s) => s.quizAttempted)
+  const quizCorrect = usePlaxStore((s) => s.quizCorrect)
   const getTopCategories = usePlaxStore((s) => s.getTopCategories)
   const toggleBookmark = usePlaxStore((s) => s.toggleBookmark)
   const currentCard = useUIStore((s) => s.currentCard)
@@ -105,6 +107,35 @@ export function RightRail() {
           <Stat label={t('interests')} value={topCategories.length} accent="✨" />
         </div>
       </div>
+
+      {/* Quiz mastery — active-recall accuracy from the 'Test yourself' quizzes */}
+      {quizAttempted > 0 && (
+        <div className="px-5 pt-3 pb-2">
+          <span className={`text-[11px] font-semibold uppercase tracking-wider text-dark-subtle ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('quizMastery')}</span>
+          <div className="mt-3 card-elevated p-4">
+            <div className="flex items-end justify-between">
+              <div>
+                <div className="text-3xl font-bold text-white tabular-nums leading-none">
+                  {Math.round((quizCorrect / quizAttempted) * 100)}<span className="text-lg text-dark-muted">%</span>
+                </div>
+                <div className={`text-[11px] text-dark-muted mt-1 ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('accuracy')}</div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm font-semibold text-cyan-300 tabular-nums">{quizCorrect}/{quizAttempted}</div>
+                <div className={`text-[11px] text-dark-muted mt-0.5 ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('correctAnswers')}</div>
+              </div>
+            </div>
+            <div className="mt-3 h-2 rounded-full bg-white/[0.06] overflow-hidden">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.round((quizCorrect / quizAttempted) * 100)}%` }}
+                transition={{ duration: 0.6, ease: 'easeOut' }}
+                className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-green-500"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Top interests */}
       {topCategories.length > 0 && (

@@ -64,6 +64,11 @@ interface PlaxState {
   readCardIds: string[]
   markCardRead: (id: string) => void
 
+  // Quiz / active-recall stats
+  quizAttempted: number
+  quizCorrect: number
+  recordQuizAnswer: (correct: boolean) => void
+
   // Cloud sync
   syncedUserId: string | null
   setSyncedUserId: (id: string | null) => void
@@ -156,6 +161,15 @@ export const usePlaxStore = create<PlaxState>()(
           readCardIds: s.readCardIds.includes(id)
             ? s.readCardIds
             : [...s.readCardIds.slice(-500), id], // keep last 500
+        })),
+
+      // Quiz / active-recall stats
+      quizAttempted: 0,
+      quizCorrect: 0,
+      recordQuizAnswer: (correct) =>
+        set((s) => ({
+          quizAttempted: s.quizAttempted + 1,
+          quizCorrect: s.quizCorrect + (correct ? 1 : 0),
         })),
 
       // Cloud sync

@@ -115,6 +115,10 @@ const EN: Dict = {
   quizCorrect: 'Correct!',
   quizWrong: 'Not quite.',
   quizTryAnother: 'Try another card',
+  quizMastery: 'Quiz mastery',
+  quizzesTaken: 'Quizzes taken',
+  accuracy: 'Accuracy',
+  correctAnswers: 'Correct',
 }
 
 const HI: Dict = {
@@ -201,6 +205,10 @@ const HI: Dict = {
   quizCorrect: 'सही!',
   quizWrong: 'बिलकुल नहीं।',
   quizTryAnother: 'अगला कार्ड आज़माएँ',
+  quizMastery: 'क्विज़ में महारत',
+  quizzesTaken: 'क्विज़ दिए',
+  accuracy: 'सटीकता',
+  correctAnswers: 'सही',
 }
 
 const DICTS: Record<string, Dict> = { en: EN, hi: HI }

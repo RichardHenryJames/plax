@@ -121,6 +121,19 @@ export const TOPIC_WIKI_QUERIES: Record<string, string[]> = {
   language: ['linguistics', 'etymology', 'language family', 'writing system', 'grammar'],
 }
 
+// Topic → keyword for real-time news (Event Registry). Only topics where fresh
+// headlines genuinely help are included; the rest lean on evergreen sources.
+export const TOPIC_NEWS_KEYWORD: Record<string, string> = {
+  technology: 'technology',
+  programming: 'software development',
+  science: 'scientific research',
+  space: 'space exploration',
+  finance: 'financial markets',
+  business: 'business',
+  health: 'health',
+  physics: 'physics',
+}
+
 // Hindi Wikipedia search seed terms per topic (Devanagari). Used for the Hindi
 // feed so content is natively in Hindi, on-topic, and relevance-ranked.
 export const TOPIC_WIKI_QUERIES_HI: Record<string, string[]> = {

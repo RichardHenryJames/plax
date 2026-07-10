@@ -37,6 +37,8 @@ export default function ProfilePage() {
   const localBookmarks = usePlaxStore((s) => s.bookmarkedIds)
   const localEngagements = usePlaxStore((s) => s.engagements)
   const getTopCategories = usePlaxStore((s) => s.getTopCategories)
+  const quizAttempted = usePlaxStore((s) => s.quizAttempted)
+  const quizCorrect = usePlaxStore((s) => s.quizCorrect)
   const { t, tp, lang } = useT()
 
   useEffect(() => {
@@ -93,7 +95,7 @@ export default function ProfilePage() {
     const localTop = getTopCategories().slice(0, 5)
     return (
       <main className="h-[100dvh] overflow-y-auto bg-dark-bg text-dark-text">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-3xl lg:max-w-5xl mx-auto">
           {/* Cover banner */}
           <div className="relative h-36 sm:h-44 overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-violet-600/40 via-indigo-600/25 to-cyan-500/30" />
@@ -132,6 +134,13 @@ export default function ProfilePage() {
             <StatCard emoji="⏱️" label={t('minutes')} value={localMinutes.toString()} tint="from-cyan-500/20 to-cyan-500/5" />
             <StatCard emoji="✨" label={t('interestsCap')} value={localTop.length.toString()} tint="from-fuchsia-500/20 to-fuchsia-500/5" />
           </div>
+
+          {/* Quiz mastery */}
+          {quizAttempted > 0 && (
+            <div className="px-5 mb-6">
+              <QuizMasteryPanel attempted={quizAttempted} correct={quizCorrect} t={t} lang={lang} />
+            </div>
+          )}
 
           {/* Sync prompt */}
           <div className="mx-5 mb-6 relative overflow-hidden rounded-2xl border border-violet-500/25 p-5">
@@ -173,7 +182,7 @@ export default function ProfilePage() {
 
   return (
     <main className="h-[100dvh] overflow-y-auto bg-dark-bg text-dark-text">
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-3xl lg:max-w-5xl mx-auto">
         {/* Cover banner */}
         <div className="relative h-36 sm:h-44 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-violet-600/40 via-indigo-600/25 to-cyan-500/30" />
@@ -261,6 +270,12 @@ export default function ProfilePage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
             >
+              {quizAttempted > 0 && (
+                <div className="mb-6">
+                  <QuizMasteryPanel attempted={quizAttempted} correct={quizCorrect} t={t} lang={lang} />
+                </div>
+              )}
+
               <h3 className="text-sm font-semibold text-dark-muted uppercase tracking-wider mb-3">
                 Top Interests
               </h3>
@@ -394,6 +409,59 @@ function StatCard({ emoji, label, value, tint }: { emoji: string; label: string;
         <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-white/8 border border-white/10 text-lg">{emoji}</span>
         <p className="text-[26px] font-bold mt-3 tabular-nums leading-none font-display">{value}</p>
         <p className="text-xs text-dark-muted mt-1.5">{label}</p>
+      </div>
+    </div>
+  )
+}
+
+// Quiz mastery — a prominent panel showing active-recall accuracy from the
+// "Test yourself" quizzes, with a progress ring-style bar.
+function QuizMasteryPanel({
+  attempted,
+  correct,
+  t,
+  lang,
+}: {
+  attempted: number
+  correct: number
+  t: (k: string) => string
+  lang: string
+}) {
+  const pct = Math.round((correct / attempted) * 100)
+  const hi = lang === 'hi' ? 'lang-hi' : ''
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-cyan-500/25 p-5">
+      <div className="absolute inset-0 bg-gradient-to-br from-cyan-600/15 via-teal-500/10 to-green-500/10" />
+      <div className="relative flex items-center gap-5">
+        {/* Accuracy ring */}
+        <div className="relative w-24 h-24 shrink-0">
+          <svg className="w-24 h-24 -rotate-90" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="9" />
+            <circle
+              cx="50" cy="50" r="42" fill="none" stroke="url(#quizgrad)" strokeWidth="9" strokeLinecap="round"
+              strokeDasharray={`${(pct / 100) * 264} 264`}
+            />
+            <defs>
+              <linearGradient id="quizgrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#06b6d4" />
+                <stop offset="100%" stopColor="#22c55e" />
+              </linearGradient>
+            </defs>
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-2xl font-bold text-white tabular-nums leading-none font-display">{pct}%</span>
+          </div>
+        </div>
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-cyan-300 mb-1">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span className={hi}>{t('quizMastery')}</span>
+          </div>
+          <p className="text-2xl font-bold text-white font-display tabular-nums">
+            {correct}<span className="text-dark-muted">/{attempted}</span>
+          </p>
+          <p className={`text-sm text-dark-muted ${hi}`}>{t('correctAnswers')} · {t('quizzesTaken')}</p>
+        </div>
       </div>
     </div>
   )
