@@ -200,7 +200,8 @@ function isLowQualityWikipedia(
 
   // Disambiguation & list pages
   if (/may refer to:?$/i.test(extract)) return true
-  if (/^(List of|Lists of|Index of|Outline of) /i.test(title)) return true
+  if (/\(disambiguation\)/i.test(title)) return true
+  if (/^(List of|Lists of|Index of|Outline of|Glossary of) /i.test(title)) return true
 
   return false
 }
