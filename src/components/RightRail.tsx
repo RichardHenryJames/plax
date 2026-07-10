@@ -78,7 +78,7 @@ export function RightRail() {
               <button
                 onClick={handleBookmark}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  isBookmarked ? 'bg-violet-500/15 text-violet-300' : 'bg-white/5 text-dark-muted hover:text-white'
+                  isBookmarked ? 'bg-[color:var(--signal)]/12 text-[color:var(--signal)]' : 'bg-white/5 text-dark-muted hover:text-white'
                 }`}
               >
                 <svg className="w-3.5 h-3.5" fill={isBookmarked ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
@@ -130,7 +130,7 @@ export function RightRail() {
                 <div className={`text-[11px] text-dark-muted mt-1 ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('accuracy')}</div>
               </div>
               <div className="text-right">
-                <div className="text-sm font-semibold text-cyan-300 tabular-nums">{quizCorrect}/{quizAttempted}</div>
+                <div className="text-sm font-semibold text-[color:var(--signal)] tabular-nums">{quizCorrect}/{quizAttempted}</div>
                 <div className={`text-[11px] text-dark-muted mt-0.5 ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('correctAnswers')}</div>
               </div>
             </div>
@@ -139,7 +139,7 @@ export function RightRail() {
                 initial={{ width: 0 }}
                 animate={{ width: `${Math.round((quizCorrect / quizAttempted) * 100)}%` }}
                 transition={{ duration: 0.6, ease: 'easeOut' }}
-                className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-green-500"
+                className="h-full rounded-full bg-[color:var(--signal)]"
               />
             </div>
           </div>

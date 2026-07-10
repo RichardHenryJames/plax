@@ -47,7 +47,7 @@ export function Card({ card, isActive, translating = false }: CardProps) {
           >
             <CategoryChip category={card.category} label={categoryLabel} emoji={card.emoji} gradientClass={gradientClass} isHindi={isHindi} />
             {card.aiEnhanced && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-violet-200 bg-violet-500/15 border border-violet-400/25 rounded-full px-2 py-1">
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-[color:var(--signal)] bg-[color:var(--signal)]/10 border border-[color:var(--signal)]/25 px-2 py-1">
                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l2.4 6.5L21 11l-6.6 2.5L12 20l-2.4-6.5L3 11l6.6-2.5L12 2z" /></svg>
                 {t('aiSummary')}
               </span>
@@ -76,10 +76,10 @@ export function Card({ card, isActive, translating = false }: CardProps) {
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
-                  className="hover:text-violet-200 transition-colors inline-flex items-start gap-2 group"
+                  className="hover:text-[color:var(--signal)] transition-colors inline-flex items-start gap-2 group"
                 >
                   {card.title}
-                  <svg className="w-4 h-4 mt-2 flex-shrink-0 text-dark-subtle group-hover:text-violet-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 mt-2 flex-shrink-0 text-dark-subtle group-hover:text-[color:var(--signal)] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                   </svg>
                 </a>
@@ -97,8 +97,8 @@ export function Card({ card, isActive, translating = false }: CardProps) {
           >
             {card.type === 'quote' ? (
               <blockquote className="relative py-6">
-                <span className="absolute -left-1 -top-4 text-6xl leading-none text-violet-500/30 font-serif select-none">&ldquo;</span>
-                <div className="absolute -left-2 top-2 bottom-2 w-1 bg-gradient-to-b from-violet-500 to-cyan-500 rounded-full" />
+                <span className="absolute -left-1 -top-4 text-6xl leading-none text-[color:var(--signal)]/30 font-serif select-none">&ldquo;</span>
+                <div className="absolute -left-2 top-2 bottom-2 w-[3px] bg-[color:var(--signal)]" />
                 <p className="text-[26px] sm:text-[32px] font-serif italic text-white/95 leading-[1.4] pl-6">
                   {card.content}
                 </p>
@@ -152,7 +152,7 @@ export function Card({ card, isActive, translating = false }: CardProps) {
                 className="btn-secondary focus-ring group inline-flex items-center gap-2 px-4 py-2.5 text-sm"
               >
                 {t('readFullStory')}
-                <svg className="w-4 h-4 text-dark-muted group-hover:text-violet-300 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 text-dark-muted group-hover:text-[color:var(--signal)] group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
               </motion.a>
@@ -191,7 +191,7 @@ export function Card({ card, isActive, translating = false }: CardProps) {
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="text-dark-subtle text-xs hover:text-violet-400 transition-colors inline-flex items-center gap-1"
+                      className="text-dark-subtle text-xs hover:text-[color:var(--signal)] transition-colors inline-flex items-center gap-1"
                     >
                       {card.source}
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -231,8 +231,8 @@ function TranslatingSkeleton({ lang }: { lang: boolean }) {
         ))}
       </div>
       {/* Label */}
-      <div className={`mt-6 inline-flex items-center gap-2 text-xs text-violet-300/90 ${lang ? 'lang-hi' : ''}`}>
-        <span className="w-3.5 h-3.5 border-[1.5px] border-violet-400/70 border-t-transparent rounded-full animate-spin" />
+      <div className={`mt-6 inline-flex items-center gap-2 text-xs text-[color:var(--signal)] ${lang ? 'lang-hi' : ''}`}>
+        <span className="w-3.5 h-3.5 border-[1.5px] border-[color:var(--signal)] border-t-transparent rounded-full animate-spin" />
         {t('translating')}
       </div>
     </div>
@@ -324,7 +324,7 @@ function CategoryChip({
                   <div className="flex items-center gap-2">
                     <button
                       onClick={(e) => { e.stopPropagation(); toggleTopic(category); close() }}
-                      className="flex-1 py-1.5 rounded-lg text-xs font-semibold text-white bg-gradient-to-r from-violet-600 to-cyan-600 hover:shadow-lg hover:shadow-violet-500/20 transition"
+                      className="flex-1 py-1.5 rounded-lg text-xs font-semibold text-[color:var(--signal-ink)] bg-[color:var(--signal)] hover:bg-[#ffc257] transition"
                     >
                       {t('add')}
                     </button>
@@ -346,13 +346,13 @@ function CategoryChip({
                   <button
                     onClick={(e) => { e.stopPropagation(); setFeedFilter(null); close() }}
                     className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left text-sm transition ${
-                      feedFilter === null ? 'bg-violet-500/15 text-white' : 'text-dark-text hover:bg-white/5'
+                      feedFilter === null ? 'bg-[color:var(--signal)]/12 text-white' : 'text-dark-text hover:bg-white/5'
                     }`}
                   >
                     <span className="w-6 text-center">✨</span>
                     <span className="flex-1 font-medium">{t('allTopics')}</span>
                     {feedFilter === null && (
-                      <svg className="w-4 h-4 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                      <svg className="w-4 h-4 text-[color:var(--signal)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
                     )}
                   </button>
 
@@ -367,13 +367,13 @@ function CategoryChip({
                         <button
                           onClick={(e) => { e.stopPropagation(); setFeedFilter(id); close() }}
                           className={`flex-1 flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left text-sm transition min-w-0 ${
-                            active ? 'bg-violet-500/15 text-white' : 'text-dark-text hover:bg-white/5'
+                            active ? 'bg-[color:var(--signal)]/12 text-white' : 'text-dark-text hover:bg-white/5'
                           }`}
                         >
                           <span className="w-6 text-center">{tm.emoji}</span>
                           <span className="flex-1 font-medium truncate">{tp(id, tm.label)}</span>
                           {active && (
-                            <svg className="w-4 h-4 text-violet-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                            <svg className="w-4 h-4 text-[color:var(--signal)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
                           )}
                         </button>
                         {confirming ? (
@@ -449,10 +449,10 @@ function DeeperSection({ card, isHindi }: { card: CardData; isHindi: boolean }) 
         <button
           onClick={load}
           disabled={state === 'loading'}
-          className="focus-ring group inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-500/10 border border-violet-500/25 text-violet-200 text-sm font-medium hover:bg-violet-500/15 transition disabled:opacity-60"
+          className="focus-ring group inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[color:var(--signal)]/10 border border-[color:var(--signal)]/25 text-[color:var(--signal)] text-sm font-medium hover:bg-[color:var(--signal)]/15 transition disabled:opacity-60"
         >
           {state === 'loading' ? (
-            <span className="w-4 h-4 border-[1.5px] border-violet-300 border-t-transparent rounded-full animate-spin" />
+            <span className="w-4 h-4 border-[1.5px] border-[color:var(--signal)] border-t-transparent rounded-full animate-spin" />
           ) : (
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -473,7 +473,7 @@ function DeeperSection({ card, isHindi }: { card: CardData; isHindi: boolean }) 
             animate={{ opacity: 1, y: 0 }}
             className={`basis-full w-full space-y-2.5 ${isHindi ? 'lang-hi' : ''}`}
           >
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-violet-300 mb-1">
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[color:var(--signal)] mb-1">
               <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
               {t('goDeeper')}
             </div>
@@ -485,7 +485,7 @@ function DeeperSection({ card, isHindi }: { card: CardData; isHindi: boolean }) 
                 transition={{ delay: i * 0.08 }}
                 className="flex items-start gap-2.5 p-3 rounded-xl bg-white/[0.04] border border-white/[0.06]"
               >
-                <span className="mt-0.5 w-5 h-5 shrink-0 rounded-md bg-gradient-to-br from-violet-500/30 to-cyan-500/20 text-violet-200 text-[11px] font-bold flex items-center justify-center">
+                <span className="mt-0.5 w-5 h-5 shrink-0 rounded-md bg-[color:var(--signal)]/20 border border-[color:var(--signal)]/30 text-[color:var(--signal)] text-[11px] font-bold flex items-center justify-center">
                   {i + 1}
                 </span>
                 <p className="text-sm text-dark-text/90 leading-relaxed">{ins}</p>
@@ -543,10 +543,10 @@ function QuizSection({ card, isHindi }: { card: CardData; isHindi: boolean }) {
         <button
           onClick={load}
           disabled={state === 'loading'}
-          className="focus-ring group inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/25 text-cyan-200 text-sm font-medium hover:bg-cyan-500/15 transition disabled:opacity-60"
+          className="focus-ring group inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.03] border border-[color:var(--hair-strong)] text-dark-text text-sm font-medium hover:border-[color:var(--signal)] hover:bg-white/[0.05] transition disabled:opacity-60"
         >
           {state === 'loading' ? (
-            <span className="w-4 h-4 border-[1.5px] border-cyan-300 border-t-transparent rounded-full animate-spin" />
+            <span className="w-4 h-4 border-[1.5px] border-[color:var(--signal)] border-t-transparent rounded-full animate-spin" />
           ) : (
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -567,7 +567,7 @@ function QuizSection({ card, isHindi }: { card: CardData; isHindi: boolean }) {
             animate={{ opacity: 1, y: 0 }}
             className={`basis-full w-full rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4 ${isHindi ? 'lang-hi' : ''}`}
           >
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-cyan-300 mb-3">
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[color:var(--signal)] mb-3">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               {t('testYourself')}
             </div>
@@ -647,7 +647,7 @@ function formatText(text: string): React.ReactNode[] {
       return codeParts.map((cp, j) => {
         if (cp.startsWith('`') && cp.endsWith('`')) {
           return (
-            <code key={`${i}-${j}`} className="code-text bg-dark-card px-1.5 py-0.5 rounded text-violet-300">
+            <code key={`${i}-${j}`} className="code-text bg-dark-card px-1.5 py-0.5 rounded text-[color:var(--signal)]">
               {cp.slice(1, -1)}
             </code>
           )
@@ -659,7 +659,7 @@ function formatText(text: string): React.ReactNode[] {
     if (part.startsWith('→ ')) {
       return (
         <span key={i} className="flex items-start gap-2">
-          <span className="text-violet-400 mt-1">→</span>
+          <span className="text-[color:var(--signal)] mt-1">→</span>
           <span>{part.slice(2)}</span>
         </span>
       )
