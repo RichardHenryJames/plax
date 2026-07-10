@@ -25,9 +25,10 @@ const GROQ_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b'
 const GROQ_MODEL_2 = process.env.GROQ_MODEL_2 || 'openai/gpt-oss-20b'
 // A comma-separated list of OpenRouter FREE model IDs, tried in order. Each `:free`
 // model has its own free allocation, so listing several greatly extends capacity.
+// (Verified available on the free tier via /api/v1/models.)
 const OPENROUTER_MODELS = (
   process.env.OPENROUTER_MODELS ||
-  'deepseek/deepseek-chat-v3-0324:free,meta-llama/llama-3.3-70b-instruct:free,qwen/qwen-2.5-72b-instruct:free,google/gemini-2.0-flash-exp:free'
+  'meta-llama/llama-3.3-70b-instruct:free,qwen/qwen3-next-80b-a3b-instruct:free,openai/gpt-oss-120b:free,openai/gpt-oss-20b:free'
 )
   .split(',')
   .map((s) => s.trim())
