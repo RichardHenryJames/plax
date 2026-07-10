@@ -109,6 +109,12 @@ const EN: Dict = {
   goDeeper: 'Go deeper',
   deeperLoading: 'Thinking…',
   deeperError: 'Could not load more right now.',
+  testYourself: 'Test yourself',
+  quizLoading: 'Building a question…',
+  quizError: 'Could not create a quiz right now.',
+  quizCorrect: 'Correct!',
+  quizWrong: 'Not quite.',
+  quizTryAnother: 'Try another card',
 }
 
 const HI: Dict = {
@@ -189,6 +195,12 @@ const HI: Dict = {
   goDeeper: 'और गहराई में जाएँ',
   deeperLoading: 'सोच रहे हैं…',
   deeperError: 'अभी और जानकारी लोड नहीं हो सकी।',
+  testYourself: 'खुद को परखें',
+  quizLoading: 'प्रश्न बना रहे हैं…',
+  quizError: 'अभी प्रश्न नहीं बन सका।',
+  quizCorrect: 'सही!',
+  quizWrong: 'बिलकुल नहीं।',
+  quizTryAnother: 'अगला कार्ड आज़माएँ',
 }
 
 const DICTS: Record<string, Dict> = { en: EN, hi: HI }

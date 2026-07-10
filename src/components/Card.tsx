@@ -151,6 +151,11 @@ export function Card({ card, isActive }: CardProps) {
             <DeeperSection card={card} isHindi={isHindi} />
           )}
 
+          {/* Test yourself — AI-generated one-question quiz for active recall */}
+          {card.type !== 'quote' && (card.content?.length ?? 0) > 160 && (
+            <QuizSection card={card} isHindi={isHindi} />
+          )}
+
           {/* Author / Source credibility */}
           {(card.author || card.source) && (
             <motion.div
@@ -374,6 +379,122 @@ function DeeperSection({ card, isHindi }: { card: CardData; isHindi: boolean }) 
                 <p className="text-sm text-dark-text/90 leading-relaxed">{ins}</p>
               </motion.div>
             ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+// "Test yourself" — a tap builds one AI multiple-choice question from the card so
+// the reader actively recalls the key idea instead of passively scrolling past it.
+type Quiz = { question: string; options: string[]; correct: number; explanation: string }
+
+function QuizSection({ card, isHindi }: { card: CardData; isHindi: boolean }) {
+  const { t, lang } = useT()
+  const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
+  const [quiz, setQuiz] = useState<Quiz | null>(null)
+  const [picked, setPicked] = useState<number | null>(null)
+
+  const load = async () => {
+    if (state === 'loading' || state === 'ready') return
+    setState('loading')
+    try {
+      const res = await fetch('/api/quiz', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: card.title, content: card.content, lang }),
+      })
+      const data = await res.json()
+      if (data?.quiz?.options?.length === 4) {
+        setQuiz(data.quiz)
+        setState('ready')
+      } else {
+        setState('error')
+      }
+    } catch {
+      setState('error')
+    }
+  }
+
+  return (
+    <div className={`mt-3 ${isHindi ? 'lang-hi' : ''}`}>
+      {state !== 'ready' && (
+        <button
+          onClick={load}
+          disabled={state === 'loading'}
+          className="focus-ring group inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/25 text-cyan-200 text-sm font-medium hover:bg-cyan-500/15 transition disabled:opacity-60"
+        >
+          {state === 'loading' ? (
+            <span className="w-4 h-4 border-[1.5px] border-cyan-300 border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          )}
+          {state === 'loading' ? t('quizLoading') : t('testYourself')}
+        </button>
+      )}
+
+      {state === 'error' && (
+        <p className="mt-2 text-xs text-dark-subtle">{t('quizError')}</p>
+      )}
+
+      <AnimatePresence>
+        {state === 'ready' && quiz && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-1 rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4"
+          >
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-cyan-300 mb-3">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              {t('testYourself')}
+            </div>
+            <p className="text-sm font-medium text-dark-text mb-3 leading-relaxed">{quiz.question}</p>
+            <div className="space-y-2">
+              {quiz.options.map((opt, i) => {
+                const isPicked = picked === i
+                const isCorrect = i === quiz.correct
+                const answered = picked !== null
+                let cls = 'border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.05] text-dark-text/90'
+                if (answered && isCorrect) cls = 'border-green-500/50 bg-green-500/15 text-green-100'
+                else if (answered && isPicked) cls = 'border-red-500/50 bg-red-500/15 text-red-100'
+                else if (answered) cls = 'border-white/[0.06] bg-white/[0.02] text-dark-muted'
+                return (
+                  <button
+                    key={i}
+                    disabled={answered}
+                    onClick={(e) => { e.stopPropagation(); setPicked(i) }}
+                    className={`w-full text-left flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-sm transition ${cls} disabled:cursor-default`}
+                  >
+                    <span className="w-5 h-5 shrink-0 rounded-md bg-white/5 border border-white/10 text-[11px] font-bold flex items-center justify-center">
+                      {String.fromCharCode(65 + i)}
+                    </span>
+                    <span className="leading-snug">{opt}</span>
+                    {answered && isCorrect && (
+                      <svg className="w-4 h-4 ml-auto text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+            <AnimatePresence>
+              {picked !== null && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="mt-3 overflow-hidden"
+                >
+                  <p className={`text-sm font-semibold ${picked === quiz.correct ? 'text-green-300' : 'text-red-300'}`}>
+                    {picked === quiz.correct ? t('quizCorrect') : t('quizWrong')}
+                  </p>
+                  {quiz.explanation && (
+                    <p className="mt-1 text-xs text-dark-subtle leading-relaxed">{quiz.explanation}</p>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         )}
       </AnimatePresence>
