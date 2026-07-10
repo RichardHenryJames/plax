@@ -17,7 +17,6 @@ interface AuthContextType {
   session: Session | null
   loading: boolean
   signInWithGoogle: () => Promise<void>
-  signInWithGithub: () => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -26,7 +25,6 @@ const AuthContext = createContext<AuthContextType>({
   session: null,
   loading: true,
   signInWithGoogle: async () => {},
-  signInWithGithub: async () => {},
   signOut: async () => {},
 })
 
@@ -96,22 +94,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const signInWithGithub = useCallback(async () => {
-    try {
-      const supabase = getSupabase()
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'github',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      })
-      if (error) throw error
-    } catch (err) {
-      console.error('[Plax Auth] GitHub sign-in failed:', err)
-      alert('Sign-in is temporarily unavailable. Please try again in a moment.')
-    }
-  }, [])
-
   const signOut = useCallback(async () => {
     try {
       const supabase = getSupabase()
@@ -123,7 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, session, loading, signInWithGoogle, signInWithGithub, signOut }}
+      value={{ user, session, loading, signInWithGoogle, signOut }}
     >
       {children}
     </AuthContext.Provider>

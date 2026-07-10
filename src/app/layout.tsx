@@ -52,10 +52,6 @@ export const metadata: Metadata = {
       'max-video-preview': -1,
     },
   },
-  icons: {
-    icon: '/plaxlabs_logo.png',
-    apple: '/plaxlabs_logo.png',
-  },
   manifest: '/manifest.webmanifest',
   category: 'education',
 }
