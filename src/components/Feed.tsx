@@ -237,7 +237,9 @@ export function Feed() {
             ? { ...c, title: data.title || c.title, content: data.content, aiEnhanced: true, originalContent: c.content }
             : c
         )
-        setCachedCards(updated, topicsSig(selectedTopics))
+        // Read topics from the store (not a stale closure) so enhanced cards are
+        // cached under the CURRENT topic signature even after a topic change.
+        setCachedCards(updated, topicsSig(usePlaxStore.getState().selectedTopics))
         return updated
       })
     } catch {

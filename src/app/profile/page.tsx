@@ -287,7 +287,7 @@ export default function ProfilePage() {
                       key={topicId}
                       className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-sm"
                     >
-                      {topic?.emoji} {topic?.label || topicId}
+                      {topic?.emoji} {topic?.label || (topicId === 'general' ? 'Discover' : topicId)}
                     </span>
                   )
                 })}

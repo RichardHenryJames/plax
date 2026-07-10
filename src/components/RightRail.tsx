@@ -54,7 +54,7 @@ export function RightRail() {
           >
             <div className="flex items-center gap-2 mb-3">
               <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r ${cardTopic?.color || 'from-gray-500 to-gray-600'} text-white`}>
-                {currentCard.emoji} {cardTopic?.label || currentCard.category}
+                {currentCard.emoji} {cardTopic?.label || (currentCard.category === 'general' ? 'Discover' : currentCard.category)}
               </span>
               <span className="text-dark-subtle text-[11px]">{currentCard.readTime} read</span>
             </div>
@@ -113,7 +113,7 @@ export function RightRail() {
               const t = TOPICS.find((x) => x.id === cat)
               return (
                 <span key={cat} className="px-2.5 py-1 rounded-full text-xs bg-white/5 text-dark-text border border-dark-border">
-                  {t?.emoji} {t?.label || cat}
+                  {t?.emoji} {t?.label || (cat === 'general' ? 'Discover' : cat)}
                 </span>
               )
             })}

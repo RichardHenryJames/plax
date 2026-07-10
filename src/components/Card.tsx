@@ -11,7 +11,8 @@ interface CardProps {
 
 export function Card({ card, isActive }: CardProps) {
   const topicMeta = TOPICS.find((t) => t.id === card.category)
-  const gradientClass = topicMeta?.color || 'from-gray-500 to-gray-600'
+  const gradientClass = topicMeta?.color || (card.category === 'general' ? 'from-slate-500 to-slate-600' : 'from-gray-500 to-gray-600')
+  const categoryLabel = topicMeta?.label || (card.category === 'general' ? 'Discover' : card.category)
 
   return (
     <div className="relative flex flex-col overflow-hidden select-none h-full w-full lg:h-[86vh] lg:max-h-[880px] lg:max-w-3xl lg:mx-auto lg:rounded-[28px] lg:border lg:border-white/[0.08] lg:bg-[#0f0f15] lg:shadow-2xl lg:shadow-black/60">
@@ -38,7 +39,7 @@ export function Card({ card, isActive }: CardProps) {
             className="flex items-center flex-wrap gap-2.5 mb-6"
           >
             <span className={`inline-flex items-center gap-1.5 pl-2 pr-3 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-gradient-to-r ${gradientClass} text-white shadow-lg`}>
-              <span className="text-xs">{card.emoji}</span> {topicMeta?.label || card.category}
+              <span className="text-xs">{card.emoji}</span> {categoryLabel}
             </span>
             {card.aiEnhanced && (
               <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-violet-200 bg-violet-500/15 border border-violet-400/25 rounded-full px-2 py-1">

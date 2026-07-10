@@ -105,21 +105,29 @@ export async function fetchWikipediaContent(count: number = 12): Promise<RawCont
 }
 
 function categorizeWikipedia(description: string): string {
-  const desc = description.toLowerCase()
-  if (desc.includes('physic') || desc.includes('quantum')) return 'physics'
-  if (desc.includes('biolog') || desc.includes('species') || desc.includes('animal')) return 'nature'
-  if (desc.includes('math') || desc.includes('theorem')) return 'math'
-  if (desc.includes('philosoph')) return 'philosophy'
-  if (desc.includes('psycholog')) return 'psychology'
-  if (desc.includes('histor') || desc.includes('war') || desc.includes('empire')) return 'history'
-  if (desc.includes('computer') || desc.includes('software') || desc.includes('programming') ||
-    desc.includes('algorithm') || desc.includes('engineer') || desc.includes('internet') ||
-    desc.includes('digital') || desc.includes('database') || desc.includes('cryptograph'))
-    return 'programming'
-  if (desc.includes('econom') || desc.includes('business')) return 'finance'
-  if (desc.includes('art') || desc.includes('painter') || desc.includes('artist')) return 'art'
-  if (desc.includes('space') || desc.includes('planet') || desc.includes('star')) return 'space'
-  return 'science' // default
+  const d = description.toLowerCase()
+  const has = (...w: string[]) => w.some((x) => d.includes(x))
+
+  // Order matters: most specific first, broad science last, then neutral general.
+  if (has('space', 'planet', 'astronom', 'galaxy', 'cosmos', 'orbit', 'spacecraft', 'satellite', 'nebula', 'asteroid', 'comet', 'nasa')) return 'space'
+  if (has('quantum', 'relativity', 'particle physic', 'thermodynam', 'astrophysic', 'physicist', 'physics')) return 'physics'
+  if (has('theorem', 'algebra', 'geometry', 'calculus', 'number theory', 'topolog', 'mathematic', 'mathematician')) return 'math'
+  if (has('philosoph', 'ethics', 'metaphysic', 'epistemolog', 'existential')) return 'philosophy'
+  if (has('psycholog', 'cognit', 'behaviou', 'mental health', 'emotion', 'perception')) return 'psychology'
+  if (has('medic', 'disease', 'medicine', 'nutrition', 'clinical', 'hospital', 'health', 'anatomy', 'therapy', 'vaccine', 'pathogen', 'epidemi')) return 'health'
+  if (has('software', 'programming', 'algorithm', 'internet', 'database', 'cryptograph', 'source code', 'operating system', 'compiler', 'computing', 'computer science')) return 'programming'
+  if (has('artificial intelligence', 'machine learning', 'robot', 'semiconductor', 'electronic', 'technolog', 'gadget', 'computer hardware')) return 'technology'
+  if (has('econom', 'business', 'financ', 'stock market', 'banking', 'trade', 'currency', 'investment')) return 'finance'
+  if (has('novel', 'literature', 'literary', 'poetry', 'poem', 'book', 'author', 'writer', 'fiction')) return 'books'
+  if (has('painting', 'painter', 'sculpt', 'artist', 'art movement', 'museum', 'architecture', 'design', 'photograph', 'film', 'cinema', 'music', 'composer')) return 'art'
+  if (has('linguist', 'language', 'etymolog', 'grammar', 'dialect', 'alphabet', 'writing system')) return 'language'
+  if (has('biolog', 'species', 'animal', 'plant', 'ecolog', 'botan', 'zoolog', 'wildlife', 'forest', 'ecosystem', 'organism', 'evolution', 'genetic')) return 'nature'
+  if (has('histor', 'war', 'empire', 'ancient', 'dynasty', 'revolution', 'battle', 'medieval', 'century', 'kingdom', 'civilization', 'archaeolog')) return 'history'
+  if (has('chemistr', 'chemical', 'molecul', 'atom', 'reaction', 'scientif', 'research', 'laborator', 'science', 'element', 'compound', 'enzyme')) return 'science'
+
+  // Unclassifiable (misc events, objects, photos…) → neutral bucket that only
+  // surfaces for no-topic browsers, never polluting a user's picked topic.
+  return 'general'
 }
 
 // True for the boring random-Wikipedia stubs we don't want as reading cards:

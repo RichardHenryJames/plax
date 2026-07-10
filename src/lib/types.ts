@@ -137,4 +137,6 @@ export const EMOJI_MAP: Record<string, string> = {
   art: '🎨',
   physics: '⚛️',
   business: '📈',
+  language: '🗣️',
+  general: '💡',
 }
