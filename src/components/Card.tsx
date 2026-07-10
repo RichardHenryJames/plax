@@ -13,10 +13,12 @@ export function Card({ card, isActive }: CardProps) {
   const topicMeta = TOPICS.find((t) => t.id === card.category)
   const gradientClass = topicMeta?.color || (card.category === 'general' ? 'from-slate-500 to-slate-600' : 'from-gray-500 to-gray-600')
   const categoryLabel = topicMeta?.label || (card.category === 'general' ? 'Discover' : card.category)
+  // Detect Devanagari so the card renders with a proper Hindi font + line-height,
+  // independent of the app's language toggle (robust for mixed/partial states).
+  const isHindi = /[\u0900-\u097F]/.test(`${card.title || ''} ${card.content || ''}`)
 
   return (
-    <div className="relative flex flex-col overflow-hidden select-none h-full w-full lg:h-[86vh] lg:max-h-[880px] lg:max-w-3xl lg:mx-auto lg:rounded-[28px] lg:border lg:border-white/[0.08] lg:bg-[#0f0f15] lg:shadow-2xl lg:shadow-black/60">
-      {/* Desktop panel sheen */}
+    <div className={`relative flex flex-col overflow-hidden select-none h-full w-full lg:h-[86vh] lg:max-h-[880px] lg:max-w-3xl lg:mx-auto lg:rounded-[28px] lg:border lg:border-white/[0.08] lg:bg-[#0f0f15] lg:shadow-2xl lg:shadow-black/60 ${isHindi ? 'lang-hi' : ''}`}>      {/* Desktop panel sheen */}
       <div className="hidden lg:block absolute inset-0 rounded-[28px] pointer-events-none bg-[radial-gradient(130%_85%_at_50%_0%,rgba(139,92,246,0.08),transparent_55%)]" />
       {/* Background glow */}
       <div className={`absolute inset-0 bg-gradient-to-b ${gradientClass} opacity-[0.05]`} />
@@ -186,14 +188,22 @@ export function Card({ card, isActive }: CardProps) {
 }
 
 function formatText(text: string): React.ReactNode[] {
-  // Bold
-  const parts = text.split(/(\*\*[^*]+\*\*)/g)
+  // Bold (**x**) and italic (*x*) — split on both so single asterisks used by the
+  // AI (common in Hindi output) render as emphasis instead of literal '*'.
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*\n]+\*)/g)
   return parts.map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**')) {
       return (
         <strong key={i} className="font-semibold text-white">
           {part.slice(2, -2)}
         </strong>
+      )
+    }
+    if (part.length > 2 && part.startsWith('*') && part.endsWith('*')) {
+      return (
+        <em key={i} className="italic text-white/90">
+          {part.slice(1, -1)}
+        </em>
       )
     }
     // Inline code

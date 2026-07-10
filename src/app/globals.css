@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Noto+Serif+Devanagari:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -135,6 +135,30 @@ body {
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   font-size: 0.875rem;
   line-height: 1.7;
+}
+
+/* ── Devanagari (Hindi) rendering ── applied to any element showing Hindi so
+   Devanagari uses a proper Indic font with comfortable line-height for matras.
+   Broad selectors + !important so it wins over Inter/Newsreader on every child. */
+.lang-hi,
+.lang-hi h1,
+.lang-hi h2,
+.lang-hi h3,
+.lang-hi p,
+.lang-hi span,
+.lang-hi a,
+.lang-hi .reading-text,
+.lang-hi .font-display {
+  font-family: 'Noto Sans Devanagari', 'Nirmala UI', 'Mangal', system-ui, sans-serif !important;
+}
+.lang-hi .reading-text,
+.lang-hi p {
+  line-height: 1.9 !important;
+  letter-spacing: normal !important;
+}
+.lang-hi h1,
+.lang-hi .font-display {
+  line-height: 1.45 !important;
 }
 
 /* ── Display headings ── */

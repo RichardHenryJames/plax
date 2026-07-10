@@ -20,6 +20,12 @@ function topicsSig(topics: string[]): string {
   return [...topics].sort().join(',')
 }
 
+// Cache/reload signature scoped to BOTH topics and content language, so switching
+// language (or topics) invalidates the cache and reloads a fresh feed.
+function feedSig(topics: string[], language: string): string {
+  return `${language}|${topicsSig(topics)}`
+}
+
 // ── Client-side card cache (localStorage), scoped to the topic selection ──
 function getCachedCards(sig: string): CardData[] {
   try {
@@ -57,6 +63,7 @@ function rankByEngagement(batch: CardData[], scoreOf: (category: string) => numb
 
 export function Feed() {
   const { selectedTopics, bookmarkedIds, engagements, addEngagement, incrementCardsRead, readCardIds, markCardRead } = usePlaxStore()
+  const language = usePlaxStore((s) => s.language)
   const feedFilter = useUIStore((s) => s.feedFilter)
   const setCurrentCard = useUIStore((s) => s.setCurrentCard)
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -118,7 +125,7 @@ export function Feed() {
       const cats = useUIStore.getState().feedFilter || selectedTopics.join(',')
       // Send IDs the client already has so server skips them
       const excludeIds = [...seenIdsRef.current].filter((id) => !id.startsWith('t:')).join(',')
-      const res = await fetch(`/api/feed?categories=${cats}&limit=30&refresh=${refresh}&exclude=${encodeURIComponent(excludeIds)}`)
+      const res = await fetch(`/api/feed?categories=${cats}&limit=30&refresh=${refresh}&lang=${language}&exclude=${encodeURIComponent(excludeIds)}`)
       if (res.ok) {
         const data = await res.json()
         if (data.cards?.length > 0) {
@@ -129,7 +136,7 @@ export function Feed() {
             console.log(`[Plax Feed] Loaded ${newCards.length} new cards (batch #${fetchCountRef.current})`)
             setCards((prev) => {
               const updated = [...prev, ...newCards]
-              setCachedCards(updated, topicsSig(selectedTopics))
+              setCachedCards(updated, feedSig(selectedTopics, language))
               return updated
             })
             setIsFetching(false)
@@ -149,13 +156,12 @@ export function Feed() {
     setIsFetching(false)
     isFetchingRef.current = false
     setIsInitialLoad(false)
-  }, [selectedTopics, engagements, bookmarkedIds]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedTopics, engagements, bookmarkedIds, language]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Initial load + RELOAD whenever the selected topics change. Keyed on the topic
-  // signature so editing interests fully resets the feed (clears old cards, seen
-  // set, index) and fetches fresh content for the new picks — otherwise the old
-  // topic's cards keep showing after an edit.
-  const topicSig = topicsSig(selectedTopics)
+  // Initial load + RELOAD whenever the selected topics OR language change. Keyed
+  // on the feed signature so editing interests / switching language fully resets
+  // the feed (clears old cards, seen set, index) and fetches fresh content.
+  const sig = feedSig(selectedTopics, language)
   useEffect(() => {
     // Full reset for the new topic selection.
     seenIdsRef.current = new Set<string>()
@@ -166,8 +172,8 @@ export function Feed() {
     setIsInitialLoad(true)
     cardEntryTime.current = Date.now()
 
-    // 1. Instant: load from localStorage cache for THIS topic sig (skip read cards)
-    const cached = getCachedCards(topicSig).filter((c) => !readCardIds.includes(c.id))
+    // 1. Instant: load from localStorage cache for THIS sig (skip read cards)
+    const cached = getCachedCards(sig).filter((c) => !readCardIds.includes(c.id))
     if (cached.length > 0) {
       cached.forEach((c) => {
         seenIdsRef.current.add(c.id)
@@ -177,10 +183,10 @@ export function Feed() {
       setCards(cached)
       console.log(`[Plax Feed] Instant load: ${cached.length} cached cards`)
     } else {
-      setCards([]) // no cache for this sig → clear the old topic's cards immediately
+      setCards([]) // no cache for this sig → clear the old cards immediately
     }
 
-    // 2. Background: fetch fresh cards for the current topics
+    // 2. Background: fetch fresh cards for the current topics + language
     let cancelled = false
     const fetchLive = async () => {
       setIsFetching(true)
@@ -188,7 +194,7 @@ export function Feed() {
       try {
         const cats = selectedTopics.join(',')
         const excludeIds = [...seenIdsRef.current].filter((id) => !id.startsWith('t:')).join(',')
-        const res = await fetch(`/api/feed?categories=${cats}&limit=30&refresh=true&exclude=${encodeURIComponent(excludeIds)}`)
+        const res = await fetch(`/api/feed?categories=${cats}&limit=30&refresh=true&lang=${language}&exclude=${encodeURIComponent(excludeIds)}`)
         if (res.ok) {
           const data = await res.json()
           if (!cancelled && data.cards?.length > 0) {
@@ -197,7 +203,7 @@ export function Feed() {
             console.log(`[Plax Feed] Live refresh: ${liveCards.length} new cards`)
             setCards((prev) => {
               const updated = prev.length > 0 ? [...prev, ...liveCards] : liveCards
-              setCachedCards(updated, topicSig)
+              setCachedCards(updated, sig)
               return updated
             })
           }
@@ -214,7 +220,7 @@ export function Feed() {
     }
     fetchLive()
     return () => { cancelled = true }
-  }, [topicSig]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sig]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Filter loaded cards by the active desktop topic filter ──
   const visibleCards = useMemo(
@@ -237,14 +243,20 @@ export function Feed() {
   const enhanceAttempted = useRef(new Set<string>())
   const enhanceCard = useCallback(async (card: CardData | undefined) => {
     if (!card || card.aiEnhanced || enhanceAttempted.current.has(card.id)) return
-    // Only transform long-form raw extracts (skip quotes, short facts)
-    if (card.type !== 'microessay' || (card.content?.length ?? 0) < 240) return
+    const lang = usePlaxStore.getState().language
+    // English: only transform long-form raw extracts (skip quotes, short facts).
+    // Hindi: enhance every substantive card so the whole feed reads in Hindi.
+    if (lang === 'en') {
+      if (card.type !== 'microessay' || (card.content?.length ?? 0) < 240) return
+    } else {
+      if ((card.content?.length ?? 0) < 120) return
+    }
     enhanceAttempted.current.add(card.id)
     try {
       const res = await fetch('/api/summarize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: card.content, type: 'microessay' }),
+        body: JSON.stringify({ content: card.content, type: 'microessay', lang }),
       })
       if (!res.ok) return
       const data = await res.json()
@@ -255,9 +267,9 @@ export function Feed() {
             ? { ...c, title: data.title || c.title, content: data.content, aiEnhanced: true, originalContent: c.content }
             : c
         )
-        // Read topics from the store (not a stale closure) so enhanced cards are
-        // cached under the CURRENT topic signature even after a topic change.
-        setCachedCards(updated, topicsSig(usePlaxStore.getState().selectedTopics))
+        // Read topics + language from the store (not a stale closure) so enhanced
+        // cards are cached under the CURRENT signature even after a change.
+        setCachedCards(updated, feedSig(usePlaxStore.getState().selectedTopics, usePlaxStore.getState().language))
         return updated
       })
     } catch {

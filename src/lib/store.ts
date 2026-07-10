@@ -42,6 +42,10 @@ interface PlaxState {
   setSelectedTopics: (topics: string[]) => void
   toggleTopic: (topic: string) => void
 
+  // Content language (feed content + AI summaries). 'en' | 'hi'
+  language: string
+  setLanguage: (lang: string) => void
+
   // Bookmarks
   bookmarkedIds: string[]
   toggleBookmark: (id: string) => void
@@ -94,6 +98,10 @@ export const usePlaxStore = create<PlaxState>()(
           set({ selectedTopics: [...current, topic] })
         }
       },
+
+      // Content language
+      language: 'en',
+      setLanguage: (lang) => set({ language: lang }),
 
       // Bookmarks
       bookmarkedIds: [],

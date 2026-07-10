@@ -19,6 +19,8 @@ export function TopicEditor() {
   const setTopicsOpen = useUIStore((s) => s.setTopicsOpen)
   const setFeedFilter = useUIStore((s) => s.setFeedFilter)
   const { selectedTopics, toggleTopic } = usePlaxStore()
+  const language = usePlaxStore((s) => s.language)
+  const setLanguage = usePlaxStore((s) => s.setLanguage)
   const { user } = useAuth()
   const [query, setQuery] = useState('')
 
@@ -87,6 +89,30 @@ export function TopicEditor() {
 
             {/* Search */}
             <div className="px-5 pt-4">
+              {/* Language selector — feed content language */}
+              <div className="mb-4">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-dark-subtle mb-2">Feed language</p>
+                <div className="inline-flex p-0.5 rounded-xl bg-dark-card sm:bg-dark-bg border border-dark-border">
+                  {[
+                    { id: 'en', label: 'English' },
+                    { id: 'hi', label: 'हिन्दी' },
+                  ].map((l) => (
+                    <button
+                      key={l.id}
+                      onClick={() => setLanguage(l.id)}
+                      aria-pressed={language === l.id}
+                      className={`px-4 py-1.5 rounded-lg text-sm font-medium transition ${
+                        language === l.id
+                          ? 'bg-gradient-to-r from-violet-600 to-cyan-600 text-white shadow'
+                          : 'text-dark-muted hover:text-white'
+                      }`}
+                    >
+                      {l.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="relative">
                 <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-subtle" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />

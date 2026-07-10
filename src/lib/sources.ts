@@ -1,4 +1,4 @@
-import { RawContent, CATEGORY_MAP, TOPIC_SUBREDDITS, TOPIC_WIKI_QUERIES } from './types'
+import { RawContent, CATEGORY_MAP, TOPIC_SUBREDDITS, TOPIC_WIKI_QUERIES, TOPIC_WIKI_QUERIES_HI } from './types'
 
 // ─── HTML Cleaning (for HN and Reddit raw content) ───
 
@@ -28,8 +28,9 @@ function stripHtml(html: string): string {
 
 // ─── Wikipedia Random Articles (truly random each call) ───
 
-export async function fetchWikipediaContent(count: number = 12): Promise<RawContent[]> {
+export async function fetchWikipediaContent(count: number = 12, lang: string = 'en'): Promise<RawContent[]> {
   const results: RawContent[] = []
+  const host = `https://${lang}.wikipedia.org`
 
   // ONE request for `count` random articles via generator=random — far fewer HTTP
   // calls than N parallel /random/summary fetches. Those bursts get rate-limited
@@ -38,7 +39,7 @@ export async function fetchWikipediaContent(count: number = 12): Promise<RawCont
   try {
     const grnlimit = Math.min(Math.max(count, 1), 20)
     const url =
-      'https://en.wikipedia.org/w/api.php?action=query&format=json' +
+      `${host}/w/api.php?action=query&format=json` +
       `&generator=random&grnnamespace=0&grnlimit=${grnlimit}` +
       '&prop=extracts|info|description&exintro=1&explaintext=1&inprop=url&origin=*'
     const r = await fetch(url, {
@@ -51,21 +52,25 @@ export async function fetchWikipediaContent(count: number = 12): Promise<RawCont
       for (const key of Object.keys(pages)) {
         const p = pages[key]
         const extract: string = (p?.extract || '').trim()
-        // Skip stubs + the boring biography/place/species/media/product entries.
+        // Skip stubs. For non-English wikis the English-tuned quality regexes
+        // don't apply, so just require a reasonable length.
         if (!extract || extract.length < 120) continue
-        if (isLowQualityWikipedia(p.description || '', p.title || '', extract)) continue
+        if (lang === 'en' && isLowQualityWikipedia(p.description || '', p.title || '', extract)) continue
         results.push({
           title: p.title,
           content: trimToSentence(extract, 700),
-          url: p.fullurl || `https://en.wikipedia.org/?curid=${p.pageid}`,
+          url: p.fullurl || `${host}/?curid=${p.pageid}`,
           source: 'Wikipedia',
-          category: categorizeWikipedia(p.description || p.title),
+          category: lang === 'en' ? categorizeWikipedia(p.description || p.title) : 'general',
         })
       }
     }
   } catch (error) {
     console.error('Wikipedia random error:', error)
   }
+
+  // "On this day" is English-only in our fetch → skip for other languages.
+  if (lang !== 'en') return results
 
   // Fetch "On this day" facts
   try {
@@ -212,7 +217,8 @@ function isLowQualityWikipedia(
 // is never IP-blocked, so this guarantees relevant content for every picked topic.
 export async function fetchWikipediaByTopics(
   categories: string[],
-  perTopic: number = 5
+  perTopic: number = 5,
+  lang: string = 'en'
 ): Promise<RawContent[]> {
   if (!categories.length) return []
 
@@ -224,10 +230,12 @@ export async function fetchWikipediaByTopics(
   const cats = categories.slice(0, MAX_REQUESTS)
   const termsPerTopic = Math.max(1, Math.min(3, Math.floor(MAX_REQUESTS / cats.length)))
   const perTermLimit = cats.length <= 2 ? 6 : perTopic
+  // Hindi feed searches Hindi Wikipedia using Hindi seed terms.
+  const queryMap = lang === 'hi' ? TOPIC_WIKI_QUERIES_HI : TOPIC_WIKI_QUERIES
 
   const perCat = await Promise.all(
     cats.map(async (category) => {
-      const queries = TOPIC_WIKI_QUERIES[category]
+      const queries = queryMap[category]
       if (!queries || !queries.length) return [] as RawContent[]
       // Pick DISTINCT random seed terms so we don't get near-identical articles
       // from one term (e.g. five "Public Health Service" variants).
@@ -236,7 +244,7 @@ export async function fetchWikipediaByTopics(
       const terms = shuffled.slice(0, nTerms)
       const perTerm = Math.max(2, perTermLimit)
       const batches = await Promise.all(
-        terms.map((term) => fetchWikiSearch(term, perTerm, category))
+        terms.map((term) => fetchWikiSearch(term, perTerm, category, lang))
       )
       return batches.flat()
     })
@@ -260,11 +268,13 @@ export async function fetchWikipediaByTopics(
 async function fetchWikiSearch(
   term: string,
   limit: number,
-  category: string
+  category: string,
+  lang: string = 'en'
 ): Promise<RawContent[]> {
+  const host = `https://${lang}.wikipedia.org`
   const offset = Math.floor(Math.random() * 8) // vary results across refreshes
   const url =
-    'https://en.wikipedia.org/w/api.php?action=query&format=json' +
+    `${host}/w/api.php?action=query&format=json` +
     '&generator=search&gsrnamespace=0&gsrsearch=' +
     encodeURIComponent(term) +
     `&gsrlimit=${limit}&gsroffset=${offset}` +
@@ -283,14 +293,13 @@ async function fetchWikiSearch(
       const p = pages[key]
       const extract: string = (p?.extract || '').trim()
       // Skip stubs, disambiguation, list, place & media entries, but KEEP notable
-      // biographies — a scientist/author/leader matching the topic is premium,
-      // relevance-ranked content, not junk.
-      if (!extract || extract.length < 140) continue
-      if (isLowQualityWikipedia(p.description || '', p.title || '', extract, { allowNotablePeople: true })) continue
+      // biographies. Quality regexes are English-tuned → only apply for en.
+      if (!extract || extract.length < (lang === 'en' ? 140 : 100)) continue
+      if (lang === 'en' && isLowQualityWikipedia(p.description || '', p.title || '', extract, { allowNotablePeople: true })) continue
       out.push({
         title: p.title,
         content: trimToSentence(extract, 700),
-        url: p.fullurl || `https://en.wikipedia.org/?curid=${p.pageid}`,
+        url: p.fullurl || `${host}/?curid=${p.pageid}`,
         source: 'Wikipedia',
         category,
       })
@@ -500,7 +509,27 @@ function cleanRedditTitle(title: string): string {
 }
 
 // ─── Aggregate all sources (each one is independently error-safe) ───
-export async function fetchAllContent(categories: string[] = []): Promise<RawContent[]> {
+export async function fetchAllContent(categories: string[] = [], lang: string = 'en'): Promise<RawContent[]> {
+  // ── HINDI FEED ──────────────────────────────────────────────────────────
+  // For Hindi we source natively from Hindi Wikipedia (Devanagari content) so
+  // even un-enhanced cards render in Hindi. Skip the English-only sources
+  // (Hacker News, ZenQuotes, Reddit). Client-side AI enhancement further polishes
+  // these into crisp Hindi micro-essays.
+  if (lang === 'hi') {
+    const DEFAULT_TOPICS = ['science', 'history', 'space', 'health', 'nature', 'philosophy']
+    const topicsForSearch = categories.length ? categories : DEFAULT_TOPICS
+    const results = await Promise.allSettled([
+      fetchWikipediaByTopics(topicsForSearch, 6, 'hi'),
+      fetchWikipediaContent(18, 'hi'),
+    ])
+    const all: RawContent[] = []
+    results.forEach((r) => {
+      if (r.status === 'fulfilled') all.push(...r.value)
+    })
+    console.log(`[Plax Sources] Hindi: ${all.length} items`)
+    return all
+  }
+
   // Base subreddits (broad coverage) + topic-specific subreddits for the user's
   // selected categories, so niche picks (health, books, finance…) get real
   // on-topic content instead of leaning on random Wikipedia/quotes.

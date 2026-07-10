@@ -23,12 +23,13 @@ export async function GET(request: NextRequest) {
   const categories = searchParams.get('categories')?.split(',') || []
   const refresh = searchParams.get('refresh') === 'true'
   const limit = parseInt(searchParams.get('limit') || '30')
+  const lang = searchParams.get('lang') === 'hi' ? 'hi' : 'en'
   // Client sends IDs it already has — we skip those
   const excludeIds = new Set((searchParams.get('exclude') || '').split(',').filter(Boolean))
 
   try {
     // Check cache first (only for non-refresh requests)
-    const cacheKey = `feed-${categories.sort().join(',')}`
+    const cacheKey = `feed-${lang}-${categories.sort().join(',')}`
     if (!refresh) {
       const cached = getCached(cacheKey)
       if (cached && cached.length > 0) {
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch from all sources in parallel (always fresh on refresh).
     // Pass the user's categories so Reddit pulls topic-relevant subreddits.
-    const rawContents = await fetchAllContent(categories)
+    const rawContents = await fetchAllContent(categories, lang)
     console.log(`[Plax API] Fetched ${rawContents.length} raw items`)
 
     if (rawContents.length === 0) {

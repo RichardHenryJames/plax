@@ -12,11 +12,16 @@ const groq = groqApiKey ? new Groq({ apiKey: groqApiKey }) : null
 
 export async function POST(request: NextRequest) {
   try {
-    const { content, type = 'microessay' } = await request.json()
+    const { content, type = 'microessay', lang = 'en' } = await request.json()
 
     if (!content) {
       return NextResponse.json({ error: 'Content required' }, { status: 400 })
     }
+
+    const langInstruction =
+      lang === 'hi'
+        ? `\n- Write the ENTIRE title and content in HINDI (Devanagari script, शुद्ध सरल हिन्दी). Do NOT use English words (not even "takeaway", "hook") except globally-recognised proper nouns. Use **bold** only — never single-asterisk *italics*. Keep it natural, warm and easy to read.`
+        : ''
 
     const prompt = `Transform this into an engaging ${type} for a short-form reading app:
 
@@ -27,7 +32,7 @@ Rules:
 - Short punchy paragraphs
 - Use **bold** for key insights
 - Hook at start, takeaway at end
-- Every sentence adds value
+- Every sentence adds value${langInstruction}
 
 JSON response only:
 {"title": "...", "content": "...", "type": "${type}"}`
