@@ -23,6 +23,18 @@ export const TOPICS = [
 
 export type TopicId = (typeof TOPICS)[number]['id']
 
+// A bookmarked card stored locally (subset of CardData needed to render it).
+export interface BookmarkedCard {
+  id: string
+  title?: string
+  content: string
+  category: string
+  source?: string
+  sourceUrl?: string
+  emoji?: string
+  savedAt: number
+}
+
 // ─── Engagement Tracking ───
 interface Engagement {
   cardId: string
@@ -48,7 +60,10 @@ interface PlaxState {
 
   // Bookmarks
   bookmarkedIds: string[]
-  toggleBookmark: (id: string) => void
+  // Full card data for bookmarks, stored locally so signed-out users can revisit
+  // rich saved cards (not just an ID). Keyed by card id.
+  bookmarkedCards: Record<string, BookmarkedCard>
+  toggleBookmark: (id: string, card?: BookmarkedCard) => void
 
   // Engagement / Personalization
   engagements: Engagement[]
@@ -110,12 +125,18 @@ export const usePlaxStore = create<PlaxState>()(
 
       // Bookmarks
       bookmarkedIds: [],
-      toggleBookmark: (id) => {
+      bookmarkedCards: {},
+      toggleBookmark: (id, card) => {
         const current = get().bookmarkedIds
         if (current.includes(id)) {
-          set({ bookmarkedIds: current.filter((i) => i !== id) })
+          // Un-bookmark: drop the id + its stored card data.
+          const { [id]: _removed, ...rest } = get().bookmarkedCards
+          set({ bookmarkedIds: current.filter((i) => i !== id), bookmarkedCards: rest })
         } else {
-          set({ bookmarkedIds: [...current, id] })
+          set({
+            bookmarkedIds: [...current, id],
+            bookmarkedCards: card ? { ...get().bookmarkedCards, [id]: card } : get().bookmarkedCards,
+          })
         }
       },
 

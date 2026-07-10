@@ -141,6 +141,8 @@ const EN: Dict = {
   tapSaveToRevisit: 'Tap Save on cards you want to revisit.',
   untitled: 'Untitled',
   startReadingToSeeDetails: 'Start reading to see details here.',
+  savedCards: 'Saved cards',
+  savedCardsEmpty: 'Tap the bookmark on any card to save it here.',
 }
 
 const HI: Dict = {
@@ -253,6 +255,8 @@ const HI: Dict = {
   tapSaveToRevisit: 'जिन कार्ड को बाद में देखना हो, उन पर Save दबाएँ।',
   untitled: 'शीर्षकहीन',
   startReadingToSeeDetails: 'विवरण देखने के लिए पढ़ना शुरू करें।',
+  savedCards: 'सहेजे गए कार्ड',
+  savedCardsEmpty: 'किसी भी कार्ड पर बुकमार्क दबाकर उसे यहाँ सहेजें।',
 }
 
 const DICTS: Record<string, Dict> = { en: EN, hi: HI }

@@ -35,6 +35,8 @@ export default function ProfilePage() {
   const selectedTopics = usePlaxStore((s) => s.selectedTopics)
   const localCardsRead = usePlaxStore((s) => s.cardsRead)
   const localBookmarks = usePlaxStore((s) => s.bookmarkedIds)
+  const bookmarkedCards = usePlaxStore((s) => s.bookmarkedCards)
+  const toggleBookmark = usePlaxStore((s) => s.toggleBookmark)
   const localEngagements = usePlaxStore((s) => s.engagements)
   const getTopCategories = usePlaxStore((s) => s.getTopCategories)
   const quizAttempted = usePlaxStore((s) => s.quizAttempted)
@@ -159,7 +161,7 @@ export default function ProfilePage() {
 
           {/* Local top interests */}
           {localTop.length > 0 && (
-            <div className="px-5 pb-12">
+            <div className="px-5 pb-6">
               <h3 className={`text-sm font-semibold text-dark-muted uppercase tracking-wider mb-3 ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('yourTopInterests')}</h3>
               <div className="space-y-2">
                 {localTop.map((cat, i) => {
@@ -175,6 +177,53 @@ export default function ProfilePage() {
               </div>
             </div>
           )}
+
+          {/* Saved cards — rich local bookmarks (works signed-out) */}
+          <div className="px-5 pb-12">
+            <h3 className={`text-sm font-semibold text-dark-muted uppercase tracking-wider mb-3 ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('savedCards')}</h3>
+            {localBookmarks.length > 0 ? (
+              <div className="space-y-2">
+                {localBookmarks
+                  .map((id) => bookmarkedCards[id])
+                  .filter(Boolean)
+                  .sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0))
+                  .map((bm) => {
+                    const isHi = /[\u0900-\u097F]/.test(`${bm.title || ''} ${bm.content}`)
+                    const Wrapper: React.ElementType = bm.sourceUrl ? 'a' : 'div'
+                    return (
+                      <Wrapper
+                        key={bm.id}
+                        {...(bm.sourceUrl ? { href: bm.sourceUrl, target: '_blank', rel: 'noopener noreferrer' } : {})}
+                        className={`block p-4 card-elevated ${bm.sourceUrl ? 'hover:border-violet-500/40 transition-colors' : ''} ${isHi ? 'lang-hi' : ''}`}
+                      >
+                        <div className="flex items-start gap-2.5 mb-1.5">
+                          <span className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-base shrink-0">
+                            {bm.emoji || EMOJI_MAP[bm.category] || '📄'}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-sm leading-snug line-clamp-2">{bm.title || t('untitled')}</h4>
+                            <span className="text-xs text-dark-subtle">{(() => { const tm = TOPICS.find((x) => x.id === bm.category); return tm ? tp(bm.category, tm.label) : bm.category })()}</span>
+                          </div>
+                          <button
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleBookmark(bm.id) }}
+                            aria-label={t('remove')}
+                            className="p-1 -m-1 text-dark-subtle hover:text-red-400 transition-colors shrink-0"
+                          >
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg>
+                          </button>
+                        </div>
+                        <p className="text-xs text-dark-muted line-clamp-2 leading-relaxed pl-[42px]">{bm.content}</p>
+                      </Wrapper>
+                    )
+                  })}
+              </div>
+            ) : (
+              <div className="text-center py-10 card-elevated">
+                <div className="w-12 h-12 mx-auto mb-3 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-xl">🔖</div>
+                <p className={`text-dark-muted text-sm ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('savedCardsEmpty')}</p>
+              </div>
+            )}
+          </div>
         </div>
       </main>
     )

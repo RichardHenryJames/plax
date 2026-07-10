@@ -35,7 +35,16 @@ export function RightRail() {
   const handleBookmark = () => {
     if (!currentCard) return
     const wasBookmarked = isBookmarked
-    toggleBookmark(currentCard.id)
+    toggleBookmark(currentCard.id, {
+      id: currentCard.id,
+      title: currentCard.title,
+      content: currentCard.originalContent ?? currentCard.content,
+      category: currentCard.category,
+      source: currentCard.source,
+      sourceUrl: currentCard.sourceUrl,
+      emoji: currentCard.emoji,
+      savedAt: Date.now(),
+    })
     if (user) {
       if (wasBookmarked) removeBookmarkFromCloud(user, currentCard.id)
       else addBookmarkToCloud(user, currentCard)

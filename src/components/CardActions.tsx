@@ -33,7 +33,16 @@ export function CardActions({ card }: { card: CardData | null }) {
 
   const handleBookmark = () => {
     const wasBookmarked = isBookmarked
-    toggleBookmark(card.id)
+    toggleBookmark(card.id, {
+      id: card.id,
+      title: card.title,
+      content: card.originalContent ?? card.content,
+      category: card.category,
+      source: card.source,
+      sourceUrl: card.sourceUrl,
+      emoji: card.emoji,
+      savedAt: Date.now(),
+    })
     setShowBookmarkFeedback(true)
     setTimeout(() => setShowBookmarkFeedback(false), 1200)
     if (user) {
