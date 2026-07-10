@@ -151,10 +151,23 @@ export function Feed() {
     setIsInitialLoad(false)
   }, [selectedTopics, engagements, bookmarkedIds]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Initial load — show cached cards instantly, then fetch fresh in background
+  // Initial load + RELOAD whenever the selected topics change. Keyed on the topic
+  // signature so editing interests fully resets the feed (clears old cards, seen
+  // set, index) and fetches fresh content for the new picks — otherwise the old
+  // topic's cards keep showing after an edit.
+  const topicSig = topicsSig(selectedTopics)
   useEffect(() => {
-    // 1. Instant: load from localStorage cache (skip already-read cards)
-    const cached = getCachedCards(topicsSig(selectedTopics)).filter((c) => !readCardIds.includes(c.id))
+    // Full reset for the new topic selection.
+    seenIdsRef.current = new Set<string>()
+    emptyFetchCountRef.current = 0
+    fetchCountRef.current = 0
+    lastFetchTimeRef.current = 0
+    setCurrentIndex(0)
+    setIsInitialLoad(true)
+    cardEntryTime.current = Date.now()
+
+    // 1. Instant: load from localStorage cache for THIS topic sig (skip read cards)
+    const cached = getCachedCards(topicSig).filter((c) => !readCardIds.includes(c.id))
     if (cached.length > 0) {
       cached.forEach((c) => {
         seenIdsRef.current.add(c.id)
@@ -163,9 +176,12 @@ export function Feed() {
       })
       setCards(cached)
       console.log(`[Plax Feed] Instant load: ${cached.length} cached cards`)
+    } else {
+      setCards([]) // no cache for this sig → clear the old topic's cards immediately
     }
 
-    // 2. Background: fetch fresh cards and append
+    // 2. Background: fetch fresh cards for the current topics
+    let cancelled = false
     const fetchLive = async () => {
       setIsFetching(true)
       isFetchingRef.current = true
@@ -175,14 +191,13 @@ export function Feed() {
         const res = await fetch(`/api/feed?categories=${cats}&limit=30&refresh=true&exclude=${encodeURIComponent(excludeIds)}`)
         if (res.ok) {
           const data = await res.json()
-          if (data.cards?.length > 0) {
+          if (!cancelled && data.cards?.length > 0) {
             const liveCards = rankByEngagement(mapApiCards(data.cards), usePlaxStore.getState().getCategoryScore)
             liveCards.forEach((c) => seenIdsRef.current.add(c.id))
             console.log(`[Plax Feed] Live refresh: ${liveCards.length} new cards`)
             setCards((prev) => {
-              // If we had cache, append new; if empty, set fresh
               const updated = prev.length > 0 ? [...prev, ...liveCards] : liveCards
-              setCachedCards(updated, topicsSig(selectedTopics))
+              setCachedCards(updated, topicSig)
               return updated
             })
           }
@@ -190,13 +205,16 @@ export function Feed() {
       } catch (err) {
         console.error('[Plax Feed] Live fetch failed:', err)
       } finally {
-        setIsFetching(false)
-        isFetchingRef.current = false
-        setIsInitialLoad(false)
+        if (!cancelled) {
+          setIsFetching(false)
+          isFetchingRef.current = false
+          setIsInitialLoad(false)
+        }
       }
     }
     fetchLive()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    return () => { cancelled = true }
+  }, [topicSig]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Filter loaded cards by the active desktop topic filter ──
   const visibleCards = useMemo(
@@ -558,24 +576,18 @@ export function Feed() {
       {/* Fixed action dock (Inshorts-style) — stays put while cards flip */}
       <CardActions card={currentCard} />
 
-      {/* Stories-style reading-progress bar (Instagram/Inshorts). RIGHT-ANCHORED
-          window of 7 segments = your recent journey through the feed: cards you've
-          passed stay FILLED, the current card fills by read progress, and the
-          window slides so the active (filling) segment is always at the right
-          edge once you're past the 7th card. This shows real forward motion and
-          never pins in the MIDDLE (the old windowed+centered bar pinned at
-          position 3 on an unbounded feed, which looked stuck). */}
+      {/* Stories-style reading-progress bar (Instagram/Inshorts). PAGED into rows
+          of 7: within a row the segments to the left of the current card are
+          filled, the current card fills by read progress, and the rest are empty.
+          After card 7 the bar RESETS — card 8 starts a fresh row at segment 1 —
+          so it reads like a repeating 1→7 cycle instead of pinning at the end. */}
       {(() => {
         const SEG = 7
-        const start = Math.max(0, currentIndex - (SEG - 1))
+        const posInPage = currentIndex % SEG // 0..6 within the current row of 7
         return (
           <div className="absolute left-1/2 -translate-x-1/2 z-40 top-[calc(4.5rem+env(safe-area-inset-top))] lg:top-6 w-[min(70%,26rem)] flex items-center gap-1">
             {Array.from({ length: SEG }).map((_, j) => {
-              const idx = start + j
-              const beyond = idx >= visibleCards.length
-              const isPast = idx < currentIndex
-              const isCurrent = idx === currentIndex
-              const fill = beyond ? 0 : isPast ? 100 : isCurrent ? readProgress : 0
+              const fill = j < posInPage ? 100 : j === posInPage ? readProgress : 0
               return (
                 <div key={j} className="h-[3px] flex-1 rounded-full bg-white/15 overflow-hidden">
                   <div

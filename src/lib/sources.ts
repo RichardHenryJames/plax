@@ -517,11 +517,26 @@ export async function fetchAllContent(categories: string[] = []): Promise<RawCon
   const DEFAULT_TOPICS = ['science', 'history', 'psychology', 'technology', 'space', 'philosophy']
   const topicsForSearch = categories.length ? categories : DEFAULT_TOPICS
 
+  // Source gating so a FOCUSED feed isn't polluted by off-topic sources:
+  //   • Hacker News is almost entirely tech/programming → only fetch it when the
+  //     user picked a tech topic (or has no topics). This fixes "why is a
+  //     Technology card showing when I picked Science/Space/Books/Health".
+  //   • ZenQuotes are philosophy-flavoured → only when philosophy/psychology
+  //     (or no topics).
+  //   • Random Wikipedia is serendipity → only for the no-topic feed; when the
+  //     user has picks, lean on the on-topic Wikipedia search instead.
+  const noTopics = categories.length === 0
+  const hasTech = categories.some((c) => c === 'technology' || c === 'programming')
+  const hasPhil = categories.some((c) => c === 'philosophy' || c === 'psychology')
+  const includeHN = noTopics || hasTech
+  const includeQuotes = noTopics || hasPhil
+  const includeRandom = noTopics
+
   // Use Promise.allSettled so one failing source doesn't kill the rest
   const results = await Promise.allSettled([
-    fetchWikipediaContent(18),   // ~18 random (most are stubs → filtered) + 5 On This Day
-    fetchHackerNews(15),         // ~15 from random slice of top/new/best
-    fetchQuotes(10),             // ~10 quotes
+    includeRandom ? fetchWikipediaContent(18) : Promise.resolve([]),
+    includeHN ? fetchHackerNews(15) : Promise.resolve([]),
+    includeQuotes ? fetchQuotes(10) : Promise.resolve([]),
     fetchReddit(subreddits),     // topic-aware subreddit set
     fetchWikipediaByTopics(topicsForSearch), // on-topic articles (defaults when no picks)
   ])

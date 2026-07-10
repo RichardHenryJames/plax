@@ -182,7 +182,12 @@ function filterAndLimit(
   //      lets unrelated content jump ahead of what the user asked for).
   const exact = shuffle(cards.filter((c) => exactSet.has(c.category)))
   const related = shuffle(cards.filter((c) => relatedSet.has(c.category)))
-  const primary = [...exact, ...related]
+
+  // If we already have enough EXACT matches, show ONLY those — never dilute a
+  // focused feed with related/off-topic cards (the "why is Technology showing
+  // when I picked Science/Space/Books/Health" bug). Related only fills the gap
+  // toward the limit; unrelated (tier 3) only if there's nothing relevant at all.
+  const primary = exact.length >= limit ? exact : [...exact, ...related]
 
   const ordered =
     primary.length > 0
