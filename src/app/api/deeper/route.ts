@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import Groq from 'groq-sdk'
+import { translateBatch } from '@/lib/translate'
 
 export const runtime = 'edge'
 
@@ -20,10 +21,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Content required' }, { status: 400 })
     }
 
-    const langLine =
-      lang === 'hi'
-        ? '\n- Write ALL insights in HINDI (Devanagari, शुद्ध सरल हिन्दी). No English except globally-known proper nouns.'
-        : ''
+    // Generate in English (LLM's strongest language), then translate via a
+    // dedicated API — cheaper + works even when the LLM has limited quota.
+    const langLine = ''
 
     const prompt = `A curious reader just read this:
 
@@ -72,6 +72,13 @@ Respond with JSON only:
     }
 
     insights = (insights || []).filter((s) => typeof s === 'string' && s.trim()).slice(0, 3)
+
+    // Translate the insights to the target language (Azure → MyMemory).
+    if (lang !== 'en' && insights.length > 0) {
+      const translated = await translateBatch(insights, lang)
+      if (translated && translated.some((s) => s)) insights = translated.map((s, i) => s || insights[i])
+    }
+
     return NextResponse.json({ insights })
   } catch (error) {
     console.error('Deeper error:', error)

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import Groq from 'groq-sdk'
+import { translateBatch } from '@/lib/translate'
 
 export const runtime = 'edge'
 
@@ -22,10 +23,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Content required' }, { status: 400 })
     }
 
-    const langLine =
-      lang === 'hi'
-        ? '\n- Write the question, ALL options, and the explanation in HINDI (Devanagari, शुद्ध सरल हिन्दी). No English except globally-known proper nouns.'
-        : ''
+    // Generate in English, then translate via a dedicated API (works even when
+    // the LLM has limited quota; keeps the `correct` index intact).
+    const langLine = ''
 
     const prompt = `A reader just finished this:
 
@@ -87,14 +87,26 @@ Respond with JSON only:
       return NextResponse.json({ error: 'Failed', quiz: null }, { status: 200 })
     }
 
-    return NextResponse.json({
-      quiz: {
-        question: quiz.question,
-        options: quiz.options.map((o) => String(o)),
-        correct: quiz.correct,
-        explanation: typeof quiz.explanation === 'string' ? quiz.explanation : '',
-      },
-    })
+    const cleanQuiz: Quiz = {
+      question: quiz.question,
+      options: quiz.options.map((o) => String(o)),
+      correct: quiz.correct,
+      explanation: typeof quiz.explanation === 'string' ? quiz.explanation : '',
+    }
+
+    // Translate to the target language (Azure → MyMemory), preserving order so the
+    // `correct` index still points at the right option.
+    if (lang !== 'en') {
+      const batch = [cleanQuiz.question, ...cleanQuiz.options, cleanQuiz.explanation]
+      const tr = await translateBatch(batch, lang)
+      if (tr && tr.some((s) => s)) {
+        cleanQuiz.question = tr[0] || cleanQuiz.question
+        cleanQuiz.options = cleanQuiz.options.map((o, i) => tr[1 + i] || o)
+        cleanQuiz.explanation = tr[5] || cleanQuiz.explanation
+      }
+    }
+
+    return NextResponse.json({ quiz: cleanQuiz })
   } catch (error) {
     console.error('Quiz error:', error)
     return NextResponse.json({ error: 'Failed', quiz: null }, { status: 500 })

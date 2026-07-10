@@ -292,11 +292,16 @@ export function Feed() {
       const res = await fetch('/api/summarize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: baseContent, type: 'microessay', lang }),
+        body: JSON.stringify({ content: baseContent, title: baseTitle, type: 'microessay', lang }),
       })
       if (!res.ok) return // transient (5xx / network) → will retry next view
       const data = await res.json()
-      if (!data?.title || !data?.content) return // AI failed (quota) → retry next view
+      // Accept the response if we got translated/enhanced CONTENT (title may be
+      // empty when the LLM is down but the dedicated translator still worked).
+      if (!data?.content) return
+      // For Hindi, require the body to actually be Hindi — otherwise it's an
+      // English fallback (translator unavailable) and we should retry, not accept.
+      if (lang === 'hi' && !/[\u0900-\u097F]/.test(data.content)) return
       // Guard against a stale response: only apply if the language is still current.
       if (usePlaxStore.getState().language !== lang) return
       setCards((prev) => {
