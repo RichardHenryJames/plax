@@ -15,6 +15,8 @@ export function LeftRail() {
   const selectedTopics = usePlaxStore((s) => s.selectedTopics)
   const bookmarkedIds = usePlaxStore((s) => s.bookmarkedIds)
   const toggleTopic = usePlaxStore((s) => s.toggleTopic)
+  const language = usePlaxStore((s) => s.language)
+  const setLanguage = usePlaxStore((s) => s.setLanguage)
   const feedFilter = useUIStore((s) => s.feedFilter)
   const setFeedFilter = useUIStore((s) => s.setFeedFilter)
   const setCommandOpen = useUIStore((s) => s.setCommandOpen)
@@ -80,6 +82,32 @@ export function LeftRail() {
           icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.25a8.25 8.25 0 0115 0" />}
         />
       </nav>
+
+      {/* Language switcher (desktop parity with the mobile tune-icon editor) */}
+      <div className="px-4 mt-5">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className={`text-[10px] font-semibold uppercase tracking-wider text-dark-subtle ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('feedLanguage')}</span>
+        </div>
+        <div className="inline-flex w-full p-0.5 rounded-lg bg-dark-bg/60 border border-dark-border">
+          {[
+            { id: 'en', label: 'English' },
+            { id: 'hi', label: 'हिन्दी' },
+          ].map((l) => (
+            <button
+              key={l.id}
+              onClick={() => setLanguage(l.id)}
+              aria-pressed={language === l.id}
+              className={`flex-1 py-1.5 rounded-md text-xs font-medium transition ${
+                language === l.id
+                  ? 'bg-gradient-to-r from-violet-600 to-cyan-600 text-white shadow'
+                  : 'text-dark-muted hover:text-white'
+              }`}
+            >
+              {l.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Topic filters */}
       <div className="mt-6 px-2 flex-1 min-h-0 flex flex-col">
