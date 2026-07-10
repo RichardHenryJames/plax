@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generateJSON } from '@/lib/llm'
 import { translateBatch } from '@/lib/translate'
+import { cacheKey, getCachedAI, setCachedAI } from '@/lib/ai-cache'
 
 export const runtime = 'edge'
 
@@ -12,6 +13,11 @@ export async function POST(request: NextRequest) {
     if (!content && !title) {
       return NextResponse.json({ error: 'Content required' }, { status: 400 })
     }
+
+    // Cache — deterministic per (card, lang); repeat taps are instant + free.
+    const ck = await cacheKey('deeper', lang, title, (content || '').slice(0, 1500))
+    const cachedInsights = await getCachedAI<string[]>(ck)
+    if (cachedInsights?.length) return NextResponse.json({ insights: cachedInsights, cached: true })
 
     // Generate in English (LLM's strongest language), then translate via a
     // dedicated API — cheaper + works even when the LLM has limited quota.
@@ -39,6 +45,7 @@ Respond with JSON only:
       if (translated && translated.some((s) => s)) insights = translated.map((s, i) => s || insights[i])
     }
 
+    if (insights.length > 0) await setCachedAI(ck, insights)
     return NextResponse.json({ insights })
   } catch (error) {
     console.error('Deeper error:', error)

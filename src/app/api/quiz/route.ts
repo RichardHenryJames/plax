@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generateJSON } from '@/lib/llm'
 import { translateBatch } from '@/lib/translate'
+import { cacheKey, getCachedAI, setCachedAI } from '@/lib/ai-cache'
 
 export const runtime = 'edge'
 
@@ -14,6 +15,11 @@ export async function POST(request: NextRequest) {
     if (!content && !title) {
       return NextResponse.json({ error: 'Content required' }, { status: 400 })
     }
+
+    // Cache — deterministic per (card, lang); repeat taps are instant + free.
+    const ck = await cacheKey('quiz', lang, title, (content || '').slice(0, 1500))
+    const cachedQuiz = await getCachedAI<Quiz>(ck)
+    if (cachedQuiz) return NextResponse.json({ quiz: cachedQuiz, cached: true })
 
     // Generate in English, then translate via a dedicated API (works even when
     // the LLM has limited quota; keeps the `correct` index intact).
@@ -65,6 +71,7 @@ Respond with JSON only:
       }
     }
 
+    await setCachedAI(ck, cleanQuiz)
     return NextResponse.json({ quiz: cleanQuiz })
   } catch (error) {
     console.error('Quiz error:', error)

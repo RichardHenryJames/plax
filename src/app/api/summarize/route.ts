@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generateJSON } from '@/lib/llm'
 import { translateBatch } from '@/lib/translate'
+import { cacheKey, getCachedAI, setCachedAI } from '@/lib/ai-cache'
 
 export const runtime = 'edge'
 
@@ -11,6 +12,12 @@ export async function POST(request: NextRequest) {
     if (!content) {
       return NextResponse.json({ error: 'Content required' }, { status: 400 })
     }
+
+    // Cache: AI enhancement/translation is deterministic per (content, lang), so a
+    // repeat view (or another user seeing the same card) is instant + free.
+    const ck = await cacheKey('summarize', lang, title, (content as string).slice(0, 2200))
+    const cached = await getCachedAI<{ title: string; content: string; type: string }>(ck)
+    if (cached) return NextResponse.json({ ...cached, cached: true })
 
     // ARCHITECTURE: for non-English we ALWAYS generate the essay in English (the
     // LLM's strongest language) and then translate it with a dedicated translation
@@ -52,19 +59,20 @@ Respond with JSON only:
 
     // English request → return whatever we have (LLM essay if it worked, else raw).
     if (targetLang === 'en') {
-      return NextResponse.json({ title: enTitle, content: enContent, type })
+      const result = { title: enTitle, content: enContent, type }
+      // Only cache a genuine LLM enhancement, not the raw-extract fallback.
+      if (j?.content) await setCachedAI(ck, result)
+      return NextResponse.json(result)
     }
 
     // Non-English → translate the English text (essay or raw extract) via the
     // dedicated translation chain (Azure → MyMemory). Works regardless of LLM quota.
     const translated = await translateBatch([enTitle || '', enContent], targetLang)
     if (translated && (translated[0] || translated[1])) {
-      return NextResponse.json({
-        title: translated[0] || enTitle,
-        content: translated[1] || enContent,
-        type,
-        translated: true,
-      })
+      const result = { title: translated[0] || enTitle, content: translated[1] || enContent, type, translated: true }
+      // Cache real translations (Devanagari for hi) so repeat views cost nothing.
+      if (lang !== 'hi' || /[\u0900-\u097F]/.test(result.content)) await setCachedAI(ck, result)
+      return NextResponse.json(result)
     }
 
     // Translation unavailable → return English so the client can retry (better

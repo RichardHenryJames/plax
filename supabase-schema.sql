@@ -143,3 +143,15 @@ BEGIN
   END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ════════════════════════════════════════════════════════════
+-- AI result cache (shared, durable). Once ANY user generates a card's
+-- summary/translation/insights/quiz, EVERYONE reuses it → zero repeat AI cost.
+-- Server-only access via the service role (which bypasses RLS).
+-- ════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS public.ai_cache (
+  key TEXT PRIMARY KEY,
+  value JSONB NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.ai_cache ENABLE ROW LEVEL SECURITY;
