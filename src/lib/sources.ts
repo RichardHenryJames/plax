@@ -517,77 +517,86 @@ function decodeXml(s: string): string {
 }
 
 // ─── Project Gutenberg (real opening passages of classic books) ───
-// For the Books topic we surface genuine literature. We keep a curated catalog of
-// well-known public-domain works and fetch each book's plain-text directly from
-// gutenberg.org (the Gutendex metadata API is Cloudflare-blocked from servers), then
-// extract its real opening passage. The AI-enhance step frames WHY the book matters
-// while the excerpt itself is authentic prose (no invention).
-const GUTENBERG_CLASSICS: { id: number; title: string; author: string }[] = [
-  { id: 1342, title: 'Pride and Prejudice', author: 'Jane Austen' },
-  { id: 84, title: 'Frankenstein', author: 'Mary Shelley' },
-  { id: 1661, title: 'The Adventures of Sherlock Holmes', author: 'Arthur Conan Doyle' },
-  { id: 2701, title: 'Moby Dick', author: 'Herman Melville' },
-  { id: 98, title: 'A Tale of Two Cities', author: 'Charles Dickens' },
-  { id: 1400, title: 'Great Expectations', author: 'Charles Dickens' },
-  { id: 174, title: 'The Picture of Dorian Gray', author: 'Oscar Wilde' },
-  { id: 345, title: 'Dracula', author: 'Bram Stoker' },
-  { id: 1080, title: 'A Modest Proposal', author: 'Jonathan Swift' },
-  { id: 5200, title: 'Metamorphosis', author: 'Franz Kafka' },
-  { id: 64317, title: 'The Great Gatsby', author: 'F. Scott Fitzgerald' },
-  { id: 1260, title: 'Jane Eyre', author: 'Charlotte Brontë' },
-  { id: 768, title: 'Wuthering Heights', author: 'Emily Brontë' },
-  { id: 1232, title: 'The Prince', author: 'Niccolò Machiavelli' },
-  { id: 2680, title: 'Meditations', author: 'Marcus Aurelius' },
-  { id: 4300, title: 'Ulysses', author: 'James Joyce' },
-  { id: 158, title: 'Emma', author: 'Jane Austen' },
+// For the Books topic we surface genuine literature. gutenberg.org blocks datacenter
+// IPs (403 from Vercel) and Gutendex is Cloudflare-gated, so instead of a fragile
+// runtime fetch we keep a curated catalog of famous public-domain works with their
+// AUTHENTIC opening passages stored inline (verbatim, no invention). Fast, reliable,
+// zero network dependency. The AI-enhance step frames WHY each book matters.
+const GUTENBERG_CLASSICS: { id: number; title: string; author: string; opening: string }[] = [
+  {
+    id: 1342, title: 'Pride and Prejudice', author: 'Jane Austen',
+    opening:
+      'It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife. However little known the feelings or views of such a man may be on his first entering a neighbourhood, this truth is so well fixed in the minds of the surrounding families, that he is considered the rightful property of some one or other of their daughters.',
+  },
+  {
+    id: 98, title: 'A Tale of Two Cities', author: 'Charles Dickens',
+    opening:
+      'It was the best of times, it was the worst of times, it was the age of wisdom, it was the age of foolishness, it was the epoch of belief, it was the epoch of incredulity, it was the season of Light, it was the season of Darkness, it was the spring of hope, it was the winter of despair.',
+  },
+  {
+    id: 2701, title: 'Moby Dick', author: 'Herman Melville',
+    opening:
+      'Call me Ishmael. Some years ago—never mind how long precisely—having little or no money in my purse, and nothing particular to interest me on shore, I thought I would sail about a little and see the watery part of the world. It is a way I have of driving off the spleen and regulating the circulation.',
+  },
+  {
+    id: 5200, title: 'Metamorphosis', author: 'Franz Kafka',
+    opening:
+      'One morning, when Gregor Samsa woke from troubled dreams, he found himself transformed in his bed into a horrible vermin. He lay on his armour-like back, and if he lifted his head a little he could see his brown belly, slightly domed and divided by arches into stiff sections.',
+  },
+  {
+    id: 158, title: 'Emma', author: 'Jane Austen',
+    opening:
+      'Emma Woodhouse, handsome, clever, and rich, with a comfortable home and happy disposition, seemed to unite some of the best blessings of existence; and had lived nearly twenty-one years in the world with very little to distress or vex her.',
+  },
+  {
+    id: 64317, title: 'The Great Gatsby', author: 'F. Scott Fitzgerald',
+    opening:
+      'In my younger and more vulnerable years my father gave me some advice that I\u2019ve been turning over in my mind ever since. \u201cWhenever you feel like criticizing any one,\u201d he told me, \u201cjust remember that all the people in this world haven\u2019t had the advantages that you\u2019ve had.\u201d',
+  },
+  {
+    id: 1260, title: 'Jane Eyre', author: 'Charlotte Brontë',
+    opening:
+      'There was no possibility of taking a walk that day. We had been wandering, indeed, in the leafless shrubbery an hour in the morning; but since dinner the cold winter wind had brought with it clouds so sombre, and a rain so penetrating, that further out-door exercise was now out of the question.',
+  },
+  {
+    id: 768, title: 'Wuthering Heights', author: 'Emily Brontë',
+    opening:
+      'I have just returned from a visit to my landlord\u2014the solitary neighbour that I shall be troubled with. This is certainly a beautiful country! In all England, I do not believe that I could have fixed on a situation so completely removed from the stir of society.',
+  },
+  {
+    id: 1661, title: 'The Adventures of Sherlock Holmes', author: 'Arthur Conan Doyle',
+    opening:
+      'To Sherlock Holmes she is always the woman. I have seldom heard him mention her under any other name. In his eyes she eclipses and predominates the whole of her sex. It was not that he felt any emotion akin to love for Irene Adler.',
+  },
+  {
+    id: 345, title: 'Dracula', author: 'Bram Stoker',
+    opening:
+      'Left Munich at 8:35 P.M., on 1st May, arriving at Vienna early next morning; should have arrived at 6:46, but train was an hour late. Buda-Pesth seems a wonderful place, from the glimpse which I got of it from the train and the little I could walk through the streets.',
+  },
+  {
+    id: 84, title: 'Frankenstein', author: 'Mary Shelley',
+    opening:
+      'You will rejoice to hear that no disaster has accompanied the commencement of an enterprise which you have regarded with such evil forebodings. I arrived here yesterday, and my first task is to assure my dear sister of my welfare and increasing confidence in the success of my undertaking.',
+  },
+  {
+    id: 174, title: 'The Picture of Dorian Gray', author: 'Oscar Wilde',
+    opening:
+      'The studio was filled with the rich odour of roses, and when the light summer wind stirred amidst the trees of the garden, there came through the open door the heavy scent of the lilac, or the more delicate perfume of the pink-flowering thorn.',
+  },
 ]
 
 export async function fetchGutenberg(count = 3): Promise<RawContent[]> {
   const picks = [...GUTENBERG_CLASSICS].sort(() => Math.random() - 0.5).slice(0, count)
-  const results = await Promise.allSettled(
-    picks.map(async (book) => {
-      const url = `https://www.gutenberg.org/cache/epub/${book.id}/pg${book.id}.txt`
-      const r = await fetch(url, { cache: 'no-store', headers: { 'User-Agent': 'PlaxReader/1.0 (plaxlabs.com)' } })
-      if (!r.ok) return null
-      let text = await r.text()
-      // Strip the Project Gutenberg header/license boilerplate.
-      const startMatch = text.match(/\*\*\*\s*START OF (THE|THIS) PROJECT GUTENBERG EBOOK[\s\S]*?\*\*\*/i)
-      if (startMatch) text = text.slice((startMatch.index || 0) + startMatch[0].length)
-      const endIdx = text.search(/\*\*\*\s*END OF (THE|THIS) PROJECT GUTENBERG EBOOK/i)
-      if (endIdx > 0) text = text.slice(0, endIdx)
-      // Skip front-matter to the first real prose paragraphs.
-      const paras = text
-        .split(/\n\s*\n/)
-        .map((p) => p.replace(/_/g, '').replace(/\s+/g, ' ').trim()) // drop Gutenberg italics underscores
-        .filter(
-          (p) =>
-            p.length > 180 &&
-            /[.!?]"?$/.test(p) &&
-            // Reject headings and typical front-matter (preface / thanks / license / play stage lines).
-            !/^(contents|chapter|illustration|produced by|transcriber|preface|introduction|dedication|volume|part\b|act\b|scene\b)/i.test(p) &&
-            !/(the press and the public|i must thank|publisher|copyright|this edition|acknowledg|all rights reserved)/i.test(p) &&
-            !/^[A-Z][A-Z .]{2,20}\./.test(p) // e.g. "HELMER." stage/dialogue lead-ins from plays
-        )
-      const opening = paras.slice(0, 2).join(' ')
-      if (opening.length < 200) return null
-      const passage = opening.length > 700 ? opening.slice(0, 700).replace(/\s+\S*$/, '') + '…' : opening
-      return {
-        title: book.title,
-        content: passage,
-        author: book.author,
-        url: `https://www.gutenberg.org/ebooks/${book.id}`,
-        source: 'Project Gutenberg',
-        category: 'books',
-      } as RawContent
-    })
-  )
-
-  const out: RawContent[] = []
-  results.forEach((res) => {
-    if (res.status === 'fulfilled' && res.value) out.push(res.value)
-  })
-  return out
+  return picks.map((book) => ({
+    title: book.title,
+    content: book.opening,
+    author: book.author,
+    url: `https://www.gutenberg.org/ebooks/${book.id}`,
+    source: 'Project Gutenberg',
+    category: 'books',
+  }))
 }
+
 
 
 
