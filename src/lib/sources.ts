@@ -313,8 +313,9 @@ export async function fetchHackerNews(count: number = 15): Promise<RawContent[]>
   const results: RawContent[] = []
 
   try {
-    // Fetch from multiple HN feeds for variety
-    const feeds = ['topstories', 'newstories', 'beststories']
+    // Top + best stories only (skip `newstories` — mostly unvetted, low-score
+    // posts). These feeds carry the well-upvoted, substantive items.
+    const feeds = ['topstories', 'beststories']
     const feedPromises = feeds.map((feed) =>
       fetch(`https://hacker-news.firebaseio.com/v0/${feed}.json`, { cache: 'no-store' })
         .then((r) => r.ok ? r.json() : [])
@@ -323,9 +324,10 @@ export async function fetchHackerNews(count: number = 15): Promise<RawContent[]>
     const feedResults = await Promise.all(feedPromises)
     const allIds: number[] = [...new Set(feedResults.flat())] // merge & deduplicate IDs
 
-    // Pick a RANDOM slice instead of always the first N — this is key for freshness
+    // Pick a RANDOM slice instead of always the first N — this is key for
+    // freshness. Fetch extra candidates so the quality filter still yields ~count.
     const shuffled = allIds.sort(() => Math.random() - 0.5)
-    const selectedIds = shuffled.slice(0, count)
+    const selectedIds = shuffled.slice(0, count * 3)
 
     // Fetch stories in parallel
     const storyPromises = selectedIds.map(async (id) => {
@@ -343,26 +345,35 @@ export async function fetchHackerNews(count: number = 15): Promise<RawContent[]>
     const stories = await Promise.all(storyPromises)
 
     stories.forEach((story) => {
-      if (story && story.title && story.type === 'story') {
-        if (story.score > 20) {
-          results.push({
-            title: story.title,
-            content: story.text
-              ? stripHtml(story.text)
-              : `${story.title} — A trending discussion on Hacker News with ${story.score} points and ${story.descendants || 0} comments.`,
-            url: story.url || `https://news.ycombinator.com/item?id=${story.id}`,
-            author: story.by,
-            source: 'Hacker News',
-            category: categorizeHN(story.title),
-          })
-        }
-      }
+      if (!story || !story.title || story.type !== 'story') return
+      // Quality bar: well-upvoted stories only.
+      if ((story.score || 0) < 40) return
+      // Skip pure discussion/question threads ("Ask HN", polls) — they're not
+      // readable insights. Keep "Show HN" (projects) and normal link stories.
+      if (/^ask hn[:\s]/i.test(story.title) || story.type === 'poll') return
+      // Need real substance: an external article OR self-text. Skip link-less
+      // threads that would only yield the generic "trending discussion" filler.
+      const hasText = typeof story.text === 'string' && story.text.length > 0
+      if (!story.url && !hasText) return
+
+      const cleanTitle = story.title.replace(/^show hn:\s*/i, '').trim()
+      results.push({
+        title: cleanTitle,
+        content: hasText
+          ? stripHtml(story.text)
+          : `${cleanTitle} — a highly-upvoted story on Hacker News (${story.score} points, ${story.descendants || 0} comments). Tap “Read full story” for the full article.`,
+        url: story.url || `https://news.ycombinator.com/item?id=${story.id}`,
+        author: story.by,
+        source: 'Hacker News',
+        category: categorizeHN(story.title),
+      })
     })
   } catch (error) {
     console.error('Hacker News fetch error:', error)
   }
 
-  return results
+  // Cap so HN doesn't over-weight the feed (we fetched extra candidates).
+  return results.slice(0, count)
 }
 
 function categorizeHN(title: string): string {
