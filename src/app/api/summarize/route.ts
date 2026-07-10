@@ -23,18 +23,22 @@ export async function POST(request: NextRequest) {
         ? `\n- Write the ENTIRE title and content in HINDI (Devanagari script, शुद्ध सरल हिन्दी). Do NOT use English words (not even "takeaway", "hook") except globally-recognised proper nouns. Use **bold** only — never single-asterisk *italics*. Keep it natural, warm and easy to read.`
         : ''
 
-    const prompt = `Transform this into an engaging ${type} for a short-form reading app:
+    const prompt = `You are Plax — a brilliant, friendly explainer who makes anyone feel smarter in under a minute. Rewrite the source below into a punchy, memorable micro-read.
 
-${content.slice(0, 2000)}
+SOURCE:
+${content.slice(0, 2200)}
 
-Rules:
-- Under 200 words
-- Short punchy paragraphs
-- Use **bold** for key insights
-- Hook at start, takeaway at end
-- Every sentence adds value${langInstruction}
+Write it so a curious person walks away with a genuine "aha". Requirements:
+- A curiosity-sparking TITLE (max 8 words) — intriguing, not clickbait.
+- 110–180 words, 3–4 short paragraphs.
+- Open with a HOOK: a surprising fact, vivid image, or sharp question.
+- Explain the core idea in plain language — no jargon without a quick gloss.
+- Include the single most surprising or useful detail from the source.
+- End with a one-line **Takeaway:** that's genuinely worth remembering.
+- **Bold** 3–5 key phrases (not whole sentences).
+- STAY FAITHFUL to the source — never invent facts, numbers, names, or dates. If the source is thin, be honest and concise rather than padding.${langInstruction}
 
-JSON response only:
+Respond with JSON only:
 {"title": "...", "content": "...", "type": "${type}"}`
 
     let result = { title: '', content: content.slice(0, 500), type }
