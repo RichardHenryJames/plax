@@ -248,15 +248,20 @@ export function Feed() {
   // ── Lazy AI enhancement / translation: rewrite the raw extract of the card
   //    being read INTO the current language. Re-runs when the language changes so
   //    the SAME article is translated in place (never a different card). ──
-  const enhanceAttempted = useRef(new Set<string>())
+  // We track ATTEMPT COUNTS per (card, language) instead of a boolean, so a
+  // transient failure (e.g. Gemini quota 429) RETRIES on the next view/poll
+  // instead of leaving raw English forever (the "still English in Hindi" bug).
+  const enhanceCounts = useRef(new Map<string, number>())
+  const enhanceInflight = useRef(new Set<string>())
+  const MAX_ENHANCE_ATTEMPTS = 4
   const enhanceCard = useCallback(async (card: CardData | undefined) => {
     if (!card) return
     const lang = usePlaxStore.getState().language
     // Already rendered in the current language → nothing to do.
     if (card.aiEnhanced && card.enhancedLang === lang) return
-    // Retry key is per (card, language) so a language toggle re-enhances.
     const key = `${card.id}:${lang}`
-    if (enhanceAttempted.current.has(key)) return
+    if (enhanceInflight.current.has(key)) return // already fetching this one
+    if ((enhanceCounts.current.get(key) ?? 0) >= MAX_ENHANCE_ATTEMPTS) return
 
     // Always translate from the ORIGINAL raw extract (so we never translate an
     // already-translated string, which would degrade quality).
@@ -269,16 +274,17 @@ export function Feed() {
     } else {
       if ((baseContent?.length ?? 0) < 120) return
     }
-    enhanceAttempted.current.add(key)
+    enhanceCounts.current.set(key, (enhanceCounts.current.get(key) ?? 0) + 1)
+    enhanceInflight.current.add(key)
     try {
       const res = await fetch('/api/summarize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: baseContent, type: 'microessay', lang }),
       })
-      if (!res.ok) return
+      if (!res.ok) return // transient (5xx / network) → will retry next view
       const data = await res.json()
-      if (!data?.title || !data?.content) return // no AI key / failed → keep raw extract
+      if (!data?.title || !data?.content) return // AI failed (quota) → retry next view
       // Guard against a stale response: only apply if the language is still current.
       if (usePlaxStore.getState().language !== lang) return
       setCards((prev) => {
@@ -299,7 +305,9 @@ export function Feed() {
         return updated
       })
     } catch {
-      /* keep the original extract on failure */
+      /* keep the original extract on failure — will retry on next view */
+    } finally {
+      enhanceInflight.current.delete(key)
     }
   }, [])
 
@@ -309,6 +317,22 @@ export function Feed() {
     enhanceCard(visibleCards[currentIndex])
     enhanceCard(visibleCards[currentIndex + 1])
   }, [currentIndex, visibleCards, enhanceCard, language])
+
+  // Retry loop: if the CURRENT card still isn't rendered in the active language
+  // (e.g. a transient AI-quota failure), retry every few seconds until it is (up
+  // to the per-card attempt cap). This fixes "still English in Hindi mode" when
+  // the first enhancement attempt failed.
+  useEffect(() => {
+    const cur = visibleCards[currentIndex]
+    if (!cur) return
+    if (cur.aiEnhanced && cur.enhancedLang === language) return
+    const id = setInterval(() => {
+      const c = visibleCards[currentIndex]
+      if (c && !(c.aiEnhanced && c.enhancedLang === language)) enhanceCard(c)
+      else clearInterval(id)
+    }, 4000)
+    return () => clearInterval(id)
+  }, [currentIndex, visibleCards, language, enhanceCard])
 
   // When the language toggles, immediately revert any card that was enhanced in
   // the OTHER language back to its raw extract so the user sees the same article
@@ -410,7 +434,7 @@ export function Feed() {
 
   // Touch navigation — lets long article content scroll natively, and only
   // navigates on a decisive swipe when the content is at its scroll boundary.
-  const touchStartRef = useRef<{ y: number; atTop: boolean; atBottom: boolean } | null>(null)
+  const touchStartRef = useRef<{ y: number; x: number; t: number; atTop: boolean; atBottom: boolean; onInteractive: boolean } | null>(null)
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     const scroller = (e.currentTarget as HTMLElement).querySelector<HTMLElement>('[data-card-scroll]')
     let atTop = true
@@ -419,16 +443,30 @@ export function Feed() {
       atTop = scroller.scrollTop <= 1
       atBottom = Math.ceil(scroller.scrollTop + scroller.clientHeight) >= scroller.scrollHeight - 1
     }
-    touchStartRef.current = { y: e.touches[0].clientY, atTop, atBottom }
+    // If the gesture starts on an interactive element (buttons, links, the quiz,
+    // dropdowns) don't treat it as a feed swipe — prevents accidental next-card
+    // when tapping "Go deeper"/"Test yourself"/topic chip/actions.
+    const target = e.target as HTMLElement | null
+    const onInteractive = !!target?.closest('button, a, input, textarea, [data-no-feed-scroll]')
+    touchStartRef.current = { y: e.touches[0].clientY, x: e.touches[0].clientX, t: Date.now(), atTop, atBottom, onInteractive }
   }, [])
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     const start = touchStartRef.current
     touchStartRef.current = null
-    if (!start) return
+    if (!start || start.onInteractive) return
     const dy = e.changedTouches[0].clientY - start.y
-    const SWIPE = 55
-    if (dy < -SWIPE && start.atBottom) goToCard(currentIndex + 1, 1) // swipe up → next
-    else if (dy > SWIPE && start.atTop) goToCard(currentIndex - 1, -1) // swipe down → prev
+    const dx = e.changedTouches[0].clientX - start.x
+    const dt = Date.now() - start.t
+    const SWIPE = 72 // require a decisive swipe (was 55 — too easy to trigger accidentally)
+    // Must be mostly VERTICAL (ignore diagonal/horizontal drags) and a real
+    // gesture (either a quick flick or a clearly long drag), so tiny reading
+    // adjustments don't flip the card.
+    if (Math.abs(dy) < SWIPE) return
+    if (Math.abs(dy) < Math.abs(dx) * 1.4) return // too diagonal → not a feed swipe
+    const isDeliberate = dt < 700 || Math.abs(dy) > 120
+    if (!isDeliberate) return
+    if (dy < 0 && start.atBottom) goToCard(currentIndex + 1, 1) // swipe up → next
+    else if (dy > 0 && start.atTop) goToCard(currentIndex - 1, -1) // swipe down → prev
   }, [currentIndex, goToCard])
 
   // Keyboard navigation
@@ -480,8 +518,8 @@ export function Feed() {
       scrollTimeout.current = setTimeout(() => {
         scrollTimeout.current = null
       }, 600)
-      if (e.deltaY > 30) goToCard(currentIndex + 1, 1)
-      if (e.deltaY < -30) goToCard(currentIndex - 1, -1)
+      if (e.deltaY > 45) goToCard(currentIndex + 1, 1)
+      if (e.deltaY < -45) goToCard(currentIndex - 1, -1)
     }
     window.addEventListener('wheel', handleWheel, { passive: false })
     return () => window.removeEventListener('wheel', handleWheel)

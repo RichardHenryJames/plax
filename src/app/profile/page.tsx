@@ -41,6 +41,8 @@ export default function ProfilePage() {
   const getTopCategories = usePlaxStore((s) => s.getTopCategories)
   const quizAttempted = usePlaxStore((s) => s.quizAttempted)
   const quizCorrect = usePlaxStore((s) => s.quizCorrect)
+  const quizStreak = usePlaxStore((s) => s.quizStreak)
+  const quizBestStreak = usePlaxStore((s) => s.quizBestStreak)
   const { t, tp, lang } = useT()
 
   useEffect(() => {
@@ -140,7 +142,7 @@ export default function ProfilePage() {
           {/* Quiz mastery */}
           {quizAttempted > 0 && (
             <div className="px-5 mb-6">
-              <QuizMasteryPanel attempted={quizAttempted} correct={quizCorrect} t={t} lang={lang} />
+              <QuizMasteryPanel attempted={quizAttempted} correct={quizCorrect} streak={quizStreak} best={quizBestStreak} t={t} lang={lang} />
             </div>
           )}
 
@@ -321,7 +323,7 @@ export default function ProfilePage() {
             >
               {quizAttempted > 0 && (
                 <div className="mb-6">
-                  <QuizMasteryPanel attempted={quizAttempted} correct={quizCorrect} t={t} lang={lang} />
+                  <QuizMasteryPanel attempted={quizAttempted} correct={quizCorrect} streak={quizStreak} best={quizBestStreak} t={t} lang={lang} />
                 </div>
               )}
 
@@ -467,16 +469,20 @@ function StatCard({ emoji, label, value, tint }: { emoji: string; label: string;
 }
 
 // Quiz mastery — a prominent panel showing active-recall accuracy from the
-// "Test yourself" quizzes, with a progress ring-style bar.
+// "Test yourself" quizzes, with a progress ring-style bar + daily streak.
 function QuizMasteryPanel({
   attempted,
   correct,
+  streak,
+  best,
   t,
   lang,
 }: {
   attempted: number
   correct: number
-  t: (k: string) => string
+  streak: number
+  best: number
+  t: (k: string, vars?: Record<string, string>) => string
   lang: string
 }) {
   const pct = Math.round((correct / attempted) * 100)
@@ -504,7 +510,7 @@ function QuizMasteryPanel({
             <span className="text-2xl font-bold text-white tabular-nums leading-none font-display">{pct}%</span>
           </div>
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-cyan-300 mb-1">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             <span className={hi}>{t('quizMastery')}</span>
@@ -513,6 +519,17 @@ function QuizMasteryPanel({
             {correct}<span className="text-dark-muted">/{attempted}</span>
           </p>
           <p className={`text-sm text-dark-muted ${hi}`}>{t('correctAnswers')} · {t('quizzesTaken')}</p>
+          {/* Daily streak pill */}
+          {streak > 0 && (
+            <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-500/15 border border-orange-500/25">
+              <span className="text-base leading-none">🔥</span>
+              <span className="text-sm font-bold text-orange-200 tabular-nums">{streak}</span>
+              <span className={`text-xs text-orange-200/80 ${hi}`}>{t('dayStreakLabel')}</span>
+              {best > streak && (
+                <span className={`text-[11px] text-dark-muted border-l border-white/10 pl-2 ${hi}`}>{t('bestStreak', { x: String(best) })}</span>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

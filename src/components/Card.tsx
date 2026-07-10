@@ -205,9 +205,11 @@ export function Card({ card, isActive }: CardProps) {
   )
 }
 
-// Interactive category chip on each card. Tapping it lets the user follow or
-// remove that topic from their feed with a small yes/no confirm — so managing
-// interests is possible right from any card (mobile + desktop).
+// Interactive category chip on each card. Tapping it opens a dropdown that lets
+// the user SWITCH between the topics they follow (tap a topic → filter the feed to
+// it) AND remove any of them (× → confirm). If the card's topic isn't followed yet,
+// the dropdown offers to add it. So managing + navigating interests is possible
+// right from any card (mobile + desktop).
 function CategoryChip({
   category,
   label,
@@ -223,10 +225,26 @@ function CategoryChip({
 }) {
   const selectedTopics = usePlaxStore((s) => s.selectedTopics)
   const toggleTopic = usePlaxStore((s) => s.toggleTopic)
+  const feedFilter = useUIStore((s) => s.feedFilter)
+  const setFeedFilter = useUIStore((s) => s.setFeedFilter)
+  const { t, tp } = useT()
   const [open, setOpen] = useState(false)
-  const isTopic = TOPICS.some((t) => t.id === category) // 'general' is not toggleable
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null)
+  const isTopic = TOPICS.some((x) => x.id === category) // 'general' is not toggleable
   const isFollowed = selectedTopics.includes(category)
-  const t = (en: string, hi: string) => (isHindi ? hi : en)
+
+  const close = () => { setOpen(false); setConfirmRemove(null) }
+
+  // Followed topics to list in the switcher, with the current card's topic first.
+  const listedTopics = selectedTopics
+
+  const removeTopic = (id: string) => {
+    toggleTopic(id)
+    if (useUIStore.getState().feedFilter === id) useUIStore.getState().setFeedFilter(null)
+    setConfirmRemove(null)
+    // If nothing left to show, close.
+    if (usePlaxStore.getState().selectedTopics.length === 0) setOpen(false)
+  }
 
   return (
     <span className="relative inline-flex">
@@ -253,10 +271,7 @@ function CategoryChip({
             {/* Click-away layer */}
             <span
               className="fixed inset-0 z-40"
-              onClick={(e) => {
-                e.stopPropagation()
-                setOpen(false)
-              }}
+              onClick={(e) => { e.stopPropagation(); close() }}
             />
             <motion.span
               initial={{ opacity: 0, y: -6, scale: 0.96 }}
@@ -264,43 +279,100 @@ function CategoryChip({
               exit={{ opacity: 0, y: -6, scale: 0.96 }}
               transition={{ duration: 0.15 }}
               onClick={(e) => e.stopPropagation()}
-              className="absolute top-full left-0 mt-2 z-50 w-60 rounded-xl bg-dark-card border border-dark-border shadow-2xl shadow-black/60 p-3 normal-case"
+              className={`absolute top-full left-0 mt-2 z-50 w-64 rounded-xl bg-dark-card border border-dark-border shadow-2xl shadow-black/60 p-2 normal-case ${isHindi ? 'lang-hi' : ''}`}
             >
-              <p className="text-[13px] text-dark-text mb-3 leading-snug tracking-normal font-normal">
-                {isFollowed
-                  ? t(`Remove “${label}” from your feed?`, `क्या “${label}” को अपनी फ़ीड से हटाएँ?`)
-                  : t(`Add “${label}” to your feed?`, `क्या “${label}” को अपनी फ़ीड में जोड़ें?`)}
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    toggleTopic(category)
-                    // If the feed was pinned-filtered to this topic, clear it so
-                    // the feed moves on instead of showing stale filtered cards.
-                    if (useUIStore.getState().feedFilter === category) {
-                      useUIStore.getState().setFeedFilter(null)
-                    }
-                    setOpen(false)
-                  }}
-                  className={`flex-1 py-1.5 rounded-lg text-xs font-semibold text-white ${
-                    isFollowed
-                      ? 'bg-red-500/90 hover:bg-red-500'
-                      : 'bg-gradient-to-r from-violet-600 to-cyan-600 hover:shadow-lg hover:shadow-violet-500/20'
-                  } transition`}
-                >
-                  {isFollowed ? t('Remove', 'हटाएँ') : t('Add', 'जोड़ें')}
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setOpen(false)
-                  }}
-                  className="flex-1 py-1.5 rounded-lg text-xs font-semibold text-dark-muted bg-white/5 hover:bg-white/10 transition"
-                >
-                  {t('Cancel', 'रद्द करें')}
-                </button>
-              </div>
+              {/* When the card's own topic isn't followed yet → offer to add it. */}
+              {isTopic && !isFollowed ? (
+                <div className="p-1.5">
+                  <p className="text-[13px] text-dark-text mb-3 leading-snug tracking-normal font-normal">
+                    {t('addToFeedQ', { x: label })}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleTopic(category); close() }}
+                      className="flex-1 py-1.5 rounded-lg text-xs font-semibold text-white bg-gradient-to-r from-violet-600 to-cyan-600 hover:shadow-lg hover:shadow-violet-500/20 transition"
+                    >
+                      {t('add')}
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); close() }}
+                      className="flex-1 py-1.5 rounded-lg text-xs font-semibold text-dark-muted bg-white/5 hover:bg-white/10 transition"
+                    >
+                      {t('cancel')}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className="px-2 pt-1 pb-2 text-[10px] font-semibold uppercase tracking-wider text-dark-subtle">
+                    {t('switchTopic')}
+                  </p>
+
+                  {/* All (clear filter) */}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setFeedFilter(null); close() }}
+                    className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left text-sm transition ${
+                      feedFilter === null ? 'bg-violet-500/15 text-white' : 'text-dark-text hover:bg-white/5'
+                    }`}
+                  >
+                    <span className="w-6 text-center">✨</span>
+                    <span className="flex-1 font-medium">{t('allTopics')}</span>
+                    {feedFilter === null && (
+                      <svg className="w-4 h-4 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                    )}
+                  </button>
+
+                  {/* Each followed topic — tap to switch, × to remove */}
+                  {listedTopics.map((id) => {
+                    const tm = TOPICS.find((x) => x.id === id)
+                    if (!tm) return null
+                    const active = feedFilter === id
+                    const confirming = confirmRemove === id
+                    return (
+                      <div key={id} className="group flex items-center gap-1">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setFeedFilter(id); close() }}
+                          className={`flex-1 flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left text-sm transition min-w-0 ${
+                            active ? 'bg-violet-500/15 text-white' : 'text-dark-text hover:bg-white/5'
+                          }`}
+                        >
+                          <span className="w-6 text-center">{tm.emoji}</span>
+                          <span className="flex-1 font-medium truncate">{tp(id, tm.label)}</span>
+                          {active && (
+                            <svg className="w-4 h-4 text-violet-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                          )}
+                        </button>
+                        {confirming ? (
+                          <div className="flex items-center gap-1 pr-1">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); removeTopic(id) }}
+                              aria-label={t('remove')}
+                              className="px-2 py-1 rounded-md text-[11px] font-semibold text-white bg-red-500/90 hover:bg-red-500 transition"
+                            >
+                              {t('remove')}
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setConfirmRemove(null) }}
+                              aria-label={t('cancel')}
+                              className="px-2 py-1 rounded-md text-[11px] font-semibold text-dark-muted bg-white/5 hover:bg-white/10 transition"
+                            >
+                              {t('cancel')}
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setConfirmRemove(id) }}
+                            aria-label={t('remove')}
+                            className="p-1.5 rounded-md text-dark-subtle hover:text-red-400 hover:bg-white/5 transition shrink-0"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })}
+                </>
+              )}
             </motion.span>
           </>
         )}

@@ -82,6 +82,10 @@ interface PlaxState {
   // Quiz / active-recall stats
   quizAttempted: number
   quizCorrect: number
+  // Daily active-recall streak (based on days the user answered ≥1 quiz).
+  quizStreak: number
+  quizBestStreak: number
+  lastQuizDay: string | null // YYYY-MM-DD (local)
   recordQuizAnswer: (correct: boolean) => void
 
   // Cloud sync
@@ -187,11 +191,32 @@ export const usePlaxStore = create<PlaxState>()(
       // Quiz / active-recall stats
       quizAttempted: 0,
       quizCorrect: 0,
+      quizStreak: 0,
+      quizBestStreak: 0,
+      lastQuizDay: null,
       recordQuizAnswer: (correct) =>
-        set((s) => ({
-          quizAttempted: s.quizAttempted + 1,
-          quizCorrect: s.quizCorrect + (correct ? 1 : 0),
-        })),
+        set((s) => {
+          // Compute today + yesterday as local YYYY-MM-DD.
+          const d = new Date()
+          const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+          const y = new Date(d.getTime() - 86400000)
+          const yesterday = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, '0')}-${String(y.getDate()).padStart(2, '0')}`
+          let streak = s.quizStreak
+          if (s.lastQuizDay === today) {
+            // already counted today — streak unchanged
+          } else if (s.lastQuizDay === yesterday) {
+            streak = s.quizStreak + 1 // consecutive day
+          } else {
+            streak = 1 // streak broken or first ever
+          }
+          return {
+            quizAttempted: s.quizAttempted + 1,
+            quizCorrect: s.quizCorrect + (correct ? 1 : 0),
+            quizStreak: streak,
+            quizBestStreak: Math.max(s.quizBestStreak, streak),
+            lastQuizDay: today,
+          }
+        }),
 
       // Cloud sync
       syncedUserId: null,

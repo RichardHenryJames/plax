@@ -143,6 +143,10 @@ const EN: Dict = {
   startReadingToSeeDetails: 'Start reading to see details here.',
   savedCards: 'Saved cards',
   savedCardsEmpty: 'Tap the bookmark on any card to save it here.',
+  switchTopic: 'Switch topic',
+  allTopics: 'All topics',
+  dayStreakLabel: 'day streak',
+  bestStreak: 'Best: {x}',
 }
 
 const HI: Dict = {
@@ -257,6 +261,10 @@ const HI: Dict = {
   startReadingToSeeDetails: 'विवरण देखने के लिए पढ़ना शुरू करें।',
   savedCards: 'सहेजे गए कार्ड',
   savedCardsEmpty: 'किसी भी कार्ड पर बुकमार्क दबाकर उसे यहाँ सहेजें।',
+  switchTopic: 'विषय बदलें',
+  allTopics: 'सभी विषय',
+  dayStreakLabel: 'दिन लगातार',
+  bestStreak: 'सर्वोत्तम: {x}',
 }
 
 const DICTS: Record<string, Dict> = { en: EN, hi: HI }
