@@ -24,7 +24,7 @@ export function Card({ card, isActive, translating = false }: CardProps) {
 
   return (
     <div className={`relative flex flex-col overflow-hidden select-none h-full w-full lg:h-[86vh] lg:max-h-[880px] lg:max-w-3xl lg:mx-auto lg:rounded-[28px] lg:border lg:border-white/[0.08] lg:bg-[#0f0f15] lg:shadow-2xl lg:shadow-black/60 ${isHindi ? 'lang-hi' : ''}`}>      {/* Desktop panel sheen */}
-      <div className="hidden lg:block absolute inset-0 rounded-[28px] pointer-events-none bg-[radial-gradient(130%_85%_at_50%_0%,rgba(139,92,246,0.08),transparent_55%)]" />
+      <div className="hidden lg:block absolute inset-0 rounded-[28px] pointer-events-none bg-[radial-gradient(130%_85%_at_50%_0%,rgba(245,177,58,0.06),transparent_55%)]" />
       {/* Background glow */}
       <div className={`absolute inset-0 bg-gradient-to-b ${gradientClass} opacity-[0.05]`} />
       {/* Top category accent line */}

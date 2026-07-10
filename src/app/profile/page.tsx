@@ -103,7 +103,7 @@ export default function ProfilePage() {
           {/* Cover banner */}
           <div className="relative h-36 sm:h-44 overflow-hidden">
             <div className="absolute inset-0 bg-[color:var(--signal)]/12" />
-            <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_20%_0%,rgba(139,92,246,0.35),transparent_60%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_20%_0%,rgba(245,177,58,0.22),transparent_60%)]" />
             <div className="absolute inset-0 bg-gradient-to-t from-dark-bg via-dark-bg/40 to-transparent" />
             <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-5 pt-5">
               <Link href="/" className="focus-ring flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg glass text-white/90 hover:text-white transition text-sm">
@@ -237,7 +237,7 @@ export default function ProfilePage() {
         {/* Cover banner */}
         <div className="relative h-36 sm:h-44 overflow-hidden">
           <div className="absolute inset-0 bg-[color:var(--signal)]/12" />
-          <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_20%_0%,rgba(139,92,246,0.35),transparent_60%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_20%_0%,rgba(245,177,58,0.22),transparent_60%)]" />
           <div className="absolute inset-0 bg-gradient-to-t from-dark-bg via-dark-bg/40 to-transparent" />
           {/* Back button over banner */}
           <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-5 pt-5">

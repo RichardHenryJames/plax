@@ -79,7 +79,7 @@ export default async function TopicPage({ params }: Params) {
 
       {/* Hero */}
       <div className="relative overflow-hidden border-b border-dark-border">
-        <div className="absolute inset-0 bg-[radial-gradient(90%_130%_at_15%_-10%,rgba(139,92,246,0.2),transparent_55%),radial-gradient(80%_120%_at_100%_0%,rgba(34,211,238,0.12),transparent_55%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(90%_130%_at_15%_-10%,rgba(245,177,58,0.12),transparent_55%)]" />
         <div className="relative max-w-3xl mx-auto px-5 sm:px-6 pt-8 pb-12">
           {/* Breadcrumb */}
           <nav aria-label="Breadcrumb" className="mb-8 text-sm text-dark-muted">

@@ -10,8 +10,8 @@
   --color-dark-text: #fafafa;
   --color-dark-muted: #9b9ba6;
   --color-dark-subtle: #6c6c78;
-  --color-accent: #8b5cf6;
-  --color-accent-glow: #7c3aed;
+  --color-accent: #f5b13a;
+  --color-accent-glow: #e0912a;
 
   /* ── Elevation shadows ── */
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
@@ -167,10 +167,7 @@ body {
 }
 
 .text-gradient {
-  background: linear-gradient(120deg, #a78bfa 0%, #22d3ee 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #f5b13a;
 }
 
 /* ── Gradient Overlays (match the #0a0a0c base) ── */
@@ -328,13 +325,13 @@ body {
 
 /* ── Selection ── */
 ::selection {
-  background-color: rgba(139, 92, 246, 0.35);
+  background-color: rgba(245, 177, 58, 0.30);
   color: #fafafa;
 }
 
 /* ── Progress Bar ── */
 .reading-progress {
-  background: linear-gradient(90deg, #8b5cf6, #06b6d4);
+  background: #f5b13a;
   transition: width 0.3s ease;
 }
 
