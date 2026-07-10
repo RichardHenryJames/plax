@@ -215,12 +215,14 @@ export async function fetchWikipediaByTopics(
 ): Promise<RawContent[]> {
   if (!categories.length) return []
 
-  // Keep the total Wikipedia search requests small (≤6) so we never trigger rate
-  // limits from shared serverless IPs. Few topics → 2 seed terms each (variety);
-  // many topics → 1 term each, capped at 6 topics.
+  // Keep total Wikipedia search requests small (≤6) to avoid serverless-IP rate
+  // limits, but give FOCUSED users more depth: with few topics we spend the
+  // request budget on more seed terms per topic (more on-topic variety), and pull
+  // more results per term. Many topics → 1 term each.
   const MAX_REQUESTS = 6
   const cats = categories.slice(0, MAX_REQUESTS)
-  const useTwoTerms = cats.length * 2 <= MAX_REQUESTS
+  const termsPerTopic = Math.max(1, Math.min(3, Math.floor(MAX_REQUESTS / cats.length)))
+  const perTermLimit = cats.length <= 2 ? 6 : perTopic
 
   const perCat = await Promise.all(
     cats.map(async (category) => {
@@ -229,9 +231,9 @@ export async function fetchWikipediaByTopics(
       // Pick DISTINCT random seed terms so we don't get near-identical articles
       // from one term (e.g. five "Public Health Service" variants).
       const shuffled = [...queries].sort(() => Math.random() - 0.5)
-      const nTerms = useTwoTerms ? Math.min(2, shuffled.length) : 1
+      const nTerms = Math.min(termsPerTopic, shuffled.length)
       const terms = shuffled.slice(0, nTerms)
-      const perTerm = Math.max(2, Math.ceil(perTopic / terms.length))
+      const perTerm = Math.max(2, perTermLimit)
       const batches = await Promise.all(
         terms.map((term) => fetchWikiSearch(term, perTerm, category))
       )
