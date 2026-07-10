@@ -516,6 +516,81 @@ function decodeXml(s: string): string {
     .replace(/&amp;/g, '&')
 }
 
+// ─── Project Gutenberg (real opening passages of classic books) ───
+// For the Books topic we surface genuine literature. We keep a curated catalog of
+// well-known public-domain works and fetch each book's plain-text directly from
+// gutenberg.org (the Gutendex metadata API is Cloudflare-blocked from servers), then
+// extract its real opening passage. The AI-enhance step frames WHY the book matters
+// while the excerpt itself is authentic prose (no invention).
+const GUTENBERG_CLASSICS: { id: number; title: string; author: string }[] = [
+  { id: 1342, title: 'Pride and Prejudice', author: 'Jane Austen' },
+  { id: 84, title: 'Frankenstein', author: 'Mary Shelley' },
+  { id: 1661, title: 'The Adventures of Sherlock Holmes', author: 'Arthur Conan Doyle' },
+  { id: 2701, title: 'Moby Dick', author: 'Herman Melville' },
+  { id: 98, title: 'A Tale of Two Cities', author: 'Charles Dickens' },
+  { id: 1400, title: 'Great Expectations', author: 'Charles Dickens' },
+  { id: 174, title: 'The Picture of Dorian Gray', author: 'Oscar Wilde' },
+  { id: 345, title: 'Dracula', author: 'Bram Stoker' },
+  { id: 1080, title: 'A Modest Proposal', author: 'Jonathan Swift' },
+  { id: 5200, title: 'Metamorphosis', author: 'Franz Kafka' },
+  { id: 64317, title: 'The Great Gatsby', author: 'F. Scott Fitzgerald' },
+  { id: 1260, title: 'Jane Eyre', author: 'Charlotte Brontë' },
+  { id: 768, title: 'Wuthering Heights', author: 'Emily Brontë' },
+  { id: 1232, title: 'The Prince', author: 'Niccolò Machiavelli' },
+  { id: 2680, title: 'Meditations', author: 'Marcus Aurelius' },
+  { id: 4300, title: 'Ulysses', author: 'James Joyce' },
+  { id: 158, title: 'Emma', author: 'Jane Austen' },
+]
+
+export async function fetchGutenberg(count = 3): Promise<RawContent[]> {
+  const picks = [...GUTENBERG_CLASSICS].sort(() => Math.random() - 0.5).slice(0, count)
+  const results = await Promise.allSettled(
+    picks.map(async (book) => {
+      const url = `https://www.gutenberg.org/cache/epub/${book.id}/pg${book.id}.txt`
+      const r = await fetch(url, { cache: 'no-store', headers: { 'User-Agent': 'PlaxReader/1.0 (plaxlabs.com)' } })
+      if (!r.ok) return null
+      let text = await r.text()
+      // Strip the Project Gutenberg header/license boilerplate.
+      const startMatch = text.match(/\*\*\*\s*START OF (THE|THIS) PROJECT GUTENBERG EBOOK[\s\S]*?\*\*\*/i)
+      if (startMatch) text = text.slice((startMatch.index || 0) + startMatch[0].length)
+      const endIdx = text.search(/\*\*\*\s*END OF (THE|THIS) PROJECT GUTENBERG EBOOK/i)
+      if (endIdx > 0) text = text.slice(0, endIdx)
+      // Skip front-matter to the first real prose paragraphs.
+      const paras = text
+        .split(/\n\s*\n/)
+        .map((p) => p.replace(/_/g, '').replace(/\s+/g, ' ').trim()) // drop Gutenberg italics underscores
+        .filter(
+          (p) =>
+            p.length > 180 &&
+            /[.!?]"?$/.test(p) &&
+            // Reject headings and typical front-matter (preface / thanks / license / play stage lines).
+            !/^(contents|chapter|illustration|produced by|transcriber|preface|introduction|dedication|volume|part\b|act\b|scene\b)/i.test(p) &&
+            !/(the press and the public|i must thank|publisher|copyright|this edition|acknowledg|all rights reserved)/i.test(p) &&
+            !/^[A-Z][A-Z .]{2,20}\./.test(p) // e.g. "HELMER." stage/dialogue lead-ins from plays
+        )
+      const opening = paras.slice(0, 2).join(' ')
+      if (opening.length < 200) return null
+      const passage = opening.length > 700 ? opening.slice(0, 700).replace(/\s+\S*$/, '') + '…' : opening
+      return {
+        title: book.title,
+        content: passage,
+        author: book.author,
+        url: `https://www.gutenberg.org/ebooks/${book.id}`,
+        source: 'Project Gutenberg',
+        category: 'books',
+      } as RawContent
+    })
+  )
+
+  const out: RawContent[] = []
+  results.forEach((res) => {
+    if (res.status === 'fulfilled' && res.value) out.push(res.value)
+  })
+  return out
+}
+
+
+
 
 export async function fetchReddit(
   subreddits: string[] = ['todayilearned', 'explainlikeimfive', 'Showerthoughts']
@@ -630,6 +705,8 @@ export async function fetchAllContent(categories: string[] = [], lang: string = 
     ['physics', 'math', 'space', 'science', 'technology', 'programming'].includes(c)
   )
   const includeArxiv = arxivTopics.length > 0
+  // Project Gutenberg gives real classic-literature excerpts for the Books topic.
+  const includeGutenberg = categories.includes('books')
 
   // Use Promise.allSettled so one failing source doesn't kill the rest
   const results = await Promise.allSettled([
@@ -639,10 +716,11 @@ export async function fetchAllContent(categories: string[] = [], lang: string = 
     fetchReddit(subreddits),     // topic-aware subreddit set
     fetchWikipediaByTopics(topicsForSearch), // on-topic articles (defaults when no picks)
     includeArxiv ? fetchArxiv(arxivTopics) : Promise.resolve([]),
+    includeGutenberg ? fetchGutenberg(3) : Promise.resolve([]),
   ])
 
   const all: RawContent[] = []
-  const sourceNames = ['Wikipedia', 'HackerNews', 'Quotes', 'Reddit', 'WikipediaTopics', 'arXiv']
+  const sourceNames = ['Wikipedia', 'HackerNews', 'Quotes', 'Reddit', 'WikipediaTopics', 'arXiv', 'Gutenberg']
 
   results.forEach((result, i) => {
     if (result.status === 'fulfilled') {
