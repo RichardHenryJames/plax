@@ -99,6 +99,15 @@ const EN: Dict = {
   valueProp1: 'Get smarter in 5 minutes a day',
   valueProp2: 'AI-summarized, not endless scrolling',
   valueProp3: 'Personalized to what you care about',
+  // Profile
+  feed: 'Feed',
+  yourReading: 'Your reading',
+  savedOnDevice: 'Saved on this device',
+  cardsReadCap: 'Cards Read',
+  interestsCap: 'Interests',
+  yourTopInterests: 'Your Top Interests',
+  signInToSyncTitle: 'Sync across your devices',
+  signInToSyncBody: 'Sign in to save your bookmarks, streaks and reading history to the cloud.',
 }
 
 const HI: Dict = {
@@ -170,6 +179,14 @@ const HI: Dict = {
   valueProp1: 'रोज़ 5 मिनट में बनें समझदार',
   valueProp2: 'AI-सारांश, अंतहीन स्क्रॉलिंग नहीं',
   valueProp3: 'आपकी पसंद के अनुसार निजीकृत',
+  feed: 'फ़ीड',
+  yourReading: 'आपकी पढ़ाई',
+  savedOnDevice: 'इस डिवाइस पर सहेजा गया',
+  cardsReadCap: 'पढ़े गए कार्ड',
+  interestsCap: 'रुचियाँ',
+  yourTopInterests: 'आपकी प्रमुख रुचियाँ',
+  signInToSyncTitle: 'अपने सभी डिवाइस पर सिंक करें',
+  signInToSyncBody: 'अपने बुकमार्क, स्ट्रीक व पढ़ाई का इतिहास क्लाउड में सहेजने हेतु साइन इन करें।',
 }
 
 const DICTS: Record<string, Dict> = { en: EN, hi: HI }

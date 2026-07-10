@@ -6,6 +6,7 @@ import { getUserStats, loadBookmarksFromCloud } from '@/lib/cloud-sync'
 import { usePlaxStore, TOPICS } from '@/lib/store'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
+import { useT } from '@/lib/i18n'
 
 interface Stats {
   cardsRead: number
@@ -36,6 +37,7 @@ export default function ProfilePage() {
   const localBookmarks = usePlaxStore((s) => s.bookmarkedIds)
   const localEngagements = usePlaxStore((s) => s.engagements)
   const getTopCategories = usePlaxStore((s) => s.getTopCategories)
+  const { t, tp, lang } = useT()
 
   useEffect(() => {
     if (!user) {
@@ -102,7 +104,7 @@ export default function ProfilePage() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
-                Feed
+                {t('feed')}
               </Link>
             </div>
           </div>
@@ -117,18 +119,18 @@ export default function ProfilePage() {
                 </div>
               </div>
               <div className="min-w-0 pb-1">
-                <h2 className="text-2xl font-bold font-display">Your reading</h2>
-                <p className="text-dark-muted text-sm">Saved on this device</p>
+                <h2 className={`text-2xl font-bold font-display ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('yourReading')}</h2>
+                <p className={`text-dark-muted text-sm ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('savedOnDevice')}</p>
               </div>
             </div>
           </div>
 
           {/* Local stats */}
           <div className="px-5 mb-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <StatCard emoji="📖" label="Cards Read" value={localCardsRead.toString()} tint="from-violet-500/20 to-violet-500/5" />
-            <StatCard emoji="🔖" label="Bookmarks" value={localBookmarks.length.toString()} tint="from-emerald-500/20 to-emerald-500/5" />
-            <StatCard emoji="⏱️" label="Minutes" value={localMinutes.toString()} tint="from-cyan-500/20 to-cyan-500/5" />
-            <StatCard emoji="✨" label="Interests" value={localTop.length.toString()} tint="from-fuchsia-500/20 to-fuchsia-500/5" />
+            <StatCard emoji="📖" label={t('cardsReadCap')} value={localCardsRead.toString()} tint="from-violet-500/20 to-violet-500/5" />
+            <StatCard emoji="🔖" label={t('bookmarks')} value={localBookmarks.length.toString()} tint="from-emerald-500/20 to-emerald-500/5" />
+            <StatCard emoji="⏱️" label={t('minutes')} value={localMinutes.toString()} tint="from-cyan-500/20 to-cyan-500/5" />
+            <StatCard emoji="✨" label={t('interestsCap')} value={localTop.length.toString()} tint="from-fuchsia-500/20 to-fuchsia-500/5" />
           </div>
 
           {/* Sync prompt */}
@@ -137,10 +139,10 @@ export default function ProfilePage() {
             <div className="relative flex items-start gap-4">
               <div className="w-11 h-11 shrink-0 rounded-xl bg-white/8 border border-white/10 flex items-center justify-center text-xl">☁️</div>
               <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-white">Sync across your devices</h3>
-                <p className="text-dark-muted text-sm mt-0.5 mb-3">Sign in to back up your bookmarks, keep your streak, and read anywhere.</p>
-                <Link href="/" className="btn-primary focus-ring inline-flex px-4 py-2 text-sm">
-                  Sign in to sync
+                <h3 className={`font-semibold text-white ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('signInToSyncTitle')}</h3>
+                <p className={`text-dark-muted text-sm mt-0.5 mb-3 ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('signInToSyncBody')}</p>
+                <Link href="/" className={`btn-primary focus-ring inline-flex px-4 py-2 text-sm ${lang === 'hi' ? 'lang-hi' : ''}`}>
+                  {t('signIn')}
                 </Link>
               </div>
             </div>
@@ -149,15 +151,18 @@ export default function ProfilePage() {
           {/* Local top interests */}
           {localTop.length > 0 && (
             <div className="px-5 pb-12">
-              <h3 className="text-sm font-semibold text-dark-muted uppercase tracking-wider mb-3">Top Interests</h3>
+              <h3 className={`text-sm font-semibold text-dark-muted uppercase tracking-wider mb-3 ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('yourTopInterests')}</h3>
               <div className="space-y-2">
-                {localTop.map((cat, i) => (
+                {localTop.map((cat, i) => {
+                  const tm = TOPICS.find((x) => x.id === cat)
+                  return (
                   <div key={cat} className="flex items-center gap-3 p-3.5 card-elevated">
                     <span className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-lg shrink-0">{EMOJI_MAP[cat] || '📄'}</span>
-                    <span className="font-medium capitalize flex-1">{cat}</span>
+                    <span className={`font-medium flex-1 ${lang === 'hi' ? 'lang-hi' : 'capitalize'}`}>{tm ? tp(cat, tm.label) : cat}</span>
                     <span className="text-dark-subtle text-xs font-semibold tabular-nums">#{i + 1}</span>
                   </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )}
