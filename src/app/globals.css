@@ -10,8 +10,8 @@
   --color-dark-text: #fafafa;
   --color-dark-muted: #9b9ba6;
   --color-dark-subtle: #6c6c78;
-  --color-accent: #8b5cf6;
-  --color-accent-glow: #7c3aed;
+  --color-accent: #f5b13a;
+  --color-accent-glow: #e0912a;
 
   /* ── Elevation shadows ── */
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
@@ -167,10 +167,7 @@ body {
 }
 
 .text-gradient {
-  background: linear-gradient(120deg, #a78bfa 0%, #22d3ee 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #f5b13a;
 }
 
 /* ── Gradient Overlays (match the #0a0a0c base) ── */
@@ -182,19 +179,15 @@ body {
   background: linear-gradient(to top, rgba(10, 10, 12, 0.97) 0%, rgba(10, 10, 12, 0.6) 35%, transparent 100%);
 }
 
-/* ── Glass surfaces ── */
+/* ── Solid surfaces (glassmorphism removed for editorial look) ── */
 .glass {
-  background: rgba(20, 20, 24, 0.6);
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #16161a;
+  border: 1px solid var(--hair-strong);
 }
 
 .glass-strong {
-  background: rgba(20, 20, 24, 0.85);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #131316;
+  border: 1px solid var(--hair-strong);
 }
 
 /* ── Elevated card ── */
@@ -211,26 +204,35 @@ body {
 }
 
 /* ── Buttons ── */
+/* btn-primary now inherits the editorial "signal" identity (flat marigold, hard
+   offset press) so every legacy usage is on-brand without a per-file change. */
 .btn-primary {
   position: relative;
-  background: linear-gradient(120deg, #8b5cf6, #6366f1 55%, #22d3ee 140%);
-  color: #fff;
-  font-weight: 600;
-  border-radius: 0.85rem;
-  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  transition: transform 0.18s var(--ease-spring), box-shadow 0.2s var(--ease-smooth), opacity 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: var(--signal);
+  color: var(--signal-ink);
+  font-weight: 650;
+  border: 1px solid var(--signal-deep);
+  box-shadow: 4px 4px 0 0 rgba(0, 0, 0, 0.55);
+  transition: transform 0.12s var(--ease-spring), box-shadow 0.12s var(--ease-spring), background 0.15s, opacity 0.2s;
 }
 .btn-primary:hover {
-  box-shadow: 0 10px 30px rgba(139, 92, 246, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25);
-  transform: translateY(-1px);
+  background: #ffc257;
+  transform: translate(-1px, -1px);
+  box-shadow: 6px 6px 0 0 rgba(0, 0, 0, 0.6);
 }
 .btn-primary:active {
-  transform: translateY(0) scale(0.99);
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 rgba(0, 0, 0, 0.6);
 }
 .btn-primary:disabled {
   opacity: 0.4;
   cursor: not-allowed;
   transform: none;
+  box-shadow: 4px 4px 0 0 rgba(0, 0, 0, 0.55);
 }
 
 .btn-secondary {
@@ -270,12 +272,10 @@ body {
   transform: scale(0.92);
 }
 
-/* ── Action pill (glass container for card actions) ── */
+/* ── Action pill (solid container for card actions) ── */
 .action-pill {
-  background: rgba(20, 20, 24, 0.55);
-  backdrop-filter: blur(18px) saturate(160%);
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: #16161a;
+  border: 1px solid var(--hair-strong);
   box-shadow: var(--shadow-sm);
   border-radius: 999px;
 }
@@ -319,13 +319,13 @@ body {
 
 /* ── Selection ── */
 ::selection {
-  background-color: rgba(139, 92, 246, 0.35);
+  background-color: rgba(245, 177, 58, 0.30);
   color: #fafafa;
 }
 
 /* ── Progress Bar ── */
 .reading-progress {
-  background: linear-gradient(90deg, #8b5cf6, #06b6d4);
+  background: #f5b13a;
   transition: width 0.3s ease;
 }
 

@@ -97,7 +97,7 @@ export function TopicEditor() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder={t('searchTopics')}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-dark-card sm:bg-dark-bg border border-dark-border text-white placeholder:text-dark-subtle text-sm outline-none focus:border-violet-500/50 focus-ring transition-colors"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-dark-card sm:bg-dark-bg border border-dark-border text-white placeholder:text-dark-subtle text-sm outline-none focus:border-[color:var(--signal)] focus-ring transition-colors"
                 />
               </div>
             </div>
@@ -113,7 +113,7 @@ export function TopicEditor() {
                     aria-pressed={isSelected}
                     className={`topic-chip focus-ring relative flex items-center gap-2.5 px-3.5 py-3 rounded-xl border text-left transition ${
                       isSelected
-                        ? 'border-violet-500/60 bg-violet-500/12 selected'
+                        ? 'border-[color:var(--signal)]/60 bg-[color:var(--signal)]/12 selected'
                         : 'border-dark-border bg-dark-card sm:bg-dark-bg hover:bg-dark-card-hover'
                     }`}
                   >
@@ -122,7 +122,7 @@ export function TopicEditor() {
                       {tp(topic.id, topic.label)}
                     </span>
                     {isSelected && (
-                      <span className="ml-auto shrink-0 w-4 h-4 bg-gradient-to-br from-violet-500 to-cyan-500 rounded-full flex items-center justify-center">
+                      <span className="ml-auto shrink-0 w-4 h-4 bg-[color:var(--signal)] rounded-full flex items-center justify-center">
                         <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" />
                         </svg>
@@ -138,7 +138,7 @@ export function TopicEditor() {
               <button
                 onClick={close}
                 disabled={!enough}
-                className={`w-full py-3 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-600 text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:shadow-lg hover:shadow-violet-500/20 transition ${lang === 'hi' ? 'lang-hi' : ''}`}
+                className={`w-full py-3 rounded-xl bg-[color:var(--signal)] text-[color:var(--signal-ink)] text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#ffc257] transition ${lang === 'hi' ? 'lang-hi' : ''}`}
               >
                 {enough ? t('done') : t('pickAtLeastOne')}
               </button>

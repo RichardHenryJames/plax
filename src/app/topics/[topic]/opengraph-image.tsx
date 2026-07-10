@@ -27,7 +27,7 @@ export default async function TopicOgImage({ params }: { params: Promise<{ topic
           justifyContent: 'space-between',
           background: '#0a0a0c',
           backgroundImage:
-            'radial-gradient(900px 500px at 12% -10%, rgba(139,92,246,0.35), transparent 60%), radial-gradient(800px 500px at 100% 0%, rgba(34,211,238,0.22), transparent 55%)',
+            'radial-gradient(900px 500px at 12% -10%, rgba(245,177,58,0.28), transparent 60%)',
           padding: '72px 80px',
           fontFamily: 'sans-serif',
         }}
@@ -38,7 +38,7 @@ export default async function TopicOgImage({ params }: { params: Promise<{ topic
               width: 56,
               height: 56,
               borderRadius: 16,
-              background: 'linear-gradient(135deg, #8b5cf6, #22d3ee)',
+              background: '#f5b13a',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',

@@ -27,16 +27,16 @@ export function LeftRail() {
   const topics = TOPICS.filter((t) => selectedTopics.includes(t.id))
 
   return (
-    <aside className="hidden lg:flex flex-col w-64 shrink-0 h-full border-r border-dark-border bg-dark-card/30 backdrop-blur-xl overflow-y-auto overscroll-contain thin-scrollbar">
+    <aside className="hidden lg:flex flex-col w-64 shrink-0 h-full border-r border-dark-border bg-dark-card overflow-y-auto overscroll-contain thin-scrollbar">
       {/* Logo */}
       <div className="px-5 pt-5 pb-4">
         <Link href="/" className="flex items-center gap-2.5 group">
           <img
             src="/plaxlabs_logo.png"
             alt="Plax"
-            className="w-9 h-9 rounded-xl group-hover:shadow-lg group-hover:shadow-violet-500/20 transition-shadow"
+            className="w-9 h-9 rounded-md group-hover:opacity-90 transition-opacity"
           />
-          <span className="text-xl font-bold text-white/90">Plax</span>
+          <span className="text-xl font-bold text-white/90 tracking-tight">Plax</span>
         </Link>
       </div>
 
@@ -99,7 +99,7 @@ export function LeftRail() {
               aria-pressed={language === l.id}
               className={`flex-1 py-1.5 rounded-md text-xs font-medium transition ${
                 language === l.id
-                  ? 'bg-gradient-to-r from-violet-600 to-cyan-600 text-white shadow'
+                  ? 'bg-[color:var(--signal)] text-[color:var(--signal-ink)]'
                   : 'text-dark-muted hover:text-white'
               }`}
             >
@@ -115,7 +115,7 @@ export function LeftRail() {
           <span className={`text-[11px] font-semibold uppercase tracking-wider text-dark-subtle ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('yourTopics')}</span>
           <button
             onClick={() => setTopicsOpen(true)}
-            className={`text-[11px] text-violet-400 hover:text-violet-300 transition-colors ${lang === 'hi' ? 'lang-hi' : ''}`}
+            className={`text-[11px] link-ed text-[color:var(--signal)] transition-colors ${lang === 'hi' ? 'lang-hi' : ''}`}
           >
             {t('edit')}
           </button>
@@ -128,7 +128,7 @@ export function LeftRail() {
                 key={topic.id}
                 className={`group w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
                   active
-                    ? 'bg-violet-500/15 text-white'
+                    ? 'bg-[color:var(--signal)]/12 text-white'
                     : 'text-dark-muted hover:text-white hover:bg-white/5'
                 }`}
               >
@@ -141,7 +141,7 @@ export function LeftRail() {
                   <span className={`truncate ${lang === 'hi' ? 'lang-hi' : ''}`}>{tp(topic.id, topic.label)}</span>
                 </button>
                 {active && (
-                  <motion.span layoutId="topic-active-dot" className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+                  <motion.span layoutId="topic-active-dot" className="w-1.5 h-1.5 rounded-full bg-[color:var(--signal)]" />
                 )}
                 <button
                   onClick={() => {
@@ -161,7 +161,7 @@ export function LeftRail() {
           })}
           {topics.length === 0 && (
             <p className={`px-3 py-2 text-xs text-dark-subtle ${lang === 'hi' ? 'lang-hi' : ''}`}>
-              <button onClick={() => setTopicsOpen(true)} className="text-violet-400 hover:text-violet-300 transition-colors">
+              <button onClick={() => setTopicsOpen(true)} className="link-ed text-[color:var(--signal)] transition-colors">
                 {t('addTopics')}
               </button>{' '}
               {t('addTopicsToPersonalize')}
@@ -175,10 +175,10 @@ export function LeftRail() {
         {user ? (
           <div className="flex items-center gap-2.5 px-1">
             {user.user_metadata?.avatar_url ? (
-              <img src={user.user_metadata.avatar_url} alt="" className="w-9 h-9 rounded-full ring-2 ring-violet-500/30" />
+              <img src={user.user_metadata.avatar_url} alt="" className="w-9 h-9 rounded-full ring-1 ring-[color:var(--hair-strong)]" />
             ) : (
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center">
-                <span className="text-sm font-bold text-white">
+              <div className="w-9 h-9 rounded-full bg-[color:var(--signal)] flex items-center justify-center">
+                <span className="text-sm font-bold text-[color:var(--signal-ink)]">
                   {(user.user_metadata?.full_name || user.email || 'U')[0].toUpperCase()}
                 </span>
               </div>
@@ -234,15 +234,15 @@ function NavItem({
       {active && (
         <motion.span
           layoutId="nav-active"
-          className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-gradient-to-b from-violet-400 to-cyan-400"
+          className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] bg-[color:var(--signal)]"
         />
       )}
-      <svg className={`w-5 h-5 transition-transform group-hover:scale-110 ${active ? 'text-violet-300' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className={`w-5 h-5 transition-transform group-hover:scale-110 ${active ? 'text-[color:var(--signal)]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
         {icon}
       </svg>
       <span className="flex-1">{label}</span>
       {badge !== undefined && (
-        <span className="text-[10px] font-semibold bg-violet-500/20 text-violet-300 rounded-full px-1.5 py-0.5 tabular-nums">{badge}</span>
+        <span className="text-[10px] font-semibold bg-[color:var(--signal)]/20 text-[color:var(--signal)] rounded-full px-1.5 py-0.5 tabular-nums">{badge}</span>
       )}
     </Link>
   )

@@ -54,7 +54,7 @@ export function RightRail() {
   const cardTopic = currentCard ? TOPICS.find((t) => t.id === currentCard.category) : undefined
 
   return (
-    <aside className="hidden xl:flex flex-col w-80 shrink-0 h-full border-l border-dark-border bg-dark-card/30 backdrop-blur-xl overflow-y-auto overscroll-contain thin-scrollbar">
+    <aside className="hidden xl:flex flex-col w-80 shrink-0 h-full border-l border-dark-border bg-dark-card overflow-y-auto overscroll-contain thin-scrollbar">
       {/* Now reading */}
       <div className="px-5 pt-6 pb-4">
         <span className={`text-[11px] font-semibold uppercase tracking-wider text-dark-subtle ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('nowReading')}</span>
@@ -66,7 +66,7 @@ export function RightRail() {
             className="mt-3 p-4 card-elevated"
           >
             <div className="flex items-center gap-2 mb-3">
-              <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r ${cardTopic?.color || 'from-gray-500 to-gray-600'} text-white`}>
+              <span className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider border border-[color:var(--hair-strong)] bg-dark-card text-dark-text">
                 {currentCard.emoji} {cardTopic ? tp(currentCard.category, cardTopic.label) : (currentCard.category === 'general' ? tp('general', 'Discover') : currentCard.category)}
               </span>
               <span className="text-dark-subtle text-[11px]">{currentCard.readTime} {t('read')}</span>
@@ -78,7 +78,7 @@ export function RightRail() {
               <button
                 onClick={handleBookmark}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  isBookmarked ? 'bg-violet-500/15 text-violet-300' : 'bg-white/5 text-dark-muted hover:text-white'
+                  isBookmarked ? 'bg-[color:var(--signal)]/12 text-[color:var(--signal)]' : 'bg-white/5 text-dark-muted hover:text-white'
                 }`}
               >
                 <svg className="w-3.5 h-3.5" fill={isBookmarked ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
@@ -130,7 +130,7 @@ export function RightRail() {
                 <div className={`text-[11px] text-dark-muted mt-1 ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('accuracy')}</div>
               </div>
               <div className="text-right">
-                <div className="text-sm font-semibold text-cyan-300 tabular-nums">{quizCorrect}/{quizAttempted}</div>
+                <div className="text-sm font-semibold text-[color:var(--signal)] tabular-nums">{quizCorrect}/{quizAttempted}</div>
                 <div className={`text-[11px] text-dark-muted mt-0.5 ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('correctAnswers')}</div>
               </div>
             </div>
@@ -139,7 +139,7 @@ export function RightRail() {
                 initial={{ width: 0 }}
                 animate={{ width: `${Math.round((quizCorrect / quizAttempted) * 100)}%` }}
                 transition={{ duration: 0.6, ease: 'easeOut' }}
-                className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-green-500"
+                className="h-full rounded-full bg-[color:var(--signal)]"
               />
             </div>
           </div>

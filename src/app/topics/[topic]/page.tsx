@@ -79,7 +79,7 @@ export default async function TopicPage({ params }: Params) {
 
       {/* Hero */}
       <div className="relative overflow-hidden border-b border-dark-border">
-        <div className="absolute inset-0 bg-[radial-gradient(90%_130%_at_15%_-10%,rgba(139,92,246,0.2),transparent_55%),radial-gradient(80%_120%_at_100%_0%,rgba(34,211,238,0.12),transparent_55%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(90%_130%_at_15%_-10%,rgba(245,177,58,0.12),transparent_55%)]" />
         <div className="relative max-w-3xl mx-auto px-5 sm:px-6 pt-8 pb-12">
           {/* Breadcrumb */}
           <nav aria-label="Breadcrumb" className="mb-8 text-sm text-dark-muted">
@@ -112,7 +112,7 @@ export default async function TopicPage({ params }: Params) {
           <ul className="space-y-3">
             {t.discover.map((d) => (
               <li key={d} className="flex items-start gap-3 card-elevated p-4">
-                <span className="mt-0.5 w-6 h-6 shrink-0 rounded-lg bg-violet-500/15 text-violet-300 flex items-center justify-center">
+                <span className="mt-0.5 w-6 h-6 shrink-0 rounded-lg bg-[color:var(--signal)]/15 text-[color:var(--signal)] flex items-center justify-center">
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
                 </span>
                 <span className="text-dark-text/90 leading-relaxed">{d}</span>
@@ -157,8 +157,8 @@ export default async function TopicPage({ params }: Params) {
         </section>
 
         {/* CTA */}
-        <section className="mt-14 relative overflow-hidden rounded-2xl border border-violet-500/25 p-7 text-center">
-          <div className="absolute inset-0 bg-gradient-to-br from-violet-600/15 to-cyan-500/10" />
+        <section className="mt-14 relative overflow-hidden rounded-2xl border border-[color:var(--signal)]/25 p-7 text-center">
+          <div className="absolute inset-0 bg-[color:var(--signal)]/8" />
           <div className="relative">
             <h2 className="text-2xl font-bold text-white font-display mb-2">
               Get smarter every day

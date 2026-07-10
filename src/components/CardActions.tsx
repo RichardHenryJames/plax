@@ -102,7 +102,7 @@ export function CardActions({ card }: { card: CardData | null }) {
               aria-label={isBookmarked ? t('remove') : t('save')}
               data-tip={isBookmarked ? t('saved') : t('save')}
               className={`tooltip focus-ring flex items-center justify-center w-11 h-11 rounded-full transition-all duration-200 ${
-                isBookmarked ? 'text-violet-300 bg-violet-500/15' : 'text-dark-muted hover:text-white hover:bg-white/10'
+                isBookmarked ? 'text-[color:var(--signal)] bg-[color:var(--signal)]/12' : 'text-dark-muted hover:text-white hover:bg-white/10'
               }`}
             >
               <motion.svg

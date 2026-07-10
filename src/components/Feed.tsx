@@ -587,7 +587,7 @@ export function Feed() {
         <div className="feed-container">
           <CardSkeleton />
           <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-2 text-dark-subtle text-xs">
-            <span className="w-3.5 h-3.5 border-2 border-violet-500/60 border-t-transparent rounded-full animate-spin" />
+            <span className="w-3.5 h-3.5 border-2 border-[color:var(--signal)] border-t-transparent rounded-full animate-spin" />
             Curating your feed…
           </div>
         </div>
@@ -661,7 +661,7 @@ export function Feed() {
       {isFetching && (
         <div className="absolute top-0 left-0 right-0 z-50 h-0.5 bg-white/5 overflow-hidden">
           <motion.div
-            className="h-full bg-gradient-to-r from-transparent via-violet-500 to-transparent w-1/3"
+            className="h-full bg-gradient-to-r from-transparent via-[color:var(--signal)] to-transparent w-1/3"
             animate={{ x: ['-100%', '400%'] }}
             transition={{ repeat: Infinity, duration: 1.2, ease: 'easeInOut' }}
           />
@@ -681,7 +681,7 @@ export function Feed() {
               <motion.span
                 animate={{ rotate: 360 }}
                 transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-                className="w-3.5 h-3.5 border-[1.5px] border-violet-400 border-t-transparent rounded-full inline-block"
+                className="w-3.5 h-3.5 border-[1.5px] border-[color:var(--signal)] border-t-transparent rounded-full inline-block"
               />
               <span className={language === 'hi' ? 'lang-hi' : ''}>{translate(language, 'loading')}</span>
             </div>
@@ -729,7 +729,7 @@ export function Feed() {
               return (
                 <div key={j} className="h-[3px] flex-1 rounded-full bg-white/15 overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-violet-400 to-cyan-400 transition-[width] duration-200 ease-out"
+                    className="h-full bg-[color:var(--signal)] transition-[width] duration-200 ease-out"
                     style={{ width: `${fill}%` }}
                   />
                 </div>
@@ -750,7 +750,7 @@ export function Feed() {
             <motion.div
               animate={{ rotate: 360 }}
               transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-              className="w-4 h-4 border-2 border-violet-400 border-t-transparent rounded-full"
+              className="w-4 h-4 border-2 border-[color:var(--signal)] border-t-transparent rounded-full"
             />
             <span className="text-dark-text/80 text-xs font-medium">Loading more…</span>
           </div>

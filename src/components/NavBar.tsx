@@ -26,7 +26,7 @@ export function NavBar() {
           <img
             src="/plaxlabs_logo.png"
             alt="Plax"
-            className="w-7 h-7 rounded-lg group-hover:shadow-lg group-hover:shadow-violet-500/20 transition-shadow"
+            className="w-7 h-7 rounded-md transition-opacity group-hover:opacity-90"
           />
           <span className="text-base font-bold text-white/90">Plax</span>
         </Link>
@@ -46,7 +46,7 @@ export function NavBar() {
                 aria-label={l.id === 'hi' ? 'हिन्दी' : 'English'}
                 className={`px-2 py-0.5 rounded-full text-xs font-semibold transition ${
                   language === l.id
-                    ? 'bg-gradient-to-r from-violet-600 to-cyan-600 text-white shadow'
+                    ? 'bg-[color:var(--signal)] text-[color:var(--signal-ink)]'
                     : 'text-dark-muted hover:text-white'
                 } ${l.id === 'hi' ? 'lang-hi' : ''}`}
               >
@@ -93,11 +93,11 @@ export function NavBar() {
                     <img
                       src={user.user_metadata.avatar_url}
                       alt="Avatar"
-                      className="w-8 h-8 rounded-full ring-2 ring-violet-500/30 hover:ring-violet-500/60 transition"
+                      className="w-8 h-8 rounded-full ring-1 ring-[color:var(--hair-strong)] hover:ring-[color:var(--signal)] transition"
                     />
                   ) : (
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center hover:shadow-lg hover:shadow-violet-500/20 transition">
-                      <span className="text-sm font-bold text-white">
+                    <div className="w-8 h-8 rounded-full bg-[color:var(--signal)] flex items-center justify-center transition">
+                      <span className="text-sm font-bold text-[color:var(--signal-ink)]">
                         {(user.user_metadata?.full_name || user.email || 'U')[0].toUpperCase()}
                       </span>
                     </div>
@@ -106,7 +106,7 @@ export function NavBar() {
               ) : (
                 <button
                   onClick={() => setShowMenu(!showMenu)}
-                  className={`px-3.5 py-1.5 bg-gradient-to-r from-violet-600 to-cyan-600 rounded-lg text-white text-sm font-semibold hover:shadow-lg hover:shadow-violet-500/20 transition ml-1 ${lang === 'hi' ? 'lang-hi' : ''}`}
+                  className={`px-3.5 py-1.5 bg-[color:var(--signal)] rounded-md text-[color:var(--signal-ink)] text-sm font-semibold hover:bg-[#ffc257] transition ml-1 ${lang === 'hi' ? 'lang-hi' : ''}`}
                 >
                   {t('signIn')}
                 </button>
