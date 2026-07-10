@@ -63,6 +63,15 @@ function rankByEngagement(batch: CardData[], scoreOf: (category: string) => numb
     .map((x) => x.c)
 }
 
+// Whether a card is eligible for AI enhancement/translation in the given language.
+// EN: only long-form raw extracts (skip quotes/short facts). HI: every substantive
+// card (so the whole feed reads in Hindi). Mirrors the logic in enhanceCard.
+function needsEnhance(card: CardData, lang: string): boolean {
+  const base = card.originalContent ?? card.content
+  if (lang === 'en') return card.type === 'microessay' && (base?.length ?? 0) >= 240
+  return (base?.length ?? 0) >= 120
+}
+
 export function Feed() {
   const { selectedTopics, bookmarkedIds, engagements, addEngagement, incrementCardsRead, readCardIds, markCardRead } = usePlaxStore()
   const language = usePlaxStore((s) => s.language)
@@ -253,6 +262,8 @@ export function Feed() {
   // instead of leaving raw English forever (the "still English in Hindi" bug).
   const enhanceCounts = useRef(new Map<string, number>())
   const enhanceInflight = useRef(new Set<string>())
+  const [enhancingIds, setEnhancingIds] = useState<Set<string>>(new Set())
+  const [enhanceFailed, setEnhanceFailed] = useState<Set<string>>(new Set()) // `${id}:${lang}` gave up
   const MAX_ENHANCE_ATTEMPTS = 4
   const enhanceCard = useCallback(async (card: CardData | undefined) => {
     if (!card) return
@@ -276,6 +287,7 @@ export function Feed() {
     }
     enhanceCounts.current.set(key, (enhanceCounts.current.get(key) ?? 0) + 1)
     enhanceInflight.current.add(key)
+    setEnhancingIds((s) => new Set(s).add(card.id))
     try {
       const res = await fetch('/api/summarize', {
         method: 'POST',
@@ -308,20 +320,29 @@ export function Feed() {
       /* keep the original extract on failure — will retry on next view */
     } finally {
       enhanceInflight.current.delete(key)
+      setEnhancingIds((s) => { const n = new Set(s); n.delete(card.id); return n })
+      // If we've exhausted attempts and it's STILL not in the target language,
+      // mark it failed so the UI can stop showing the translating shimmer and
+      // fall back to the raw extract instead of shimmering forever.
+      if ((enhanceCounts.current.get(key) ?? 0) >= MAX_ENHANCE_ATTEMPTS) {
+        setEnhanceFailed((s) => new Set(s).add(key))
+      }
     }
   }, [])
 
-  // Enhance the current card + prefetch the next for a smooth read. Re-runs on
-  // language change so the visible article translates in place.
+  // Enhance the current card + prefetch the NEXT one so that by the time the user
+  // swipes (or toggles language), the translation is already ready — makes it feel
+  // instant. We prefetch only ONE ahead to conserve the AI token budget (each
+  // enhancement is an AI call; prefetching many ahead burns the daily quota fast).
   useEffect(() => {
     enhanceCard(visibleCards[currentIndex])
     enhanceCard(visibleCards[currentIndex + 1])
   }, [currentIndex, visibleCards, enhanceCard, language])
 
   // Retry loop: if the CURRENT card still isn't rendered in the active language
-  // (e.g. a transient AI-quota failure), retry every few seconds until it is (up
-  // to the per-card attempt cap). This fixes "still English in Hindi mode" when
-  // the first enhancement attempt failed.
+  // (e.g. a transient AI-quota failure), retry every couple seconds until it is
+  // (up to the per-card attempt cap). This fixes "still English in Hindi mode"
+  // when the first enhancement attempt failed.
   useEffect(() => {
     const cur = visibleCards[currentIndex]
     if (!cur) return
@@ -330,7 +351,7 @@ export function Feed() {
       const c = visibleCards[currentIndex]
       if (c && !(c.aiEnhanced && c.enhancedLang === language)) enhanceCard(c)
       else clearInterval(id)
-    }, 4000)
+    }, 2000)
     return () => clearInterval(id)
   }, [currentIndex, visibleCards, language, enhanceCard])
 
@@ -529,6 +550,17 @@ export function Feed() {
   const prevCard = currentIndex > 0 ? visibleCards[currentIndex - 1] : null
   const nextCard = currentIndex < visibleCards.length - 1 ? visibleCards[currentIndex + 1] : null
 
+  // The current card is "translating" when we're in Hindi mode and the card isn't
+  // yet rendered in Hindi (its raw text is English = the WRONG language), and we
+  // haven't given up. The Card shows a clean shimmer for this — so toggling to
+  // Hindi feels instant + professional rather than "still English". In English
+  // mode the raw extract is already correct-language, so no shimmer is needed.
+  const currentTranslating = !!currentCard
+    && language === 'hi'
+    && needsEnhance(currentCard, language)
+    && !(currentCard.aiEnhanced && currentCard.enhancedLang === language)
+    && !enhanceFailed.has(`${currentCard.id}:${language}`)
+
   // Single source of read-progress (drives the top segmented bar + card dock),
   // restarts each time the visible card changes.
   const [readProgress, setReadProgress] = useState(0)
@@ -670,7 +702,7 @@ export function Feed() {
           onTouchEnd={handleTouchEnd}
           className="card-slot"
         >
-          <Card card={currentCard} isActive={true} />
+          <Card card={currentCard} isActive={true} translating={currentTranslating} />
         </motion.div>
       </AnimatePresence>
 

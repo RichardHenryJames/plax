@@ -36,6 +36,7 @@ Write it so a curious person walks away with a genuine "aha". Requirements:
 - Include the single most surprising or useful detail from the source.
 - End with a one-line **Takeaway:** that's genuinely worth remembering.
 - **Bold** 3–5 key phrases (not whole sentences).
+- NEVER output LaTeX or math markup (no $...$, \\commands, ^, _, {}). If the source has math notation, express it in plain words or simple Unicode (e.g. "ℓ-regular", "less than 10%") — a normal reader must understand it.
 - STAY FAITHFUL to the source — never invent facts, numbers, names, or dates. If the source is thin, be honest and concise rather than padding.${langInstruction}
 
 Respond with JSON only:
@@ -43,33 +44,42 @@ Respond with JSON only:
 
     let result = { title: '', content: content.slice(0, 500), type }
 
-    // Try Gemini
+    // Race a promise against a timeout so a hung/rate-limited provider can't stall
+    // the whole request. The Gemini SDK auto-retries 429s with a ~36s backoff,
+    // which otherwise makes each call take 40s+ before the Groq fallback runs.
+    const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T> =>
+      Promise.race([
+        p,
+        new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
+      ])
+
+    // Try Gemini (fail fast — 7s — then fall through to Groq)
     if (genAI) {
       try {
         const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
-        const response = await model.generateContent(prompt)
+        const response = await withTimeout(model.generateContent(prompt), 7000)
         const text = response.response.text()
         const match = text.match(/\{[\s\S]*\}/)
         if (match) result = { ...result, ...JSON.parse(match[0]) }
       } catch (e) {
-        console.error('Gemini error:', e)
+        console.error('Gemini error:', (e as Error)?.message || e)
       }
     }
 
-    // Fallback to Groq
+    // Fallback to Groq (fast primary when Gemini quota is exhausted)
     if (!result.title && groq) {
       try {
-        const completion = await groq.chat.completions.create({
+        const completion = await withTimeout(groq.chat.completions.create({
           messages: [{ role: 'user', content: prompt }],
           model: 'openai/gpt-oss-120b',
           reasoning_effort: 'low',
           max_tokens: 1024,
-        })
+        }), 15000)
         const text = completion.choices[0]?.message?.content || ''
         const match = text.match(/\{[\s\S]*\}/)
         if (match) result = { ...result, ...JSON.parse(match[0]) }
       } catch (e) {
-        console.error('Groq error:', e)
+        console.error('Groq error:', (e as Error)?.message || e)
       }
     }
 

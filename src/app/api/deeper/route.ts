@@ -38,29 +38,34 @@ Respond with JSON only:
 
     let insights: string[] = []
 
+    // Fail fast so a rate-limited provider can't stall the request (the Gemini SDK
+    // auto-retries 429s with a ~36s backoff otherwise).
+    const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T> =>
+      Promise.race([p, new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))])
+
     if (genAI) {
       try {
         const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
-        const res = await model.generateContent(prompt)
+        const res = await withTimeout(model.generateContent(prompt), 7000)
         const m = res.response.text().match(/\{[\s\S]*\}/)
         if (m) insights = JSON.parse(m[0]).insights || []
       } catch (e) {
-        console.error('Deeper Gemini error:', e)
+        console.error('Deeper Gemini error:', (e as Error)?.message || e)
       }
     }
 
     if (insights.length === 0 && groq) {
       try {
-        const c = await groq.chat.completions.create({
+        const c = await withTimeout(groq.chat.completions.create({
           messages: [{ role: 'user', content: prompt }],
           model: 'openai/gpt-oss-120b',
           reasoning_effort: 'low',
           max_tokens: 700,
-        })
+        }), 15000)
         const m = (c.choices[0]?.message?.content || '').match(/\{[\s\S]*\}/)
         if (m) insights = JSON.parse(m[0]).insights || []
       } catch (e) {
-        console.error('Deeper Groq error:', e)
+        console.error('Deeper Groq error:', (e as Error)?.message || e)
       }
     }
 

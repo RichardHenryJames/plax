@@ -10,9 +10,10 @@ import { useT } from '@/lib/i18n'
 interface CardProps {
   card: CardData
   isActive: boolean
+  translating?: boolean
 }
 
-export function Card({ card, isActive }: CardProps) {
+export function Card({ card, isActive, translating = false }: CardProps) {
   const { t, tp } = useT()
   const topicMeta = TOPICS.find((t) => t.id === card.category)
   const gradientClass = topicMeta?.color || (card.category === 'general' ? 'from-slate-500 to-slate-600' : 'from-gray-500 to-gray-600')
@@ -58,6 +59,10 @@ export function Card({ card, isActive }: CardProps) {
           </motion.div>
 
           {/* Title */}
+          {translating ? (
+            <TranslatingSkeleton lang={isHindi} />
+          ) : (
+          <>
           {card.title && card.type !== 'quote' && (
             <motion.h1
               initial={{ opacity: 0, y: 10 }}
@@ -126,6 +131,8 @@ export function Card({ card, isActive }: CardProps) {
               </div>
             )}
           </motion.div>
+          </>
+          )}
 
           {/* Actions row — the trigger buttons sit horizontally (wrapping as needed)
               so they take less vertical space, especially on desktop; the expanded
@@ -200,6 +207,33 @@ export function Card({ card, isActive }: CardProps) {
           )}
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// A polished shimmer shown in place of the title + body while the card is being
+// translated/enhanced into the active language — so switching language feels
+// instant and premium instead of leaving stale wrong-language text on screen.
+function TranslatingSkeleton({ lang }: { lang: boolean }) {
+  const { t } = useT()
+  return (
+    <div className="animate-pulse">
+      {/* Title shimmer */}
+      <div className="space-y-3 mb-7">
+        <div className="h-8 sm:h-9 rounded-lg bg-white/[0.07] w-4/5" />
+        <div className="h-8 sm:h-9 rounded-lg bg-white/[0.05] w-3/5" />
+      </div>
+      {/* Body shimmer */}
+      <div className="space-y-3.5">
+        {[92, 98, 85, 96, 70].map((w, i) => (
+          <div key={i} className="h-4 rounded bg-white/[0.045]" style={{ width: `${w}%` }} />
+        ))}
+      </div>
+      {/* Label */}
+      <div className={`mt-6 inline-flex items-center gap-2 text-xs text-violet-300/90 ${lang ? 'lang-hi' : ''}`}>
+        <span className="w-3.5 h-3.5 border-[1.5px] border-violet-400/70 border-t-transparent rounded-full animate-spin" />
+        {t('translating')}
       </div>
     </div>
   )

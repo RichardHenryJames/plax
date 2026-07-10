@@ -489,10 +489,15 @@ export async function fetchArxiv(categories: string[]): Promise<RawContent[]> {
       const primaryCat = e.match(/<arxiv:primary_category[^>]*term="([^"]+)"/)?.[1]
       const author = decodeXml(e.match(/<name>([\s\S]*?)<\/name>/)?.[1]?.trim() || '')
       if (!title || summary.length < 160) continue
+      const cleanTitle = cleanLatex(title)
+      const cleanSummary = cleanLatex(summary)
+      // Skip papers that are STILL heavy with math notation after cleaning — they
+      // read like garbage in a general-audience feed no matter how we frame them.
+      if (mathDensity(cleanTitle) > 0.06 || mathDensity(cleanSummary) > 0.05) continue
       const topic = (primaryCat && arxivToTopic.get(primaryCat)) || arxivToTopic.get(uniqueArxiv[0]) || 'science'
       out.push({
-        title,
-        content: summary.length > 800 ? summary.slice(0, 800) + '…' : summary,
+        title: cleanTitle,
+        content: cleanSummary.length > 800 ? cleanSummary.slice(0, 800) + '…' : cleanSummary,
         url: link,
         author: author ? `${author} et al.` : undefined,
         source: 'arXiv',
@@ -514,6 +519,61 @@ function decodeXml(s: string): string {
     .replace(/&#39;/g, "'")
     .replace(/&apos;/g, "'")
     .replace(/&amp;/g, '&')
+}
+
+// ─── LaTeX → readable plain text (for arXiv abstracts/titles) ───
+// arXiv text is full of TeX: $\ell$, $\overline{A}_\ell(n)$, Tur\'an, \emph{x}.
+// Rendered raw it looks like garbage. We convert accents + common symbols to real
+// Unicode and strip the rest so the card reads like clean prose (the AI-enhance
+// step then polishes it further).
+const LATEX_SYMBOLS: Record<string, string> = {
+  ell: 'ℓ', alpha: 'α', beta: 'β', gamma: 'γ', delta: 'δ', epsilon: 'ε', zeta: 'ζ',
+  eta: 'η', theta: 'θ', iota: 'ι', kappa: 'κ', lambda: 'λ', mu: 'μ', nu: 'ν',
+  xi: 'ξ', pi: 'π', rho: 'ρ', sigma: 'σ', tau: 'τ', phi: 'φ', chi: 'χ', psi: 'ψ',
+  omega: 'ω', Gamma: 'Γ', Delta: 'Δ', Theta: 'Θ', Lambda: 'Λ', Xi: 'Ξ', Pi: 'Π',
+  Sigma: 'Σ', Phi: 'Φ', Psi: 'Ψ', Omega: 'Ω', infty: '∞', times: '×', cdot: '·',
+  leq: '≤', geq: '≥', neq: '≠', approx: '≈', sim: '∼', pm: '±', to: '→', rightarrow: '→',
+  leftarrow: '←', partial: '∂', nabla: '∇', sum: '∑', prod: '∏', int: '∫',
+  in: '∈', subset: '⊂', subseteq: '⊆', cup: '∪', cap: '∩', forall: '∀', exists: '∃',
+}
+// Accent commands like \'a \"o \`e \^i \~n → precombined chars.
+const LATEX_ACCENTS: Record<string, Record<string, string>> = {
+  "'": { a: 'á', e: 'é', i: 'í', o: 'ó', u: 'ú', y: 'ý', n: 'ń', c: 'ć', s: 'ś', A: 'Á', E: 'É', I: 'Í', O: 'Ó', U: 'Ú' },
+  '`': { a: 'à', e: 'è', i: 'ì', o: 'ò', u: 'ù', A: 'À', E: 'È', O: 'Ò' },
+  '"': { a: 'ä', e: 'ë', i: 'ï', o: 'ö', u: 'ü', A: 'Ä', O: 'Ö', U: 'Ü' },
+  '^': { a: 'â', e: 'ê', i: 'î', o: 'ô', u: 'û' },
+  '~': { a: 'ã', n: 'ñ', o: 'õ', N: 'Ñ' },
+}
+
+export function cleanLatex(input: string): string {
+  let s = input
+  // Accents: \'a  \'{a}  \"o  \~n  etc.
+  s = s.replace(/\\(['"`^~])\{?([a-zA-Z])\}?/g, (m, acc, ch) => LATEX_ACCENTS[acc]?.[ch] ?? ch)
+  // Text-mode wrappers → keep inner text: \emph{x} \textbf{x} \textit{x} \mathrm{x} \mathbf{x} \text{x} \operatorname{x}
+  s = s.replace(/\\(?:emph|textbf|textit|textrm|texttt|mathrm|mathbf|mathcal|mathbb|mathit|text|operatorname|boldsymbol)\s*\{([^{}]*)\}/g, '$1')
+  // \overline{x} \hat{x} \tilde{x} \bar{x} \vec{x} → inner text
+  s = s.replace(/\\(?:overline|underline|hat|tilde|bar|vec|dot|widehat|widetilde)\s*\{([^{}]*)\}/g, '$1')
+  // \frac{a}{b} → a/b
+  s = s.replace(/\\frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, '$1/$2')
+  // \sqrt{x} → √x
+  s = s.replace(/\\sqrt\s*\{([^{}]*)\}/g, '√$1')
+  // Known symbol commands → Unicode.
+  s = s.replace(/\\([a-zA-Z]+)/g, (m, name) => LATEX_SYMBOLS[name] ?? '')
+  // Superscripts/subscripts: ^{n} _{i} → ^n _i ; drop the braces.
+  s = s.replace(/[\^_]\s*\{([^{}]*)\}/g, (m, inner) => inner)
+  s = s.replace(/([\^_])([a-zA-Z0-9])/g, '$2')
+  // Remaining braces + $ math delimiters + stray backslashes.
+  s = s.replace(/[{}$]/g, '').replace(/\\/g, '')
+  // Tidy whitespace/punctuation.
+  return s.replace(/\s+([,.;:)])/g, '$1').replace(/\(\s+/g, '(').replace(/\s{2,}/g, ' ').trim()
+}
+
+// Fraction of characters that are still math-ish symbols — used to drop papers
+// that are too notation-dense to read as prose.
+function mathDensity(s: string): number {
+  if (!s) return 0
+  const mathChars = (s.match(/[$\\^_{}=<>+\/×·≤≥≠≈∑∏∫∂∇]/g) || []).length
+  return mathChars / s.length
 }
 
 // ─── Project Gutenberg (real opening passages of classic books) ───

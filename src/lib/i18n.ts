@@ -145,6 +145,7 @@ const EN: Dict = {
   savedCardsEmpty: 'Tap the bookmark on any card to save it here.',
   switchTopic: 'Switch topic',
   allTopics: 'All topics',
+  translating: 'Translating…',
   dayStreakLabel: 'day streak',
   bestStreak: 'Best: {x}',
 }
@@ -263,6 +264,7 @@ const HI: Dict = {
   savedCardsEmpty: 'किसी भी कार्ड पर बुकमार्क दबाकर उसे यहाँ सहेजें।',
   switchTopic: 'विषय बदलें',
   allTopics: 'सभी विषय',
+  translating: 'अनुवाद हो रहा है…',
   dayStreakLabel: 'दिन लगातार',
   bestStreak: 'सर्वोत्तम: {x}',
 }

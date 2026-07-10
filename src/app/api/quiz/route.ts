@@ -41,29 +41,34 @@ Respond with JSON only:
 
     let quiz: Quiz | null = null
 
+    // Fail fast so a rate-limited provider can't stall the request (the Gemini SDK
+    // auto-retries 429s with a ~36s backoff otherwise).
+    const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T> =>
+      Promise.race([p, new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))])
+
     if (genAI) {
       try {
         const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
-        const res = await model.generateContent(prompt)
+        const res = await withTimeout(model.generateContent(prompt), 7000)
         const m = res.response.text().match(/\{[\s\S]*\}/)
         if (m) quiz = JSON.parse(m[0])
       } catch (e) {
-        console.error('Quiz Gemini error:', e)
+        console.error('Quiz Gemini error:', (e as Error)?.message || e)
       }
     }
 
     if (!quiz && groq) {
       try {
-        const c = await groq.chat.completions.create({
+        const c = await withTimeout(groq.chat.completions.create({
           messages: [{ role: 'user', content: prompt }],
           model: 'openai/gpt-oss-120b',
           reasoning_effort: 'low',
           max_tokens: 700,
-        })
+        }), 15000)
         const m = (c.choices[0]?.message?.content || '').match(/\{[\s\S]*\}/)
         if (m) quiz = JSON.parse(m[0])
       } catch (e) {
-        console.error('Quiz Groq error:', e)
+        console.error('Quiz Groq error:', (e as Error)?.message || e)
       }
     }
 
