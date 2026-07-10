@@ -106,6 +106,9 @@ const EN: Dict = {
   yourTopInterests: 'Your Top Interests',
   signInToSyncTitle: 'Sync across your devices',
   signInToSyncBody: 'Sign in to save your bookmarks, streaks and reading history to the cloud.',
+  goDeeper: 'Go deeper',
+  deeperLoading: 'Thinking…',
+  deeperError: 'Could not load more right now.',
 }
 
 const HI: Dict = {
@@ -183,6 +186,9 @@ const HI: Dict = {
   yourTopInterests: 'आपकी प्रमुख रुचियाँ',
   signInToSyncTitle: 'अपने सभी डिवाइस पर सिंक करें',
   signInToSyncBody: 'अपने बुकमार्क, स्ट्रीक व पढ़ाई का इतिहास क्लाउड में सहेजने हेतु साइन इन करें।',
+  goDeeper: 'और गहराई में जाएँ',
+  deeperLoading: 'सोच रहे हैं…',
+  deeperError: 'अभी और जानकारी लोड नहीं हो सकी।',
 }
 
 const DICTS: Record<string, Dict> = { en: EN, hi: HI }

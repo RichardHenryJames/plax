@@ -146,6 +146,11 @@ export function Card({ card, isActive }: CardProps) {
             </motion.a>
           )}
 
+          {/* Go deeper — AI-generated bonus insights on tap */}
+          {card.type !== 'quote' && (card.content?.length ?? 0) > 120 && (
+            <DeeperSection card={card} isHindi={isHindi} />
+          )}
+
           {/* Author / Source credibility */}
           {(card.author || card.source) && (
             <motion.div
@@ -290,6 +295,89 @@ function CategoryChip({
         )}
       </AnimatePresence>
     </span>
+  )
+}
+
+// "Go deeper" — a tap loads 3 AI-generated bonus insights that build on the card,
+// so a curious reader can learn more without leaving the feed.
+function DeeperSection({ card, isHindi }: { card: CardData; isHindi: boolean }) {
+  const { t, lang } = useT()
+  const [state, setState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
+  const [insights, setInsights] = useState<string[]>([])
+
+  const load = async () => {
+    if (state === 'loading' || state === 'done') return
+    setState('loading')
+    try {
+      const res = await fetch('/api/deeper', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: card.title, content: card.content, lang }),
+      })
+      const data = await res.json()
+      if (data?.insights?.length) {
+        setInsights(data.insights)
+        setState('done')
+      } else {
+        setState('error')
+      }
+    } catch {
+      setState('error')
+    }
+  }
+
+  return (
+    <div className={`mt-4 ${isHindi ? 'lang-hi' : ''}`}>
+      {state !== 'done' && (
+        <button
+          onClick={load}
+          disabled={state === 'loading'}
+          className="focus-ring group inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-500/10 border border-violet-500/25 text-violet-200 text-sm font-medium hover:bg-violet-500/15 transition disabled:opacity-60"
+        >
+          {state === 'loading' ? (
+            <span className="w-4 h-4 border-[1.5px] border-violet-300 border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          )}
+          {state === 'loading' ? t('deeperLoading') : t('goDeeper')}
+        </button>
+      )}
+
+      {state === 'error' && (
+        <p className="mt-2 text-xs text-dark-subtle">{t('deeperError')}</p>
+      )}
+
+      <AnimatePresence>
+        {state === 'done' && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-1 space-y-2.5"
+          >
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-violet-300 mb-1">
+              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+              {t('goDeeper')}
+            </div>
+            {insights.map((ins, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, x: -6 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.08 }}
+                className="flex items-start gap-2.5 p-3 rounded-xl bg-white/[0.04] border border-white/[0.06]"
+              >
+                <span className="mt-0.5 w-5 h-5 shrink-0 rounded-md bg-gradient-to-br from-violet-500/30 to-cyan-500/20 text-violet-200 text-[11px] font-bold flex items-center justify-center">
+                  {i + 1}
+                </span>
+                <p className="text-sm text-dark-text/90 leading-relaxed">{ins}</p>
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   )
 }
 
