@@ -126,20 +126,34 @@ function categorizeWikipedia(description: string): string {
 // individual people, tiny geographic places, administrative units, sports/season
 // pages, single crime/disaster events, and media/product entries. Uses the
 // Wikidata short description (very reliable signal) plus title/extract heuristics.
-function isLowQualityWikipedia(description: string, title: string, extract: string): boolean {
+// `allowNotablePeople` (used by topic search) keeps substantive historical/
+// intellectual biographies (scientists, authors, leaders, artists) — which are
+// premium on-topic content — while still dropping pop-culture/sports stubs.
+function isLowQualityWikipedia(
+  description: string,
+  title: string,
+  extract: string,
+  opts: { allowNotablePeople?: boolean } = {}
+): boolean {
   const d = description.toLowerCase()
-
-  // People (roles in the description = it's a biography, which makes a dull card)
-  if (/\b(footballer|football player|basketball player|baseball player|cricketer|rugby player|tennis player|golfer|athlete|swimmer|boxer|wrestler|cyclist|racing driver|racecar driver|jockey|politician|senator|congressman|governor|mayor|minister|diplomat|actor|actress|singer|rapper|musician|drummer|guitarist|pianist|composer|dj|painter|sculptor|illustrator|photographer|architect|novelist|poet|playwright|author|writer|journalist|blogger|bishop|archbishop|priest|pastor|rabbi|imam|saint|monk|nun|general|colonel|admiral|soldier|officer|pilot|aviator|flying ace|lawyer|judge|physician|surgeon|nurse|businessperson|businessman|businesswoman|entrepreneur|ceo|model|youtuber|streamer|influencer|chef|monarch|king|queen|emperor|prince|princess|duke|duchess|earl|nobleman|noblewoman|aristocrat)\b/.test(d))
-    return true
-  if (/\bborn \d{3,4}\b/.test(d) || /\(\d{4}[-–]/.test(title)) return true
-
-  // Biography openers in the extract (catches people whose Wikidata description is
-  // empty): "Name (born 1987)…", "(1901–1980)…", or "… was an American politician".
   const head = extract.slice(0, 180)
-  if (/\(born \d|\(\d{3,4}\s*[–-]\s*\d{3,4}\)|\bb\.\s*\d{4}\b/i.test(head)) return true
-  if (/\b(is|was) (a|an|the) [a-z-]+ (politician|footballer|player|actor|actress|singer|musician|writer|author|poet|painter|general|officer|bishop|saint|monarch|king|queen|emperor|businessman|businesswoman|lawyer|physician)\b/i.test(head))
+
+  // Pop-culture / sports / entertainment people — ALWAYS dull for a knowledge
+  // feed, regardless of the selected topic.
+  if (/\b(footballer|football player|basketball player|baseball player|cricketer|rugby player|tennis player|golfer|athlete|swimmer|boxer|wrestler|cyclist|racing driver|racecar driver|jockey|sportsperson|actor|actress|singer|rapper|dj|drummer|guitarist|bassist|model|youtuber|streamer|influencer|tiktoker|reality (star|television personality)|television personality|beauty pageant|pornographic)\b/.test(d))
     return true
+
+  // Substantive biographies (scientists, authors, leaders, artists…). These are
+  // GREAT topic content (Einstein for physics, Darwin for science, an author for
+  // books), so only filter them for the random feed — keep them in topic search.
+  if (!opts.allowNotablePeople) {
+    if (/\b(politician|senator|congressman|governor|mayor|minister|diplomat|composer|painter|sculptor|illustrator|photographer|architect|novelist|poet|playwright|author|writer|journalist|bishop|archbishop|priest|pastor|rabbi|imam|saint|monk|nun|general|colonel|admiral|soldier|officer|pilot|aviator|flying ace|lawyer|judge|physician|surgeon|nurse|businessperson|businessman|businesswoman|entrepreneur|ceo|chef|monarch|king|queen|emperor|prince|princess|duke|duchess|earl|nobleman|noblewoman|aristocrat|philosopher|scientist|physicist|chemist|biologist|mathematician|economist|historian|inventor|explorer|astronomer)\b/.test(d))
+      return true
+    if (/\bborn \d{3,4}\b/.test(d) || /\(\d{4}[-–]/.test(title)) return true
+    if (/\(born \d|\(\d{3,4}\s*[–-]\s*\d{3,4}\)|\bb\.\s*\d{4}\b/i.test(head)) return true
+    if (/\b(is|was) (a|an|the) [a-z-]+ (politician|writer|author|poet|painter|general|officer|bishop|saint|monarch|king|queen|emperor|businessman|businesswoman|lawyer|physician|philosopher|scientist|physicist|mathematician|economist|historian|inventor)\b/i.test(head))
+      return true
+  }
 
   // Place/geography openers in the extract (catches stubs whose Wikidata
   // description is empty — e.g. "Samowicze is a village in eastern Poland").
@@ -257,10 +271,11 @@ async function fetchWikiSearch(
     for (const key of Object.keys(pages)) {
       const p = pages[key]
       const extract: string = (p?.extract || '').trim()
-      // Skip stubs, disambiguation, list, and biography/media/product entries so
-      // topic results are substantive concept articles, not a person or a phone.
+      // Skip stubs, disambiguation, list, place & media entries, but KEEP notable
+      // biographies — a scientist/author/leader matching the topic is premium,
+      // relevance-ranked content, not junk.
       if (!extract || extract.length < 140) continue
-      if (isLowQualityWikipedia(p.description || '', p.title || '', extract)) continue
+      if (isLowQualityWikipedia(p.description || '', p.title || '', extract, { allowNotablePeople: true })) continue
       out.push({
         title: p.title,
         content: trimToSentence(extract, 700),
