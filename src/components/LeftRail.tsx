@@ -16,6 +16,7 @@ export function LeftRail() {
   const feedFilter = useUIStore((s) => s.feedFilter)
   const setFeedFilter = useUIStore((s) => s.setFeedFilter)
   const setCommandOpen = useUIStore((s) => s.setCommandOpen)
+  const setTopicsOpen = useUIStore((s) => s.setTopicsOpen)
   const { user, signInWithGoogle, signInWithGithub, signOut } = useAuth()
 
   const topics = TOPICS.filter((t) => selectedTopics.includes(t.id))
@@ -81,14 +82,12 @@ export function LeftRail() {
       <div className="mt-6 px-2 flex-1 min-h-0 flex flex-col">
         <div className="flex items-center justify-between px-3 mb-2.5">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-dark-subtle">Your Topics</span>
-          {feedFilter && (
-            <button
-              onClick={() => setFeedFilter(null)}
-              className="text-[11px] text-violet-400 hover:text-violet-300 transition-colors"
-            >
-              Clear
-            </button>
-          )}
+          <button
+            onClick={() => setTopicsOpen(true)}
+            className="text-[11px] text-violet-400 hover:text-violet-300 transition-colors"
+          >
+            Edit
+          </button>
         </div>
         <div className="overflow-y-auto thin-scrollbar space-y-0.5 pr-1">
           {topics.map((topic) => {
@@ -112,7 +111,12 @@ export function LeftRail() {
             )
           })}
           {topics.length === 0 && (
-            <p className="px-3 py-2 text-xs text-dark-subtle">Pick topics in onboarding to filter your feed.</p>
+            <p className="px-3 py-2 text-xs text-dark-subtle">
+              <button onClick={() => setTopicsOpen(true)} className="text-violet-400 hover:text-violet-300 transition-colors">
+                Add topics
+              </button>{' '}
+              to personalize your feed.
+            </p>
           )}
         </div>
       </div>

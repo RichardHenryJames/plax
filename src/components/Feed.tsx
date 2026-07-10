@@ -558,21 +558,26 @@ export function Feed() {
       {/* Fixed action dock (Inshorts-style) — stays put while cards flip */}
       <CardActions card={currentCard} />
 
-      {/* Segmented reading-progress bar (Instagram/Inshorts-style). A FIXED set
-          of segments whose combined fill tracks the current card's read progress,
-          so the fill sweeps smoothly left→right across the whole bar for EVERY
-          card and resets on each new card. (A windowed one-segment-per-card bar
-          pins the active segment in place on an unbounded/infinite-scroll feed,
-          which looked stuck — this avoids that entirely.) */}
+      {/* Stories-style reading-progress bar (Instagram/Inshorts). RIGHT-ANCHORED
+          window of 7 segments = your recent journey through the feed: cards you've
+          passed stay FILLED, the current card fills by read progress, and the
+          window slides so the active (filling) segment is always at the right
+          edge once you're past the 7th card. This shows real forward motion and
+          never pins in the MIDDLE (the old windowed+centered bar pinned at
+          position 3 on an unbounded feed, which looked stuck). */}
       {(() => {
         const SEG = 7
-        const per = 100 / SEG
+        const start = Math.max(0, currentIndex - (SEG - 1))
         return (
           <div className="absolute left-1/2 -translate-x-1/2 z-40 top-[calc(4.5rem+env(safe-area-inset-top))] lg:top-6 w-[min(70%,26rem)] flex items-center gap-1">
-            {Array.from({ length: SEG }).map((_, k) => {
-              const fill = Math.max(0, Math.min(100, ((readProgress - k * per) / per) * 100))
+            {Array.from({ length: SEG }).map((_, j) => {
+              const idx = start + j
+              const beyond = idx >= visibleCards.length
+              const isPast = idx < currentIndex
+              const isCurrent = idx === currentIndex
+              const fill = beyond ? 0 : isPast ? 100 : isCurrent ? readProgress : 0
               return (
-                <div key={k} className="h-[3px] flex-1 rounded-full bg-white/15 overflow-hidden">
+                <div key={j} className="h-[3px] flex-1 rounded-full bg-white/15 overflow-hidden">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-violet-400 to-cyan-400 transition-[width] duration-200 ease-out"
                     style={{ width: `${fill}%` }}

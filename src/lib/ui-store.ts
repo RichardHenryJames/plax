@@ -21,6 +21,10 @@ interface UIState {
   setCommandOpen: (open: boolean) => void
   toggleCommand: () => void
 
+  // Topic / interests editor sheet (reachable from mobile header + desktop rail)
+  topicsOpen: boolean
+  setTopicsOpen: (open: boolean) => void
+
   // The card currently in view — lets the right rail show "Now reading"
   currentCard: CardData | null
   setCurrentCard: (card: CardData | null) => void
@@ -39,6 +43,9 @@ export const useUIStore = create<UIState>((set) => ({
   commandOpen: false,
   setCommandOpen: (open) => set({ commandOpen: open }),
   toggleCommand: () => set((s) => ({ commandOpen: !s.commandOpen })),
+
+  topicsOpen: false,
+  setTopicsOpen: (open) => set({ topicsOpen: open }),
 
   currentCard: null,
   setCurrentCard: (card) => set({ currentCard: card }),

@@ -6,6 +6,7 @@ import { Onboarding } from '@/components/Onboarding'
 import { LeftRail } from '@/components/LeftRail'
 import { RightRail } from '@/components/RightRail'
 import { CommandPalette } from '@/components/CommandPalette'
+import { TopicEditor } from '@/components/TopicEditor'
 import { usePlaxStore } from '@/lib/store'
 import { useEffect, useState } from 'react'
 
@@ -52,6 +53,7 @@ export default function Home() {
         <RightRail />
       </div>
       <CommandPalette />
+      <TopicEditor />
     </main>
   )
 }
