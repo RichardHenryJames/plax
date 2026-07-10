@@ -6,6 +6,7 @@ import { TOPICS, usePlaxStore } from '@/lib/store'
 import { useUIStore } from '@/lib/ui-store'
 import { useAuth } from '@/components/AuthProvider'
 import { addBookmarkToCloud, removeBookmarkFromCloud } from '@/lib/cloud-sync'
+import { useT } from '@/lib/i18n'
 
 /**
  * RightRail — desktop context panel (hidden below xl).
@@ -19,6 +20,7 @@ export function RightRail() {
   const toggleBookmark = usePlaxStore((s) => s.toggleBookmark)
   const currentCard = useUIStore((s) => s.currentCard)
   const { user } = useAuth()
+  const { t, tp, lang } = useT()
 
   const minutes = useMemo(
     () => Math.round(engagements.reduce((sum, e) => sum + e.timeSpent, 0) / 60000),
@@ -44,7 +46,7 @@ export function RightRail() {
     <aside className="hidden xl:flex flex-col w-80 shrink-0 h-full border-l border-dark-border bg-dark-card/30 backdrop-blur-xl overflow-y-auto overscroll-contain thin-scrollbar">
       {/* Now reading */}
       <div className="px-5 pt-6 pb-4">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-dark-subtle">Now Reading</span>
+        <span className={`text-[11px] font-semibold uppercase tracking-wider text-dark-subtle ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('nowReading')}</span>
         {currentCard ? (
           <motion.div
             key={currentCard.id}
@@ -54,9 +56,9 @@ export function RightRail() {
           >
             <div className="flex items-center gap-2 mb-3">
               <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r ${cardTopic?.color || 'from-gray-500 to-gray-600'} text-white`}>
-                {currentCard.emoji} {cardTopic?.label || (currentCard.category === 'general' ? 'Discover' : currentCard.category)}
+                {currentCard.emoji} {cardTopic ? tp(currentCard.category, cardTopic.label) : (currentCard.category === 'general' ? tp('general', 'Discover') : currentCard.category)}
               </span>
-              <span className="text-dark-subtle text-[11px]">{currentCard.readTime} read</span>
+              <span className="text-dark-subtle text-[11px]">{currentCard.readTime} {t('read')}</span>
             </div>
             <p className="text-sm text-white/90 font-medium leading-snug line-clamp-3">
               {currentCard.title || currentCard.content.slice(0, 100)}
@@ -71,7 +73,7 @@ export function RightRail() {
                 <svg className="w-3.5 h-3.5" fill={isBookmarked ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                 </svg>
-                {isBookmarked ? 'Saved' : 'Save'}
+                {isBookmarked ? t('saved') : t('save')}
               </button>
               {currentCard.sourceUrl && (
                 <a
@@ -80,7 +82,7 @@ export function RightRail() {
                   rel="noopener noreferrer"
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/5 text-dark-muted hover:text-white transition-colors"
                 >
-                  Source
+                  {t('source')}
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                   </svg>
@@ -95,25 +97,25 @@ export function RightRail() {
 
       {/* Stats */}
       <div className="px-5 pb-2">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-dark-subtle">Your Activity</span>
+        <span className={`text-[11px] font-semibold uppercase tracking-wider text-dark-subtle ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('yourActivity')}</span>
         <div className="mt-3 grid grid-cols-2 gap-2.5">
-          <Stat label="Cards read" value={cardsRead} accent="🔥" />
-          <Stat label="Bookmarks" value={bookmarkedIds.length} accent="🔖" />
-          <Stat label="Minutes" value={minutes} accent="⏱️" />
-          <Stat label="Interests" value={topCategories.length} accent="✨" />
+          <Stat label={t('cardsRead')} value={cardsRead} accent="🔥" />
+          <Stat label={t('bookmarks')} value={bookmarkedIds.length} accent="🔖" />
+          <Stat label={t('minutes')} value={minutes} accent="⏱️" />
+          <Stat label={t('interests')} value={topCategories.length} accent="✨" />
         </div>
       </div>
 
       {/* Top interests */}
       {topCategories.length > 0 && (
         <div className="px-5 py-5">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-dark-subtle">Top Interests</span>
+          <span className={`text-[11px] font-semibold uppercase tracking-wider text-dark-subtle ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('topInterests')}</span>
           <div className="mt-3 flex flex-wrap gap-1.5">
             {topCategories.map((cat) => {
-              const t = TOPICS.find((x) => x.id === cat)
+              const tm = TOPICS.find((x) => x.id === cat)
               return (
-                <span key={cat} className="px-2.5 py-1 rounded-full text-xs bg-white/5 text-dark-text border border-dark-border">
-                  {t?.emoji} {t?.label || (cat === 'general' ? 'Discover' : cat)}
+                <span key={cat} className={`px-2.5 py-1 rounded-full text-xs bg-white/5 text-dark-text border border-dark-border ${lang === 'hi' ? 'lang-hi' : ''}`}>
+                  {tm?.emoji} {tm ? tp(cat, tm.label) : (cat === 'general' ? tp('general', 'Discover') : cat)}
                 </span>
               )
             })}
@@ -123,11 +125,11 @@ export function RightRail() {
 
       {/* Keyboard shortcuts */}
       <div className="mt-auto px-5 py-5 border-t border-dark-border">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-dark-subtle">Shortcuts</span>
+        <span className={`text-[11px] font-semibold uppercase tracking-wider text-dark-subtle ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('shortcuts')}</span>
         <div className="mt-3 space-y-2">
-          <Shortcut keys={['↓', 'Space', 'J']} label="Next card" />
-          <Shortcut keys={['↑', 'K']} label="Previous card" />
-          <Shortcut keys={['⌘', 'K']} label="Search & jump" />
+          <Shortcut keys={['↓', 'Space', 'J']} label={t('nextCard')} />
+          <Shortcut keys={['↑', 'K']} label={t('previousCard')} />
+          <Shortcut keys={['⌘', 'K']} label={t('searchAndJump')} />
         </div>
       </div>
     </aside>

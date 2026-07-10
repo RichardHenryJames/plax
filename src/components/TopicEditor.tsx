@@ -6,6 +6,7 @@ import { TOPICS, usePlaxStore } from '@/lib/store'
 import { useUIStore } from '@/lib/ui-store'
 import { useAuth } from '@/components/AuthProvider'
 import { syncPreferencesToCloud } from '@/lib/cloud-sync'
+import { useT } from '@/lib/i18n'
 
 /**
  * TopicEditor — a modal sheet to add/remove interests AFTER onboarding.
@@ -22,12 +23,13 @@ export function TopicEditor() {
   const language = usePlaxStore((s) => s.language)
   const setLanguage = usePlaxStore((s) => s.setLanguage)
   const { user } = useAuth()
+  const { t, tp, lang } = useT()
   const [query, setQuery] = useState('')
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return TOPICS
-    return TOPICS.filter((t) => t.label.toLowerCase().includes(q))
+    return TOPICS.filter((t) => t.label.toLowerCase().includes(q) || tp(t.id, t.label).toLowerCase().includes(q))
   }, [query])
 
   const close = () => {
@@ -71,14 +73,14 @@ export function TopicEditor() {
             {/* Header */}
             <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-dark-border">
               <div>
-                <h2 className="text-lg font-bold text-white font-display">Your interests</h2>
-                <p className="text-xs text-dark-muted mt-0.5">
-                  {selectedTopics.length} selected · tap to add or remove
+                <h2 className={`text-lg font-bold text-white font-display ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('yourInterests')}</h2>
+                <p className={`text-xs text-dark-muted mt-0.5 ${lang === 'hi' ? 'lang-hi' : ''}`}>
+                  {selectedTopics.length} {t('selectedTapToAddRemove')}
                 </p>
               </div>
               <button
                 onClick={close}
-                aria-label="Close"
+                aria-label={t('close')}
                 className="p-2 text-dark-muted hover:text-white rounded-full hover:bg-white/5 transition"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -91,7 +93,7 @@ export function TopicEditor() {
             <div className="px-5 pt-4">
               {/* Language selector — feed content language */}
               <div className="mb-4">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-dark-subtle mb-2">Feed language</p>
+                <p className={`text-[11px] font-semibold uppercase tracking-wider text-dark-subtle mb-2 ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('feedLanguage')}</p>
                 <div className="inline-flex p-0.5 rounded-xl bg-dark-card sm:bg-dark-bg border border-dark-border">
                   {[
                     { id: 'en', label: 'English' },
@@ -120,7 +122,7 @@ export function TopicEditor() {
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search topics…"
+                  placeholder={t('searchTopics')}
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-dark-card sm:bg-dark-bg border border-dark-border text-white placeholder:text-dark-subtle text-sm outline-none focus:border-violet-500/50 focus-ring transition-colors"
                 />
               </div>
@@ -142,8 +144,8 @@ export function TopicEditor() {
                     }`}
                   >
                     <span className="text-xl shrink-0">{topic.emoji}</span>
-                    <span className={`text-sm font-medium truncate ${isSelected ? 'text-white' : 'text-dark-muted'}`}>
-                      {topic.label}
+                    <span className={`text-sm font-medium truncate ${isSelected ? 'text-white' : 'text-dark-muted'} ${lang === 'hi' ? 'lang-hi' : ''}`}>
+                      {tp(topic.id, topic.label)}
                     </span>
                     {isSelected && (
                       <span className="ml-auto shrink-0 w-4 h-4 bg-gradient-to-br from-violet-500 to-cyan-500 rounded-full flex items-center justify-center">
@@ -162,9 +164,9 @@ export function TopicEditor() {
               <button
                 onClick={close}
                 disabled={!enough}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-600 text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:shadow-lg hover:shadow-violet-500/20 transition"
+                className={`w-full py-3 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-600 text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:shadow-lg hover:shadow-violet-500/20 transition ${lang === 'hi' ? 'lang-hi' : ''}`}
               >
-                {enough ? 'Done' : 'Pick at least one topic'}
+                {enough ? t('done') : t('pickAtLeastOne')}
               </button>
             </div>
           </motion.div>

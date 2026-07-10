@@ -8,6 +8,7 @@ import { CardSkeleton } from './Skeleton'
 import { CardData } from '@/lib/sample-data'
 import { usePlaxStore } from '@/lib/store'
 import { useUIStore } from '@/lib/ui-store'
+import { translate } from '@/lib/i18n'
 
 const LOAD_MORE_THRESHOLD = 10 // fetch more when 10 cards from end
 const CARD_CACHE_KEY = 'plax-card-cache'
@@ -559,7 +560,7 @@ export function Feed() {
                 transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
                 className="w-3.5 h-3.5 border-[1.5px] border-violet-400 border-t-transparent rounded-full inline-block"
               />
-              <span>Loading</span>
+              <span className={language === 'hi' ? 'lang-hi' : ''}>{translate(language, 'loading')}</span>
             </div>
           </motion.div>
         )}
@@ -650,7 +651,7 @@ export function Feed() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 15l7-7 7 7" />
             </svg>
           </motion.div>
-          <span className="hidden sm:block">Swipe up or press ↓</span>
+          <span className={`hidden sm:block ${language === 'hi' ? 'lang-hi' : ''}`}>{translate(language, 'swipeOrPress')}</span>
         </motion.div>
       )}
     </div>

@@ -4,15 +4,17 @@ import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TOPICS, usePlaxStore } from '@/lib/store'
+import { useT } from '@/lib/i18n'
 
 const VALUE_PROPS = [
-  { icon: '🧠', text: 'Get smarter in 5 minutes a day' },
-  { icon: '✨', text: 'AI-summarized, not endless scrolling' },
-  { icon: '🎯', text: 'Personalized to what you care about' },
+  { icon: '🧠', key: 'valueProp1' },
+  { icon: '✨', key: 'valueProp2' },
+  { icon: '🎯', key: 'valueProp3' },
 ]
 
 export function Onboarding() {
   const { selectedTopics, toggleTopic, setOnboarded } = usePlaxStore()
+  const { t, tp, lang } = useT()
   const [step, setStep] = useState(0)
   const [query, setQuery] = useState('')
 
@@ -22,8 +24,8 @@ export function Onboarding() {
   const filteredTopics = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return TOPICS
-    return TOPICS.filter((t) => t.label.toLowerCase().includes(q))
-  }, [query])
+    return TOPICS.filter((topic) => topic.label.toLowerCase().includes(q) || tp(topic.id, topic.label).toLowerCase().includes(q))
+  }, [query, tp])
 
   return (
     <div className="fixed inset-0 bg-dark-bg z-50 flex items-center justify-center">
@@ -65,7 +67,7 @@ export function Onboarding() {
               className="inline-flex items-center gap-2 px-3 py-1 mb-6 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-dark-muted"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Your daily knowledge feed
+              {t('yourDailyKnowledgeFeed')}
             </motion.div>
 
             <motion.h1
@@ -74,9 +76,9 @@ export function Onboarding() {
               transition={{ delay: 0.4 }}
               className="text-[2.6rem] leading-[1.05] font-bold text-white mb-4 font-display"
             >
-              Become smarter,
+              {t('becomeSmarter')}
               <br />
-              <span className="text-gradient">one swipe at a time</span>
+              <span className="text-gradient">{t('oneSwipeAtATime')}</span>
             </motion.h1>
 
             <motion.p
@@ -85,7 +87,7 @@ export function Onboarding() {
               transition={{ delay: 0.5 }}
               className="text-dark-muted text-[15px] leading-relaxed mb-8 max-w-sm mx-auto"
             >
-              Short, AI-summarized insights on the topics you care about — from science and startups to AI and philosophy.
+              {t('onboardingSub')}
             </motion.p>
 
             {/* Value props */}
@@ -97,16 +99,16 @@ export function Onboarding() {
             >
               {VALUE_PROPS.map((v, i) => (
                 <motion.div
-                  key={v.text}
+                  key={v.key}
                   initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.65 + i * 0.08 }}
-                  className="flex items-center gap-3 text-sm text-dark-text/90"
+                  className={`flex items-center gap-3 text-sm text-dark-text/90 ${lang === 'hi' ? 'lang-hi' : ''}`}
                 >
                   <span className="w-8 h-8 shrink-0 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-base">
                     {v.icon}
                   </span>
-                  {v.text}
+                  {t(v.key)}
                 </motion.div>
               ))}
             </motion.div>
@@ -118,14 +120,14 @@ export function Onboarding() {
               onClick={() => setStep(1)}
               className="btn-primary focus-ring w-full py-4 text-[15px]"
             >
-              Get started
+              {t('getStarted')}
             </motion.button>
-            <p className="text-dark-subtle text-xs mt-4">Free • No account needed to start</p>
+            <p className="text-dark-subtle text-xs mt-4">{t('freeNoAccount')}</p>
             {/* Crawlable link so search engines discover the topic hub from the homepage */}
             <p className="mt-6 text-sm text-dark-muted">
-              Or{' '}
+              {t('or')}{' '}
               <Link href="/topics" className="text-violet-400 hover:text-violet-300 underline underline-offset-4 transition-colors">
-                explore all topics
+                {t('exploreAllTopics')}
               </Link>
             </p>
           </motion.div>
@@ -141,11 +143,11 @@ export function Onboarding() {
             className="relative z-10 w-full max-w-2xl px-6 flex flex-col max-h-[100dvh] py-8"
           >
             <div className="text-center mb-6">
-              <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2 font-display">
-                What are you curious about?
+              <h2 className={`text-2xl sm:text-3xl font-bold text-white mb-2 font-display ${lang === 'hi' ? 'lang-hi' : ''}`}>
+                {t('whatAreYouCurious')}
               </h2>
-              <p className="text-dark-muted text-[15px]">
-                Pick at least 3 — we&apos;ll craft your feed around them.
+              <p className={`text-dark-muted text-[15px] ${lang === 'hi' ? 'lang-hi' : ''}`}>
+                {t('pickAtLeast3')}
               </p>
             </div>
 
@@ -157,7 +159,7 @@ export function Onboarding() {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search topics…"
+                placeholder={t('searchTopics')}
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-dark-card border border-dark-border text-white placeholder:text-dark-subtle text-sm outline-none focus:border-violet-500/50 focus-ring transition-colors"
               />
             </div>
@@ -181,8 +183,8 @@ export function Onboarding() {
                     }`}
                   >
                     <span className="text-xl shrink-0">{topic.emoji}</span>
-                    <span className={`text-sm font-medium truncate ${isSelected ? 'text-white' : 'text-dark-muted'}`}>
-                      {topic.label}
+                    <span className={`text-sm font-medium truncate ${isSelected ? 'text-white' : 'text-dark-muted'} ${lang === 'hi' ? 'lang-hi' : ''}`}>
+                      {tp(topic.id, topic.label)}
                     </span>
                     <AnimatePresence>
                       {isSelected && (
@@ -206,11 +208,11 @@ export function Onboarding() {
             {/* Footer: progress + CTA */}
             <div className="pt-5 mt-auto">
               <div className="flex items-center justify-between mb-2 text-xs">
-                <span className="text-dark-muted">
-                  {selectedTopics.length} selected
-                  {!canProceed && <span className="text-dark-subtle"> · {3 - selectedTopics.length} more to continue</span>}
+                <span className={`text-dark-muted ${lang === 'hi' ? 'lang-hi' : ''}`}>
+                  {selectedTopics.length} {t('selected')}
+                  {!canProceed && <span className="text-dark-subtle"> · {3 - selectedTopics.length} {t('moreToContinue')}</span>}
                 </span>
-                {canProceed && <span className="text-emerald-400 font-medium">Ready ✓</span>}
+                {canProceed && <span className={`text-emerald-400 font-medium ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('readyCheck')}</span>}
               </div>
               <div className="h-1 w-full rounded-full bg-dark-border overflow-hidden mb-4">
                 <motion.div
@@ -222,9 +224,9 @@ export function Onboarding() {
               <button
                 onClick={() => canProceed && setOnboarded()}
                 disabled={!canProceed}
-                className="btn-primary focus-ring w-full py-4 text-[15px]"
+                className={`btn-primary focus-ring w-full py-4 text-[15px] ${lang === 'hi' ? 'lang-hi' : ''}`}
               >
-                Start reading →
+                {t('startReading')}
               </button>
             </div>
           </motion.div>

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { CardData } from '@/lib/sample-data'
 import { TOPICS, usePlaxStore } from '@/lib/store'
 import { useUIStore } from '@/lib/ui-store'
+import { useT } from '@/lib/i18n'
 
 interface CardProps {
   card: CardData
@@ -12,9 +13,10 @@ interface CardProps {
 }
 
 export function Card({ card, isActive }: CardProps) {
+  const { t, tp } = useT()
   const topicMeta = TOPICS.find((t) => t.id === card.category)
   const gradientClass = topicMeta?.color || (card.category === 'general' ? 'from-slate-500 to-slate-600' : 'from-gray-500 to-gray-600')
-  const categoryLabel = topicMeta?.label || (card.category === 'general' ? 'Discover' : card.category)
+  const categoryLabel = topicMeta ? tp(card.category, topicMeta.label) : (card.category === 'general' ? tp('general', 'Discover') : card.category)
   // Detect Devanagari so the card renders with a proper Hindi font + line-height,
   // independent of the app's language toggle (robust for mixed/partial states).
   const isHindi = /[\u0900-\u097F]/.test(`${card.title || ''} ${card.content || ''}`)
@@ -46,7 +48,7 @@ export function Card({ card, isActive }: CardProps) {
             {card.aiEnhanced && (
               <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-violet-200 bg-violet-500/15 border border-violet-400/25 rounded-full px-2 py-1">
                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l2.4 6.5L21 11l-6.6 2.5L12 20l-2.4-6.5L3 11l6.6-2.5L12 2z" /></svg>
-                AI summary
+                {t('aiSummary')}
               </span>
             )}
             <span className="inline-flex items-center gap-1 text-dark-subtle text-xs font-medium">
@@ -137,7 +139,7 @@ export function Card({ card, isActive }: CardProps) {
               transition={{ delay: 0.28 }}
               className="btn-secondary focus-ring group mt-7 inline-flex items-center gap-2 px-4 py-2.5 text-sm"
             >
-              Read full story
+              {t('readFullStory')}
               <svg className="w-4 h-4 text-dark-muted group-hover:text-violet-300 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>
