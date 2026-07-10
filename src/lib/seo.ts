@@ -21,7 +21,8 @@ export const SITE = {
   description:
     'Plax is a personalized knowledge feed for curious minds. Swipe through bite-sized, AI-summarized insights on science, technology, AI, startups, finance, philosophy and more — get smarter in five minutes a day.',
   url: SITE_URL,
-  ogImage: `${SITE_URL}/plaxlabs_logo.png`,
+  // Dynamic 1200×630 OG image (src/app/opengraph-image.tsx). Falls back cleanly.
+  ogImage: `${SITE_URL}/opengraph-image`,
   twitter: '@plaxlabs',
   locale: 'en_US',
   keywords: [

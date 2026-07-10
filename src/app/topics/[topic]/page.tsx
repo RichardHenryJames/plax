@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { SITE, SITE_URL, TOPIC_SEO, getTopicSeo } from '@/lib/seo'
+import { SITE_URL, TOPIC_SEO, getTopicSeo } from '@/lib/seo'
 
 // Statically pre-render one page per topic at build time.
 export function generateStaticParams() {
@@ -28,13 +28,12 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
       description: t.description,
       url,
       type: 'website',
-      images: [SITE.ogImage],
+      // images omitted → Next uses the per-topic opengraph-image.tsx automatically
     },
     twitter: {
       card: 'summary_large_image',
       title: `${t.label} · Plax`,
       description: t.description,
-      images: [SITE.ogImage],
     },
   }
 }
