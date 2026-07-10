@@ -11,6 +11,11 @@ export interface CardData {
   emoji?: string
   aiEnhanced?: boolean
   originalContent?: string
+  // Original (raw, pre-AI) title so we can re-translate the SAME article when the
+  // user toggles language, without refetching a different set of cards.
+  originalTitle?: string
+  // Which language the current title/content was AI-enhanced into ('en' | 'hi').
+  enhancedLang?: string
 }
 
 // No hardcoded cards — all content comes from live API sources

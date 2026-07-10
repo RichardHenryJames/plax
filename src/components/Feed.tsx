@@ -21,10 +21,11 @@ function topicsSig(topics: string[]): string {
   return [...topics].sort().join(',')
 }
 
-// Cache/reload signature scoped to BOTH topics and content language, so switching
-// language (or topics) invalidates the cache and reloads a fresh feed.
-function feedSig(topics: string[], language: string): string {
-  return `${language}|${topicsSig(topics)}`
+// Cache/reload signature scoped to the TOPIC selection only. Language is handled
+// separately (by re-translating loaded cards in place), so switching language
+// keeps the SAME articles — it never refetches or empties the feed.
+function feedSig(topics: string[]): string {
+  return topicsSig(topics)
 }
 
 // ── Client-side card cache (localStorage), scoped to the topic selection ──
@@ -126,7 +127,7 @@ export function Feed() {
       const cats = useUIStore.getState().feedFilter || selectedTopics.join(',')
       // Send IDs the client already has so server skips them
       const excludeIds = [...seenIdsRef.current].filter((id) => !id.startsWith('t:')).join(',')
-      const res = await fetch(`/api/feed?categories=${cats}&limit=30&refresh=${refresh}&lang=${language}&exclude=${encodeURIComponent(excludeIds)}`)
+      const res = await fetch(`/api/feed?categories=${cats}&limit=30&refresh=${refresh}&lang=en&exclude=${encodeURIComponent(excludeIds)}`)
       if (res.ok) {
         const data = await res.json()
         if (data.cards?.length > 0) {
@@ -137,7 +138,7 @@ export function Feed() {
             console.log(`[Plax Feed] Loaded ${newCards.length} new cards (batch #${fetchCountRef.current})`)
             setCards((prev) => {
               const updated = [...prev, ...newCards]
-              setCachedCards(updated, feedSig(selectedTopics, language))
+              setCachedCards(updated, feedSig(selectedTopics))
               return updated
             })
             setIsFetching(false)
@@ -157,12 +158,13 @@ export function Feed() {
     setIsFetching(false)
     isFetchingRef.current = false
     setIsInitialLoad(false)
-  }, [selectedTopics, engagements, bookmarkedIds, language]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedTopics, engagements, bookmarkedIds]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Initial load + RELOAD whenever the selected topics OR language change. Keyed
-  // on the feed signature so editing interests / switching language fully resets
-  // the feed (clears old cards, seen set, index) and fetches fresh content.
-  const sig = feedSig(selectedTopics, language)
+  // Initial load + RELOAD whenever the selected topics change (NOT language).
+  // Keyed on the topic signature so editing interests fully resets the feed.
+  // Language changes are handled separately by re-translating the loaded cards
+  // in place, so toggling EN⇄HI keeps the SAME articles and never empties the feed.
+  const sig = feedSig(selectedTopics)
   useEffect(() => {
     // Full reset for the new topic selection.
     seenIdsRef.current = new Set<string>()
@@ -187,7 +189,10 @@ export function Feed() {
       setCards([]) // no cache for this sig → clear the old cards immediately
     }
 
-    // 2. Background: fetch fresh cards for the current topics + language
+    // 2. Background: fetch fresh cards. We ALWAYS source in a stable base language
+    //    (English) so the article SET is identical regardless of the UI language;
+    //    the AI-enhance step translates each card into the current language. This
+    //    is what makes toggling language translate the SAME article in place.
     let cancelled = false
     const fetchLive = async () => {
       setIsFetching(true)
@@ -195,7 +200,7 @@ export function Feed() {
       try {
         const cats = selectedTopics.join(',')
         const excludeIds = [...seenIdsRef.current].filter((id) => !id.startsWith('t:')).join(',')
-        const res = await fetch(`/api/feed?categories=${cats}&limit=30&refresh=true&lang=${language}&exclude=${encodeURIComponent(excludeIds)}`)
+        const res = await fetch(`/api/feed?categories=${cats}&limit=30&refresh=true&lang=en&exclude=${encodeURIComponent(excludeIds)}`)
         if (res.ok) {
           const data = await res.json()
           if (!cancelled && data.cards?.length > 0) {
@@ -240,37 +245,57 @@ export function Feed() {
     setCurrentCard(visibleCards[currentIndex] ?? null)
   }, [currentIndex, visibleCards, setCurrentCard])
 
-  // ── Lazy AI enhancement: rewrite the raw extract of the card being read ──
+  // ── Lazy AI enhancement / translation: rewrite the raw extract of the card
+  //    being read INTO the current language. Re-runs when the language changes so
+  //    the SAME article is translated in place (never a different card). ──
   const enhanceAttempted = useRef(new Set<string>())
   const enhanceCard = useCallback(async (card: CardData | undefined) => {
-    if (!card || card.aiEnhanced || enhanceAttempted.current.has(card.id)) return
+    if (!card) return
     const lang = usePlaxStore.getState().language
+    // Already rendered in the current language → nothing to do.
+    if (card.aiEnhanced && card.enhancedLang === lang) return
+    // Retry key is per (card, language) so a language toggle re-enhances.
+    const key = `${card.id}:${lang}`
+    if (enhanceAttempted.current.has(key)) return
+
+    // Always translate from the ORIGINAL raw extract (so we never translate an
+    // already-translated string, which would degrade quality).
+    const baseContent = card.originalContent ?? card.content
+    const baseTitle = card.originalTitle ?? card.title
     // English: only transform long-form raw extracts (skip quotes, short facts).
     // Hindi: enhance every substantive card so the whole feed reads in Hindi.
     if (lang === 'en') {
-      if (card.type !== 'microessay' || (card.content?.length ?? 0) < 240) return
+      if (card.type !== 'microessay' || (baseContent?.length ?? 0) < 240) return
     } else {
-      if ((card.content?.length ?? 0) < 120) return
+      if ((baseContent?.length ?? 0) < 120) return
     }
-    enhanceAttempted.current.add(card.id)
+    enhanceAttempted.current.add(key)
     try {
       const res = await fetch('/api/summarize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: card.content, type: 'microessay', lang }),
+        body: JSON.stringify({ content: baseContent, type: 'microessay', lang }),
       })
       if (!res.ok) return
       const data = await res.json()
       if (!data?.title || !data?.content) return // no AI key / failed → keep raw extract
+      // Guard against a stale response: only apply if the language is still current.
+      if (usePlaxStore.getState().language !== lang) return
       setCards((prev) => {
         const updated = prev.map((c) =>
           c.id === card.id
-            ? { ...c, title: data.title || c.title, content: data.content, aiEnhanced: true, originalContent: c.content }
+            ? {
+                ...c,
+                title: data.title || baseTitle,
+                content: data.content,
+                aiEnhanced: true,
+                enhancedLang: lang,
+                originalContent: baseContent,
+                originalTitle: baseTitle,
+              }
             : c
         )
-        // Read topics + language from the store (not a stale closure) so enhanced
-        // cards are cached under the CURRENT signature even after a change.
-        setCachedCards(updated, feedSig(usePlaxStore.getState().selectedTopics, usePlaxStore.getState().language))
+        setCachedCards(updated, feedSig(usePlaxStore.getState().selectedTopics))
         return updated
       })
     } catch {
@@ -278,11 +303,34 @@ export function Feed() {
     }
   }, [])
 
-  // Enhance the current card + prefetch the next for a smooth read
+  // Enhance the current card + prefetch the next for a smooth read. Re-runs on
+  // language change so the visible article translates in place.
   useEffect(() => {
     enhanceCard(visibleCards[currentIndex])
     enhanceCard(visibleCards[currentIndex + 1])
-  }, [currentIndex, visibleCards, enhanceCard])
+  }, [currentIndex, visibleCards, enhanceCard, language])
+
+  // When the language toggles, immediately revert any card that was enhanced in
+  // the OTHER language back to its raw extract so the user sees the same article
+  // (briefly raw) and then the re-translation — never a stale wrong-language text
+  // and never an emptied feed.
+  const prevLangRef = useRef(language)
+  useEffect(() => {
+    if (prevLangRef.current === language) return
+    prevLangRef.current = language
+    setCards((prev) =>
+      prev.map((c) =>
+        c.aiEnhanced && c.enhancedLang !== language
+          ? {
+              ...c,
+              content: c.originalContent ?? c.content,
+              title: c.originalTitle ?? c.title,
+              aiEnhanced: false,
+            }
+          : c
+      )
+    )
+  }, [language])
 
   // Publish a searchable index of loaded cards for the ⌘K palette
   const setSearchItems = useUIStore((s) => s.setSearchItems)
