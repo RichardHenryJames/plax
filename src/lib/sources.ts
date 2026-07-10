@@ -451,8 +451,71 @@ export async function fetchQuotes(count: number = 5): Promise<RawContent[]> {
   return results
 }
 
-// ─── Reddit (via old.reddit.com JSON) ───
-// Can be rate-limited / blocked from server IPs. Best-effort only.
+// ─── arXiv (recent academic papers, key-free Atom API) ───
+// Adds genuine research depth for science/physics/math/tech topics. We fetch the
+// latest papers in matching arXiv categories and turn the abstract into a card;
+// the AI-enhance step later distils the dense abstract into a plain-language read.
+const TOPIC_ARXIV: Record<string, string[]> = {
+  physics: ['physics.gen-ph', 'astro-ph.CO', 'quant-ph', 'gr-qc'],
+  math: ['math.HO', 'math.NT', 'math.GM'],
+  space: ['astro-ph.EP', 'astro-ph.GA', 'astro-ph.SR'],
+  science: ['q-bio.PE', 'physics.bio-ph', 'physics.hist-ph'],
+  technology: ['cs.AI', 'cs.RO', 'cs.HC'],
+  programming: ['cs.PL', 'cs.SE', 'cs.DS'],
+}
+
+export async function fetchArxiv(categories: string[]): Promise<RawContent[]> {
+  const cats = categories.flatMap((c) => (TOPIC_ARXIV[c] || []).map((a) => ({ topic: c, arxiv: a })))
+  if (cats.length === 0) return []
+  // One search across the matching arXiv categories, newest first.
+  const uniqueArxiv = [...new Set(cats.map((c) => c.arxiv))].slice(0, 6)
+  const arxivToTopic = new Map(cats.map((c) => [c.arxiv, c.topic]))
+  const search = uniqueArxiv.map((a) => `cat:${a}`).join(' OR ')
+  const url =
+    `https://export.arxiv.org/api/query?search_query=${encodeURIComponent(search)}` +
+    `&sortBy=submittedDate&sortOrder=descending&max_results=12`
+
+  try {
+    const r = await fetch(url, { cache: 'no-store', headers: { 'User-Agent': 'PlaxReader/1.0 (plaxlabs.com)' } })
+    if (!r.ok) return []
+    const xml = await r.text()
+    const out: RawContent[] = []
+    // Lightweight Atom parse (no XML dep): split on <entry>.
+    const entries = xml.split('<entry>').slice(1)
+    for (const e of entries) {
+      const title = decodeXml((e.match(/<title>([\s\S]*?)<\/title>/)?.[1] || '').replace(/\s+/g, ' ').trim())
+      const summary = decodeXml((e.match(/<summary>([\s\S]*?)<\/summary>/)?.[1] || '').replace(/\s+/g, ' ').trim())
+      const link = e.match(/<id>([\s\S]*?)<\/id>/)?.[1]?.trim()
+      const primaryCat = e.match(/<arxiv:primary_category[^>]*term="([^"]+)"/)?.[1]
+      const author = decodeXml(e.match(/<name>([\s\S]*?)<\/name>/)?.[1]?.trim() || '')
+      if (!title || summary.length < 160) continue
+      const topic = (primaryCat && arxivToTopic.get(primaryCat)) || arxivToTopic.get(uniqueArxiv[0]) || 'science'
+      out.push({
+        title,
+        content: summary.length > 800 ? summary.slice(0, 800) + '…' : summary,
+        url: link,
+        author: author ? `${author} et al.` : undefined,
+        source: 'arXiv',
+        category: topic,
+      })
+    }
+    return out
+  } catch (error) {
+    console.error('arXiv fetch error:', error)
+    return []
+  }
+}
+
+function decodeXml(s: string): string {
+  return s
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, '&')
+}
+
 
 export async function fetchReddit(
   subreddits: string[] = ['todayilearned', 'explainlikeimfive', 'Showerthoughts']
@@ -561,6 +624,12 @@ export async function fetchAllContent(categories: string[] = [], lang: string = 
   const includeHN = noTopics || hasTech
   const includeQuotes = noTopics || hasPhil
   const includeRandom = noTopics
+  // arXiv adds research depth for science/tech/space/math topics. Gate it to the
+  // relevant picks so a Books/Health feed isn't flooded with dense physics papers.
+  const arxivTopics = categories.filter((c) =>
+    ['physics', 'math', 'space', 'science', 'technology', 'programming'].includes(c)
+  )
+  const includeArxiv = arxivTopics.length > 0
 
   // Use Promise.allSettled so one failing source doesn't kill the rest
   const results = await Promise.allSettled([
@@ -569,10 +638,11 @@ export async function fetchAllContent(categories: string[] = [], lang: string = 
     includeQuotes ? fetchQuotes(10) : Promise.resolve([]),
     fetchReddit(subreddits),     // topic-aware subreddit set
     fetchWikipediaByTopics(topicsForSearch), // on-topic articles (defaults when no picks)
+    includeArxiv ? fetchArxiv(arxivTopics) : Promise.resolve([]),
   ])
 
   const all: RawContent[] = []
-  const sourceNames = ['Wikipedia', 'HackerNews', 'Quotes', 'Reddit', 'WikipediaTopics']
+  const sourceNames = ['Wikipedia', 'HackerNews', 'Quotes', 'Reddit', 'WikipediaTopics', 'arXiv']
 
   results.forEach((result, i) => {
     if (result.status === 'fulfilled') {
