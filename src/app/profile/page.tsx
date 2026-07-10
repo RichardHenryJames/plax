@@ -102,7 +102,7 @@ export default function ProfilePage() {
         <div className="max-w-3xl lg:max-w-5xl mx-auto">
           {/* Cover banner */}
           <div className="relative h-36 sm:h-44 overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-violet-600/40 via-indigo-600/25 to-cyan-500/30" />
+            <div className="absolute inset-0 bg-[color:var(--signal)]/12" />
             <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_20%_0%,rgba(139,92,246,0.35),transparent_60%)]" />
             <div className="absolute inset-0 bg-gradient-to-t from-dark-bg via-dark-bg/40 to-transparent" />
             <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-5 pt-5">
@@ -119,7 +119,7 @@ export default function ProfilePage() {
           <div className="px-5 -mt-12 relative z-10">
             <div className="flex items-end gap-4 mb-6">
               <div className="relative shrink-0">
-                <div className="absolute -inset-1 bg-gradient-to-br from-violet-500 to-cyan-500 rounded-full blur-md opacity-40" />
+                <div className="absolute -inset-1 bg-[color:var(--signal)]/30 rounded-full blur-md" />
                 <div className="relative w-[88px] h-[88px] rounded-full bg-gradient-to-br from-dark-card to-dark-card-hover border border-white/10 flex items-center justify-center ring-4 ring-dark-bg text-4xl">
                   👋
                 </div>
@@ -133,10 +133,10 @@ export default function ProfilePage() {
 
           {/* Local stats */}
           <div className="px-5 mb-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <StatCard emoji="📖" label={t('cardsReadCap')} value={localCardsRead.toString()} tint="from-violet-500/20 to-violet-500/5" />
-            <StatCard emoji="🔖" label={t('bookmarks')} value={localBookmarks.length.toString()} tint="from-emerald-500/20 to-emerald-500/5" />
-            <StatCard emoji="⏱️" label={t('minutes')} value={localMinutes.toString()} tint="from-cyan-500/20 to-cyan-500/5" />
-            <StatCard emoji="✨" label={t('interestsCap')} value={localTop.length.toString()} tint="from-fuchsia-500/20 to-fuchsia-500/5" />
+            <StatCard emoji="📖" label={t('cardsReadCap')} value={localCardsRead.toString()} tint="signal" />
+            <StatCard emoji="🔖" label={t('bookmarks')} value={localBookmarks.length.toString()} tint="neutral" />
+            <StatCard emoji="⏱️" label={t('minutes')} value={localMinutes.toString()} tint="neutral" />
+            <StatCard emoji="✨" label={t('interestsCap')} value={localTop.length.toString()} tint="signal" />
           </div>
 
           {/* Quiz mastery */}
@@ -147,8 +147,8 @@ export default function ProfilePage() {
           )}
 
           {/* Sync prompt */}
-          <div className="mx-5 mb-6 relative overflow-hidden rounded-2xl border border-violet-500/25 p-5">
-            <div className="absolute inset-0 bg-gradient-to-br from-violet-600/15 to-cyan-500/10" />
+          <div className="mx-5 mb-6 relative overflow-hidden rounded-2xl border border-[color:var(--signal)]/25 p-5">
+            <div className="absolute inset-0 bg-[color:var(--signal)]/8" />
             <div className="relative flex items-start gap-4">
               <div className="w-11 h-11 shrink-0 rounded-xl bg-white/8 border border-white/10 flex items-center justify-center text-xl">☁️</div>
               <div className="flex-1 min-w-0">
@@ -196,7 +196,7 @@ export default function ProfilePage() {
                       <Wrapper
                         key={bm.id}
                         {...(bm.sourceUrl ? { href: bm.sourceUrl, target: '_blank', rel: 'noopener noreferrer' } : {})}
-                        className={`block p-4 card-elevated ${bm.sourceUrl ? 'hover:border-violet-500/40 transition-colors' : ''} ${isHi ? 'lang-hi' : ''}`}
+                        className={`block p-4 card-elevated ${bm.sourceUrl ? 'hover:border-[color:var(--signal)]/50 transition-colors' : ''} ${isHi ? 'lang-hi' : ''}`}
                       >
                         <div className="flex items-start gap-2.5 mb-1.5">
                           <span className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-base shrink-0">
@@ -236,7 +236,7 @@ export default function ProfilePage() {
       <div className="max-w-3xl lg:max-w-5xl mx-auto">
         {/* Cover banner */}
         <div className="relative h-36 sm:h-44 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-violet-600/40 via-indigo-600/25 to-cyan-500/30" />
+          <div className="absolute inset-0 bg-[color:var(--signal)]/12" />
           <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_20%_0%,rgba(139,92,246,0.35),transparent_60%)]" />
           <div className="absolute inset-0 bg-gradient-to-t from-dark-bg via-dark-bg/40 to-transparent" />
           {/* Back button over banner */}
@@ -254,7 +254,7 @@ export default function ProfilePage() {
         <div className="px-5 -mt-12 relative z-10">
           <div className="flex items-end gap-4 mb-6">
             <div className="relative shrink-0">
-              <div className="absolute -inset-1 bg-gradient-to-br from-violet-500 to-cyan-500 rounded-full blur-md opacity-40" />
+              <div className="absolute -inset-1 bg-[color:var(--signal)]/30 rounded-full blur-md" />
               {user.user_metadata?.avatar_url ? (
                 <img
                   src={user.user_metadata.avatar_url}
@@ -262,7 +262,7 @@ export default function ProfilePage() {
                   className="relative w-[88px] h-[88px] rounded-full ring-4 ring-dark-bg"
                 />
               ) : (
-                <div className="relative w-[88px] h-[88px] rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center ring-4 ring-dark-bg">
+                <div className="relative w-[88px] h-[88px] rounded-full bg-[color:var(--signal)] flex items-center justify-center ring-4 ring-dark-bg">
                   <span className="text-3xl font-bold text-white">
                     {(user.user_metadata?.full_name || user.email || 'U')[0].toUpperCase()}
                   </span>
@@ -287,10 +287,10 @@ export default function ProfilePage() {
         {/* Stats Cards */}
         {stats && (
           <div className="px-5 mb-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <StatCard emoji="📖" label={t('cardsReadCap')} value={stats.cardsRead.toString()} tint="from-violet-500/20 to-violet-500/5" />
-            <StatCard emoji="🔥" label={t('dayStreak')} value={stats.readingStreak.toString()} tint="from-orange-500/20 to-orange-500/5" />
-            <StatCard emoji="⏱️" label={t('minutes')} value={stats.totalMinutes.toString()} tint="from-cyan-500/20 to-cyan-500/5" />
-            <StatCard emoji="🔖" label={t('bookmarks')} value={stats.bookmarkCount.toString()} tint="from-emerald-500/20 to-emerald-500/5" />
+            <StatCard emoji="📖" label={t('cardsReadCap')} value={stats.cardsRead.toString()} tint="signal" />
+            <StatCard emoji="🔥" label={t('dayStreak')} value={stats.readingStreak.toString()} tint="warm" />
+            <StatCard emoji="⏱️" label={t('minutes')} value={stats.totalMinutes.toString()} tint="neutral" />
+            <StatCard emoji="🔖" label={t('bookmarks')} value={stats.bookmarkCount.toString()} tint="neutral" />
           </div>
         )}
 
@@ -456,12 +456,21 @@ export default function ProfilePage() {
 }
 
 function StatCard({ emoji, label, value, tint }: { emoji: string; label: string; value: string; tint: string }) {
+  // Editorial tints — a warm wash keyed by role, not a violet/cyan gradient.
+  const wash: Record<string, string> = {
+    signal: 'rgba(245,177,58,0.10)',
+    warm: 'rgba(224,145,42,0.12)',
+    neutral: 'rgba(255,255,255,0.03)',
+  }
   return (
-    <div className="card-elevated relative p-4 overflow-hidden group">
-      <div className={`absolute inset-0 bg-gradient-to-br ${tint} opacity-70 group-hover:opacity-100 transition-opacity`} />
+    <div className="relative p-4 overflow-hidden group border border-[color:var(--hair)] bg-dark-card/40">
+      <div
+        className="absolute inset-0 opacity-80 group-hover:opacity-100 transition-opacity"
+        style={{ background: wash[tint] ?? wash.neutral }}
+      />
       <div className="relative">
-        <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-white/8 border border-white/10 text-lg">{emoji}</span>
-        <p className="text-[26px] font-bold mt-3 tabular-nums leading-none font-display">{value}</p>
+        <span className="text-lg">{emoji}</span>
+        <p className="text-[28px] font-bold mt-3 tabular-nums leading-none display-serif text-white">{value}</p>
         <p className="text-xs text-dark-muted mt-1.5">{label}</p>
       </div>
     </div>
@@ -488,8 +497,8 @@ function QuizMasteryPanel({
   const pct = Math.round((correct / attempted) * 100)
   const hi = lang === 'hi' ? 'lang-hi' : ''
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-cyan-500/25 p-5">
-      <div className="absolute inset-0 bg-gradient-to-br from-cyan-600/15 via-teal-500/10 to-green-500/10" />
+    <div className="relative overflow-hidden border border-[color:var(--signal)]/25 p-5">
+      <div className="absolute inset-0" style={{ background: 'rgba(245,177,58,0.08)' }} />
       <div className="relative flex items-center gap-5">
         {/* Accuracy ring */}
         <div className="relative w-24 h-24 shrink-0">
@@ -501,8 +510,8 @@ function QuizMasteryPanel({
             />
             <defs>
               <linearGradient id="quizgrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#06b6d4" />
-                <stop offset="100%" stopColor="#22c55e" />
+                <stop offset="0%" stopColor="#f5b13a" />
+                <stop offset="100%" stopColor="#e0912a" />
               </linearGradient>
             </defs>
           </svg>
@@ -511,7 +520,7 @@ function QuizMasteryPanel({
           </div>
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-cyan-300 mb-1">
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[color:var(--signal)] mb-1">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             <span className={hi}>{t('quizMastery')}</span>
           </div>
