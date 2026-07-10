@@ -8,6 +8,8 @@ const geminiApiKey = process.env.GEMINI_API_KEY
 const groqApiKey = process.env.GROQ_API_KEY
 const genAI = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : null
 const groq = groqApiKey ? new Groq({ apiKey: groqApiKey }) : null
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash'
+const GROQ_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b'
 
 // "Go deeper" — given a card, return 3 short, fascinating, TRUE insights that
 // build on it, so a curious reader can learn more with one tap.
@@ -45,7 +47,7 @@ Respond with JSON only:
 
     if (genAI) {
       try {
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+        const model = genAI.getGenerativeModel({ model: GEMINI_MODEL })
         const res = await withTimeout(model.generateContent(prompt), 7000)
         const m = res.response.text().match(/\{[\s\S]*\}/)
         if (m) insights = JSON.parse(m[0]).insights || []
@@ -58,7 +60,7 @@ Respond with JSON only:
       try {
         const c = await withTimeout(groq.chat.completions.create({
           messages: [{ role: 'user', content: prompt }],
-          model: 'openai/gpt-oss-120b',
+          model: GROQ_MODEL,
           reasoning_effort: 'low',
           max_tokens: 700,
         }), 15000)
