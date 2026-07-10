@@ -384,3 +384,172 @@ body {
 .topic-chip.selected {
   transform: translateY(-1px) scale(1.02);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   EDITORIAL DESIGN LANGUAGE  (signature layer)
+   A distinctive, print-inspired system that replaces the generic
+   violet→cyan-gradient / glassmorphism / rounded-card template look.
+   Palette: warm ink base + a single confident "signal" marigold accent +
+   a warm paper light surface for mixing light & dark. Type: big Newsreader
+   serif display against small mono eyebrow labels for strong hierarchy.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --signal: #f5b13a;          /* signature marigold — the anti-AI accent */
+  --signal-deep: #e0912a;
+  --signal-ink: #17130a;      /* near-black text that sits on the signal */
+  --paper: #ece6da;           /* warm editorial cream for light sections */
+  --paper-ink: #1a1712;       /* text on paper */
+  --ink-900: #0c0c0e;
+  --hair: rgba(255,255,255,0.09);   /* hairline rule on dark */
+  --hair-strong: rgba(255,255,255,0.16);
+}
+
+/* Mono eyebrow — a small uppercase kicker with a leading marigold tick.
+   Replaces the generic "text-sm uppercase tracking-wider text-subtle" label. */
+.eyebrow {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-dark-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.eyebrow::before {
+  content: '';
+  width: 1.6rem;
+  height: 2px;
+  background: var(--signal);
+  display: inline-block;
+}
+.eyebrow--bare::before { display: none; }
+
+/* Oversized editorial serif display — creates the large type contrast the
+   generic sans-only templates lack. */
+.display-serif {
+  font-family: 'Newsreader', Georgia, serif;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 0.98;
+}
+.display-serif em {
+  font-style: italic;
+  color: var(--signal);
+}
+
+/* Hairline section rule with an index marker — a custom divider instead of
+   plain whitespace. Use as <div class="rule-index" data-i="01"> … */
+.rule-index {
+  position: relative;
+  border-top: 1px solid var(--hair);
+  padding-top: 1.1rem;
+}
+.rule-index::before {
+  content: attr(data-i);
+  position: absolute;
+  top: -0.7rem;
+  left: 0;
+  background: var(--color-dark-bg);
+  padding-right: 0.7rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--signal);
+}
+
+/* Warm PAPER surface — mixes a light section into the dark app so the page
+   isn't an endless field of dark cards. */
+.surface-paper {
+  background: var(--paper);
+  color: var(--paper-ink);
+  background-image:
+    radial-gradient(120% 100% at 0% 0%, rgba(245,177,58,0.16), transparent 55%),
+    repeating-linear-gradient(0deg, rgba(26,23,18,0.035) 0 1px, transparent 1px 34px);
+}
+.surface-paper .text-muted-on-paper { color: rgba(26,23,18,0.62); }
+
+/* Signal button — flat, confident, tactile. No gradient. Hard offset press
+   instead of the generic float+glow. */
+.btn-signal {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--signal);
+  color: var(--signal-ink);
+  font-weight: 650;
+  font-size: 0.95rem;
+  padding: 0.8rem 1.4rem;
+  border: 1px solid var(--signal-deep);
+  box-shadow: 4px 4px 0 0 rgba(0,0,0,0.55);
+  transition: transform 0.12s var(--ease-spring), box-shadow 0.12s var(--ease-spring), background 0.15s;
+}
+.btn-signal:hover {
+  background: #ffc257;
+  transform: translate(-1px, -1px);
+  box-shadow: 6px 6px 0 0 rgba(0,0,0,0.6);
+}
+.btn-signal:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 rgba(0,0,0,0.6);
+}
+
+/* Ghost editorial button — hairline box, letter-spaced, underline reveal. */
+.btn-ghost-ed {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-dark-text);
+  font-weight: 500;
+  font-size: 0.9rem;
+  padding: 0.8rem 1.2rem;
+  border: 1px solid var(--hair-strong);
+  background: transparent;
+  transition: background 0.18s var(--ease-smooth), border-color 0.18s, transform 0.14s var(--ease-spring);
+}
+.btn-ghost-ed:hover {
+  background: rgba(255,255,255,0.04);
+  border-color: var(--signal);
+  transform: translateY(-1px);
+}
+
+/* Editorial link — underline that grows from the left on hover (intentional,
+   not a template color-swap). */
+.link-ed {
+  position: relative;
+  background-image: linear-gradient(var(--signal), var(--signal));
+  background-size: 0% 2px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  transition: background-size 0.28s var(--ease-spring), color 0.2s;
+}
+.link-ed:hover { background-size: 100% 2px; }
+
+/* Index row — a numbered editorial list item (replaces identical grid cards).
+   Left rail number, hairline divider, hover slides content + paints the number. */
+.index-row {
+  position: relative;
+  border-top: 1px solid var(--hair);
+  transition: background 0.2s var(--ease-smooth);
+}
+.index-row:hover { background: rgba(245,177,58,0.045); }
+.index-row .index-num {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--color-dark-subtle);
+  transition: color 0.2s, transform 0.28s var(--ease-spring);
+}
+.index-row:hover .index-num { color: var(--signal); transform: translateY(-2px); }
+
+/* Ticker / marquee for a memorable moving footer line. */
+@keyframes ticker {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.ticker-track {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: ticker 32s linear infinite;
+}
+.ticker-mask:hover .ticker-track { animation-play-state: paused; }

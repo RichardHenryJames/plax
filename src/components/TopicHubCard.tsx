@@ -4,17 +4,20 @@ import Link from 'next/link'
 import { usePlaxStore } from '@/lib/store'
 
 /**
- * TopicHubCard — a /topics grid card with an inline Follow / Following toggle.
- * The card body still links to the SEO topic page (crawlable); the button lets
- * users build their feed straight from the hub without opening each page.
+ * TopicHubCard — one row of the editorial Topic Index. A large ghost index
+ * number, the topic set in serif display, a one-line description, and an inline
+ * Follow / Following toggle. The label + description still link to the crawlable
+ * SEO topic page; the button builds the feed straight from the hub.
  */
 export function TopicHubCard({
   id,
+  index,
   emoji,
   label,
   description,
 }: {
   id: string
+  index: number
   emoji: string
   label: string
   description: string
@@ -31,22 +34,41 @@ export function TopicHubCard({
   }
 
   return (
-    <div className="card-elevated group p-5 relative">
-      <div className="flex items-center gap-3 mb-2">
-        <span className="w-11 h-11 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
+    <li className="index-row group">
+      <div className="flex items-center gap-4 sm:gap-7 py-5">
+        {/* Index number */}
+        <span className="index-num text-sm w-8 shrink-0 tabular-nums">
+          {String(index).padStart(2, '0')}
+        </span>
+
+        {/* Emoji mark */}
+        <span className="text-2xl shrink-0 w-9 text-center transition-transform duration-300 group-hover:-translate-y-0.5">
           {emoji}
         </span>
-        <Link href={`/topics/${id}`} className="focus-ring rounded-md min-w-0 flex-1">
-          <h3 className="text-base font-semibold text-white truncate hover:text-violet-200 transition-colors">{label}</h3>
-        </Link>
+
+        {/* Label + description */}
+        <div className="min-w-0 flex-1">
+          <Link href={`/topics/${id}`} className="focus-ring">
+            <h3 className="display-serif text-white text-2xl sm:text-[2rem] leading-none inline-block link-ed">
+              {label}
+            </h3>
+          </Link>
+          <Link href={`/topics/${id}`} className="block">
+            <p className="text-sm text-dark-muted leading-snug mt-1.5 line-clamp-1 sm:max-w-xl group-hover:text-dark-text transition-colors">
+              {description}
+            </p>
+          </Link>
+        </div>
+
+        {/* Follow toggle */}
         <button
           onClick={onToggle}
           aria-pressed={isFollowing}
           aria-label={isFollowing ? `Unfollow ${label}` : `Follow ${label}`}
-          className={`shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition ${
+          className={`shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 text-[11px] font-mono uppercase tracking-widest transition-all ${
             isFollowing
-              ? 'bg-violet-500/15 text-violet-300 border border-violet-500/30 hover:bg-red-500/15 hover:text-red-300 hover:border-red-500/30'
-              : 'bg-gradient-to-r from-violet-600 to-cyan-600 text-white hover:shadow-lg hover:shadow-violet-500/20'
+              ? 'border border-[color:var(--signal)]/40 text-[color:var(--signal)] hover:border-red-500/50 hover:text-red-300'
+              : 'border border-white/15 text-dark-text hover:border-[color:var(--signal)] hover:text-[color:var(--signal)]'
           }`}
         >
           {isFollowing ? (
@@ -54,21 +76,18 @@ export function TopicHubCard({
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
               </svg>
-              Following
+              <span className="hidden sm:inline">Following</span>
             </>
           ) : (
             <>
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
               </svg>
-              Follow
+              <span className="hidden sm:inline">Follow</span>
             </>
           )}
         </button>
       </div>
-      <Link href={`/topics/${id}`} className="block">
-        <p className="text-sm text-dark-muted leading-relaxed line-clamp-2 hover:text-dark-text transition-colors">{description}</p>
-      </Link>
-    </div>
+    </li>
   )
 }
