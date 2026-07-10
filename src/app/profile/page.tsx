@@ -194,7 +194,7 @@ export default function ProfilePage() {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
-              Feed
+              {t('feed')}
             </Link>
           </div>
         </div>
@@ -226,7 +226,7 @@ export default function ProfilePage() {
               {stats && (
                 <p className="text-dark-subtle text-xs mt-1 inline-flex items-center gap-1.5">
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                  Member since {new Date(stats.memberSince).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                  <span className={lang === 'hi' ? 'lang-hi' : ''}>{t('memberSince', { x: new Date(stats.memberSince).toLocaleDateString(lang === 'hi' ? 'hi-IN' : 'en-US', { month: 'short', year: 'numeric' }) })}</span>
                 </p>
               )}
             </div>
@@ -236,26 +236,26 @@ export default function ProfilePage() {
         {/* Stats Cards */}
         {stats && (
           <div className="px-5 mb-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <StatCard emoji="📖" label="Cards Read" value={stats.cardsRead.toString()} tint="from-violet-500/20 to-violet-500/5" />
-            <StatCard emoji="🔥" label="Day Streak" value={stats.readingStreak.toString()} tint="from-orange-500/20 to-orange-500/5" />
-            <StatCard emoji="⏱️" label="Minutes" value={stats.totalMinutes.toString()} tint="from-cyan-500/20 to-cyan-500/5" />
-            <StatCard emoji="🔖" label="Bookmarks" value={stats.bookmarkCount.toString()} tint="from-emerald-500/20 to-emerald-500/5" />
+            <StatCard emoji="📖" label={t('cardsReadCap')} value={stats.cardsRead.toString()} tint="from-violet-500/20 to-violet-500/5" />
+            <StatCard emoji="🔥" label={t('dayStreak')} value={stats.readingStreak.toString()} tint="from-orange-500/20 to-orange-500/5" />
+            <StatCard emoji="⏱️" label={t('minutes')} value={stats.totalMinutes.toString()} tint="from-cyan-500/20 to-cyan-500/5" />
+            <StatCard emoji="🔖" label={t('bookmarks')} value={stats.bookmarkCount.toString()} tint="from-emerald-500/20 to-emerald-500/5" />
           </div>
         )}
 
         {/* Tabs */}
         <div className="mx-5 flex gap-1 mb-5 bg-dark-card border border-dark-border rounded-xl p-1">
-          {(['stats', 'bookmarks', 'settings'] as const).map((t) => (
+          {(['stats', 'bookmarks', 'settings'] as const).map((tabId) => (
             <button
-              key={t}
-            onClick={() => setTab(t)}
+              key={tabId}
+            onClick={() => setTab(tabId)}
             className={`focus-ring flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
-              tab === t
+              tab === tabId
                 ? 'bg-white/10 text-white shadow-sm'
                 : 'text-dark-muted hover:text-white'
-            }`}
+            } ${lang === 'hi' ? 'lang-hi' : ''}`}
           >
-            {t.charAt(0).toUpperCase() + t.slice(1)}
+            {tabId === 'stats' ? t('tabStats') : tabId === 'bookmarks' ? t('tabBookmarks') : t('tabSettings')}
           </button>
         ))}
       </div>
@@ -276,38 +276,41 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              <h3 className="text-sm font-semibold text-dark-muted uppercase tracking-wider mb-3">
-                Top Interests
+              <h3 className={`text-sm font-semibold text-dark-muted uppercase tracking-wider mb-3 ${lang === 'hi' ? 'lang-hi' : ''}`}>
+                {t('topInterests')}
               </h3>
               <div className="space-y-2">
                 {stats.topCategories.length > 0 ? (
-                  stats.topCategories.map((cat, i) => (
+                  stats.topCategories.map((cat, i) => {
+                    const tm = TOPICS.find((x) => x.id === cat)
+                    return (
                     <div
                       key={cat}
                       className="flex items-center gap-3 p-3.5 card-elevated"
                     >
                       <span className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-lg shrink-0">{EMOJI_MAP[cat] || '📄'}</span>
-                      <span className="font-medium capitalize flex-1">{cat}</span>
+                      <span className={`font-medium flex-1 ${lang === 'hi' ? 'lang-hi' : 'capitalize'}`}>{tm ? tp(cat, tm.label) : cat}</span>
                       <span className="text-dark-subtle text-xs font-semibold tabular-nums">#{i + 1}</span>
                     </div>
-                  ))
+                    )
+                  })
                 ) : (
-                  <p className="text-dark-muted text-sm">Keep reading to see your top interests!</p>
+                  <p className={`text-dark-muted text-sm ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('keepReadingTopInterests')}</p>
                 )}
               </div>
 
-              <h3 className="text-sm font-semibold text-dark-muted uppercase tracking-wider mt-6 mb-3">
-                Selected Topics
+              <h3 className={`text-sm font-semibold text-dark-muted uppercase tracking-wider mt-6 mb-3 ${lang === 'hi' ? 'lang-hi' : ''}`}>
+                {t('selectedTopics')}
               </h3>
               <div className="flex flex-wrap gap-2">
                 {selectedTopics.map((topicId) => {
-                  const topic = TOPICS.find((t) => t.id === topicId)
+                  const topic = TOPICS.find((x) => x.id === topicId)
                   return (
                     <span
                       key={topicId}
-                      className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-sm"
+                      className={`px-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-sm ${lang === 'hi' ? 'lang-hi' : ''}`}
                     >
-                      {topic?.emoji} {topic?.label || (topicId === 'general' ? 'Discover' : topicId)}
+                      {topic?.emoji} {topic ? tp(topicId, topic.label) : (topicId === 'general' ? tp('general', 'Discover') : topicId)}
                     </span>
                   )
                 })}
@@ -337,7 +340,7 @@ export default function ProfilePage() {
                         </span>
                         <div className="flex-1 min-w-0">
                           <h4 className="font-semibold text-sm leading-snug line-clamp-2">
-                            {bm.card_title || 'Untitled'}
+                            {bm.card_title || t('untitled')}
                           </h4>
                           <span className="text-xs text-dark-subtle capitalize">
                             {bm.card_category}
@@ -356,7 +359,7 @@ export default function ProfilePage() {
                         </span>
                         <div className="flex-1 min-w-0">
                           <h4 className="font-semibold text-sm leading-snug line-clamp-2">
-                            {bm.card_title || 'Untitled'}
+                            {bm.card_title || t('untitled')}
                           </h4>
                           <span className="text-xs text-dark-subtle capitalize">{bm.card_category}</span>
                         </div>
@@ -367,8 +370,8 @@ export default function ProfilePage() {
               ) : (
                 <div className="text-center py-14">
                   <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl">🔖</div>
-                  <p className="text-white font-medium mb-1">No bookmarks yet</p>
-                  <p className="text-dark-muted text-sm">Tap Save on cards you want to revisit.</p>
+                  <p className={`text-white font-medium mb-1 ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('noBookmarksYet')}</p>
+                  <p className={`text-dark-muted text-sm ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('tapSaveToRevisit')}</p>
                 </div>
               )}
             </motion.div>
@@ -388,7 +391,7 @@ export default function ProfilePage() {
               >
                 <span className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-lg shrink-0">🚪</span>
                 <div>
-                  <p className="font-medium text-red-400">Sign Out</p>
+                  <p className={`font-medium text-red-400 ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('signOut')}</p>
                   <p className="text-xs text-dark-muted">{user.email}</p>
                 </div>
               </button>

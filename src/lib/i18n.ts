@@ -129,6 +129,18 @@ const EN: Dict = {
   cmdShowOnly: 'Show only {x}',
   cmdPlaceholder: 'Search topics, jump to a page…',
   cmdNoMatches: 'No matches for “{x}”',
+  // Profile (signed-in)
+  memberSince: 'Member since {x}',
+  dayStreak: 'Day Streak',
+  tabStats: 'Stats',
+  tabBookmarks: 'Bookmarks',
+  tabSettings: 'Settings',
+  selectedTopics: 'Selected Topics',
+  keepReadingTopInterests: 'Keep reading to see your top interests!',
+  noBookmarksYet: 'No bookmarks yet',
+  tapSaveToRevisit: 'Tap Save on cards you want to revisit.',
+  untitled: 'Untitled',
+  startReadingToSeeDetails: 'Start reading to see details here.',
 }
 
 const HI: Dict = {
@@ -229,6 +241,18 @@ const HI: Dict = {
   cmdShowOnly: 'केवल {x} दिखाएँ',
   cmdPlaceholder: 'विषय खोजें, किसी पेज पर जाएँ…',
   cmdNoMatches: '“{x}” के लिए कोई परिणाम नहीं',
+  // Profile (signed-in)
+  memberSince: 'सदस्य: {x} से',
+  dayStreak: 'दिन लगातार',
+  tabStats: 'आंकड़े',
+  tabBookmarks: 'बुकमार्क',
+  tabSettings: 'सेटिंग्स',
+  selectedTopics: 'चुने गए विषय',
+  keepReadingTopInterests: 'अपनी पसंद देखने के लिए पढ़ते रहें!',
+  noBookmarksYet: 'अभी कोई बुकमार्क नहीं',
+  tapSaveToRevisit: 'जिन कार्ड को बाद में देखना हो, उन पर Save दबाएँ।',
+  untitled: 'शीर्षकहीन',
+  startReadingToSeeDetails: 'विवरण देखने के लिए पढ़ना शुरू करें।',
 }
 
 const DICTS: Record<string, Dict> = { en: EN, hi: HI }

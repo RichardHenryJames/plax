@@ -93,7 +93,7 @@ export function RightRail() {
             </div>
           </motion.div>
         ) : (
-          <p className="mt-3 text-xs text-dark-subtle">Start reading to see details here.</p>
+          <p className={`mt-3 text-xs text-dark-subtle ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('startReadingToSeeDetails')}</p>
         )}
       </div>
 
