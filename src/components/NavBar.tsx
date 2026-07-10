@@ -5,6 +5,7 @@ import { useAuth } from '@/components/AuthProvider'
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useUIStore } from '@/lib/ui-store'
+import { usePlaxStore } from '@/lib/store'
 import { useT } from '@/lib/i18n'
 
 export function NavBar() {
@@ -12,6 +13,8 @@ export function NavBar() {
   const [showMenu, setShowMenu] = useState(false)
   const setCommandOpen = useUIStore((s) => s.setCommandOpen)
   const setTopicsOpen = useUIStore((s) => s.setTopicsOpen)
+  const language = usePlaxStore((s) => s.language)
+  const setLanguage = usePlaxStore((s) => s.setLanguage)
   const { t, lang } = useT()
 
   return (
@@ -30,6 +33,28 @@ export function NavBar() {
 
         {/* Right actions */}
         <div className="flex items-center gap-0.5">
+          {/* Feed language toggle — quick EN / हिन्दी switch right in the header */}
+          <div className="flex items-center rounded-full bg-white/[0.06] border border-white/10 p-0.5 mr-1">
+            {[
+              { id: 'en', label: 'EN' },
+              { id: 'hi', label: 'हि' },
+            ].map((l) => (
+              <button
+                key={l.id}
+                onClick={() => setLanguage(l.id)}
+                aria-pressed={language === l.id}
+                aria-label={l.id === 'hi' ? 'हिन्दी' : 'English'}
+                className={`px-2 py-0.5 rounded-full text-xs font-semibold transition ${
+                  language === l.id
+                    ? 'bg-gradient-to-r from-violet-600 to-cyan-600 text-white shadow'
+                    : 'text-dark-muted hover:text-white'
+                } ${l.id === 'hi' ? 'lang-hi' : ''}`}
+              >
+                {l.label}
+              </button>
+            ))}
+          </div>
+
           <button
             onClick={() => setCommandOpen(true)}
             aria-label={t('search')}

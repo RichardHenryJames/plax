@@ -119,6 +119,16 @@ const EN: Dict = {
   quizzesTaken: 'Quizzes taken',
   accuracy: 'Accuracy',
   correctAnswers: 'Correct',
+  // Command palette / search
+  cmdGoTo: 'Go to',
+  cmdFilterFeed: 'Filter feed',
+  cmdInYourFeed: 'In your feed',
+  cmdHomeFeed: 'Home feed',
+  cmdSavedCards: 'Saved cards',
+  cmdReadingStats: 'Your reading stats',
+  cmdShowOnly: 'Show only {x}',
+  cmdPlaceholder: 'Search topics, jump to a page…',
+  cmdNoMatches: 'No matches for “{x}”',
 }
 
 const HI: Dict = {
@@ -209,6 +219,16 @@ const HI: Dict = {
   quizzesTaken: 'क्विज़ दिए',
   accuracy: 'सटीकता',
   correctAnswers: 'सही',
+  // Command palette / search
+  cmdGoTo: 'जाएँ',
+  cmdFilterFeed: 'फ़ीड छानें',
+  cmdInYourFeed: 'आपकी फ़ीड में',
+  cmdHomeFeed: 'मुख्य फ़ीड',
+  cmdSavedCards: 'सहेजे कार्ड',
+  cmdReadingStats: 'आपके पढ़ने के आंकड़े',
+  cmdShowOnly: 'केवल {x} दिखाएँ',
+  cmdPlaceholder: 'विषय खोजें, किसी पेज पर जाएँ…',
+  cmdNoMatches: '“{x}” के लिए कोई परिणाम नहीं',
 }
 
 const DICTS: Record<string, Dict> = { en: EN, hi: HI }

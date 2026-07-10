@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { TOPICS, usePlaxStore } from '@/lib/store'
 import { useUIStore } from '@/lib/ui-store'
+import { useT } from '@/lib/i18n'
 
 interface Command {
   id: string
@@ -28,6 +29,7 @@ export function CommandPalette() {
   const setFeedFilter = useUIStore((s) => s.setFeedFilter)
   const searchItems = useUIStore((s) => s.searchItems)
   const setPendingJumpId = useUIStore((s) => s.setPendingJumpId)
+  const { t, tp, lang } = useT()
 
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
@@ -56,21 +58,24 @@ export function CommandPalette() {
 
   const commands = useMemo<Command[]>(() => {
     const nav: Command[] = [
-      { id: 'home', group: 'Go to', label: 'For You', hint: 'Home feed', icon: '🏠', run: () => { setFeedFilter(null); router.push('/') } },
-      { id: 'bookmarks', group: 'Go to', label: 'Bookmarks', hint: 'Saved cards', icon: '🔖', run: () => router.push('/profile') },
-      { id: 'profile', group: 'Go to', label: 'Profile & Stats', hint: 'Your reading stats', icon: '👤', run: () => router.push('/profile') },
+      { id: 'home', group: t('cmdGoTo'), label: t('forYou'), hint: t('cmdHomeFeed'), icon: '🏠', run: () => { setFeedFilter(null); router.push('/') } },
+      { id: 'bookmarks', group: t('cmdGoTo'), label: t('bookmarks'), hint: t('cmdSavedCards'), icon: '🔖', run: () => router.push('/profile') },
+      { id: 'profile', group: t('cmdGoTo'), label: t('profileStats'), hint: t('cmdReadingStats'), icon: '👤', run: () => router.push('/profile') },
     ]
     const topicList = selectedTopics.length ? TOPICS.filter((t) => selectedTopics.includes(t.id)) : [...TOPICS]
-    const topicCmds: Command[] = topicList.map((t) => ({
-      id: `topic-${t.id}`,
-      group: 'Filter feed',
-      label: t.label,
-      hint: `Show only ${t.label}`,
-      icon: t.emoji,
-      run: () => { setFeedFilter(t.id); router.push('/') },
-    }))
+    const topicCmds: Command[] = topicList.map((topic) => {
+      const label = tp(topic.id, topic.label)
+      return {
+        id: `topic-${topic.id}`,
+        group: t('cmdFilterFeed'),
+        label,
+        hint: t('cmdShowOnly', { x: label }),
+        icon: topic.emoji,
+        run: () => { setFeedFilter(topic.id); router.push('/') },
+      }
+    })
     return [...nav, ...topicCmds]
-  }, [selectedTopics, router, setFeedFilter])
+  }, [selectedTopics, router, setFeedFilter, t, tp])
 
   // Content matches from the loaded feed (real search)
   const contentMatches = useMemo<Command[]>(() => {
@@ -80,17 +85,17 @@ export function CommandPalette() {
       .filter((it) => `${it.title ?? ''} ${it.content}`.toLowerCase().includes(q))
       .slice(0, 6)
       .map((it) => {
-        const t = TOPICS.find((x) => x.id === it.category)
+        const topic = TOPICS.find((x) => x.id === it.category)
         return {
           id: `card-${it.id}`,
-          group: 'In your feed',
+          group: t('cmdInYourFeed'),
           label: it.title || it.content.slice(0, 60),
-          hint: t?.label,
-          icon: t?.emoji || '📄',
+          hint: topic ? tp(topic.id, topic.label) : undefined,
+          icon: topic?.emoji || '📄',
           run: () => { setFeedFilter(null); setPendingJumpId(it.id); router.push('/') },
         }
       })
-  }, [query, searchItems, router, setFeedFilter, setPendingJumpId])
+  }, [query, searchItems, router, setFeedFilter, setPendingJumpId, t, tp])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -134,7 +139,7 @@ export function CommandPalette() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: -8 }}
             transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
-            className="w-full max-w-xl glass-strong rounded-2xl shadow-2xl shadow-black/60 overflow-hidden"
+            className={`w-full max-w-xl glass-strong rounded-2xl shadow-2xl shadow-black/60 overflow-hidden ${lang === 'hi' ? 'lang-hi' : ''}`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Search input */}
@@ -147,7 +152,7 @@ export function CommandPalette() {
                 value={query}
                 onChange={(e) => { setQuery(e.target.value); setActive(0) }}
                 onKeyDown={onKeyDown}
-                placeholder="Search topics, jump to a page…"
+                placeholder={t('cmdPlaceholder')}
                 className="flex-1 bg-transparent text-white placeholder:text-dark-subtle text-[15px] outline-none"
               />
               <kbd className="text-[10px] font-medium text-dark-subtle bg-dark-bg border border-dark-border rounded px-1.5 py-0.5">ESC</kbd>
@@ -158,7 +163,7 @@ export function CommandPalette() {
               {filtered.length === 0 && (
                 <div className="px-4 py-10 text-center">
                   <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-xl">🔍</div>
-                  <p className="text-sm text-dark-muted">No matches for &ldquo;{query}&rdquo;</p>
+                  <p className="text-sm text-dark-muted">{t('cmdNoMatches', { x: query })}</p>
                 </div>
               )}
               {filtered.map((cmd, i) => {
