@@ -98,7 +98,7 @@ export default async function TopicPage({ params }: Params) {
             {t.label}
           </h1>
           <p className="text-dark-muted text-lg leading-relaxed max-w-2xl">{t.intro}</p>
-          <Link href="/" className="btn-primary focus-ring inline-flex mt-7 px-6 py-3 text-sm">
+          <Link href={`/?topic=${t.id}`} className="btn-primary focus-ring inline-flex mt-7 px-6 py-3 text-sm">
             Read {t.label} on Plax
           </Link>
         </div>

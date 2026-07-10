@@ -1,8 +1,10 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { CardData } from '@/lib/sample-data'
-import { TOPICS } from '@/lib/store'
+import { TOPICS, usePlaxStore } from '@/lib/store'
+import { useUIStore } from '@/lib/ui-store'
 
 interface CardProps {
   card: CardData
@@ -40,9 +42,7 @@ export function Card({ card, isActive }: CardProps) {
             transition={{ duration: 0.2 }}
             className="flex items-center flex-wrap gap-2.5 mb-6"
           >
-            <span className={`inline-flex items-center gap-1.5 pl-2 pr-3 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-gradient-to-r ${gradientClass} text-white shadow-lg`}>
-              <span className="text-xs">{card.emoji}</span> {categoryLabel}
-            </span>
+            <CategoryChip category={card.category} label={categoryLabel} emoji={card.emoji} gradientClass={gradientClass} isHindi={isHindi} />
             {card.aiEnhanced && (
               <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-violet-200 bg-violet-500/15 border border-violet-400/25 rounded-full px-2 py-1">
                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l2.4 6.5L21 11l-6.6 2.5L12 20l-2.4-6.5L3 11l6.6-2.5L12 2z" /></svg>
@@ -184,6 +184,110 @@ export function Card({ card, isActive }: CardProps) {
         </div>
       </div>
     </div>
+  )
+}
+
+// Interactive category chip on each card. Tapping it lets the user follow or
+// remove that topic from their feed with a small yes/no confirm — so managing
+// interests is possible right from any card (mobile + desktop).
+function CategoryChip({
+  category,
+  label,
+  emoji,
+  gradientClass,
+  isHindi,
+}: {
+  category: string
+  label: string
+  emoji?: string
+  gradientClass: string
+  isHindi: boolean
+}) {
+  const selectedTopics = usePlaxStore((s) => s.selectedTopics)
+  const toggleTopic = usePlaxStore((s) => s.toggleTopic)
+  const [open, setOpen] = useState(false)
+  const isTopic = TOPICS.some((t) => t.id === category) // 'general' is not toggleable
+  const isFollowed = selectedTopics.includes(category)
+  const t = (en: string, hi: string) => (isHindi ? hi : en)
+
+  return (
+    <span className="relative inline-flex">
+      <button
+        onClick={(e) => {
+          e.stopPropagation()
+          if (isTopic) setOpen((v) => !v)
+        }}
+        className={`inline-flex items-center gap-1.5 pl-2 pr-3 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-gradient-to-r ${gradientClass} text-white shadow-lg ${isTopic ? 'cursor-pointer' : 'cursor-default'}`}
+        aria-haspopup={isTopic || undefined}
+        aria-expanded={open || undefined}
+      >
+        <span className="text-xs">{emoji}</span> {label}
+        {isTopic && (
+          <svg className="w-3 h-3 -mr-0.5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+          </svg>
+        )}
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <>
+            {/* Click-away layer */}
+            <span
+              className="fixed inset-0 z-40"
+              onClick={(e) => {
+                e.stopPropagation()
+                setOpen(false)
+              }}
+            />
+            <motion.span
+              initial={{ opacity: 0, y: -6, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -6, scale: 0.96 }}
+              transition={{ duration: 0.15 }}
+              onClick={(e) => e.stopPropagation()}
+              className="absolute top-full left-0 mt-2 z-50 w-60 rounded-xl bg-dark-card border border-dark-border shadow-2xl shadow-black/60 p-3 normal-case"
+            >
+              <p className="text-[13px] text-dark-text mb-3 leading-snug tracking-normal font-normal">
+                {isFollowed
+                  ? t(`Remove “${label}” from your feed?`, `क्या “${label}” को अपनी फ़ीड से हटाएँ?`)
+                  : t(`Add “${label}” to your feed?`, `क्या “${label}” को अपनी फ़ीड में जोड़ें?`)}
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    toggleTopic(category)
+                    // If the feed was pinned-filtered to this topic, clear it so
+                    // the feed moves on instead of showing stale filtered cards.
+                    if (useUIStore.getState().feedFilter === category) {
+                      useUIStore.getState().setFeedFilter(null)
+                    }
+                    setOpen(false)
+                  }}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-semibold text-white ${
+                    isFollowed
+                      ? 'bg-red-500/90 hover:bg-red-500'
+                      : 'bg-gradient-to-r from-violet-600 to-cyan-600 hover:shadow-lg hover:shadow-violet-500/20'
+                  } transition`}
+                >
+                  {isFollowed ? t('Remove', 'हटाएँ') : t('Add', 'जोड़ें')}
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setOpen(false)
+                  }}
+                  className="flex-1 py-1.5 rounded-lg text-xs font-semibold text-dark-muted bg-white/5 hover:bg-white/10 transition"
+                >
+                  {t('Cancel', 'रद्द करें')}
+                </button>
+              </div>
+            </motion.span>
+          </>
+        )}
+      </AnimatePresence>
+    </span>
   )
 }
 
