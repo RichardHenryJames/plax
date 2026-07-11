@@ -770,6 +770,110 @@ export async function fetchOpenLibraryBooks(count = 6): Promise<RawContent[]> {
   }
 }
 
+// ─── Indian / Hindi authors (Hindi-mode book source) ───
+// In Hindi mode the Books topic should feel Indian — celebrated Indian authors,
+// not only Western classics. We seed Open Library author-searches with a curated
+// list of iconic Indian writers (Hindi + Indian-English) and surface their best-
+// known works. The AI-enhance step rewrites each into a Hindi micro-essay, and the
+// "More by this author" hook then trails deeper into that same author's catalog.
+const INDIAN_AUTHORS = [
+  'Munshi Premchand', 'Rabindranath Tagore', 'R. K. Narayan', 'Ruskin Bond',
+  'Khushwant Singh', 'Harivansh Rai Bachchan', 'Mahadevi Verma', 'Jaishankar Prasad',
+  'Suryakant Tripathi Nirala', 'Ramdhari Singh Dinkar', 'Bhisham Sahni', 'Amrita Pritam',
+  'Vikram Seth', 'Arundhati Roy', 'Amish Tripathi', 'Chetan Bhagat',
+  'Sudha Murty', 'Mulk Raj Anand', 'Raja Rao', 'Kamala Das',
+  'Phanishwar Nath Renu', 'Krishna Sobti', 'Nirmal Verma', 'Kalidasa',
+]
+
+export async function fetchIndianAuthorBooks(count = 6): Promise<RawContent[]> {
+  const authors = pickRandom(INDIAN_AUTHORS, 6)
+  try {
+    // 1) For each author, pull their most-read works (popularity-ranked).
+    const batches = await Promise.allSettled(
+      authors.map(async (author) => {
+        const url =
+          `https://openlibrary.org/search.json?author=${encodeURIComponent(author)}` +
+          `&sort=readinglog&limit=6&fields=title,key,first_publish_year,edition_count,author_name`
+        const r = await fetch(url, {
+          cache: 'no-store',
+          headers: { Accept: 'application/json', 'User-Agent': 'PlaxReader/1.0 (plaxlabs.com)' },
+        })
+        if (!r.ok) return [] as any[]
+        const data = await r.json()
+        return (data?.docs || []).map((w: any) => ({ ...w, _author: author }))
+      })
+    )
+    const seen = new Set<string>()
+    const works: any[] = []
+    batches.forEach((b) => {
+      if (b.status === 'fulfilled') {
+        for (const w of b.value) {
+          if (!w?.key || seen.has(w.key)) continue
+          const title = (w.title || '').trim()
+          if (!title) continue
+          // Skip generic collections / omnibus noise.
+          if (/\b(collected|complete works|selected|anthology|companion|omnibus)\b/i.test(title)) continue
+          seen.add(w.key)
+          works.push(w)
+        }
+      }
+    })
+    const shortlist = pickRandom(works, Math.max(count * 2, 12))
+
+    // 2) Enrich with real descriptions where available; keep even without one
+    //    (the AI-enhance step fills in from the title + author for Hindi).
+    const enriched = await Promise.allSettled(
+      shortlist.map(async (w) => {
+        let clean = ''
+        try {
+          const wr = await fetch(`https://openlibrary.org${w.key}.json`, {
+            cache: 'no-store',
+            headers: { Accept: 'application/json', 'User-Agent': 'PlaxReader/1.0 (plaxlabs.com)' },
+          })
+          if (wr.ok) {
+            const wd = await wr.json()
+            const rawDesc = typeof wd.description === 'string' ? wd.description : wd.description?.value
+            clean = (rawDesc || '')
+              .replace(/\r/g, '')
+              .replace(/\n{3,}/g, '\n\n')
+              .split(/\n?\s*(?:--|—)\s*This text refers|\(\s*source:/i)[0]
+              .replace(/\*\*?/g, '')
+              .trim()
+          }
+        } catch {
+          /* description optional */
+        }
+        // Prefer the curated author name (search author_name can be noisy).
+        const author = w._author || (w.authors || []).map((a: any) => a?.name).filter(Boolean).join(', ')
+        const year = w.first_publish_year ? ` (${w.first_publish_year})` : ''
+        // Fall back to a light factual stub so the card has body for the AI to expand.
+        const body =
+          clean.length >= 60
+            ? clean.length > 800
+              ? trimToSentence(clean, 800)
+              : clean
+            : `${w.title} is a notable work by ${author}, one of India's celebrated authors.`
+        return {
+          title: `${w.title}${year}`,
+          content: body,
+          author: author || undefined,
+          url: `https://openlibrary.org${w.key}`,
+          source: 'Open Library',
+          category: 'books',
+        } as RawContent
+      })
+    )
+    const out: RawContent[] = []
+    enriched.forEach((e) => {
+      if (e.status === 'fulfilled' && e.value) out.push(e.value)
+    })
+    return out.slice(0, count)
+  } catch (error) {
+    console.error('Indian author books error:', error)
+    return []
+  }
+}
+
 // ─── Met Museum (signature ART source — free, no key) ───
 // The Art topic deserves real artworks, not generic Wikipedia. The Metropolitan
 // Museum Open Access API exposes 470k+ objects with artist, date, culture, medium
@@ -1075,16 +1179,16 @@ export async function fetchAllContent(categories: string[] = [], lang: string = 
   if (lang === 'hi') {
     const DEFAULT_TOPICS = ['science', 'history', 'space', 'health', 'nature', 'philosophy']
     const topicsForSearch = categories.length ? categories : DEFAULT_TOPICS
-    // Book sources (Open Library, Gutenberg) carry an `author`, which powers the
-    // "More by this author" hook. Include them for Hindi too — the source titles
-    // are English but the client-side AI rewrites each card into a Hindi micro-
-    // essay, and the author lookup (Open Library) works regardless of feed lang.
+    // Book sources carry an `author`, which powers the "More by this author" hook.
+    // In Hindi mode we lead with CELEBRATED INDIAN/HINDI AUTHORS (Premchand,
+    // Tagore, R.K. Narayan…) so the feed feels Indian, not Western — the client-
+    // side AI rewrites each into a Hindi micro-essay and the author hook trails
+    // deeper into the same author's catalog.
     const includeBooks = categories.length === 0 || categories.includes('books')
     const results = await Promise.allSettled([
       fetchWikipediaByTopics(topicsForSearch, 6, 'hi'),
       fetchWikipediaContent(18, 'hi'),
-      includeBooks ? fetchOpenLibraryBooks(6) : Promise.resolve([]),
-      includeBooks ? fetchGutenberg(3) : Promise.resolve([]),
+      includeBooks ? fetchIndianAuthorBooks(6) : Promise.resolve([]),
     ])
     const all: RawContent[] = []
     results.forEach((r) => {
