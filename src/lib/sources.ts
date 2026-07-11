@@ -770,6 +770,130 @@ export async function fetchOpenLibraryBooks(count = 6): Promise<RawContent[]> {
   }
 }
 
+// ─── Met Museum (signature ART source — free, no key) ───
+// The Art topic deserves real artworks, not generic Wikipedia. The Metropolitan
+// Museum Open Access API exposes 470k+ objects with artist, date, culture, medium
+// and images. We search a rotating art theme, pick objects that have images +
+// substantive metadata, and build a factual card (the AI-enhance step frames why
+// the work matters). No API key required.
+const MET_QUERIES = [
+  'painting', 'portrait', 'landscape', 'sculpture', 'impressionism',
+  'still life', 'mythology', 'drawing', 'watercolor', 'modern art',
+]
+
+export async function fetchMetArt(count = 3): Promise<RawContent[]> {
+  try {
+    const q = pickRandom(MET_QUERIES, 1)[0]
+    const searchUrl =
+      `https://collectionapi.metmuseum.org/public/collection/v1/search` +
+      `?q=${encodeURIComponent(q)}&hasImages=true`
+    const sr = await fetch(searchUrl, { cache: 'no-store', headers: { Accept: 'application/json' } })
+    if (!sr.ok) return []
+    const sd = await sr.json()
+    const ids: number[] = sd?.objectIDs || []
+    if (!ids.length) return []
+    // Sample a handful of random object IDs from the result set.
+    const picks = pickRandom(ids, count * 3).slice(0, count * 3)
+    const objs = await Promise.allSettled(
+      picks.map(async (id) => {
+        const r = await fetch(
+          `https://collectionapi.metmuseum.org/public/collection/v1/objects/${id}`,
+          { cache: 'no-store', headers: { Accept: 'application/json' } }
+        )
+        if (!r.ok) return null
+        const o = await r.json()
+        if (!o?.title || !o?.primaryImage) return null
+        const artist = (o.artistDisplayName || '').trim()
+        const bits: string[] = []
+        if (artist) bits.push(`by ${artist}`)
+        if (o.objectDate) bits.push(o.objectDate)
+        if (o.culture) bits.push(o.culture)
+        if (o.medium) bits.push(o.medium)
+        if (o.department) bits.push(`Met Museum · ${o.department}`)
+        const factLine = bits.join(' · ')
+        // Build substantive content the AI-enhance step can turn into a card.
+        const content = `${o.title}${factLine ? ` — ${factLine}.` : '.'} ` +
+          `${o.creditLine || ''} This work is part of the Metropolitan Museum of Art's ` +
+          `open-access collection.`.trim()
+        return {
+          title: o.title,
+          content: content.replace(/\s+/g, ' ').trim(),
+          author: artist || undefined,
+          url: o.objectURL || `https://www.metmuseum.org/art/collection/search/${id}`,
+          source: 'The Met',
+          category: 'art',
+        } as RawContent
+      })
+    )
+    const out: RawContent[] = []
+    objs.forEach((o) => { if (o.status === 'fulfilled' && o.value) out.push(o.value) })
+    return out.slice(0, count)
+  } catch (error) {
+    console.error('Met Museum error:', error)
+    return []
+  }
+}
+
+// ─── NASA APOD (signature SPACE source — free, DEMO_KEY works) ───
+// NASA's Astronomy Picture of the Day ships a real, expert-written explanation
+// (usually 600–1200 chars) — perfect card substance for the Space topic. We pull
+// a few recent days for variety. Uses NASA_API_KEY if set, else DEMO_KEY.
+export async function fetchNasaApod(count = 3): Promise<RawContent[]> {
+  try {
+    const key = process.env.NASA_API_KEY || 'DEMO_KEY'
+    const url = `https://api.nasa.gov/planetary/apod?api_key=${key}&count=${count}`
+    const r = await fetch(url, { cache: 'no-store', headers: { Accept: 'application/json' } })
+    if (!r.ok) return []
+    const data = await r.json()
+    const items: any[] = Array.isArray(data) ? data : [data]
+    return items
+      .filter((a) => a?.title && a?.explanation && String(a.explanation).length > 160)
+      .map((a) => ({
+        title: String(a.title).trim(),
+        content: String(a.explanation).replace(/\s+/g, ' ').trim().slice(0, 900),
+        author: a.copyright ? String(a.copyright).trim() : undefined,
+        url: a.hdurl || a.url || 'https://apod.nasa.gov/apod/',
+        source: 'NASA APOD',
+        category: 'space',
+      }))
+      .slice(0, count)
+  } catch (error) {
+    console.error('NASA APOD error:', error)
+    return []
+  }
+}
+
+// ─── PoetryDB (real poems — free, no key) ───
+// Adds genuine literature to Books + Language: a real poem excerpt with author.
+export async function fetchPoetry(count = 2): Promise<RawContent[]> {
+  try {
+    const r = await fetch(`https://poetrydb.org/random/${count}`, {
+      cache: 'no-store', headers: { Accept: 'application/json' },
+    })
+    if (!r.ok) return []
+    const poems: any[] = await r.json()
+    if (!Array.isArray(poems)) return []
+    return poems
+      .filter((p) => p?.title && Array.isArray(p.lines) && p.lines.length >= 4)
+      .map((p) => {
+        // Use the first ~8 lines as an evocative excerpt.
+        const excerpt = p.lines.filter((l: string) => l.trim()).slice(0, 8).join('\n')
+        return {
+          title: p.title.trim(),
+          content: excerpt,
+          author: p.author ? String(p.author).trim() : undefined,
+          url: `https://poetrydb.org/author,title/${encodeURIComponent(p.author)};${encodeURIComponent(p.title)}`,
+          source: 'PoetryDB',
+          category: 'books',
+        } as RawContent
+      })
+      .slice(0, count)
+  } catch (error) {
+    console.error('PoetryDB error:', error)
+    return []
+  }
+}
+
 // ─── Real-time news (Event Registry / NewsAPI.ai) ───
 // For fast-moving topics (tech, science, finance, business, health…) we surface
 // fresh headlines so the feed feels current, not just evergreen. Gated per topic
@@ -956,6 +1080,11 @@ export async function fetchAllContent(categories: string[] = [], lang: string = 
   // Open Library gives the living book catalog (bestsellers + genres + classics,
   // real authors & descriptions) so Books is data-rich, not just 12 classics.
   const includeOpenLibrary = categories.includes('books')
+  // Signature per-topic sources: real artworks (Met) for art, NASA APOD for space,
+  // real poems (PoetryDB) for books/language — so each topic feels curated.
+  const includeMet = categories.includes('art')
+  const includeNasa = categories.includes('space')
+  const includePoetry = categories.includes('books') || categories.includes('language')
   // Real-time news for fast-moving topics (only if API key present + topic matches).
   const newsTopics = categories.filter((c) => TOPIC_NEWS_KEYWORD[c])
   const includeNews = newsTopics.length > 0
@@ -971,10 +1100,13 @@ export async function fetchAllContent(categories: string[] = [], lang: string = 
     includeGutenberg ? fetchGutenberg(3) : Promise.resolve([]),
     includeNews ? fetchNews(newsTopics, 3) : Promise.resolve([]),
     includeOpenLibrary ? fetchOpenLibraryBooks(6) : Promise.resolve([]),
+    includeMet ? fetchMetArt(3) : Promise.resolve([]),
+    includeNasa ? fetchNasaApod(3) : Promise.resolve([]),
+    includePoetry ? fetchPoetry(2) : Promise.resolve([]),
   ])
 
   const all: RawContent[] = []
-  const sourceNames = ['Wikipedia', 'HackerNews', 'Quotes', 'Reddit', 'WikipediaTopics', 'arXiv', 'Gutenberg', 'News', 'OpenLibrary']
+  const sourceNames = ['Wikipedia', 'HackerNews', 'Quotes', 'Reddit', 'WikipediaTopics', 'arXiv', 'Gutenberg', 'News', 'OpenLibrary', 'MetArt', 'NASA', 'Poetry']
 
   results.forEach((result, i) => {
     if (result.status === 'fulfilled') {
