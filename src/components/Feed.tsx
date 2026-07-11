@@ -568,16 +568,17 @@ export function Feed() {
 
   // Scroll wheel navigation — scroll long article content first, only advance
   // to the next/prev card once the content reaches its scroll boundary AND the
-  // user keeps pushing past the edge with intent. We accumulate overscroll delta
-  // within a single gesture (resets after a short idle) and require it to cross a
-  // sizeable threshold before navigating, so trackpad momentum / a quick flick to
-  // the edge doesn't accidentally skip an article (the desktop was too sensitive).
-  const scrollTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // user makes a decisive push past the edge. Trackpad/mouse momentum fires a long
+  // tail of events, so after each navigation we LOCK until the wheel goes fully
+  // idle (drains the momentum) — guaranteeing at most ONE card per gesture. This
+  // matches the mobile "one decisive swipe = one card" feel (desktop was skipping
+  // multiple articles on a single flick / accidental scroll).
   const overscroll = useRef(0)
-  const lastWheelTs = useRef(0)
+  const navLocked = useRef(false)
+  const wheelIdleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
-    const OVERSCROLL_THRESHOLD = 140 // px past the edge before navigating
-    const GESTURE_GAP = 180 // ms of idle that ends a gesture (resets accumulator)
+    const OVERSCROLL_THRESHOLD = 160 // px past the edge before navigating
+    const IDLE_MS = 220 // no wheel for this long = gesture over → unlock + reset
     const handleWheel = (e: WheelEvent) => {
       const ui = useUIStore.getState()
       if (ui.commandOpen || ui.topicsOpen) return
@@ -587,10 +588,13 @@ export function Feed() {
       const target = e.target as HTMLElement | null
       if (target && typeof target.closest === 'function' && target.closest('aside, [data-no-feed-scroll]')) return
 
-      const now = Date.now()
-      // A pause between wheel events ends the previous gesture → reset accumulator.
-      if (now - lastWheelTs.current > GESTURE_GAP) overscroll.current = 0
-      lastWheelTs.current = now
+      // Reset the idle detector: when the wheel stops for IDLE_MS, the gesture is
+      // over — unlock navigation and clear any accumulated overscroll.
+      if (wheelIdleTimer.current) clearTimeout(wheelIdleTimer.current)
+      wheelIdleTimer.current = setTimeout(() => {
+        navLocked.current = false
+        overscroll.current = 0
+      }, IDLE_MS)
 
       // Let the active card's content scroll while it still can in this direction.
       const scroller = document.querySelector<HTMLElement>('[data-card-scroll]')
@@ -599,27 +603,32 @@ export function Feed() {
         const canScrollDown = Math.ceil(scrollTop + clientHeight) < scrollHeight - 1
         const canScrollUp = scrollTop > 1
         if ((e.deltaY > 0 && canScrollDown) || (e.deltaY < 0 && canScrollUp)) {
-          overscroll.current = 0 // still scrolling content → not overscrolling
+          overscroll.current = 0 // scrolling content, not overscrolling
           return // native scroll handles it; don't navigate
         }
       }
 
-      // At a boundary: accumulate intent past the edge.
+      // At a boundary. If we already navigated this gesture, swallow the momentum
+      // tail until the wheel goes idle (prevents multi-card skips).
       e.preventDefault()
-      if (scrollTimeout.current) return // still cooling down from a navigation
+      if (navLocked.current) return
+
       overscroll.current += e.deltaY
       if (overscroll.current > OVERSCROLL_THRESHOLD) {
+        navLocked.current = true
         overscroll.current = 0
-        scrollTimeout.current = setTimeout(() => { scrollTimeout.current = null }, 500)
         goToCard(currentIndex + 1, 1)
       } else if (overscroll.current < -OVERSCROLL_THRESHOLD) {
+        navLocked.current = true
         overscroll.current = 0
-        scrollTimeout.current = setTimeout(() => { scrollTimeout.current = null }, 500)
         goToCard(currentIndex - 1, -1)
       }
     }
     window.addEventListener('wheel', handleWheel, { passive: false })
-    return () => window.removeEventListener('wheel', handleWheel)
+    return () => {
+      window.removeEventListener('wheel', handleWheel)
+      if (wheelIdleTimer.current) clearTimeout(wheelIdleTimer.current)
+    }
   }, [currentIndex, goToCard])
 
   const currentCard = visibleCards[currentIndex]
