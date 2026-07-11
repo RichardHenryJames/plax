@@ -41,11 +41,13 @@ export default function Home() {
     return (
       <main className="h-[100dvh] bg-dark-bg flex items-center justify-center">
         <div className="flex flex-col items-center gap-4 animate-pulse">
-          <img
-            src="/plaxlabs_logo.png"
-            alt="Plax"
-            className="w-16 h-16 rounded-2xl"
-          />
+          <span className="brand-badge rounded-2xl">
+            <img
+              src="/plaxlabs_logo.png"
+              alt="Plax"
+              className="w-16 h-16 rounded-2xl"
+            />
+          </span>
         </div>
       </main>
     )

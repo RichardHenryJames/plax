@@ -46,7 +46,7 @@ export function Onboarding() {
               {/* Masthead row */}
               <div className="flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2.5">
-                  <img src="/plaxlabs_logo.png" alt="Plax" className="w-7 h-7 rounded-md" />
+                  <span className="brand-badge rounded-md"><img src="/plaxlabs_logo.png" alt="Plax" className="w-7 h-7 rounded-md" /></span>
                   <span className="text-[15px] font-bold tracking-tight text-white">Plax</span>
                 </div>
                 <span className="eyebrow eyebrow--bare text-dark-subtle hidden sm:inline-flex">
