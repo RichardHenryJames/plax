@@ -168,7 +168,7 @@ export function Card({ card, isActive, translating = false }: CardProps) {
             {/* More by this author — book cards let a reader discover the author's
                 other works with one tap (Open Library). */}
             {card.category === 'books' && card.author && (
-              <MoreByAuthor author={card.author} title={card.title || ''} isHindi={isHindi} />
+              <MoreByAuthor author={card.author} title={card.title || ''} url={card.sourceUrl || ''} isHindi={isHindi} />
             )}
           </div>
 
@@ -517,7 +517,7 @@ function DeeperSection({ card, isHindi }: { card: CardData; isHindi: boolean }) 
 
 // "More by this author" — book cards let a reader tap to discover the author's
 // other works from Open Library, turning a single book into a reading trail.
-function MoreByAuthor({ author, title, isHindi }: { author: string; title: string; isHindi: boolean }) {
+function MoreByAuthor({ author, title, url, isHindi }: { author: string; title: string; url: string; isHindi: boolean }) {
   const { t } = useT()
   const [state, setState] = useState<'idle' | 'loading' | 'done' | 'empty'>('idle')
   const [works, setWorks] = useState<{ title: string; url: string }[]>([])
@@ -529,7 +529,7 @@ function MoreByAuthor({ author, title, isHindi }: { author: string; title: strin
       const res = await fetch('/api/author-books', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ author, exclude: title }),
+        body: JSON.stringify({ author, exclude: title, excludeUrl: url }),
       })
       const data = await res.json()
       if (data?.works?.length) {
