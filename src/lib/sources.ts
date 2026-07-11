@@ -657,6 +657,119 @@ export async function fetchGutenberg(count = 3): Promise<RawContent[]> {
   }))
 }
 
+// ─── Open Library (real, current book catalog — free, no API key) ───
+// The Books topic needs to be data-RICH: not just 12 classic openings, but the
+// whole living catalog — bestsellers, genres, contemporary + classic, with real
+// authors and real descriptions. Open Library (openlibrary.org, run by the
+// Internet Archive) exposes millions of works by subject with covers, authors,
+// publish years and descriptions, all key-free. We pull a rotating set of genres
+// each call for variety, enrich the top picks with their real description, and
+// surface them as cards. The AI-enhance step frames WHY each book is worth reading.
+const OPENLIB_SUBJECTS = [
+  'literature', 'fiction', 'fantasy', 'science_fiction', 'mystery',
+  'thriller', 'historical_fiction', 'romance', 'horror', 'adventure',
+  'biography', 'philosophy', 'psychology', 'poetry', 'classics',
+  'short_stories', 'science', 'history',
+]
+
+function pickRandom<T>(arr: T[], n: number): T[] {
+  return [...arr].sort(() => Math.random() - 0.5).slice(0, n)
+}
+
+// Cheap English-language check for book descriptions (Open Library mixes langs).
+// Requires a few common English function words in the opening — enough to reject
+// Spanish/French/Italian/German blurbs without a heavy language-detect dependency.
+function looksEnglish(text: string): boolean {
+  const head = text.slice(0, 400).toLowerCase()
+  const hits = (head.match(/\b(the|and|of|to|a|in|is|that|with|his|her|for|was|by)\b/g) || []).length
+  // Foreign giveaways that shouldn't appear in an English blurb.
+  const foreign = /\b(una|es|el|la|del|und|der|die|von|est|une|dans|romanzo|novela)\b/.test(head)
+  return hits >= 3 && !foreign
+}
+
+export async function fetchOpenLibraryBooks(count = 6): Promise<RawContent[]> {
+  const subjects = pickRandom(OPENLIB_SUBJECTS, 3)
+  try {
+    // 1) Pull works from a few genres in parallel (popular first via the API's
+    //    default ranking), then merge + de-dupe by work key.
+    const perSubject = Math.max(6, Math.ceil((count * 2) / subjects.length))
+    const batches = await Promise.allSettled(
+      subjects.map(async (subject) => {
+        const url = `https://openlibrary.org/subjects/${subject}.json?limit=${perSubject}`
+        const r = await fetch(url, {
+          cache: 'no-store',
+          headers: { Accept: 'application/json', 'User-Agent': 'PlaxReader/1.0 (plaxlabs.com)' },
+        })
+        if (!r.ok) return [] as any[]
+        const data = await r.json()
+        return (data?.works || []).map((w: any) => ({ ...w, _subject: subject }))
+      })
+    )
+    const seen = new Set<string>()
+    const works: any[] = []
+    batches.forEach((b) => {
+      if (b.status === 'fulfilled') {
+        for (const w of b.value) {
+          if (!w?.key || seen.has(w.key)) continue
+          // Require a cover + author so cards look complete.
+          if (!w.cover_id || !(w.authors && w.authors.length)) continue
+          seen.add(w.key)
+          works.push(w)
+        }
+      }
+    })
+    // Mix popularity with freshness: keep a broad pool (so contemporary titles
+    // surface too, not only the most-reprinted classics) and random-sample it.
+    const shortlist = pickRandom(works, Math.max(count * 3, 14))
+
+    // 2) Enrich the shortlist with real descriptions (parallel, capped).
+    const enriched = await Promise.allSettled(
+      shortlist.map(async (w) => {
+        try {
+          const wr = await fetch(`https://openlibrary.org${w.key}.json`, {
+            cache: 'no-store',
+            headers: { Accept: 'application/json', 'User-Agent': 'PlaxReader/1.0 (plaxlabs.com)' },
+          })
+          if (!wr.ok) return null
+          const wd = await wr.json()
+          const rawDesc = typeof wd.description === 'string' ? wd.description : wd.description?.value
+          const desc = (rawDesc || '').replace(/\r/g, '').replace(/\n{3,}/g, '\n\n').trim()
+          // Drop boilerplate / too-short descriptions — a card needs substance.
+          if (!desc || desc.length < 90) return null
+          // English feed → require an English description (Open Library mixes langs).
+          if (!looksEnglish(desc)) return null
+          // Strip trailing source citations / markdown emphasis Open Library appends.
+          const clean = desc
+            .split(/\n?\s*(?:--|—)\s*This text refers|\(\s*source:/i)[0]
+            .replace(/\*\*?/g, '')
+            .trim()
+          if (clean.length < 90) return null
+          const author = (w.authors || []).map((a: any) => a.name).filter(Boolean).join(', ')
+          const year = w.first_publish_year ? ` (${w.first_publish_year})` : ''
+          return {
+            title: `${w.title}${year}`,
+            content: clean.length > 800 ? trimToSentence(clean, 800) : clean,
+            author: author || undefined,
+            url: `https://openlibrary.org${w.key}`,
+            source: 'Open Library',
+            category: 'books',
+          } as RawContent
+        } catch {
+          return null
+        }
+      })
+    )
+    const out: RawContent[] = []
+    enriched.forEach((e) => {
+      if (e.status === 'fulfilled' && e.value) out.push(e.value)
+    })
+    return out.slice(0, count)
+  } catch (error) {
+    console.error('Open Library error:', error)
+    return []
+  }
+}
+
 // ─── Real-time news (Event Registry / NewsAPI.ai) ───
 // For fast-moving topics (tech, science, finance, business, health…) we surface
 // fresh headlines so the feed feels current, not just evergreen. Gated per topic
@@ -840,6 +953,9 @@ export async function fetchAllContent(categories: string[] = [], lang: string = 
   const includeArxiv = arxivTopics.length > 0
   // Project Gutenberg gives real classic-literature excerpts for the Books topic.
   const includeGutenberg = categories.includes('books')
+  // Open Library gives the living book catalog (bestsellers + genres + classics,
+  // real authors & descriptions) so Books is data-rich, not just 12 classics.
+  const includeOpenLibrary = categories.includes('books')
   // Real-time news for fast-moving topics (only if API key present + topic matches).
   const newsTopics = categories.filter((c) => TOPIC_NEWS_KEYWORD[c])
   const includeNews = newsTopics.length > 0
@@ -854,10 +970,11 @@ export async function fetchAllContent(categories: string[] = [], lang: string = 
     includeArxiv ? fetchArxiv(arxivTopics) : Promise.resolve([]),
     includeGutenberg ? fetchGutenberg(3) : Promise.resolve([]),
     includeNews ? fetchNews(newsTopics, 3) : Promise.resolve([]),
+    includeOpenLibrary ? fetchOpenLibraryBooks(6) : Promise.resolve([]),
   ])
 
   const all: RawContent[] = []
-  const sourceNames = ['Wikipedia', 'HackerNews', 'Quotes', 'Reddit', 'WikipediaTopics', 'arXiv', 'Gutenberg', 'News']
+  const sourceNames = ['Wikipedia', 'HackerNews', 'Quotes', 'Reddit', 'WikipediaTopics', 'arXiv', 'Gutenberg', 'News', 'OpenLibrary']
 
   results.forEach((result, i) => {
     if (result.status === 'fulfilled') {
