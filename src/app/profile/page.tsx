@@ -100,6 +100,7 @@ export default function ProfilePage() {
     history: '📜', finance: '💰', space: '🚀', programming: '⚡',
     books: '📚', health: '🏥', math: '📐', nature: '🌿',
     art: '🎨', physics: '⚛️', business: '📈', language: '🗣️',
+    news: '📰',
   }
 
   if (!user) {
