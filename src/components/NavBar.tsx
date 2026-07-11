@@ -25,11 +25,13 @@ export function NavBar() {
       <div className="glass border-b border-white/[0.06] flex items-center justify-between px-4 py-2 pt-[calc(0.5rem+env(safe-area-inset-top))] pointer-events-auto">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group">
-          <img
-            src="/plaxlabs_logo.png"
-            alt="Plax"
-            className="w-7 h-7 rounded-md transition-opacity group-hover:opacity-90"
-          />
+          <span className="brand-badge rounded-md transition-opacity group-hover:opacity-90">
+            <img
+              src="/plaxlabs_logo.png"
+              alt="Plax"
+              className="w-7 h-7 rounded-md"
+            />
+          </span>
           <span className="text-base font-bold text-white/90">Plax</span>
         </Link>
 

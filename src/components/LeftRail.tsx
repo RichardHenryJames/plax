@@ -33,11 +33,13 @@ export function LeftRail() {
       {/* Logo */}
       <div className="px-5 pt-5 pb-4">
         <Link href="/" className="flex items-center gap-2.5 group">
-          <img
-            src="/plaxlabs_logo.png"
-            alt="Plax"
-            className="w-9 h-9 rounded-md group-hover:opacity-90 transition-opacity"
-          />
+          <span className="brand-badge rounded-md group-hover:opacity-90 transition-opacity">
+            <img
+              src="/plaxlabs_logo.png"
+              alt="Plax"
+              className="w-9 h-9 rounded-md"
+            />
+          </span>
           <span className="text-xl font-bold text-white/90 tracking-tight">Plax</span>
         </Link>
       </div>

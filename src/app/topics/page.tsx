@@ -54,7 +54,7 @@ export default function TopicsHubPage() {
           {/* Top bar */}
           <div className="flex items-center justify-between py-5 border-b border-[color:var(--hair)]">
             <Link href="/" className="flex items-center gap-2.5 group">
-              <img src="/plaxlabs_logo.png" alt="Plax" className="w-7 h-7 rounded-md" />
+              <span className="brand-badge rounded-md"><img src="/plaxlabs_logo.png" alt="Plax" className="w-7 h-7 rounded-md" /></span>
               <span className="text-[15px] font-bold tracking-tight text-white">Plax</span>
             </Link>
             <nav aria-label="Breadcrumb" className="eyebrow eyebrow--bare">
@@ -147,7 +147,7 @@ export default function TopicsHubPage() {
 
       <footer className="mx-auto max-w-6xl px-5 sm:px-8 py-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <Link href="/" className="flex items-center gap-2.5 text-dark-muted hover:text-white transition-colors">
-          <img src="/plaxlabs_logo.png" alt="Plax" className="w-6 h-6 rounded" />
+          <span className="brand-badge rounded"><img src="/plaxlabs_logo.png" alt="Plax" className="w-6 h-6 rounded" /></span>
           <span className="text-sm font-medium">Plax — get smarter every day</span>
         </Link>
         <p className="eyebrow eyebrow--bare text-dark-subtle">© {year} Plax Labs</p>

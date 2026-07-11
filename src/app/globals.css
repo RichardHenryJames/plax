@@ -393,7 +393,9 @@ body {
    serif display against small mono eyebrow labels for strong hierarchy.
    ═══════════════════════════════════════════════════════════════════════════ */
 :root {
-  --signal: #f5b13a;          /* signature marigold — the anti-AI accent */
+  --signal: #f5b13a;          /* signature marigold — THE brand color (Plax marigold).
+                                 Use for logo badge, primary accents, active states.
+                                 Hex #f5b13a; deep variant #e0912a; ink-on-signal #17130a. */
   --signal-deep: #e0912a;
   --signal-ink: #17130a;      /* near-black text that sits on the signal */
   --paper: #ece6da;           /* warm editorial cream for light sections */
@@ -486,6 +488,23 @@ html.light [class~="hover:border-white/20"]:hover { border-color: var(--hair-str
 
 /* Code block dark panel → light panel */
 html.light [class~="bg-black/40"] { background-color: rgba(32,27,20,0.05); }
+
+/* Brand logo badge — the white/transparent logo mark sits on a marigold tile so
+   it reads clearly in BOTH themes (it would vanish on the light paper bg without
+   this). Marigold #f5b13a is the Plax brand color. The mark is darkened to near
+   black via filter so the white "P" is readable on the yellow tile. */
+.brand-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--signal);
+  padding: 3px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+}
+.brand-badge > img {
+  filter: brightness(0);
+  border-radius: inherit;
+}
 
 /* Mono eyebrow — a small uppercase kicker with a leading marigold tick.
    Replaces the generic "text-sm uppercase tracking-wider text-subtle" label. */
