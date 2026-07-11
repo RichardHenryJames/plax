@@ -70,7 +70,12 @@ export function CardActions({ card }: { card: CardData | null }) {
               // Copy a shareable, attributed snippet (title + a clean excerpt +
               // source link) rather than just a truncated title — more useful to
               // paste and better for word-of-mouth sharing.
-              const excerpt = card.content.replace(/\s+/g, ' ').trim().slice(0, 200).trim()
+              const plain = card.content
+                .replace(/\*\*(.*?)\*\*/g, '$1') // strip bold markers
+                .replace(/\*(.*?)\*/g, '$1')     // strip italic markers
+                .replace(/\s+/g, ' ')
+                .trim()
+              const excerpt = plain.slice(0, 200).trim()
               const link = card.sourceUrl || 'https://plaxlabs.com'
               const text = [
                 card.title ? `“${card.title}”` : '',
