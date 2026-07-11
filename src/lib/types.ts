@@ -9,6 +9,7 @@ export interface RawContent {
   category: string
   publishedAt?: number // epoch ms — set for time-sensitive sources (news/RSS)
   image?: string // hero image URL (news/RSS thumbnails)
+  section?: string // news sub-section (india/world/tech/business/science)
 }
 
 export interface ProcessedCard {
@@ -26,6 +27,7 @@ export interface ProcessedCard {
   aiEnhanced?: boolean
   publishedAt?: number // epoch ms — original publish time for news cards (relative timestamp)
   image?: string // hero image URL (news cards)
+  section?: string // news sub-section (india/world/tech/business/science)
 }
 
 // ─── Category mapping for sources ───
@@ -185,14 +187,27 @@ export const TOPIC_RSS_FEEDS: Record<string, [string, string][]> = {
 }
 
 // General/world news feeds — reputable, India-first + global. Used by the
-// dedicated "News" topic to build a broad latest-headlines stream.
-export const GENERAL_NEWS_FEEDS: [string, string][] = [
-  ['The Hindu', 'https://www.thehindu.com/news/national/feeder/default.rss'],
-  ['BBC World', 'https://feeds.bbci.co.uk/news/world/rss.xml'],
-  ['NDTV', 'https://feeds.feedburner.com/ndtvnews-top-stories'],
-  ['The Verge', 'https://www.theverge.com/rss/index.xml'],
-  ['Science Daily', 'https://www.sciencedaily.com/rss/top/science.xml'],
-  ['CNBC', 'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664'],
+// dedicated "News" topic to build a broad latest-headlines stream. Third element
+// is the sub-section (powers the News filter bar: India / World / Tech / Business).
+export const GENERAL_NEWS_FEEDS: [string, string, string][] = [
+  ['The Hindu', 'https://www.thehindu.com/news/national/feeder/default.rss', 'india'],
+  ['NDTV', 'https://feeds.feedburner.com/ndtvnews-top-stories', 'india'],
+  ['BBC World', 'https://feeds.bbci.co.uk/news/world/rss.xml', 'world'],
+  ['Al Jazeera', 'https://www.aljazeera.com/xml/rss/all.xml', 'world'],
+  ['The Verge', 'https://www.theverge.com/rss/index.xml', 'tech'],
+  ['TechCrunch', 'https://techcrunch.com/feed/', 'tech'],
+  ['CNBC', 'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664', 'business'],
+  ['The Hindu Business', 'https://www.thehindubusinessline.com/feeder/default.rss', 'business'],
+  ['Science Daily', 'https://www.sciencedaily.com/rss/top/science.xml', 'science'],
+]
+
+// News sub-sections for the filter bar (id + label). 'all' is implicit.
+export const NEWS_SECTIONS: { id: string; label: string; labelHi: string }[] = [
+  { id: 'india', label: 'India', labelHi: 'भारत' },
+  { id: 'world', label: 'World', labelHi: 'विश्व' },
+  { id: 'tech', label: 'Tech', labelHi: 'तकनीक' },
+  { id: 'business', label: 'Business', labelHi: 'व्यापार' },
+  { id: 'science', label: 'Science', labelHi: 'विज्ञान' },
 ]
 
 // Hindi news RSS feeds (Devanagari) — used ONLY in Hindi mode so the feed carries

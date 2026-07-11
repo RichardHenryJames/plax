@@ -92,6 +92,7 @@ export async function GET(request: NextRequest) {
         fetchedAt: Date.now(),
         publishedAt: raw.publishedAt,
         image: raw.image,
+        section: raw.section,
       }
     })
 

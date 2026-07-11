@@ -16,6 +16,10 @@ interface UIState {
   feedFilter: string | null
   setFeedFilter: (category: string | null) => void
 
+  // News sub-section filter (india/world/tech/business/science; null = All)
+  newsSection: string | null
+  setNewsSection: (section: string | null) => void
+
   // ⌘K command palette
   commandOpen: boolean
   setCommandOpen: (open: boolean) => void
@@ -39,6 +43,9 @@ interface UIState {
 export const useUIStore = create<UIState>((set) => ({
   feedFilter: null,
   setFeedFilter: (category) => set({ feedFilter: category }),
+
+  newsSection: null,
+  setNewsSection: (section) => set({ newsSection: section }),
 
   commandOpen: false,
   setCommandOpen: (open) => set({ commandOpen: open }),
