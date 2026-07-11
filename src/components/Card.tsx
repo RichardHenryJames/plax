@@ -23,7 +23,7 @@ export function Card({ card, isActive, translating = false }: CardProps) {
   const isHindi = /[\u0900-\u097F]/.test(`${card.title || ''} ${card.content || ''}`)
   // Long articles get top-aligned on desktop (avoid a big centered gap on the tall
   // desktop viewport); short cards/quotes stay vertically centered.
-  const isLong = (card.content?.length ?? 0) > 520
+  const isLong = (card.content?.length ?? 0) > 360
 
   return (
     <div className={`relative flex flex-col overflow-hidden select-none h-full w-full lg:h-[90vh] lg:max-h-[920px] lg:max-w-3xl lg:mx-auto ${isHindi ? 'lang-hi' : ''}`}>
@@ -33,7 +33,7 @@ export function Card({ card, isActive, translating = false }: CardProps) {
           container with margin:auto/justify-center clips the overflowing top in
           Chrome). Padding clears the navbar (top) + floating action pill (bottom). */}
       <div data-card-scroll className="flex-1 relative z-10 overflow-y-auto hide-scrollbar overscroll-contain">
-        <div className={`min-h-full flex flex-col justify-center px-6 sm:px-10 lg:px-14 pt-20 pb-28 lg:pb-24 ${isLong ? 'lg:justify-start lg:pt-[10vh]' : 'lg:pt-16'}`}>
+        <div className={`min-h-full flex flex-col justify-center px-6 sm:px-10 lg:px-14 pt-20 pb-28 lg:pb-24 ${isLong ? 'lg:justify-start lg:pt-20' : 'lg:pt-16'}`}>
           <div className="max-w-xl lg:max-w-2xl mx-auto w-full">
             {/* Category + metadata */}
             <motion.div
