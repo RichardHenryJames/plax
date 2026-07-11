@@ -18,6 +18,8 @@ export interface CardData {
   enhancedLang?: string
   // Original publish time (epoch ms) for news cards — powers a relative "2h ago".
   publishedAt?: number
+  // Hero image URL for news cards (RSS thumbnails).
+  image?: string
 }
 
 // No hardcoded cards — all content comes from live API sources

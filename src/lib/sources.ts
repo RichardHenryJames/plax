@@ -1137,8 +1137,8 @@ function decodeRss(s: string): string {
     .trim()
 }
 
-// Parse an RSS (<item>) or Atom (<entry>) feed into {title, desc, link, published} items.
-function parseRss(xml: string, limit = 6): { title: string; desc: string; link: string; published?: number }[] {
+// Parse an RSS (<item>) or Atom (<entry>) feed into {title, desc, link, published, image} items.
+function parseRss(xml: string, limit = 6): { title: string; desc: string; link: string; published?: number; image?: string }[] {
   const isAtom = /<entry[ >]/.test(xml) && !/<item[ >]/.test(xml)
   const tag = isAtom ? 'entry' : 'item'
   const blocks = xml.split(new RegExp(`<${tag}[ >]`)).slice(1)
@@ -1169,7 +1169,17 @@ function parseRss(xml: string, limit = 6): { title: string; desc: string; link: 
       grab(/<updated[^>]*>([\s\S]*?)<\/updated>/)
     const parsed = dateStr ? Date.parse(dateStr) : NaN
     const published = Number.isNaN(parsed) ? undefined : parsed
-    return { title, desc, link, published }
+    // Hero image — try the common RSS image carriers in priority order.
+    let image = ''
+    const mediaContent = b.match(/<media:content[^>]*url="([^"]+)"[^>]*>/i)
+    const mediaThumb = b.match(/<media:thumbnail[^>]*url="([^"]+)"/i)
+    const enclosure = b.match(/<enclosure[^>]*url="([^"]+)"[^>]*type="image/i)
+    const enclosureAny = b.match(/<enclosure[^>]*type="image[^"]*"[^>]*url="([^"]+)"/i)
+    const inHtml = b.match(/<img[^>]*src="([^"]+)"/i)
+    image = (mediaContent?.[1] || mediaThumb?.[1] || enclosure?.[1] || enclosureAny?.[1] || inHtml?.[1] || '').trim()
+    // Only accept http(s) image URLs; ignore tracking pixels / data URIs.
+    if (image && !/^https?:\/\//i.test(image)) image = ''
+    return { title, desc, link, published, image }
   })
 }
 
@@ -1206,6 +1216,7 @@ async function fetchOneFeed(
           source: name,
           category,
           publishedAt: it.published,
+          image: it.image || undefined,
         } as RawContent
       })
       .filter(Boolean) as RawContent[]

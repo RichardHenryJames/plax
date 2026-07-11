@@ -42,6 +42,8 @@ export function Card({ card, isActive, translating = false }: CardProps) {
   // Relative "2h ago" for time-sensitive news cards (only when a publish time is
   // known and reasonably recent — stale timestamps aren't worth showing).
   const relativeTime = relativeTimeLabel(card.publishedAt, isHindi)
+  // "Breaking" for very fresh news (published within the last 30 minutes).
+  const isBreaking = !!card.publishedAt && Date.now() - card.publishedAt < 30 * 60 * 1000 && Date.now() - card.publishedAt >= 0
 
   return (
     <div className={`relative flex flex-col overflow-hidden select-none h-full w-full lg:h-[90vh] lg:max-h-[920px] lg:max-w-3xl lg:mx-auto ${isHindi ? 'lang-hi' : ''}`}>
@@ -61,6 +63,12 @@ export function Card({ card, isActive, translating = false }: CardProps) {
             className="flex items-center flex-wrap gap-2.5 mb-6"
           >
             <CategoryChip category={card.category} label={categoryLabel} emoji={card.emoji} gradientClass={gradientClass} isHindi={isHindi} />
+            {isBreaking && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-white bg-red-600 px-2 py-1 rounded-sm">
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                {isHindi ? 'ताज़ा' : 'Breaking'}
+              </span>
+            )}
             {card.aiEnhanced && (
               <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-[color:var(--signal)] bg-[color:var(--signal)]/10 border border-[color:var(--signal)]/25 px-2 py-1">
                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l2.4 6.5L21 11l-6.6 2.5L12 20l-2.4-6.5L3 11l6.6-2.5L12 2z" /></svg>
@@ -78,6 +86,26 @@ export function Card({ card, isActive, translating = false }: CardProps) {
               </span>
             )}
           </motion.div>
+
+          {/* Hero image — news cards carry a publisher thumbnail; a subtle framed
+              image makes the feed far more visual/premium. Hidden on error. */}
+          {card.image && !translating && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={isActive ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.3 }}
+              className="mb-6 -mt-1 overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02]"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={card.image}
+                alt=""
+                loading="lazy"
+                className="w-full h-44 sm:h-52 lg:h-56 object-cover"
+                onError={(e) => { (e.currentTarget.closest('div') as HTMLElement).style.display = 'none' }}
+              />
+            </motion.div>
+          )}
 
           {/* Title */}
           {translating ? (
