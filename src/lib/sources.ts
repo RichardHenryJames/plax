@@ -1207,8 +1207,10 @@ async function fetchOneFeed(
 
 // English topic news via RSS. For each selected topic with feeds, pull the newest
 // items across its publishers (parallel), so the feed carries genuinely current
-// coverage — tech, science, space, finance, business, health, etc.
-export async function fetchRssNews(categories: string[], perFeed = 3): Promise<RawContent[]> {
+// coverage — tech, science, space, finance, business, health, etc. When `tagAs`
+// is set (the dedicated "News" topic), every card is filed under that category so
+// it surfaces as a distinct, latest-news feed rather than blended into topics.
+export async function fetchRssNews(categories: string[], perFeed = 3, tagAs?: string): Promise<RawContent[]> {
   const topics = [...new Set(categories)].filter((c) => TOPIC_RSS_FEEDS[c])
   if (topics.length === 0) return []
   // Cap total feeds fetched to stay fast (≤ ~6 feeds/request).
@@ -1217,7 +1219,7 @@ export async function fetchRssNews(categories: string[], perFeed = 3): Promise<R
   for (const topic of topics) {
     for (const [name, url] of TOPIC_RSS_FEEDS[topic]) {
       if (budget-- <= 0) break
-      jobs.push(fetchOneFeed(name, url, topic, perFeed))
+      jobs.push(fetchOneFeed(name, url, tagAs || topic, perFeed))
     }
     if (budget <= 0) break
   }
@@ -1382,6 +1384,11 @@ export async function fetchAllContent(categories: string[] = [], lang: string = 
   )
   const includeRss = rssTopics.length > 0
 
+  // Dedicated "News" topic → a broad, cross-domain latest-headlines pull, all
+  // filed under category 'news' so it reads as one distinct news stream.
+  const wantsNews = categories.includes('news')
+  const NEWS_TOPIC_MIX = ['technology', 'science', 'space', 'business', 'finance', 'health']
+
   // Use Promise.allSettled so one failing source doesn't kill the rest.
   // NOTE: Reddit is intentionally dropped from the active set — it is 403-blocked
   // from datacenter IPs (Vercel) and returned 0 items in every prod log, so it was
@@ -1400,10 +1407,11 @@ export async function fetchAllContent(categories: string[] = [], lang: string = 
     includePoetry ? fetchPoetry(2) : Promise.resolve([]),
     includeGuardian ? fetchGuardian(guardianTopics, 4) : Promise.resolve([]),
     includeRss ? fetchRssNews(rssTopics, 3) : Promise.resolve([]),
+    wantsNews ? fetchRssNews(NEWS_TOPIC_MIX, 2, 'news') : Promise.resolve([]),
   ])
 
   const all: RawContent[] = []
-  const sourceNames = ['Wikipedia', 'HackerNews', 'Quotes', 'WikipediaTopics', 'arXiv', 'Gutenberg', 'News', 'OpenLibrary', 'MetArt', 'NASA', 'Poetry', 'Guardian', 'RSS']
+  const sourceNames = ['Wikipedia', 'HackerNews', 'Quotes', 'WikipediaTopics', 'arXiv', 'Gutenberg', 'News', 'OpenLibrary', 'MetArt', 'NASA', 'Poetry', 'Guardian', 'RSS', 'NewsTopic']
 
   results.forEach((result, i) => {
     if (result.status === 'fulfilled') {
