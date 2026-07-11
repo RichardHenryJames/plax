@@ -699,19 +699,6 @@ export function Feed() {
     && !(currentCard.aiEnhanced && currentCard.enhancedLang === language)
     && !enhanceFailed.has(`${currentCard.id}:${language}`)
 
-  // Single source of read-progress (drives the top segmented bar + card dock),
-  // restarts each time the visible card changes.
-  const [readProgress, setReadProgress] = useState(0)
-  useEffect(() => {
-    setReadProgress(0)
-    if (!currentCard) return
-    const rt = currentCard.readTime || '30s'
-    const readTimeMs = rt.includes('m') ? parseInt(rt) * 60000 : parseInt(rt) * 1000
-    const step = Math.max(60, readTimeMs / 50)
-    const interval = setInterval(() => setReadProgress((p) => Math.min(p + 2, 100)), step)
-    return () => clearInterval(interval)
-  }, [currentCard?.id]) // eslint-disable-line react-hooks/exhaustive-deps
-
   if (!currentCard) {
     const filterEmpty = feedFilter && cards.length > 0 && visibleCards.length === 0
     // Premium skeleton while first content loads
@@ -879,31 +866,6 @@ export function Feed() {
 
       {/* Fixed action dock (Inshorts-style) — stays put while cards flip */}
       <CardActions card={currentCard} />
-
-      {/* Stories-style reading-progress bar (Instagram/Inshorts). PAGED into rows
-          of 7: within a row the segments to the left of the current card are
-          filled, the current card fills by read progress, and the rest are empty.
-          After card 7 the bar RESETS — card 8 starts a fresh row at segment 1 —
-          so it reads like a repeating 1→7 cycle instead of pinning at the end. */}
-      {(() => {
-        const SEG = 7
-        const posInPage = currentIndex % SEG // 0..6 within the current row of 7
-        return (
-          <div className="absolute left-1/2 -translate-x-1/2 z-40 top-[calc(4.5rem+env(safe-area-inset-top))] lg:top-4 w-[min(60%,20rem)] flex items-center gap-1">
-            {Array.from({ length: SEG }).map((_, j) => {
-              const fill = j < posInPage ? 100 : j === posInPage ? readProgress : 0
-              return (
-                <div key={j} className="h-[3px] flex-1 rounded-full bg-white/15 overflow-hidden">
-                  <div
-                    className="h-full bg-[color:var(--signal)] transition-[width] duration-200 ease-out"
-                    style={{ width: `${fill}%` }}
-                  />
-                </div>
-              )
-            })}
-          </div>
-        )
-      })()}
 
       {/* Loading indicator when fetching more at the end */}
       {isFetching && currentIndex >= visibleCards.length - 2 && (
