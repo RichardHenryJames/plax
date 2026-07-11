@@ -2,7 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export const runtime = 'edge'
 
-const OL_HEADERS = { Accept: 'application/json', 'User-Agent': 'PlaxReader/1.0 (plaxlabs.com)' }
+const OL_HEADERS = {
+  Accept: 'application/json',
+  // A browser-like User-Agent — Open Library's Cloudflare protection 403s the
+  // non-browser 'PlaxReader' UA from datacenter IPs (Vercel), so requests fail in
+  // production while working locally. A realistic UA passes the bot check.
+  'User-Agent':
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+  Referer: 'https://openlibrary.org/',
+}
 
 type Doc = { title: string; key: string; editions: number; authors: string[] }
 
