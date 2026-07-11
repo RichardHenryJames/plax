@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       cache: 'no-store',
       headers: { Accept: 'application/json', 'User-Agent': 'PlaxReader/1.0 (plaxlabs.com)' },
     })
-    if (!r.ok) return NextResponse.json({ works: [] })
+    if (!r.ok) return NextResponse.json({ works: [], _dbg: `upstream ${r.status}` })
     const data = await r.json()
     const docs: any[] = data?.docs || []
 
@@ -83,8 +83,8 @@ export async function POST(request: NextRequest) {
         url: `https://openlibrary.org${w.key}`,
       }))
 
-    return NextResponse.json({ works })
-  } catch {
-    return NextResponse.json({ works: [] })
+    return NextResponse.json({ works, _dbg: `docs=${docs.length}` })
+  } catch (e) {
+    return NextResponse.json({ works: [], _dbg: `catch ${e instanceof Error ? e.message : String(e)}` })
   }
 }
