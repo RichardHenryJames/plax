@@ -21,6 +21,7 @@ export const TOPIC_LABELS_HI: Record<string, string> = {
   business: 'व्यापार',
   language: 'भाषा',
   general: 'खोज',
+  news: 'समाचार',
 }
 
 // ─── UI strings (chrome) per language ───

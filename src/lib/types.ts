@@ -134,6 +134,49 @@ export const TOPIC_NEWS_KEYWORD: Record<string, string> = {
   physics: 'physics',
 }
 
+// Topic → curated RSS feeds (key-free, real-time — the Inshorts model). RSS is
+// the fastest, cheapest way to make the feed feel LIVE: reputable publishers
+// expose newest-first feeds we poll each request, then the AI-enhance step turns
+// each headline into a faithful Plax micro-essay. Each entry is [publisher, url].
+export const TOPIC_RSS_FEEDS: Record<string, [string, string][]> = {
+  technology: [
+    ['The Verge', 'https://www.theverge.com/rss/index.xml'],
+    ['Ars Technica', 'http://feeds.arstechnica.com/arstechnica/index'],
+    ['TechCrunch', 'https://techcrunch.com/feed/'],
+  ],
+  programming: [
+    ['TechCrunch', 'https://techcrunch.com/feed/'],
+    ['Ars Technica', 'http://feeds.arstechnica.com/arstechnica/index'],
+  ],
+  science: [
+    ['Science Daily', 'https://www.sciencedaily.com/rss/top/science.xml'],
+    ['Phys.org', 'https://phys.org/rss-feed/'],
+  ],
+  space: [
+    ['NASA', 'https://www.nasa.gov/rss/dyn/breaking_news.rss'],
+    ['Space.com', 'https://www.space.com/feeds/all'],
+  ],
+  physics: [
+    ['Phys.org', 'https://phys.org/rss-feed/'],
+    ['Science Daily', 'https://www.sciencedaily.com/rss/top/science.xml'],
+  ],
+  health: [['Science Daily', 'https://www.sciencedaily.com/rss/top/health.xml']],
+  nature: [['Science Daily', 'https://www.sciencedaily.com/rss/earth_climate.xml']],
+  finance: [['CNBC', 'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664']],
+  business: [
+    ['CNBC', 'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664'],
+    ['TechCrunch', 'https://techcrunch.com/feed/'],
+  ],
+}
+
+// Hindi news RSS feeds (Devanagari) — used ONLY in Hindi mode so the feed carries
+// genuinely current Indian news in Hindi. Verified clean Devanagari extraction.
+export const HINDI_RSS_FEEDS: [string, string][] = [
+  ['BBC हिंदी', 'https://feeds.bbci.co.uk/hindi/rss.xml'],
+  ['दैनिक भास्कर', 'https://www.bhaskar.com/rss-v1--category-1061.xml'],
+]
+
+
 // Topic → Guardian section (open-platform.theguardian.com). The Guardian's
 // editorial sections give high-quality, well-written coverage across nearly every
 // topic — a big quality lift over generic Wikipedia. Only active when
@@ -194,4 +237,5 @@ export const EMOJI_MAP: Record<string, string> = {
   business: '📈',
   language: '🗣️',
   general: '💡',
+  news: '📰',
 }

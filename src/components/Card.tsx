@@ -17,7 +17,7 @@ export function Card({ card, isActive, translating = false }: CardProps) {
   const { t, tp } = useT()
   const topicMeta = TOPICS.find((t) => t.id === card.category)
   const gradientClass = topicMeta?.color || (card.category === 'general' ? 'from-slate-500 to-slate-600' : 'from-gray-500 to-gray-600')
-  const categoryLabel = topicMeta ? tp(card.category, topicMeta.label) : (card.category === 'general' ? tp('general', 'Discover') : card.category)
+  const categoryLabel = topicMeta ? tp(card.category, topicMeta.label) : (card.category === 'general' ? tp('general', 'Discover') : card.category === 'news' ? tp('news', 'News') : card.category)
   // Detect Devanagari so the card renders with a proper Hindi font + line-height,
   // independent of the app's language toggle (robust for mixed/partial states).
   const isHindi = /[\u0900-\u097F]/.test(`${card.title || ''} ${card.content || ''}`)

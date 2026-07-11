@@ -1,4 +1,4 @@
-import { RawContent, CATEGORY_MAP, TOPIC_SUBREDDITS, TOPIC_WIKI_QUERIES, TOPIC_WIKI_QUERIES_HI, TOPIC_NEWS_KEYWORD, TOPIC_GUARDIAN_SECTION } from './types'
+import { RawContent, CATEGORY_MAP, TOPIC_SUBREDDITS, TOPIC_WIKI_QUERIES, TOPIC_WIKI_QUERIES_HI, TOPIC_NEWS_KEYWORD, TOPIC_GUARDIAN_SECTION, TOPIC_RSS_FEEDS, HINDI_RSS_FEEDS } from './types'
 
 // ─── HTML Cleaning (for HN and Reddit raw content) ───
 
@@ -1112,7 +1112,134 @@ export async function fetchNews(categories: string[], perTopic = 3): Promise<Raw
 }
 
 
+// ─── RSS news (key-free, real-time — the Inshorts model) ───
+// The cheapest, fastest way to make the feed feel LIVE: reputable publishers
+// expose newest-first RSS/Atom feeds we poll on each request. We decode entities,
+// strip HTML, and hand the headline + blurb to the AI-enhance step, which frames
+// each into a faithful Plax micro-essay. No API key, works for English topics and
+// (separately) Hindi news.
 
+// Decode common XML/HTML entities and strip tags from an RSS field.
+function decodeRss(s: string): string {
+  return (s || '')
+    .replace(/<!\[CDATA\[|\]\]>/g, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n))
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCharCode(parseInt(n, 16)))
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&[a-z]+;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+// Parse an RSS (<item>) or Atom (<entry>) feed into {title, desc, link} items.
+function parseRss(xml: string, limit = 6): { title: string; desc: string; link: string }[] {
+  const isAtom = /<entry[ >]/.test(xml) && !/<item[ >]/.test(xml)
+  const tag = isAtom ? 'entry' : 'item'
+  const blocks = xml.split(new RegExp(`<${tag}[ >]`)).slice(1)
+  return blocks.slice(0, limit).map((b) => {
+    const grab = (re: RegExp) => {
+      const m = b.match(re)
+      return m ? decodeRss(m[1]) : ''
+    }
+    const title = grab(/<title[^>]*>([\s\S]*?)<\/title>/)
+    const desc = isAtom
+      ? grab(/<summary[^>]*>([\s\S]*?)<\/summary>/) || grab(/<content[^>]*>([\s\S]*?)<\/content>/)
+      : grab(/<description[^>]*>([\s\S]*?)<\/description>/) ||
+        grab(/<content:encoded[^>]*>([\s\S]*?)<\/content:encoded>/)
+    // Atom links are attributes; RSS links are element text.
+    let link = ''
+    if (isAtom) {
+      const lm = b.match(/<link[^>]*href="([^"]+)"/)
+      link = lm ? lm[1] : ''
+    } else {
+      const lm = b.match(/<link[^>]*>([\s\S]*?)<\/link>/)
+      link = lm ? decodeRss(lm[1]) : ''
+    }
+    return { title, desc, link }
+  })
+}
+
+// Fetch + parse one feed, error-safe, with a timeout so a slow feed can't stall
+// the whole request.
+async function fetchOneFeed(
+  name: string,
+  url: string,
+  category: string,
+  perFeed: number
+): Promise<RawContent[]> {
+  try {
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), 7000)
+    const r = await fetch(url, {
+      cache: 'no-store',
+      signal: ctrl.signal,
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; PlaxReader/1.0; +plaxlabs.com)', Accept: 'application/rss+xml, application/xml, text/xml, */*' },
+    })
+    clearTimeout(timer)
+    if (!r.ok) return []
+    const xml = await r.text()
+    const items = parseRss(xml, perFeed)
+    return items
+      .map((it) => {
+        const title = it.title.trim()
+        const desc = it.desc.trim()
+        // Need a real headline + some blurb for the AI to expand faithfully.
+        if (!title || title.length < 12 || desc.length < 40) return null
+        return {
+          title,
+          content: desc.length > 900 ? desc.slice(0, 900) + '…' : desc,
+          url: it.link || undefined,
+          source: name,
+          category,
+        } as RawContent
+      })
+      .filter(Boolean) as RawContent[]
+  } catch {
+    return []
+  }
+}
+
+// English topic news via RSS. For each selected topic with feeds, pull the newest
+// items across its publishers (parallel), so the feed carries genuinely current
+// coverage — tech, science, space, finance, business, health, etc.
+export async function fetchRssNews(categories: string[], perFeed = 3): Promise<RawContent[]> {
+  const topics = [...new Set(categories)].filter((c) => TOPIC_RSS_FEEDS[c])
+  if (topics.length === 0) return []
+  // Cap total feeds fetched to stay fast (≤ ~6 feeds/request).
+  const jobs: Promise<RawContent[]>[] = []
+  let budget = 6
+  for (const topic of topics) {
+    for (const [name, url] of TOPIC_RSS_FEEDS[topic]) {
+      if (budget-- <= 0) break
+      jobs.push(fetchOneFeed(name, url, topic, perFeed))
+    }
+    if (budget <= 0) break
+  }
+  const results = await Promise.allSettled(jobs)
+  const out: RawContent[] = []
+  results.forEach((res) => {
+    if (res.status === 'fulfilled') out.push(...res.value)
+  })
+  return out
+}
+
+// Hindi news via RSS (Devanagari) — used only in Hindi mode so the feed carries
+// current Indian news natively in Hindi.
+export async function fetchHindiNews(perFeed = 4): Promise<RawContent[]> {
+  const jobs = HINDI_RSS_FEEDS.map(([name, url]) => fetchOneFeed(name, url, 'news', perFeed))
+  const results = await Promise.allSettled(jobs)
+  const out: RawContent[] = []
+  results.forEach((res) => {
+    if (res.status === 'fulfilled') out.push(...res.value)
+  })
+  return out
+}
 
 
 export async function fetchReddit(
@@ -1189,6 +1316,7 @@ export async function fetchAllContent(categories: string[] = [], lang: string = 
       fetchWikipediaByTopics(topicsForSearch, 6, 'hi'),
       fetchWikipediaContent(18, 'hi'),
       includeBooks ? fetchIndianAuthorBooks(6) : Promise.resolve([]),
+      fetchHindiNews(4), // current Indian news in Hindi (RSS, key-free, real-time)
     ])
     const all: RawContent[] = []
     results.forEach((r) => {
@@ -1245,6 +1373,15 @@ export async function fetchAllContent(categories: string[] = [], lang: string = 
   const guardianTopics = categories.filter((c) => TOPIC_GUARDIAN_SECTION[c])
   const includeGuardian = guardianTopics.length > 0
 
+  // RSS news (key-free, real-time) — makes the feed feel LIVE for fast-moving
+  // topics (tech, science, space, finance, business, health…). Gate to topics
+  // that have curated feeds; for the no-topic feed, seed a few default topics so
+  // first impressions still carry fresh headlines.
+  const rssTopics = (categories.length ? categories : ['technology', 'science', 'space']).filter(
+    (c) => TOPIC_RSS_FEEDS[c]
+  )
+  const includeRss = rssTopics.length > 0
+
   // Use Promise.allSettled so one failing source doesn't kill the rest.
   // NOTE: Reddit is intentionally dropped from the active set — it is 403-blocked
   // from datacenter IPs (Vercel) and returned 0 items in every prod log, so it was
@@ -1262,10 +1399,11 @@ export async function fetchAllContent(categories: string[] = [], lang: string = 
     includeNasa ? fetchNasaApod(3) : Promise.resolve([]),
     includePoetry ? fetchPoetry(2) : Promise.resolve([]),
     includeGuardian ? fetchGuardian(guardianTopics, 4) : Promise.resolve([]),
+    includeRss ? fetchRssNews(rssTopics, 3) : Promise.resolve([]),
   ])
 
   const all: RawContent[] = []
-  const sourceNames = ['Wikipedia', 'HackerNews', 'Quotes', 'WikipediaTopics', 'arXiv', 'Gutenberg', 'News', 'OpenLibrary', 'MetArt', 'NASA', 'Poetry', 'Guardian']
+  const sourceNames = ['Wikipedia', 'HackerNews', 'Quotes', 'WikipediaTopics', 'arXiv', 'Gutenberg', 'News', 'OpenLibrary', 'MetArt', 'NASA', 'Poetry', 'Guardian', 'RSS']
 
   results.forEach((result, i) => {
     if (result.status === 'fulfilled') {
