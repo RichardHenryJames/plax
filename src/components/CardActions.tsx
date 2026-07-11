@@ -67,8 +67,18 @@ export function CardActions({ card }: { card: CardData | null }) {
               </svg>
             }
             onClick={() => {
-              const text = `${card.title || card.content.slice(0, 80)}… — via Plax`
-              navigator.clipboard.writeText(text).then(() => flashToast(t('copy'))).catch(() => {})
+              // Copy a shareable, attributed snippet (title + a clean excerpt +
+              // source link) rather than just a truncated title — more useful to
+              // paste and better for word-of-mouth sharing.
+              const excerpt = card.content.replace(/\s+/g, ' ').trim().slice(0, 200).trim()
+              const link = card.sourceUrl || 'https://plaxlabs.com'
+              const text = [
+                card.title ? `“${card.title}”` : '',
+                `${excerpt}${excerpt.length >= 200 ? '…' : ''}`,
+                `${card.source ? `Source: ${card.source} · ` : ''}${link}`,
+                `via Plax — plaxlabs.com`,
+              ].filter(Boolean).join('\n\n')
+              navigator.clipboard.writeText(text).then(() => flashToast(t('copied'))).catch(() => {})
             }}
           />
           <ActionButton
