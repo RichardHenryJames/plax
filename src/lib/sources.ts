@@ -1150,7 +1150,7 @@ export async function fetchAllContent(categories: string[] = [], lang: string = 
     includeMet ? fetchMetArt(3) : Promise.resolve([]),
     includeNasa ? fetchNasaApod(3) : Promise.resolve([]),
     includePoetry ? fetchPoetry(2) : Promise.resolve([]),
-    includeGuardian ? fetchGuardian(guardianTopics, 2) : Promise.resolve([]),
+    includeGuardian ? fetchGuardian(guardianTopics, 4) : Promise.resolve([]),
   ])
 
   const all: RawContent[] = []
