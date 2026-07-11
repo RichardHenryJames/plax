@@ -16,6 +16,8 @@ export interface CardData {
   originalTitle?: string
   // Which language the current title/content was AI-enhanced into ('en' | 'hi').
   enhancedLang?: string
+  // Original publish time (epoch ms) for news cards — powers a relative "2h ago".
+  publishedAt?: number
 }
 
 // No hardcoded cards — all content comes from live API sources

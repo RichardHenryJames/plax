@@ -1,4 +1,4 @@
-import { RawContent, CATEGORY_MAP, TOPIC_SUBREDDITS, TOPIC_WIKI_QUERIES, TOPIC_WIKI_QUERIES_HI, TOPIC_NEWS_KEYWORD, TOPIC_GUARDIAN_SECTION, TOPIC_RSS_FEEDS, HINDI_RSS_FEEDS } from './types'
+import { RawContent, CATEGORY_MAP, TOPIC_SUBREDDITS, TOPIC_WIKI_QUERIES, TOPIC_WIKI_QUERIES_HI, TOPIC_NEWS_KEYWORD, TOPIC_GUARDIAN_SECTION, TOPIC_RSS_FEEDS, HINDI_RSS_FEEDS, GENERAL_NEWS_FEEDS } from './types'
 
 // ─── HTML Cleaning (for HN and Reddit raw content) ───
 
@@ -1137,8 +1137,8 @@ function decodeRss(s: string): string {
     .trim()
 }
 
-// Parse an RSS (<item>) or Atom (<entry>) feed into {title, desc, link} items.
-function parseRss(xml: string, limit = 6): { title: string; desc: string; link: string }[] {
+// Parse an RSS (<item>) or Atom (<entry>) feed into {title, desc, link, published} items.
+function parseRss(xml: string, limit = 6): { title: string; desc: string; link: string; published?: number }[] {
   const isAtom = /<entry[ >]/.test(xml) && !/<item[ >]/.test(xml)
   const tag = isAtom ? 'entry' : 'item'
   const blocks = xml.split(new RegExp(`<${tag}[ >]`)).slice(1)
@@ -1161,7 +1161,15 @@ function parseRss(xml: string, limit = 6): { title: string; desc: string; link: 
       const lm = b.match(/<link[^>]*>([\s\S]*?)<\/link>/)
       link = lm ? decodeRss(lm[1]) : ''
     }
-    return { title, desc, link }
+    // Publish time — RSS <pubDate>/<dc:date>, Atom <published>/<updated>.
+    const dateStr =
+      grab(/<pubDate[^>]*>([\s\S]*?)<\/pubDate>/) ||
+      grab(/<dc:date[^>]*>([\s\S]*?)<\/dc:date>/) ||
+      grab(/<published[^>]*>([\s\S]*?)<\/published>/) ||
+      grab(/<updated[^>]*>([\s\S]*?)<\/updated>/)
+    const parsed = dateStr ? Date.parse(dateStr) : NaN
+    const published = Number.isNaN(parsed) ? undefined : parsed
+    return { title, desc, link, published }
   })
 }
 
@@ -1197,6 +1205,7 @@ async function fetchOneFeed(
           url: it.link || undefined,
           source: name,
           category,
+          publishedAt: it.published,
         } as RawContent
       })
       .filter(Boolean) as RawContent[]
@@ -1235,6 +1244,19 @@ export async function fetchRssNews(categories: string[], perFeed = 3, tagAs?: st
 // current Indian news natively in Hindi.
 export async function fetchHindiNews(perFeed = 4): Promise<RawContent[]> {
   const jobs = HINDI_RSS_FEEDS.map(([name, url]) => fetchOneFeed(name, url, 'news', perFeed))
+  const results = await Promise.allSettled(jobs)
+  const out: RawContent[] = []
+  results.forEach((res) => {
+    if (res.status === 'fulfilled') out.push(...res.value)
+  })
+  return out
+}
+
+// Dedicated "News" topic — a broad latest-headlines stream from reputable
+// India-first + global publishers, all filed under category 'news'. This powers
+// the standalone News feed (the Inshorts experience).
+export async function fetchGeneralNews(perFeed = 3): Promise<RawContent[]> {
+  const jobs = GENERAL_NEWS_FEEDS.map(([name, url]) => fetchOneFeed(name, url, 'news', perFeed))
   const results = await Promise.allSettled(jobs)
   const out: RawContent[] = []
   results.forEach((res) => {
@@ -1384,10 +1406,9 @@ export async function fetchAllContent(categories: string[] = [], lang: string = 
   )
   const includeRss = rssTopics.length > 0
 
-  // Dedicated "News" topic → a broad, cross-domain latest-headlines pull, all
-  // filed under category 'news' so it reads as one distinct news stream.
+  // Dedicated "News" topic → a broad, cross-domain latest-headlines pull from
+  // reputable India-first + global publishers, all filed under category 'news'.
   const wantsNews = categories.includes('news')
-  const NEWS_TOPIC_MIX = ['technology', 'science', 'space', 'business', 'finance', 'health']
 
   // Use Promise.allSettled so one failing source doesn't kill the rest.
   // NOTE: Reddit is intentionally dropped from the active set — it is 403-blocked
@@ -1407,7 +1428,7 @@ export async function fetchAllContent(categories: string[] = [], lang: string = 
     includePoetry ? fetchPoetry(2) : Promise.resolve([]),
     includeGuardian ? fetchGuardian(guardianTopics, 4) : Promise.resolve([]),
     includeRss ? fetchRssNews(rssTopics, 3) : Promise.resolve([]),
-    wantsNews ? fetchRssNews(NEWS_TOPIC_MIX, 2, 'news') : Promise.resolve([]),
+    wantsNews ? fetchGeneralNews(3) : Promise.resolve([]),
   ])
 
   const all: RawContent[] = []

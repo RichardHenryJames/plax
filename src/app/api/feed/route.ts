@@ -84,6 +84,7 @@ export async function GET(request: NextRequest) {
         readTime: estimateReadTime(raw.content),
         emoji: EMOJI_MAP[raw.category] || '📖',
         fetchedAt: Date.now(),
+        publishedAt: raw.publishedAt,
       }
     })
 
@@ -163,6 +164,15 @@ function filterAndLimit(
   categories: string[],
   limit: number
 ): ProcessedCard[] {
+  // Dedicated News feed → sort strictly newest-first so it reads as LATEST news
+  // (recency beats source-variety here). Cards without a publish time sink last.
+  if (categories.length === 1 && categories[0] === 'news') {
+    return [...cards]
+      .filter((c) => c.category === 'news')
+      .sort((a, b) => (b.publishedAt ?? 0) - (a.publishedAt ?? 0))
+      .slice(0, limit)
+  }
+
   if (categories.length === 0) {
     return shuffle(cards).slice(0, limit)
   }

@@ -13,6 +13,21 @@ interface CardProps {
   translating?: boolean
 }
 
+// Compact relative time ("just now", "2h ago", "3d ago") for news cards. Returns
+// '' when there's no publish time or it's older than a week (not worth showing).
+function relativeTimeLabel(publishedAt: number | undefined, hindi: boolean): string {
+  if (!publishedAt) return ''
+  const diff = Date.now() - publishedAt
+  if (diff < 0 || diff > 7 * 24 * 3600 * 1000) return ''
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return hindi ? 'अभी' : 'just now'
+  if (mins < 60) return hindi ? `${mins} मिनट पहले` : `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return hindi ? `${hrs} घंटे पहले` : `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  return hindi ? `${days} दिन पहले` : `${days}d ago`
+}
+
 export function Card({ card, isActive, translating = false }: CardProps) {
   const { t, tp } = useT()
   const topicMeta = TOPICS.find((t) => t.id === card.category)
@@ -24,6 +39,9 @@ export function Card({ card, isActive, translating = false }: CardProps) {
   // Long articles get top-aligned on desktop (avoid a big centered gap on the tall
   // desktop viewport); short cards/quotes stay vertically centered.
   const isLong = (card.content?.length ?? 0) > 360
+  // Relative "2h ago" for time-sensitive news cards (only when a publish time is
+  // known and reasonably recent — stale timestamps aren't worth showing).
+  const relativeTime = relativeTimeLabel(card.publishedAt, isHindi)
 
   return (
     <div className={`relative flex flex-col overflow-hidden select-none h-full w-full lg:h-[90vh] lg:max-h-[920px] lg:max-w-3xl lg:mx-auto ${isHindi ? 'lang-hi' : ''}`}>
@@ -53,6 +71,12 @@ export function Card({ card, isActive, translating = false }: CardProps) {
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               {card.readTime}
             </span>
+            {relativeTime && (
+              <span className="inline-flex items-center gap-1 text-[color:var(--signal)] text-xs font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--signal)] animate-pulse" />
+                {relativeTime}
+              </span>
+            )}
           </motion.div>
 
           {/* Title */}
