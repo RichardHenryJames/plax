@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { fetchAllContent } from '@/lib/sources'
 import { getCached, setCache } from '@/lib/cache'
-import { ProcessedCard, EMOJI_MAP } from '@/lib/types'
+import { ProcessedCard, EMOJI_MAP, RawContent } from '@/lib/types'
 
 // Use Node.js runtime for reliable external API fetches
 export const runtime = 'nodejs'
@@ -60,12 +60,18 @@ export async function GET(request: NextRequest) {
 
     // Deduplicate raw content by title (same HN story, same Wikipedia event, etc.)
     const seenTitles = new Set<string>()
-    const uniqueRaw = rawContents.filter((raw) => {
+    const exactUnique = rawContents.filter((raw) => {
       const key = (raw.title || raw.content.slice(0, 80)).toLowerCase().trim()
       if (seenTitles.has(key)) return false
       seenTitles.add(key)
       return true
     })
+
+    // Story clustering (the Inshorts model) — the SAME breaking story appears on
+    // many outlets (BBC + NDTV + The Hindu). Collapse near-duplicate headlines into
+    // one card by fingerprinting their significant title words, so the news feed
+    // shows one card per event, not five. Only applies to time-sensitive news.
+    const uniqueRaw = dedupeStories(exactUnique)
     console.log(`[Plax API] After dedup: ${uniqueRaw.length} unique items (removed ${rawContents.length - uniqueRaw.length} duplicates)`)
 
     // Quick processing — stable IDs based on content so same article always = same ID
@@ -114,6 +120,66 @@ export async function GET(request: NextRequest) {
       error: error instanceof Error ? error.message : 'Failed to fetch live content',
     }, { status: 503 })
   }
+}
+
+// Common stop-words to ignore when fingerprinting a headline for clustering.
+const STOP_WORDS = new Set([
+  'the', 'a', 'an', 'and', 'or', 'but', 'of', 'to', 'in', 'on', 'at', 'for', 'with', 'by', 'from',
+  'as', 'is', 'are', 'was', 'were', 'be', 'been', 'this', 'that', 'these', 'those', 'it', 'its',
+  'his', 'her', 'their', 'our', 'your', 'has', 'have', 'had', 'will', 'would', 'can', 'could',
+  'about', 'after', 'over', 'into', 'new', 'says', 'say', 'said', 'not', 'how',
+  'why', 'what', 'who', 'when', 'where', 'amid', 'more', 'than', 'other', 'you', 'may', 'gets', 'get',
+])
+
+// Extract the significant, lowercased word set from a headline (drops stop-words,
+// short tokens, punctuation) — used as a fuzzy fingerprint for story clustering.
+function titleTokens(title: string): Set<string> {
+  return new Set(
+    (title || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9\u0900-\u097F\s]/g, ' ')
+      .split(/\s+/)
+      .filter((w) => w.length >= 4 && !STOP_WORDS.has(w))
+  )
+}
+
+// Jaccard overlap of two token sets (|A∩B| / |A∪B|).
+function tokenOverlap(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 || b.size === 0) return 0
+  let inter = 0
+  for (const w of a) if (b.has(w)) inter++
+  return inter / (a.size + b.size - inter)
+}
+
+// Cluster near-duplicate stories: if a later item's title shares enough
+// significant words with an already-kept item, treat it as the same story and
+// drop it. Applies only to time-sensitive news; evergreen sources (Wikipedia,
+// books…) pass through untouched so we never over-collapse educational cards.
+function dedupeStories(items: RawContent[]): RawContent[] {
+  const kept: RawContent[] = []
+  const keptTokens: Set<string>[] = []
+  for (const item of items) {
+    const isNewsy = !!item.publishedAt || item.category === 'news'
+    if (!isNewsy) {
+      kept.push(item)
+      keptTokens.push(new Set())
+      continue
+    }
+    const tokens = titleTokens(item.title)
+    let dupe = false
+    for (let i = 0; i < kept.length; i++) {
+      if (!kept[i].publishedAt && kept[i].category !== 'news') continue
+      if (tokenOverlap(tokens, keptTokens[i]) >= 0.5) {
+        dupe = true
+        break
+      }
+    }
+    if (!dupe) {
+      kept.push(item)
+      keptTokens.push(tokens)
+    }
+  }
+  return kept
 }
 
 function determineType(content: string, source: string): ProcessedCard['type'] {
@@ -166,11 +232,12 @@ function filterAndLimit(
 ): ProcessedCard[] {
   // Dedicated News feed → sort strictly newest-first so it reads as LATEST news
   // (recency beats source-variety here). Cards without a publish time sink last.
+  // A per-source cap keeps one outlet from dominating the stream.
   if (categories.length === 1 && categories[0] === 'news') {
-    return [...cards]
+    const sorted = [...cards]
       .filter((c) => c.category === 'news')
       .sort((a, b) => (b.publishedAt ?? 0) - (a.publishedAt ?? 0))
-      .slice(0, limit)
+    return capPerSource(sorted, 3).slice(0, limit)
   }
 
   if (categories.length === 0) {
@@ -206,6 +273,21 @@ function filterAndLimit(
       : shuffle(cards) // nothing relevant in this batch → don't return an empty feed
 
   return interleaveBySource(ordered).slice(0, limit)
+}
+
+// Cap how many cards any single source contributes (preserving the incoming
+// order among the kept ones) so no one publisher dominates the News stream.
+function capPerSource(cards: ProcessedCard[], maxPerSource: number): ProcessedCard[] {
+  const counts = new Map<string, number>()
+  const out: ProcessedCard[] = []
+  for (const c of cards) {
+    const key = c.source || 'other'
+    const n = counts.get(key) || 0
+    if (n >= maxPerSource) continue
+    counts.set(key, n + 1)
+    out.push(c)
+  }
+  return out
 }
 
 // Round-robin the cards by source so the feed doesn't show long runs of the same
