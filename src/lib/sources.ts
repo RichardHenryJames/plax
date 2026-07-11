@@ -1075,9 +1075,16 @@ export async function fetchAllContent(categories: string[] = [], lang: string = 
   if (lang === 'hi') {
     const DEFAULT_TOPICS = ['science', 'history', 'space', 'health', 'nature', 'philosophy']
     const topicsForSearch = categories.length ? categories : DEFAULT_TOPICS
+    // Book sources (Open Library, Gutenberg) carry an `author`, which powers the
+    // "More by this author" hook. Include them for Hindi too — the source titles
+    // are English but the client-side AI rewrites each card into a Hindi micro-
+    // essay, and the author lookup (Open Library) works regardless of feed lang.
+    const includeBooks = categories.length === 0 || categories.includes('books')
     const results = await Promise.allSettled([
       fetchWikipediaByTopics(topicsForSearch, 6, 'hi'),
       fetchWikipediaContent(18, 'hi'),
+      includeBooks ? fetchOpenLibraryBooks(6) : Promise.resolve([]),
+      includeBooks ? fetchGutenberg(3) : Promise.resolve([]),
     ])
     const all: RawContent[] = []
     results.forEach((r) => {

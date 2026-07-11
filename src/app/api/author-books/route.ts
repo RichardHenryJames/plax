@@ -64,9 +64,13 @@ export async function POST(request: NextRequest) {
           return false
         // English-alphabet titles only (drops foreign-language editions).
         if (!/^[\x20-\x7E]+$/.test(w.title)) return false
+        // Drop foreign-language editions that slip past the ASCII test by
+        // containing tell-tale non-English function words (German/French/Spanish/
+        // Italian editions of the same book leak into the popularity ranking).
+        if (/\b(und|der|die|das|den|dem|ein|eine|brief|briefe|vater|le|la|les|des|du|un|une|el|los|las|y|il|di|della|dello)\b/i.test(w.title)) return false
         // Skip collections / letters / adaptations noise, plus omnibus volumes
         // that just bundle already-listed works (e.g. "Novels (A / B)").
-        if (/\b(letters?|collected|complete works|selected|anthology|zombies|companion|guide|novels|works|omnibus|reader)\b/i.test(w.title)) return false
+        if (/\b(letters?|collected|complete works|selected|anthology|zombies|companion|guide|novels|works|omnibus|reader|short stories|stories|poems|essays)\b/i.test(w.title)) return false
         if (w.title.includes('/')) return false
         // Require some real edition presence so obscure entries don't surface
         // (skipped when editions are unknown — the authorKey path has none).
