@@ -220,8 +220,9 @@ export function Card({ card, isActive, translating = false }: CardProps) {
               <DeeperSection card={card} isHindi={isHindi} />
             )}
 
-            {/* Test yourself — AI-generated one-question quiz for active recall */}
-            {card.type !== 'quote' && (card.content?.length ?? 0) > 160 && (
+            {/* Test yourself — AI-generated one-question quiz for active recall.
+                Skipped for news (a quiz on a breaking headline adds no value). */}
+            {card.type !== 'quote' && card.category !== 'news' && (card.content?.length ?? 0) > 160 && (
               <QuizSection card={card} isHindi={isHindi} />
             )}
 
