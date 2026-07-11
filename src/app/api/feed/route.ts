@@ -195,5 +195,33 @@ function filterAndLimit(
       ? primary
       : shuffle(cards) // nothing relevant in this batch → don't return an empty feed
 
-  return ordered.slice(0, limit)
+  return interleaveBySource(ordered).slice(0, limit)
+}
+
+// Round-robin the cards by source so the feed doesn't show long runs of the same
+// source (e.g. 16 Wikipedia in a row). Preserves the tiered ordering within each
+// source bucket while spreading sources across the sequence — the feed feels far
+// more varied and premium. Buckets are consumed in descending size order so the
+// dominant source is spaced out rather than clumped.
+function interleaveBySource(cards: ProcessedCard[]): ProcessedCard[] {
+  if (cards.length < 3) return cards
+  const buckets = new Map<string, ProcessedCard[]>()
+  for (const c of cards) {
+    const key = c.source || 'other'
+    if (!buckets.has(key)) buckets.set(key, [])
+    buckets.get(key)!.push(c)
+  }
+  if (buckets.size < 2) return cards
+  // Order buckets by size (largest first) so the round-robin spaces the dominant
+  // source evenly instead of leaving a tail of it at the end.
+  const queues = [...buckets.values()].sort((a, b) => b.length - a.length)
+  const out: ProcessedCard[] = []
+  let remaining = cards.length
+  while (remaining > 0) {
+    for (const q of queues) {
+      const next = q.shift()
+      if (next) { out.push(next); remaining-- }
+    }
+  }
+  return out
 }
