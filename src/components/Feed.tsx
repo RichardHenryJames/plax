@@ -9,6 +9,7 @@ import { CardData } from '@/lib/sample-data'
 import { usePlaxStore } from '@/lib/store'
 import { useUIStore } from '@/lib/ui-store'
 import { translate } from '@/lib/i18n'
+import { NEWS_SECTIONS } from '@/lib/types'
 
 const LOAD_MORE_THRESHOLD = 10 // fetch more when 10 cards from end
 const CARD_CACHE_KEY = 'plax-card-cache'
@@ -76,6 +77,8 @@ export function Feed() {
   const { selectedTopics, bookmarkedIds, engagements, addEngagement, incrementCardsRead, readCardIds, markCardRead } = usePlaxStore()
   const language = usePlaxStore((s) => s.language)
   const feedFilter = useUIStore((s) => s.feedFilter)
+  const newsSection = useUIStore((s) => s.newsSection)
+  const setNewsSection = useUIStore((s) => s.setNewsSection)
   const setCurrentCard = useUIStore((s) => s.setCurrentCard)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [direction, setDirection] = useState(0)
@@ -106,6 +109,7 @@ export function Feed() {
         emoji: c.emoji,
         publishedAt: c.publishedAt ? Number(c.publishedAt) : undefined,
         image: c.image || undefined,
+        section: c.section || undefined,
       }))
       .filter((c) => !seenIdsRef.current.has(c.id)) // deduplicate by ID within session
       .filter((c) => { // deduplicate by title within session
@@ -243,13 +247,17 @@ export function Feed() {
   // ── Filter loaded cards by the active desktop topic filter ──
   const visibleCards = useMemo(
     () => {
-      const base = feedFilter ? cards.filter((c) => c.category === feedFilter) : cards
+      let base = feedFilter ? cards.filter((c) => c.category === feedFilter) : cards
+      // News sub-section filter (India / World / Tech / …) — only when the News
+      // feed is active and a section is chosen.
+      const isNewsFeed = selectedTopics.length === 1 && selectedTopics[0] === 'news'
+      if (isNewsFeed && newsSection) base = base.filter((c) => c.section === newsSection)
       // A saved card opened via /?card= is pinned to the FRONT (deduped) so the
       // reader lands on it regardless of when the live feed finishes loading.
       if (focusCard && !base.some((c) => c.id === focusCard.id)) return [focusCard, ...base]
       return base
     },
-    [cards, feedFilter, focusCard]
+    [cards, feedFilter, focusCard, selectedTopics, newsSection]
   )
 
   // ── Auto-refresh freshness for the News feed ──────────────────────────────
@@ -299,7 +307,7 @@ export function Feed() {
   useEffect(() => {
     setCurrentIndex(0)
     cardEntryTime.current = Date.now()
-  }, [feedFilter])
+  }, [feedFilter, newsSection])
 
   // ── Open a specific saved article: /?card=<id> (from the Bookmarks list). We
   //    inject the saved card (persisted in the store) at the FRONT of the feed and
@@ -813,6 +821,38 @@ export function Feed() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* News sub-section filter bar (India / World / Tech / …) — only on the
+          dedicated News feed. Filters the loaded cards client-side by section. */}
+      {selectedTopics.length === 1 && selectedTopics[0] === 'news' && (
+        <div className="absolute top-[calc(4.5rem+env(safe-area-inset-top))] left-0 right-0 z-30 lg:top-2 pointer-events-none">
+          <div className="flex gap-2 overflow-x-auto hide-scrollbar px-4 justify-start lg:justify-center pointer-events-auto">
+            <button
+              onClick={() => setNewsSection(null)}
+              className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition ${
+                newsSection === null
+                  ? 'bg-[color:var(--signal)] text-black'
+                  : 'glass text-dark-text hover:text-white'
+              }`}
+            >
+              {language === 'hi' ? 'सभी' : 'All'}
+            </button>
+            {NEWS_SECTIONS.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => setNewsSection(s.id)}
+                className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition ${
+                  newsSection === s.id
+                    ? 'bg-[color:var(--signal)] text-black'
+                    : 'glass text-dark-text hover:text-white'
+                }`}
+              >
+                {language === 'hi' ? s.labelHi : s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Main swipe area */}
       <AnimatePresence initial={false} custom={direction} mode="popLayout">

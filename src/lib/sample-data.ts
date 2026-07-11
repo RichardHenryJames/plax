@@ -20,6 +20,8 @@ export interface CardData {
   publishedAt?: number
   // Hero image URL for news cards (RSS thumbnails).
   image?: string
+  // News sub-section (india/world/tech/business/science) — powers the filter bar.
+  section?: string
 }
 
 // No hardcoded cards — all content comes from live API sources

@@ -1189,7 +1189,8 @@ async function fetchOneFeed(
   name: string,
   url: string,
   category: string,
-  perFeed: number
+  perFeed: number,
+  section?: string
 ): Promise<RawContent[]> {
   try {
     const ctrl = new AbortController()
@@ -1217,6 +1218,7 @@ async function fetchOneFeed(
           category,
           publishedAt: it.published,
           image: it.image || undefined,
+          section,
         } as RawContent
       })
       .filter(Boolean) as RawContent[]
@@ -1267,7 +1269,7 @@ export async function fetchHindiNews(perFeed = 4): Promise<RawContent[]> {
 // India-first + global publishers, all filed under category 'news'. This powers
 // the standalone News feed (the Inshorts experience).
 export async function fetchGeneralNews(perFeed = 3): Promise<RawContent[]> {
-  const jobs = GENERAL_NEWS_FEEDS.map(([name, url]) => fetchOneFeed(name, url, 'news', perFeed))
+  const jobs = GENERAL_NEWS_FEEDS.map(([name, url, section]) => fetchOneFeed(name, url, 'news', perFeed, section))
   const results = await Promise.allSettled(jobs)
   const out: RawContent[] = []
   results.forEach((res) => {
