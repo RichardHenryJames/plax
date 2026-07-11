@@ -201,12 +201,11 @@ export default function ProfilePage() {
                   .sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0))
                   .map((bm) => {
                     const isHi = /[\u0900-\u097F]/.test(`${bm.title || ''} ${bm.content}`)
-                    const Wrapper: React.ElementType = bm.sourceUrl ? 'a' : 'div'
                     return (
-                      <Wrapper
+                      <a
                         key={bm.id}
-                        {...(bm.sourceUrl ? { href: bm.sourceUrl, target: '_blank', rel: 'noopener noreferrer' } : {})}
-                        className={`block p-4 card-elevated ${bm.sourceUrl ? 'hover:border-[color:var(--signal)]/50 transition-colors' : ''} ${isHi ? 'lang-hi' : ''}`}
+                        href={`/?card=${encodeURIComponent(bm.id)}`}
+                        className={`block p-4 card-elevated hover:border-[color:var(--signal)]/50 transition-colors ${isHi ? 'lang-hi' : ''}`}
                       >
                         <div className="flex items-start gap-2.5 mb-1.5">
                           <span className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-base shrink-0">
@@ -225,7 +224,7 @@ export default function ProfilePage() {
                           </button>
                         </div>
                         <p className="text-xs text-dark-muted line-clamp-2 leading-relaxed pl-[42px]">{bm.content}</p>
-                      </Wrapper>
+                      </a>
                     )
                   })}
               </div>
@@ -392,7 +391,7 @@ export default function ProfilePage() {
                   bm.card_content ? (
                     <a
                       key={bm.id}
-                      href={`#${bm.card_id}`}
+                      href={`/?card=${encodeURIComponent(bm.card_id)}`}
                       className="block p-4 card-elevated"
                     >
                       <div className="flex items-start gap-2.5 mb-2">
