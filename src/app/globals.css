@@ -499,6 +499,8 @@ html.light [class~="bg-red-500/15"] { background-color: rgba(239,68,68,0.18); }
 html.light [class~="border-green-500/50"] { border-color: rgba(22,163,74,0.55); }
 html.light [class~="border-red-500/50"] { border-color: rgba(220,38,38,0.50); }
 html.light [class~="text-green-400"] { color: #15803d; }
+html.light [class~="text-green-300"] { color: #15803d; }
+html.light [class~="text-red-300"] { color: #b91c1c; }
 
 /* Brand logo badge — the white/transparent logo mark sits on a marigold tile so
    it reads clearly in BOTH themes (it would vanish on the light paper bg without
