@@ -555,13 +555,13 @@ export function Feed() {
   const prevCard = currentIndex > 0 ? visibleCards[currentIndex - 1] : null
   const nextCard = currentIndex < visibleCards.length - 1 ? visibleCards[currentIndex + 1] : null
 
-  // The current card is "translating" when we're in Hindi mode and the card isn't
-  // yet rendered in Hindi (its raw text is English = the WRONG language), and we
-  // haven't given up. The Card shows a clean shimmer for this — so toggling to
-  // Hindi feels instant + professional rather than "still English". In English
-  // mode the raw extract is already correct-language, so no shimmer is needed.
+  // The current card is "processing" when it's eligible for AI enhancement but not
+  // yet rendered for the active language, and we haven't given up. The Card shows a
+  // clean shimmer for this instead of showing the raw extract and then FLICKERING to
+  // the AI summary in place. Applies to BOTH: English (long raw extract → AI summary)
+  // and Hindi (English raw → Hindi translation) — either way the reader only ever
+  // sees skeleton → final text, never a jarring content swap.
   const currentTranslating = !!currentCard
-    && language === 'hi'
     && needsEnhance(currentCard, language)
     && !(currentCard.aiEnhanced && currentCard.enhancedLang === language)
     && !enhanceFailed.has(`${currentCard.id}:${language}`)
