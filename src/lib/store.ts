@@ -58,6 +58,11 @@ interface PlaxState {
   language: string
   setLanguage: (lang: string) => void
 
+  // UI theme. 'dark' (default) | 'light'
+  theme: string
+  setTheme: (theme: string) => void
+  toggleTheme: () => void
+
   // Bookmarks
   bookmarkedIds: string[]
   // Full card data for bookmarks, stored locally so signed-out users can revisit
@@ -126,6 +131,10 @@ export const usePlaxStore = create<PlaxState>()(
       // Content language
       language: 'en',
       setLanguage: (lang) => set({ language: lang }),
+
+      theme: 'dark',
+      setTheme: (theme) => set({ theme }),
+      toggleTheme: () => set({ theme: get().theme === 'light' ? 'dark' : 'light' }),
 
       // Bookmarks
       bookmarkedIds: [],
