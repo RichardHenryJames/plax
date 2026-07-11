@@ -499,7 +499,6 @@ html.light [class~="bg-black/40"] { background-color: rgba(32,27,20,0.05); }
   justify-content: center;
   background: var(--signal);
   padding: 3px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.18);
 }
 .brand-badge > img {
   filter: brightness(0);
