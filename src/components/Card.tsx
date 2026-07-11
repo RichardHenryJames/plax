@@ -786,6 +786,17 @@ function QuizSection({ card, isHindi }: { card: CardData; isHindi: boolean }) {
 }
 
 function formatText(text: string): React.ReactNode[] {
+  // Defensive HTML cleanup — some cached AI outputs / source extracts contain HTML
+  // (<p>, <strong>, <em>). Convert emphasis to markdown and strip other tags so a
+  // reader never sees literal tags in the body.
+  text = text
+    .replace(/<\s*(strong|b)\s*>([\s\S]*?)<\s*\/\s*\1\s*>/gi, '**$2**')
+    .replace(/<\s*(em|i)\s*>([\s\S]*?)<\s*\/\s*\1\s*>/gi, '*$2*')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
   // Bold (**x**) and italic (*x*) — split on both so single asterisks used by the
   // AI (common in Hindi output) render as emphasis instead of literal '*'.
   const parts = text.split(/(\*\*[^*]+\*\*|\*[^*\n]+\*)/g)

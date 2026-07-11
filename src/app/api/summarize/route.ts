@@ -5,6 +5,28 @@ import { cacheKey, getCachedAI, setCachedAI } from '@/lib/ai-cache'
 
 export const runtime = 'edge'
 
+// Some models occasionally emit HTML (<p>, <strong>, <em>…) despite being asked
+// for markdown, and some source extracts carry stray tags. Convert emphasis tags
+// to markdown and strip everything else so the UI never shows literal <p>/<strong>.
+function sanitizeText(s: string): string {
+  if (!s) return s
+  return s
+    .replace(/<\s*(strong|b)\s*>([\s\S]*?)<\s*\/\s*\1\s*>/gi, '**$2**')
+    .replace(/<\s*(em|i)\s*>([\s\S]*?)<\s*\/\s*\1\s*>/gi, '*$2*')
+    .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+    .replace(/<\s*\/?\s*p\s*>/gi, '\n\n')
+    .replace(/<[^>]+>/g, '') // strip any remaining tags
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim()
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { content, title = '', type = 'microessay', lang = 'en' } = await request.json()
@@ -39,6 +61,7 @@ Write it so a curious person walks away with a genuine "aha". Requirements:
 - Include the single most surprising or useful detail from the source.
 - End with a one-line **Takeaway:** that's genuinely worth remembering.
 - **Bold** 3–5 key phrases (not whole sentences).
+- Use ONLY markdown for emphasis (**bold**). NEVER output HTML tags (no <p>, <strong>, <em>, <br>) — plain text + markdown only.
 - NEVER output LaTeX or math markup (no $...$, \\commands, ^, _, {}). If the source has math notation, express it in plain words or simple Unicode (e.g. "ℓ-regular", "less than 10%") — a normal reader must understand it.
 - STAY FAITHFUL to the source — never invent facts, numbers, names, or dates. If the source is thin, be honest and concise rather than padding.
 
@@ -49,12 +72,12 @@ Respond with JSON only:
     // raw extract / passed title so we always have SOMETHING to show/translate if
     // the LLM is unavailable.
     let enTitle = title || ''
-    let enContent = content.slice(0, 700)
+    let enContent = sanitizeText(content.slice(0, 700))
 
     const j = await generateJSON<{ title?: string; content?: string }>(prompt, 1024)
     if (j?.content) {
-      enTitle = j.title || enTitle
-      enContent = j.content
+      enTitle = sanitizeText(j.title || enTitle)
+      enContent = sanitizeText(j.content)
     }
 
     // English request → return whatever we have (LLM essay if it worked, else raw).
