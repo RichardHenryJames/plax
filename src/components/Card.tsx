@@ -23,10 +23,8 @@ export function Card({ card, isActive, translating = false }: CardProps) {
   const isHindi = /[\u0900-\u097F]/.test(`${card.title || ''} ${card.content || ''}`)
 
   return (
-    <div className={`relative flex flex-col overflow-hidden select-none h-full w-full lg:h-[86vh] lg:max-h-[880px] lg:max-w-3xl lg:mx-auto lg:rounded-[28px] lg:border lg:border-white/[0.08] lg:bg-[#0f0f15] lg:shadow-2xl lg:shadow-black/60 ${isHindi ? 'lang-hi' : ''}`}>      {/* Desktop panel sheen */}
+    <div className={`relative flex flex-col overflow-hidden select-none h-full w-full lg:h-[90vh] lg:max-h-[920px] lg:max-w-3xl lg:mx-auto lg:rounded-[28px] lg:bg-[#0f0f15] lg:shadow-2xl lg:shadow-black/60 ${isHindi ? 'lang-hi' : ''}`}>      {/* Desktop panel sheen */}
       <div className="hidden lg:block absolute inset-0 rounded-[28px] pointer-events-none bg-[radial-gradient(130%_85%_at_50%_0%,rgba(245,177,58,0.06),transparent_55%)]" />
-      {/* Top category accent line */}
-      <div className="absolute top-0 left-0 right-0 h-[2px] bg-[color:var(--signal)] z-10" />
 
       {/* Main content area — plain-block scroll container + an inner `min-h-full`
           flex wrapper. Short cards center vertically; long cards top-align and
