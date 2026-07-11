@@ -15,6 +15,8 @@ export function NavBar() {
   const setTopicsOpen = useUIStore((s) => s.setTopicsOpen)
   const language = usePlaxStore((s) => s.language)
   const setLanguage = usePlaxStore((s) => s.setLanguage)
+  const theme = usePlaxStore((s) => s.theme)
+  const toggleTheme = usePlaxStore((s) => s.toggleTheme)
   const { t, lang } = useT()
 
   return (
@@ -54,6 +56,20 @@ export function NavBar() {
               </button>
             ))}
           </div>
+
+          {/* Theme toggle — dark ⇄ light, mirrors the EN/हि pill placement */}
+          <button
+            onClick={toggleTheme}
+            aria-label={theme === 'light' ? t('themeDark') : t('themeLight')}
+            aria-pressed={theme === 'light'}
+            className="p-2 text-dark-muted hover:text-white transition-colors rounded-full hover:bg-white/5 mr-0.5"
+          >
+            {theme === 'light' ? (
+              <svg className="w-[21px] h-[21px]" fill="currentColor" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" /></svg>
+            ) : (
+              <svg className="w-[21px] h-[21px]" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" /><path strokeLinecap="round" d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4l1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>
+            )}
+          </button>
 
           <button
             onClick={() => setCommandOpen(true)}

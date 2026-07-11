@@ -56,11 +56,10 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overscroll-behavior-x: none;
-  /* Subtle ambient depth so the near-black base never reads as flat */
+  /* Subtle ambient depth so the base never reads as flat (theme-aware, neutral) */
   background-image:
-    radial-gradient(1100px 700px at 12% -8%, rgba(139, 92, 246, 0.14), transparent 55%),
-    radial-gradient(1000px 620px at 100% 0%, rgba(34, 211, 238, 0.10), transparent 52%),
-    radial-gradient(900px 700px at 50% 120%, rgba(99, 102, 241, 0.08), transparent 60%);
+    radial-gradient(1100px 700px at 12% -8%, var(--ambient-1), transparent 55%),
+    radial-gradient(1000px 620px at 100% 0%, var(--ambient-2), transparent 52%);
   background-attachment: fixed;
 }
 
@@ -91,17 +90,17 @@ body {
 /* ── Refined thin scrollbar (desktop rails) ── */
 .thin-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+  scrollbar-color: var(--wash-2) transparent;
 }
 .thin-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
 .thin-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--wash-1);
   border-radius: 999px;
 }
 .thin-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--wash-3);
 }
 
 /* ── Feed Container ── */
@@ -128,7 +127,7 @@ body {
   font-size: 1.03rem;
   line-height: 1.68;
   letter-spacing: -0.003em;
-  color: rgba(255, 255, 255, 0.84);
+  color: var(--text-body);
 }
 
 .code-text {
@@ -170,36 +169,36 @@ body {
   color: #f5b13a;
 }
 
-/* ── Gradient Overlays (match the #0a0a0c base) ── */
+/* ── Gradient Overlays (theme-aware fade to the app base) ── */
 .gradient-top {
-  background: linear-gradient(to bottom, rgba(10, 10, 12, 0.92) 0%, rgba(10, 10, 12, 0.5) 45%, transparent 100%);
+  background: linear-gradient(to bottom, var(--fade-strong) 0%, var(--fade-soft) 45%, transparent 100%);
 }
 
 .gradient-bottom {
-  background: linear-gradient(to top, rgba(10, 10, 12, 0.97) 0%, rgba(10, 10, 12, 0.6) 35%, transparent 100%);
+  background: linear-gradient(to top, var(--fade-strong) 0%, var(--fade-soft) 35%, transparent 100%);
 }
 
 /* ── Solid surfaces (glassmorphism removed for editorial look) ── */
 .glass {
-  background: #16161a;
+  background: var(--surface-2);
   border: 1px solid var(--hair-strong);
 }
 
 .glass-strong {
-  background: #131316;
+  background: var(--surface-3);
   border: 1px solid var(--hair-strong);
 }
 
 /* ── Elevated card ── */
 .card-elevated {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0)) , #141418;
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--color-dark-card);
+  border: 1px solid var(--hair);
   border-radius: 1rem;
   box-shadow: var(--shadow-sm);
   transition: transform 0.2s var(--ease-spring), border-color 0.2s var(--ease-smooth), box-shadow 0.2s var(--ease-smooth);
 }
 .card-elevated:hover {
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: var(--hair-strong);
   box-shadow: var(--shadow-md);
 }
 
@@ -236,23 +235,23 @@ body {
 }
 
 .btn-secondary {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #fafafa;
+  background: var(--wash-1);
+  border: 1px solid var(--hair-strong);
+  color: var(--color-dark-text);
   font-weight: 500;
   border-radius: 0.85rem;
   transition: background 0.18s var(--ease-smooth), border-color 0.18s, transform 0.18s var(--ease-spring);
 }
 .btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.16);
+  background: var(--wash-2);
+  border-color: var(--hair-strong);
   transform: translateY(-1px);
 }
 
 /* ── Focus ring (a11y) ── */
 .focus-ring:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px #0a0a0c, 0 0 0 4px rgba(139, 92, 246, 0.6);
+  box-shadow: 0 0 0 2px var(--color-dark-bg), 0 0 0 4px var(--signal);
 }
 
 /* ── Icon action button (consistent circular/pill hit targets) ── */
@@ -265,8 +264,8 @@ body {
   transition: color 0.18s var(--ease-smooth), background 0.18s var(--ease-smooth), transform 0.18s var(--ease-spring);
 }
 .icon-btn:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-dark-text);
+  background: var(--wash-2);
 }
 .icon-btn:active {
   transform: scale(0.92);
@@ -274,7 +273,7 @@ body {
 
 /* ── Action pill (solid container for card actions) ── */
 .action-pill {
-  background: #16161a;
+  background: var(--surface-2);
   border: 1px solid var(--hair-strong);
   box-shadow: var(--shadow-sm);
   border-radius: 999px;
@@ -292,9 +291,9 @@ body {
   transform: translateX(-50%) translateY(4px);
   padding: 4px 8px;
   border-radius: 8px;
-  background: rgba(20, 20, 24, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #fafafa;
+  background: var(--surface-3);
+  border: 1px solid var(--hair-strong);
+  color: var(--color-dark-text);
   font-size: 11px;
   font-weight: 500;
   white-space: nowrap;
@@ -320,7 +319,7 @@ body {
 /* ── Selection ── */
 ::selection {
   background-color: rgba(245, 177, 58, 0.30);
-  color: #fafafa;
+  color: var(--color-dark-text);
 }
 
 /* ── Progress Bar ── */
@@ -333,7 +332,7 @@ body {
 .skeleton {
   position: relative;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--wash-1);
   border-radius: 0.75rem;
 }
 .skeleton::after {
@@ -341,7 +340,7 @@ body {
   position: absolute;
   inset: 0;
   transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+  background: linear-gradient(90deg, transparent, var(--wash-2), transparent);
   animation: shimmer 1.6s infinite;
 }
 @keyframes shimmer {
@@ -402,7 +401,91 @@ body {
   --ink-900: #0c0c0e;
   --hair: rgba(255,255,255,0.09);   /* hairline rule on dark */
   --hair-strong: rgba(255,255,255,0.16);
+
+  /* ── Theme-aware semantic tokens (dark defaults; overridden in html.light) ── */
+  --surface-2: #16161a;                 /* solid glass surface */
+  --surface-3: #131316;                 /* stronger solid surface / tooltip */
+  --wash-1: rgba(255,255,255,0.05);     /* subtle foreground overlay */
+  --wash-2: rgba(255,255,255,0.10);
+  --wash-3: rgba(255,255,255,0.18);
+  --text-body: rgba(255,255,255,0.84);  /* long-form reading text */
+  --ambient-1: rgba(245,177,58,0.06);   /* neutral ambient depth */
+  --ambient-2: rgba(245,177,58,0.04);
+  --fade-strong: rgba(10,10,12,0.95);   /* edge fade to base */
+  --fade-soft: rgba(10,10,12,0.55);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LIGHT THEME — warm paper palette. Applied via <html class="light">.
+   Overrides the design tokens that the Tailwind dark-bg / dark-text utilities
+   reference, and remaps the hardcoded white/black-alpha utilities used inline.
+   Unlayered rules here beat Tailwind's layered utilities regardless of specificity.
+   ═══════════════════════════════════════════════════════════════════════════ */
+html.light {
+  --background: #f7f4ee;
+  --foreground: #201b14;
+  --color-dark-bg: #f7f4ee;         /* app background — warm off-white */
+  --color-dark-card: #ffffff;       /* cards */
+  --color-dark-card-hover: #f1ece2;
+  --color-dark-border: #e4ddcf;
+  --color-dark-text: #201b14;       /* near-black warm ink */
+  --color-dark-muted: #6a6155;
+  --color-dark-subtle: #938a7b;
+  --hair: rgba(32,27,20,0.10);
+  --hair-strong: rgba(32,27,20,0.17);
+
+  --surface-2: #ffffff;
+  --surface-3: #ffffff;
+  --wash-1: rgba(32,27,20,0.045);
+  --wash-2: rgba(32,27,20,0.09);
+  --wash-3: rgba(32,27,20,0.16);
+  --text-body: rgba(32,27,20,0.82);
+  --ambient-1: rgba(245,177,58,0.10);
+  --ambient-2: rgba(245,177,58,0.06);
+  --fade-strong: rgba(247,244,238,0.96);
+  --fade-soft: rgba(247,244,238,0.6);
+
+  /* Softer shadows on light so cards don't look heavy */
+  --shadow-xs: 0 1px 2px rgba(32,27,20,0.06);
+  --shadow-sm: 0 2px 8px rgba(32,27,20,0.08);
+  --shadow-md: 0 8px 24px rgba(32,27,20,0.10);
+  --shadow-lg: 0 16px 48px rgba(32,27,20,0.14);
+}
+
+/* Remap hardcoded inline utilities for light mode. Uses attribute selectors so
+   no CSS escaping is needed; being unlayered they win over Tailwind's layered
+   utilities. `[class~="x"]` matches an element whose class list contains token x. */
+html.light [class~="text-white"] { color: #201b14; }
+html.light [class~="text-white/95"] { color: rgba(32,27,20,0.95); }
+html.light [class~="text-white/90"] { color: rgba(32,27,20,0.90); }
+html.light [class~="hover:text-white"]:hover,
+html.light .group:hover [class~="group-hover:text-white"] { color: #201b14; }
+
+html.light [class~="bg-white/5"],
+html.light [class~="bg-white/8"],
+html.light [class~="bg-white/[0.02]"],
+html.light [class~="bg-white/[0.03]"],
+html.light [class~="bg-white/[0.04]"],
+html.light [class~="bg-white/[0.045]"],
+html.light [class~="bg-white/[0.05]"],
+html.light [class~="bg-white/[0.06]"],
+html.light [class~="bg-white/[0.07]"] { background-color: var(--wash-1); }
+html.light [class~="bg-white/10"],
+html.light [class~="bg-white/15"] { background-color: var(--wash-2); }
+html.light [class~="hover:bg-white/5"]:hover,
+html.light [class~="hover:bg-white/8"]:hover { background-color: var(--wash-1); }
+html.light [class~="hover:bg-white/10"]:hover { background-color: var(--wash-2); }
+
+html.light [class~="border-white/5"],
+html.light [class~="border-white/10"],
+html.light [class~="border-white/15"],
+html.light [class~="border-white/20"],
+html.light [class~="border-white/[0.06]"],
+html.light [class~="border-white/[0.08]"] { border-color: var(--hair-strong); }
+html.light [class~="hover:border-white/20"]:hover { border-color: var(--hair-strong); }
+
+/* Code block dark panel → light panel */
+html.light [class~="bg-black/40"] { background-color: rgba(32,27,20,0.05); }
 
 /* Mono eyebrow — a small uppercase kicker with a leading marigold tick.
    Replaces the generic "text-sm uppercase tracking-wider text-subtle" label. */
@@ -510,7 +593,7 @@ body {
   transition: background 0.18s var(--ease-smooth), border-color 0.18s, transform 0.14s var(--ease-spring);
 }
 .btn-ghost-ed:hover {
-  background: rgba(255,255,255,0.04);
+  background: var(--wash-1);
   border-color: var(--signal);
   transform: translateY(-1px);
 }
