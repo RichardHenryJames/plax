@@ -7,6 +7,7 @@ export interface RawContent {
   author?: string
   source: string
   category: string
+  publishedAt?: number // epoch ms — set for time-sensitive sources (news/RSS)
 }
 
 export interface ProcessedCard {
@@ -22,6 +23,7 @@ export interface ProcessedCard {
   emoji?: string
   fetchedAt: number
   aiEnhanced?: boolean
+  publishedAt?: number // epoch ms — original publish time for news cards (relative timestamp)
 }
 
 // ─── Category mapping for sources ───
@@ -143,14 +145,18 @@ export const TOPIC_RSS_FEEDS: Record<string, [string, string][]> = {
     ['The Verge', 'https://www.theverge.com/rss/index.xml'],
     ['Ars Technica', 'http://feeds.arstechnica.com/arstechnica/index'],
     ['TechCrunch', 'https://techcrunch.com/feed/'],
+    ['Wired', 'https://www.wired.com/feed/rss'],
+    ['Engadget', 'https://www.engadget.com/rss.xml'],
   ],
   programming: [
     ['TechCrunch', 'https://techcrunch.com/feed/'],
     ['Ars Technica', 'http://feeds.arstechnica.com/arstechnica/index'],
+    ['Hacker News', 'https://hnrss.org/frontpage'],
   ],
   science: [
     ['Science Daily', 'https://www.sciencedaily.com/rss/top/science.xml'],
     ['Phys.org', 'https://phys.org/rss-feed/'],
+    ['Live Science', 'https://www.livescience.com/feeds/all'],
   ],
   space: [
     ['NASA', 'https://www.nasa.gov/rss/dyn/breaking_news.rss'],
@@ -160,20 +166,39 @@ export const TOPIC_RSS_FEEDS: Record<string, [string, string][]> = {
     ['Phys.org', 'https://phys.org/rss-feed/'],
     ['Science Daily', 'https://www.sciencedaily.com/rss/top/science.xml'],
   ],
-  health: [['Science Daily', 'https://www.sciencedaily.com/rss/top/health.xml']],
+  health: [
+    ['Science Daily', 'https://www.sciencedaily.com/rss/top/health.xml'],
+    ['Live Science', 'https://www.livescience.com/feeds/all'],
+  ],
   nature: [['Science Daily', 'https://www.sciencedaily.com/rss/earth_climate.xml']],
-  finance: [['CNBC', 'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664']],
+  finance: [
+    ['CNBC', 'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664'],
+    ['The Hindu Business', 'https://www.thehindubusinessline.com/feeder/default.rss'],
+  ],
   business: [
     ['CNBC', 'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664'],
     ['TechCrunch', 'https://techcrunch.com/feed/'],
+    ['The Hindu Business', 'https://www.thehindubusinessline.com/feeder/default.rss'],
   ],
 }
+
+// General/world news feeds — reputable, India-first + global. Used by the
+// dedicated "News" topic to build a broad latest-headlines stream.
+export const GENERAL_NEWS_FEEDS: [string, string][] = [
+  ['The Hindu', 'https://www.thehindu.com/news/national/feeder/default.rss'],
+  ['BBC World', 'https://feeds.bbci.co.uk/news/world/rss.xml'],
+  ['NDTV', 'https://feeds.feedburner.com/ndtvnews-top-stories'],
+  ['The Verge', 'https://www.theverge.com/rss/index.xml'],
+  ['Science Daily', 'https://www.sciencedaily.com/rss/top/science.xml'],
+  ['CNBC', 'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664'],
+]
 
 // Hindi news RSS feeds (Devanagari) — used ONLY in Hindi mode so the feed carries
 // genuinely current Indian news in Hindi. Verified clean Devanagari extraction.
 export const HINDI_RSS_FEEDS: [string, string][] = [
   ['BBC हिंदी', 'https://feeds.bbci.co.uk/hindi/rss.xml'],
   ['दैनिक भास्कर', 'https://www.bhaskar.com/rss-v1--category-1061.xml'],
+  ['NDTV हिंदी', 'https://feeds.feedburner.com/ndtvkhabar-latest'],
 ]
 
 

@@ -104,6 +104,7 @@ export function Feed() {
         category: c.category,
         readTime: c.readTime || '30s',
         emoji: c.emoji,
+        publishedAt: c.publishedAt ? Number(c.publishedAt) : undefined,
       }))
       .filter((c) => !seenIdsRef.current.has(c.id)) // deduplicate by ID within session
       .filter((c) => { // deduplicate by title within session
