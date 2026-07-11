@@ -8,6 +8,7 @@ export interface RawContent {
   source: string
   category: string
   publishedAt?: number // epoch ms — set for time-sensitive sources (news/RSS)
+  image?: string // hero image URL (news/RSS thumbnails)
 }
 
 export interface ProcessedCard {
@@ -24,6 +25,7 @@ export interface ProcessedCard {
   fetchedAt: number
   aiEnhanced?: boolean
   publishedAt?: number // epoch ms — original publish time for news cards (relative timestamp)
+  image?: string // hero image URL (news cards)
 }
 
 // ─── Category mapping for sources ───

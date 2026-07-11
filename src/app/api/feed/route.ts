@@ -91,6 +91,7 @@ export async function GET(request: NextRequest) {
         emoji: EMOJI_MAP[raw.category] || '📖',
         fetchedAt: Date.now(),
         publishedAt: raw.publishedAt,
+        image: raw.image,
       }
     })
 
