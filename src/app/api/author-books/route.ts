@@ -30,8 +30,11 @@ export async function POST(request: NextRequest) {
 
     let docs = await fetchViaSearch(author)
     let via = 'search'
+    let fbDbg = ''
     if (!docs.length) {
-      docs = await fetchViaAuthorKey(excludeKey, author)
+      const fb = await fetchViaAuthorKey(excludeKey, author)
+      docs = fb.docs
+      fbDbg = fb.dbg
       via = 'authorKey'
     }
 
@@ -80,7 +83,7 @@ export async function POST(request: NextRequest) {
         url: `https://openlibrary.org${w.key}`,
       }))
 
-    return NextResponse.json({ works, _dbg: `via=${via} docs=${docs.length}` })
+    return NextResponse.json({ works, _dbg: `via=${via} docs=${docs.length} ${fbDbg}`.trim() })
   } catch (e) {
     return NextResponse.json({ works: [], _dbg: `catch ${e instanceof Error ? e.message : String(e)}` })
   }
@@ -108,11 +111,13 @@ async function fetchViaSearch(author: string): Promise<Doc[]> {
 
 // Fallback that only uses /works and /authors endpoints (reachable in prod).
 // Resolve the author key from the current book, then list their works.
-async function fetchViaAuthorKey(workKey: string, author: string): Promise<Doc[]> {
+async function fetchViaAuthorKey(workKey: string, author: string): Promise<{ docs: Doc[]; dbg: string }> {
+  const dbg: string[] = []
   try {
     let authorKey = ''
     if (workKey) {
       const wr = await fetch(`https://openlibrary.org${workKey}.json`, { cache: 'no-store', headers: OL_HEADERS })
+      dbg.push(`work=${wr.status}`)
       if (wr.ok) {
         const wd = await wr.json()
         authorKey = wd?.authors?.[0]?.author?.key || ''
@@ -124,27 +129,33 @@ async function fetchViaAuthorKey(workKey: string, author: string): Promise<Doc[]
         `https://openlibrary.org/search/authors.json?q=${encodeURIComponent(author)}`,
         { cache: 'no-store', headers: OL_HEADERS },
       )
+      dbg.push(`authSearch=${sr.status}`)
       if (sr.ok) {
         const sd = await sr.json()
         const k = sd?.docs?.[0]?.key || ''
         authorKey = k ? `/authors/${k}` : ''
       }
     }
-    if (!authorKey) return []
+    dbg.push(`authorKey=${authorKey || 'none'}`)
+    if (!authorKey) return { docs: [], dbg: dbg.join(' ') }
 
     const ar = await fetch(`https://openlibrary.org${authorKey}/works.json?limit=50`, {
       cache: 'no-store',
       headers: OL_HEADERS,
     })
-    if (!ar.ok) return []
+    dbg.push(`works=${ar.status}`)
+    if (!ar.ok) return { docs: [], dbg: dbg.join(' ') }
     const ad = await ar.json()
-    return (ad?.entries || []).map((e: any) => ({
+    const docs = (ad?.entries || []).map((e: any) => ({
       title: (e?.title || '').trim(),
       key: e?.key || '',
       editions: 0,
       authors: [author],
     }))
-  } catch {
-    return []
+    dbg.push(`entries=${docs.length}`)
+    return { docs, dbg: dbg.join(' ') }
+  } catch (e) {
+    dbg.push(`err=${e instanceof Error ? e.message : String(e)}`)
+    return { docs: [], dbg: dbg.join(' ') }
   }
 }
