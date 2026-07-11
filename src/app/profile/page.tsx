@@ -512,7 +512,7 @@ function QuizMasteryPanel({
         {/* Accuracy ring */}
         <div className="relative w-24 h-24 shrink-0">
           <svg className="w-24 h-24 -rotate-90" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="9" />
+            <circle cx="50" cy="50" r="42" fill="none" stroke="var(--hair-strong)" strokeWidth="9" />
             <circle
               cx="50" cy="50" r="42" fill="none" stroke="url(#quizgrad)" strokeWidth="9" strokeLinecap="round"
               strokeDasharray={`${(pct / 100) * 264} 264`}
