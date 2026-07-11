@@ -1,4 +1,4 @@
-import { RawContent, CATEGORY_MAP, TOPIC_SUBREDDITS, TOPIC_WIKI_QUERIES, TOPIC_WIKI_QUERIES_HI, TOPIC_NEWS_KEYWORD } from './types'
+import { RawContent, CATEGORY_MAP, TOPIC_SUBREDDITS, TOPIC_WIKI_QUERIES, TOPIC_WIKI_QUERIES_HI, TOPIC_NEWS_KEYWORD, TOPIC_GUARDIAN_SECTION } from './types'
 
 // ─── HTML Cleaning (for HN and Reddit raw content) ───
 
@@ -894,6 +894,55 @@ export async function fetchPoetry(count = 2): Promise<RawContent[]> {
   }
 }
 
+// ─── The Guardian (high-quality editorial across ALL topics — free key) ───
+// A big quality lift over generic Wikipedia: the Guardian's editorial sections
+// give well-written, current coverage of science, tech, books, art, business,
+// environment, culture and more. Gated per topic (TOPIC_GUARDIAN_SECTION) and only
+// active when GUARDIAN_API_KEY is set. The AI-enhance step distills each article
+// body into a crisp explainer.
+export async function fetchGuardian(categories: string[], perTopic = 2): Promise<RawContent[]> {
+  const apiKey = process.env.GUARDIAN_API_KEY
+  if (!apiKey) return []
+  const topics = categories.filter((c) => TOPIC_GUARDIAN_SECTION[c])
+  if (topics.length === 0) return []
+
+  // Query up to 3 relevant sections in parallel (stay fast + within free quota).
+  const picks = [...new Set(topics)].slice(0, 3)
+  const results = await Promise.allSettled(
+    picks.map(async (topic) => {
+      const section = TOPIC_GUARDIAN_SECTION[topic]
+      const url =
+        `https://content.guardianapis.com/search?section=${encodeURIComponent(section)}` +
+        `&order-by=newest&page-size=${perTopic}&show-fields=trailText,bodyText,byline` +
+        `&api-key=${apiKey}`
+      const r = await fetch(url, { cache: 'no-store', headers: { Accept: 'application/json' } })
+      if (!r.ok) return [] as RawContent[]
+      const data = await r.json()
+      const articles: any[] = data?.response?.results || []
+      return articles
+        .map((a) => {
+          const body = String(a.fields?.bodyText || a.fields?.trailText || '')
+            .replace(/\s+/g, ' ')
+            .trim()
+          if (!a.webTitle || body.length < 200) return null
+          return {
+            title: String(a.webTitle).replace(/\s*\|\s*.*$/, '').trim(),
+            content: body.length > 900 ? body.slice(0, 900) + '…' : body,
+            author: a.fields?.byline ? String(a.fields.byline).trim() : undefined,
+            url: a.webUrl,
+            source: 'The Guardian',
+            category: topic,
+          } as RawContent
+        })
+        .filter(Boolean) as RawContent[]
+    })
+  )
+
+  const out: RawContent[] = []
+  results.forEach((res) => { if (res.status === 'fulfilled') out.push(...res.value) })
+  return out
+}
+
 // ─── Real-time news (Event Registry / NewsAPI.ai) ───
 // For fast-moving topics (tech, science, finance, business, health…) we surface
 // fresh headlines so the feed feels current, not just evergreen. Gated per topic
@@ -1038,16 +1087,8 @@ export async function fetchAllContent(categories: string[] = [], lang: string = 
     return all
   }
 
-  // Base subreddits (broad coverage) + topic-specific subreddits for the user's
-  // selected categories, so niche picks (health, books, finance…) get real
-  // on-topic content instead of leaning on random Wikipedia/quotes.
-  const baseSubs = [
-    'todayilearned', 'explainlikeimfive', 'Showerthoughts', 'science',
-    'space', 'history', 'philosophy', 'psychology', 'AskScience',
-    'Futurology', 'LifeProTips', 'YouShouldKnow',
-  ]
-  const topicSubs = categories.flatMap((c) => TOPIC_SUBREDDITS[c] || [])
-  const subreddits = [...new Set([...topicSubs, ...baseSubs])].slice(0, 18)
+  // (Reddit removed from the active source set — 403-blocked from Vercel IPs, 0
+  // results in prod. TOPIC_SUBREDDITS/fetchReddit remain for a future proxy.)
 
   // For the no-topic feed (new user / cleared filters) seed the topic search with
   // a broadly-interesting default set so first impressions are curated-quality,
@@ -1088,13 +1129,19 @@ export async function fetchAllContent(categories: string[] = [], lang: string = 
   // Real-time news for fast-moving topics (only if API key present + topic matches).
   const newsTopics = categories.filter((c) => TOPIC_NEWS_KEYWORD[c])
   const includeNews = newsTopics.length > 0
+  // The Guardian — high-quality editorial across nearly all topics (only if
+  // GUARDIAN_API_KEY set + topic mapped). Broad quality lift over Wikipedia.
+  const guardianTopics = categories.filter((c) => TOPIC_GUARDIAN_SECTION[c])
+  const includeGuardian = guardianTopics.length > 0
 
-  // Use Promise.allSettled so one failing source doesn't kill the rest
+  // Use Promise.allSettled so one failing source doesn't kill the rest.
+  // NOTE: Reddit is intentionally dropped from the active set — it is 403-blocked
+  // from datacenter IPs (Vercel) and returned 0 items in every prod log, so it was
+  // pure latency with no payoff. fetchReddit remains exported if ever proxied.
   const results = await Promise.allSettled([
     includeRandom ? fetchWikipediaContent(18) : Promise.resolve([]),
     includeHN ? fetchHackerNews(15) : Promise.resolve([]),
     includeQuotes ? fetchQuotes(10) : Promise.resolve([]),
-    fetchReddit(subreddits),     // topic-aware subreddit set
     fetchWikipediaByTopics(topicsForSearch), // on-topic articles (defaults when no picks)
     includeArxiv ? fetchArxiv(arxivTopics) : Promise.resolve([]),
     includeGutenberg ? fetchGutenberg(3) : Promise.resolve([]),
@@ -1103,10 +1150,11 @@ export async function fetchAllContent(categories: string[] = [], lang: string = 
     includeMet ? fetchMetArt(3) : Promise.resolve([]),
     includeNasa ? fetchNasaApod(3) : Promise.resolve([]),
     includePoetry ? fetchPoetry(2) : Promise.resolve([]),
+    includeGuardian ? fetchGuardian(guardianTopics, 2) : Promise.resolve([]),
   ])
 
   const all: RawContent[] = []
-  const sourceNames = ['Wikipedia', 'HackerNews', 'Quotes', 'Reddit', 'WikipediaTopics', 'arXiv', 'Gutenberg', 'News', 'OpenLibrary', 'MetArt', 'NASA', 'Poetry']
+  const sourceNames = ['Wikipedia', 'HackerNews', 'Quotes', 'WikipediaTopics', 'arXiv', 'Gutenberg', 'News', 'OpenLibrary', 'MetArt', 'NASA', 'Poetry', 'Guardian']
 
   results.forEach((result, i) => {
     if (result.status === 'fulfilled') {

@@ -134,6 +134,27 @@ export const TOPIC_NEWS_KEYWORD: Record<string, string> = {
   physics: 'physics',
 }
 
+// Topic → Guardian section (open-platform.theguardian.com). The Guardian's
+// editorial sections give high-quality, well-written coverage across nearly every
+// topic — a big quality lift over generic Wikipedia. Only active when
+// GUARDIAN_API_KEY is set. Sections are the Guardian's real section IDs.
+export const TOPIC_GUARDIAN_SECTION: Record<string, string> = {
+  science: 'science',
+  technology: 'technology',
+  programming: 'technology',
+  space: 'science',
+  books: 'books',
+  art: 'artanddesign',
+  business: 'business',
+  finance: 'money',
+  health: 'society',
+  nature: 'environment',
+  history: 'culture',
+  philosophy: 'books',
+  music: 'music',
+  physics: 'science',
+}
+
 // Hindi Wikipedia search seed terms per topic (Devanagari). Used for the Hindi
 // feed so content is natively in Hindi, on-topic, and relevance-ranked.
 export const TOPIC_WIKI_QUERIES_HI: Record<string, string[]> = {
