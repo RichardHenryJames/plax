@@ -45,6 +45,16 @@ export default function ProfilePage() {
   const quizBestStreak = usePlaxStore((s) => s.quizBestStreak)
   const { t, tp, lang } = useT()
 
+  // Open the tab requested via ?tab= (e.g. the "Bookmarks" nav link deep-links
+  // straight to the saved list instead of dumping the user on the Stats tab).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const requested = params.get('tab')
+    if (requested === 'bookmarks' || requested === 'settings' || requested === 'stats') {
+      setTab(requested)
+    }
+  }, [])
+
   useEffect(() => {
     if (!user) {
       setLoading(false)
