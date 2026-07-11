@@ -75,7 +75,7 @@ export function NavBar() {
             </svg>
           </button>
 
-          <Link href="/profile" aria-label={t('bookmarks')} className="p-2 text-dark-muted hover:text-white transition-colors rounded-full hover:bg-white/5">
+          <Link href="/profile?tab=bookmarks" aria-label={t('bookmarks')} className="p-2 text-dark-muted hover:text-white transition-colors rounded-full hover:bg-white/5">
             <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
             </svg>
