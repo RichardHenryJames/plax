@@ -13,7 +13,6 @@ export default async function TopicOgImage({ params }: { params: Promise<{ topic
   const { topic } = await params
   const t = getTopicSeo(topic)
   const label = t?.label || 'Topics'
-  const emoji = t?.emoji || '📚'
   const intro = t?.description || 'Bite-sized, AI-summarized insights on Plax.'
 
   return new ImageResponse(
@@ -53,7 +52,6 @@ export default async function TopicOgImage({ params }: { params: Promise<{ topic
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <div style={{ fontSize: 96, lineHeight: 1 }}>{emoji}</div>
           <div
             style={{
               fontSize: 88,
@@ -61,7 +59,6 @@ export default async function TopicOgImage({ params }: { params: Promise<{ topic
               color: 'white',
               lineHeight: 1.02,
               letterSpacing: '-0.02em',
-              marginTop: 18,
             }}
           >
             {label}

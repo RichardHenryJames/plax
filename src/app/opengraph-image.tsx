@@ -78,7 +78,7 @@ export default function OgImage() {
 
         {/* Footer chips */}
         <div style={{ display: 'flex', gap: 14 }}>
-          {['🔬 Science', '💻 Technology', '🚀 Space', '🤔 Philosophy', '💰 Finance'].map((c) => (
+          {['Science', 'Technology', 'Space', 'Philosophy', 'Finance'].map((c) => (
             <div
               key={c}
               style={{
