@@ -2,7 +2,8 @@
 // and fast-fail timeouts. Used by summarize / deeper / quiz.
 //
 // Chain (each step only runs if the previous produced nothing):
-//   1. Gemini     (GEMINI_MODEL, default gemini-2.0-flash — ~1,500 req/day free)
+//   1. Gemini     (GEMINI_MODELS list — tries 2.5-flash, 2.5-flash-lite, 2.0-flash…
+//                   each model has its OWN free daily quota, multiplying capacity)
 //   2. Groq #1     (GROQ_MODEL,   default openai/gpt-oss-120b — best quality, production)
 //   3. Groq #2     (GROQ_MODEL_2, default openai/gpt-oss-20b  — 2x faster/cheaper, SEPARATE
 //                   free daily token budget → roughly doubles daily capacity)
@@ -20,7 +21,17 @@ const openRouterKey = process.env.OPENROUTER_API_KEY
 const genAI = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : null
 const groq = groqApiKey ? new Groq({ apiKey: groqApiKey }) : null
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash'
+// Comma-separated Gemini model IDs tried in order. Each model has its OWN free
+// daily quota pool, so listing several roughly multiplies daily capacity — when
+// one model returns "limit: 0 / 429 quota exceeded" the next is tried. 2.5-flash
+// leads because Google zeroed the 2.0-flash free tier (limit:0) in mid-2026.
+const GEMINI_MODELS = (
+  process.env.GEMINI_MODELS ||
+  'gemini-2.5-flash,gemini-2.5-flash-lite,gemini-2.0-flash,gemini-2.0-flash-lite'
+)
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean)
 const GROQ_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b'
 const GROQ_MODEL_2 = process.env.GROQ_MODEL_2 || 'openai/gpt-oss-20b'
 // A comma-separated list of OpenRouter FREE model IDs, tried in order. Each `:free`
@@ -73,15 +84,18 @@ async function openRouterGenerate(prompt: string, maxTokens: number): Promise<st
 
 // Generate raw text for a prompt, trying each provider until one succeeds.
 export async function generateText(prompt: string, maxTokens = 1024): Promise<string> {
-  // 1. Gemini (fail fast — 7s)
+  // 1. Gemini — try each model in order; each has its own free daily quota pool,
+  //    so an exhausted model (429 / limit:0) falls through to the next.
   if (genAI) {
-    try {
-      const model = genAI.getGenerativeModel({ model: GEMINI_MODEL })
-      const res = await withTimeout(model.generateContent(prompt), 7000)
-      const text = res.response.text()
-      if (text?.trim()) return text
-    } catch (e) {
-      console.error('Gemini error:', (e as Error)?.message || e)
+    for (const modelId of GEMINI_MODELS) {
+      try {
+        const model = genAI.getGenerativeModel({ model: modelId })
+        const res = await withTimeout(model.generateContent(prompt), 7000)
+        const text = res.response.text()
+        if (text?.trim()) return text
+      } catch (e) {
+        console.error(`Gemini (${modelId}) error:`, (e as Error)?.message || e)
+      }
     }
   }
   // 2 & 3. Groq models in order (each has its own free daily token budget)
