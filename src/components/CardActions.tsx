@@ -103,7 +103,7 @@ export function CardActions({ card }: { card: CardData | null }) {
                 navigator.share(shareData).catch(() => {})
               } else {
                 navigator.clipboard.writeText(`${card.title || ''} — ${card.sourceUrl || window.location.origin}`)
-                  .then(() => flashToast('Link copied')).catch(() => {})
+                  .then(() => flashToast(t('copied'))).catch(() => {})
               }
             }}
           />
