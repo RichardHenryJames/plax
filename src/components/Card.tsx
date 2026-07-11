@@ -259,6 +259,7 @@ function CategoryChip({
   const toggleTopic = usePlaxStore((s) => s.toggleTopic)
   const feedFilter = useUIStore((s) => s.feedFilter)
   const setFeedFilter = useUIStore((s) => s.setFeedFilter)
+  const setTopicsOpen = useUIStore((s) => s.setTopicsOpen)
   const { t, tp } = useT()
   const [open, setOpen] = useState(false)
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null)
@@ -403,6 +404,19 @@ function CategoryChip({
                       </div>
                     )
                   })}
+
+                  {/* Explore — opens the full topic selector (same as header filter) */}
+                  <div className="mt-1 pt-1 border-t border-dark-border">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); close(); setTopicsOpen(true) }}
+                      className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left text-sm text-dark-text hover:bg-white/5 transition"
+                    >
+                      <span className="w-6 text-center">
+                        <svg className="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                      </span>
+                      <span className="flex-1 font-medium">{t('exploreTopics')}</span>
+                    </button>
+                  </div>
                 </>
               )}
             </motion.span>
