@@ -823,9 +823,10 @@ export function Feed() {
       </AnimatePresence>
 
       {/* News sub-section filter bar (India / World / Tech / …) — only on the
-          dedicated News feed. Filters the loaded cards client-side by section. */}
+          dedicated News feed. Sits in the card's top-padding zone (news cards
+          top-align + reserve space for it) so it never overlaps content. */}
       {selectedTopics.length === 1 && selectedTopics[0] === 'news' && (
-        <div className="absolute top-[calc(4.5rem+env(safe-area-inset-top))] left-0 right-0 z-30 lg:top-2 pointer-events-none">
+        <div className="absolute top-[calc(4.75rem+env(safe-area-inset-top))] left-0 right-0 z-30 lg:top-5 pointer-events-none">
           <div className="flex gap-2 overflow-x-auto hide-scrollbar px-4 justify-start lg:justify-center pointer-events-auto">
             <button
               onClick={() => setNewsSection(null)}
