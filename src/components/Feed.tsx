@@ -81,6 +81,7 @@ export function Feed() {
   const [direction, setDirection] = useState(0)
   const cardEntryTime = useRef(Date.now())
   const [cards, setCards] = useState<CardData[]>([])
+  const [focusCard, setFocusCard] = useState<CardData | null>(null) // a saved card opened via /?card=<id>
   const [isFetching, setIsFetching] = useState(false)
   const isFetchingRef = useRef(false) // ref to avoid stale closure
   const [isInitialLoad, setIsInitialLoad] = useState(true) // true until first fetch completes
@@ -239,8 +240,14 @@ export function Feed() {
 
   // ── Filter loaded cards by the active desktop topic filter ──
   const visibleCards = useMemo(
-    () => (feedFilter ? cards.filter((c) => c.category === feedFilter) : cards),
-    [cards, feedFilter]
+    () => {
+      const base = feedFilter ? cards.filter((c) => c.category === feedFilter) : cards
+      // A saved card opened via /?card= is pinned to the FRONT (deduped) so the
+      // reader lands on it regardless of when the live feed finishes loading.
+      if (focusCard && !base.some((c) => c.id === focusCard.id)) return [focusCard, ...base]
+      return base
+    },
+    [cards, feedFilter, focusCard]
   )
 
   // Reset to the top whenever the filter changes
@@ -248,6 +255,50 @@ export function Feed() {
     setCurrentIndex(0)
     cardEntryTime.current = Date.now()
   }, [feedFilter])
+
+  // ── Open a specific saved article: /?card=<id> (from the Bookmarks list). We
+  //    inject the saved card (persisted in the store) at the FRONT of the feed and
+  //    jump to it, so tapping a bookmark reads it in the normal feed reader. Runs
+  //    once on mount; the id is also seeded into seenIds so the live fetch won't
+  //    duplicate it. ──
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const wantId = params.get('card')
+    if (!wantId) return
+    // Read the saved card. Prefer the live store, but fall back to the persisted
+    // localStorage snapshot because zustand's persist may not have rehydrated yet
+    // on first mount (which would otherwise leave bookmarkedCards empty → no pin).
+    let saved = usePlaxStore.getState().bookmarkedCards[wantId]
+    if (!saved) {
+      try {
+        const persisted = JSON.parse(localStorage.getItem('plax-store-v2') || '{}')
+        saved = persisted?.state?.bookmarkedCards?.[wantId]
+      } catch { /* ignore malformed cache */ }
+    }
+    if (!saved) return
+    const focus: CardData = {
+      id: saved.id,
+      type: 'microessay',
+      title: saved.title,
+      content: saved.content,
+      source: saved.source,
+      sourceUrl: saved.sourceUrl,
+      category: saved.category,
+      readTime: '1m',
+      emoji: saved.emoji,
+      aiEnhanced: true,
+      enhancedLang: 'en',
+      originalContent: saved.content,
+      originalTitle: saved.title,
+    }
+    seenIdsRef.current.add(saved.id)
+    const titleKey = (saved.title || saved.content.slice(0, 80)).toLowerCase().trim()
+    seenIdsRef.current.add(`t:${titleKey}`)
+    setFocusCard(focus)
+    setCurrentIndex(0)
+    // Clear the query param so a later refresh doesn't re-pin the same card.
+    window.history.replaceState(null, '', window.location.pathname)
+  }, [])
 
   // Publish the current card so the desktop right rail can show it
   useEffect(() => {
@@ -723,7 +774,7 @@ export function Feed() {
         const SEG = 7
         const posInPage = currentIndex % SEG // 0..6 within the current row of 7
         return (
-          <div className="absolute left-1/2 -translate-x-1/2 z-40 top-[calc(3.6rem+env(safe-area-inset-top))] lg:top-4 w-[min(60%,20rem)] flex items-center gap-1">
+          <div className="absolute left-1/2 -translate-x-1/2 z-40 top-[calc(4.5rem+env(safe-area-inset-top))] lg:top-4 w-[min(60%,20rem)] flex items-center gap-1">
             {Array.from({ length: SEG }).map((_, j) => {
               const fill = j < posInPage ? 100 : j === posInPage ? readProgress : 0
               return (
