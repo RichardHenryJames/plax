@@ -723,7 +723,7 @@ export function Feed() {
         const SEG = 7
         const posInPage = currentIndex % SEG // 0..6 within the current row of 7
         return (
-          <div className="absolute left-1/2 -translate-x-1/2 z-40 top-[calc(4.5rem+env(safe-area-inset-top))] lg:top-6 w-[min(70%,26rem)] flex items-center gap-1">
+          <div className="absolute left-1/2 -translate-x-1/2 z-40 top-[calc(4.5rem+env(safe-area-inset-top))] lg:top-4 w-[min(60%,20rem)] flex items-center gap-1">
             {Array.from({ length: SEG }).map((_, j) => {
               const fill = j < posInPage ? 100 : j === posInPage ? readProgress : 0
               return (
