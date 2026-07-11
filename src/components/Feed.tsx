@@ -251,6 +251,49 @@ export function Feed() {
     [cards, feedFilter, focusCard]
   )
 
+  // ── Auto-refresh freshness for the News feed ──────────────────────────────
+  // News gets stale fast. When the dedicated News feed is active and the tab
+  // regains focus after a few minutes, quietly pull the latest headlines and
+  // splice any genuinely-new ones in right after the card being read — so a user
+  // who leaves the tab open always finds fresh news, without losing their place.
+  useEffect(() => {
+    const isNewsFeed = selectedTopics.length === 1 && selectedTopics[0] === 'news'
+    if (!isNewsFeed) return
+    const REFRESH_MS = 4 * 60 * 1000
+    const refreshLatest = async () => {
+      if (document.visibilityState !== 'visible') return
+      if (Date.now() - lastFetchTimeRef.current < REFRESH_MS) return
+      if (isFetchingRef.current) return
+      lastFetchTimeRef.current = Date.now()
+      try {
+        const excludeIds = [...seenIdsRef.current].filter((id) => !id.startsWith('t:')).join(',')
+        const res = await fetch(`/api/feed?categories=news&limit=20&refresh=true&lang=en&exclude=${encodeURIComponent(excludeIds)}`)
+        if (!res.ok) return
+        const data = await res.json()
+        const fresh = mapApiCards(data.cards || [])
+        if (fresh.length === 0) return
+        fresh.forEach((c) => seenIdsRef.current.add(c.id))
+        setCards((prev) => {
+          // Splice fresh news just AFTER the card currently being read.
+          const at = Math.min(currentIndex + 1, prev.length)
+          const updated = [...prev.slice(0, at), ...fresh, ...prev.slice(at)]
+          setCachedCards(updated, feedSig(selectedTopics))
+          return updated
+        })
+        console.log(`[Plax Feed] News auto-refresh: +${fresh.length} fresh headlines`)
+      } catch {
+        /* silent — auto-refresh is best-effort */
+      }
+    }
+    const onVisible = () => { void refreshLatest() }
+    document.addEventListener('visibilitychange', onVisible)
+    const interval = setInterval(() => { void refreshLatest() }, REFRESH_MS)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      clearInterval(interval)
+    }
+  }, [selectedTopics, currentIndex]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Reset to the top whenever the filter changes
   useEffect(() => {
     setCurrentIndex(0)
