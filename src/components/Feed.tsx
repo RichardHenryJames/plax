@@ -567,9 +567,17 @@ export function Feed() {
   }, [currentIndex, goToCard])
 
   // Scroll wheel navigation — scroll long article content first, only advance
-  // to the next/prev card once the content reaches its scroll boundary.
+  // to the next/prev card once the content reaches its scroll boundary AND the
+  // user keeps pushing past the edge with intent. We accumulate overscroll delta
+  // within a single gesture (resets after a short idle) and require it to cross a
+  // sizeable threshold before navigating, so trackpad momentum / a quick flick to
+  // the edge doesn't accidentally skip an article (the desktop was too sensitive).
   const scrollTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const overscroll = useRef(0)
+  const lastWheelTs = useRef(0)
   useEffect(() => {
+    const OVERSCROLL_THRESHOLD = 140 // px past the edge before navigating
+    const GESTURE_GAP = 180 // ms of idle that ends a gesture (resets accumulator)
     const handleWheel = (e: WheelEvent) => {
       const ui = useUIStore.getState()
       if (ui.commandOpen || ui.topicsOpen) return
@@ -577,26 +585,38 @@ export function Feed() {
       // Ignore wheel events over the desktop rails / any other scrollable chrome
       // so they scroll natively instead of navigating the feed.
       const target = e.target as HTMLElement | null
-      if (target?.closest('aside, [data-no-feed-scroll]')) return
+      if (target && typeof target.closest === 'function' && target.closest('aside, [data-no-feed-scroll]')) return
 
-      // Let the active card's content scroll while it still can in this direction
+      const now = Date.now()
+      // A pause between wheel events ends the previous gesture → reset accumulator.
+      if (now - lastWheelTs.current > GESTURE_GAP) overscroll.current = 0
+      lastWheelTs.current = now
+
+      // Let the active card's content scroll while it still can in this direction.
       const scroller = document.querySelector<HTMLElement>('[data-card-scroll]')
       if (scroller) {
         const { scrollTop, scrollHeight, clientHeight } = scroller
         const canScrollDown = Math.ceil(scrollTop + clientHeight) < scrollHeight - 1
         const canScrollUp = scrollTop > 1
         if ((e.deltaY > 0 && canScrollDown) || (e.deltaY < 0 && canScrollUp)) {
+          overscroll.current = 0 // still scrolling content → not overscrolling
           return // native scroll handles it; don't navigate
         }
       }
 
+      // At a boundary: accumulate intent past the edge.
       e.preventDefault()
-      if (scrollTimeout.current) return
-      scrollTimeout.current = setTimeout(() => {
-        scrollTimeout.current = null
-      }, 600)
-      if (e.deltaY > 45) goToCard(currentIndex + 1, 1)
-      if (e.deltaY < -45) goToCard(currentIndex - 1, -1)
+      if (scrollTimeout.current) return // still cooling down from a navigation
+      overscroll.current += e.deltaY
+      if (overscroll.current > OVERSCROLL_THRESHOLD) {
+        overscroll.current = 0
+        scrollTimeout.current = setTimeout(() => { scrollTimeout.current = null }, 500)
+        goToCard(currentIndex + 1, 1)
+      } else if (overscroll.current < -OVERSCROLL_THRESHOLD) {
+        overscroll.current = 0
+        scrollTimeout.current = setTimeout(() => { scrollTimeout.current = null }, 500)
+        goToCard(currentIndex - 1, -1)
+      }
     }
     window.addEventListener('wheel', handleWheel, { passive: false })
     return () => window.removeEventListener('wheel', handleWheel)
