@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CardData } from '@/lib/sample-data'
 import { usePlaxStore } from '@/lib/store'
@@ -21,6 +21,8 @@ export function CardActions({ card }: { card: CardData | null }) {
   const { t } = useT()
   const [showBookmarkFeedback, setShowBookmarkFeedback] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  const [speaking, setSpeaking] = useState(false)
+  const cardIdRef = useRef<string | null>(card?.id ?? null)
 
   const isBookmarked = card ? bookmarkedIds.includes(card.id) : false
 
@@ -28,6 +30,60 @@ export function CardActions({ card }: { card: CardData | null }) {
     setToast(msg)
     setTimeout(() => setToast(null), 1600)
   }
+
+  // ── Listen mode (text-to-speech) ────────────────────────────────────────
+  // Reads the current card aloud via the free browser Speech API — hands-free
+  // reading for commutes/walking. Picks a voice matching the card's language
+  // (Hindi/English). Stops automatically when the card changes or unmounts.
+  const stopSpeech = useCallback(() => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel()
+    }
+    setSpeaking(false)
+  }, [])
+
+  // Stop narration whenever the visible card changes.
+  useEffect(() => {
+    if (card?.id !== cardIdRef.current) {
+      cardIdRef.current = card?.id ?? null
+      stopSpeech()
+    }
+  }, [card?.id, stopSpeech])
+
+  // Stop on unmount.
+  useEffect(() => () => stopSpeech(), [stopSpeech])
+
+  const toggleSpeech = useCallback(() => {
+    if (!card || typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      flashToast(t('listenUnsupported'))
+      return
+    }
+    if (speaking) {
+      stopSpeech()
+      return
+    }
+    const isHindi = /[\u0900-\u097F]/.test(`${card.title || ''} ${card.content || ''}`)
+    // Strip markdown so it isn't read literally ("asterisk asterisk").
+    const plain = `${card.title ? card.title + '. ' : ''}${card.content}`
+      .replace(/\*\*(.*?)\*\*/g, '$1')
+      .replace(/\*(.*?)\*/g, '$1')
+      .replace(/[#`>_]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+    if (!plain) return
+    const u = new SpeechSynthesisUtterance(plain)
+    u.lang = isHindi ? 'hi-IN' : 'en-US'
+    u.rate = 1
+    // Prefer a voice matching the language if one is installed.
+    const voices = window.speechSynthesis.getVoices()
+    const match = voices.find((v) => v.lang === u.lang) || voices.find((v) => v.lang.startsWith(u.lang.split('-')[0]))
+    if (match) u.voice = match
+    u.onend = () => setSpeaking(false)
+    u.onerror = () => setSpeaking(false)
+    window.speechSynthesis.cancel()
+    window.speechSynthesis.speak(u)
+    setSpeaking(true)
+  }, [card, speaking, stopSpeech, t])
 
   if (!card) return null
 
@@ -59,6 +115,27 @@ export function CardActions({ card }: { card: CardData | null }) {
       {/* Action dock */}
       <div className="relative flex items-center justify-center pb-[calc(1.25rem+env(safe-area-inset-bottom))] lg:pb-8 pt-10">
         <div className="action-pill pointer-events-auto flex items-center gap-1 p-1.5">
+          {/* Listen (text-to-speech) — hands-free audio reading */}
+          <button
+            onClick={toggleSpeech}
+            aria-label={speaking ? t('listenStop') : t('listen')}
+            data-tip={speaking ? t('listenStop') : t('listen')}
+            className={`tooltip focus-ring flex items-center justify-center w-11 h-11 rounded-full transition-all duration-200 ${
+              speaking ? 'text-[color:var(--signal)] bg-[color:var(--signal)]/12' : 'text-dark-muted hover:text-white hover:bg-white/10'
+            }`}
+          >
+            {speaking ? (
+              <svg className="w-[19px] h-[19px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <rect x="6" y="5" width="4" height="14" rx="1" strokeWidth={1.6} />
+                <rect x="14" y="5" width="4" height="14" rx="1" strokeWidth={1.6} />
+              </svg>
+            ) : (
+              <svg className="w-[19px] h-[19px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M11 5L6 9H2v6h4l5 4V5z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M15.54 8.46a5 5 0 010 7.07M19.07 4.93a10 10 0 010 14.14" />
+              </svg>
+            )}
+          </button>
           <ActionButton
             label={t('copy')}
             icon={
