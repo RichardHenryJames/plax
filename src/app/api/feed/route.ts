@@ -185,7 +185,14 @@ function dedupeStories(items: RawContent[]): RawContent[] {
 }
 
 function determineType(content: string, source: string): ProcessedCard['type'] {
-  if (source === 'ZenQuotes' || content.startsWith('"')) return 'quote'
+  // A card is a QUOTE only if it's genuinely a short, quoted line — ZenQuotes, or
+  // a short passage wrapped in quotes. A LONG article that merely *begins* with a
+  // quotation mark must NOT become a quote (that rendered it in the giant serif
+  // blockquote style — the oversized-font bug).
+  const trimmed = content.trim()
+  const isShortQuote =
+    trimmed.length < 240 && /^["“]/.test(trimmed) && /["”]\s*$/.test(trimmed)
+  if (source === 'ZenQuotes' || isShortQuote) return 'quote'
   if (source.includes('On This Day')) return 'fact'
   if (content.length < 200) return 'did-you-know'
   return 'microessay'

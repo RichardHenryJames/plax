@@ -50,7 +50,7 @@ export function Card({ card, isActive, translating = false }: CardProps) {
   const isBreaking = !!card.publishedAt && Date.now() - card.publishedAt < 30 * 60 * 1000 && Date.now() - card.publishedAt >= 0
 
   return (
-    <div className={`relative flex flex-col overflow-hidden select-none h-full w-full lg:h-[90vh] lg:max-h-[920px] lg:max-w-3xl lg:mx-auto ${isHindi ? 'lang-hi' : ''}`}>
+    <div className={`relative flex flex-col overflow-hidden select-none h-full w-full lg:max-w-3xl lg:mx-auto ${isHindi ? 'lang-hi' : ''}`}>
       {/* Main content area — plain-block scroll container + an inner `min-h-full`
           flex wrapper. Short cards center vertically; long cards top-align and
           ALWAYS scroll from the top so the title is never clipped (a flex scroll
