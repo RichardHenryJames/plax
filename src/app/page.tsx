@@ -7,6 +7,7 @@ import { LeftRail } from '@/components/LeftRail'
 import { RightRail } from '@/components/RightRail'
 import { CommandPalette } from '@/components/CommandPalette'
 import { TopicEditor } from '@/components/TopicEditor'
+import { FeedErrorBoundary } from '@/components/FeedErrorBoundary'
 import { usePlaxStore } from '@/lib/store'
 import { useUIStore } from '@/lib/ui-store'
 import { useEffect, useState } from 'react'
@@ -68,7 +69,9 @@ export default function Home() {
         <LeftRail />
         <div className="relative flex-1 min-w-0 h-full">
           <NavBar />
-          <Feed />
+          <FeedErrorBoundary>
+            <Feed />
+          </FeedErrorBoundary>
         </div>
         <RightRail />
       </div>

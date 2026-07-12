@@ -14,6 +14,30 @@ import { NEWS_SECTIONS } from '@/lib/types'
 const LOAD_MORE_THRESHOLD = 10 // fetch more when 10 cards from end
 const CARD_CACHE_KEY = 'plax-card-cache'
 const CARD_CACHE_MAX_AGE = 30 * 60 * 1000 // 30 minutes
+const SEEN_IDS_CAP = 1500 // bound the in-session seen-id set (memory safety)
+
+// fetch() with a hard timeout so a slow/hung network never leaves the feed
+// spinning forever (mobile networks especially). Aborts after `ms`.
+async function fetchWithTimeout(url: string, ms = 12000): Promise<Response> {
+  const ctrl = new AbortController()
+  const t = setTimeout(() => ctrl.abort(), ms)
+  try {
+    return await fetch(url, { signal: ctrl.signal })
+  } finally {
+    clearTimeout(t)
+  }
+}
+
+// Keep a Set bounded (drop oldest entries) so a long-lived session can't grow it
+// without limit. Sets preserve insertion order, so the first N are the oldest.
+function trimSet(set: Set<string>, cap: number): void {
+  if (set.size <= cap) return
+  let toDrop = set.size - cap
+  for (const k of set) {
+    if (toDrop-- <= 0) break
+    set.delete(k)
+  }
+}
 
 // A stable signature of the current topic selection, so the cache is scoped to
 // the topics it was built for (prevents stale cards from a previous topic pick
@@ -238,7 +262,7 @@ export function Feed() {
       const cats = useUIStore.getState().feedFilter || selectedTopics.join(',')
       // Send IDs the client already has so server skips them
       const excludeIds = [...seenIdsRef.current].filter((id) => !id.startsWith('t:')).join(',')
-      const res = await fetch(`/api/feed?categories=${cats}&limit=30&refresh=${refresh}&lang=en&exclude=${encodeURIComponent(excludeIds)}`)
+      const res = await fetchWithTimeout(`/api/feed?categories=${cats}&limit=30&refresh=${refresh}&lang=en&exclude=${encodeURIComponent(excludeIds)}`)
       if (res.ok) {
         const data = await res.json()
         if (data.cards?.length > 0) {
@@ -247,6 +271,7 @@ export function Feed() {
           if (newCards.length > 0) {
             emptyFetchCountRef.current = 0 // reset — we got fresh cards
             newCards.forEach((c) => seenIdsRef.current.add(c.id))
+            trimSet(seenIdsRef.current, SEEN_IDS_CAP)
             console.log(`[Plax Feed] Loaded ${newCards.length} new cards (batch #${fetchCountRef.current})`)
             setCards((prev) => {
               const updated = [...prev, ...newCards]
@@ -315,13 +340,14 @@ export function Feed() {
       try {
         const cats = selectedTopics.join(',')
         const excludeIds = [...seenIdsRef.current].filter((id) => !id.startsWith('t:')).join(',')
-        const res = await fetch(`/api/feed?categories=${cats}&limit=30&refresh=true&lang=en&exclude=${encodeURIComponent(excludeIds)}`)
+        const res = await fetchWithTimeout(`/api/feed?categories=${cats}&limit=30&refresh=true&lang=en&exclude=${encodeURIComponent(excludeIds)}`)
         if (res.ok) {
           const data = await res.json()
           if (!cancelled && data.cards?.length > 0) {
             const liveCards = rankByEngagement(mapApiCards(data.cards), usePlaxStore.getState().getCategoryScore)
             flushSeenStories()
             liveCards.forEach((c) => seenIdsRef.current.add(c.id))
+            trimSet(seenIdsRef.current, SEEN_IDS_CAP)
             console.log(`[Plax Feed] Live refresh: ${liveCards.length} new cards`)
             setCards((prev) => {
               const updated = prev.length > 0 ? [...prev, ...liveCards] : liveCards
@@ -376,13 +402,14 @@ export function Feed() {
       lastFetchTimeRef.current = Date.now()
       try {
         const excludeIds = [...seenIdsRef.current].filter((id) => !id.startsWith('t:')).join(',')
-        const res = await fetch(`/api/feed?categories=news&limit=20&refresh=true&lang=en&exclude=${encodeURIComponent(excludeIds)}`)
+        const res = await fetchWithTimeout(`/api/feed?categories=news&limit=20&refresh=true&lang=en&exclude=${encodeURIComponent(excludeIds)}`)
         if (!res.ok) return
         const data = await res.json()
         const fresh = mapApiCards(data.cards || [])
         flushSeenStories()
         if (fresh.length === 0) return
         fresh.forEach((c) => seenIdsRef.current.add(c.id))
+        trimSet(seenIdsRef.current, SEEN_IDS_CAP)
         setCards((prev) => {
           // Splice fresh news just AFTER the card currently being read.
           const at = Math.min(currentIndex + 1, prev.length)

@@ -103,7 +103,7 @@ export function Card({ card, isActive, translating = false }: CardProps) {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={card.image}
-                alt=""
+                alt={card.title || 'News image'}
                 loading="lazy"
                 className="w-full h-44 sm:h-52 lg:h-56 object-cover"
                 onError={(e) => { (e.currentTarget.closest('div') as HTMLElement).style.display = 'none' }}
