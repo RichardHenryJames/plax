@@ -12,7 +12,7 @@ export function Skeleton({ className = '' }: { className?: string }) {
 /** Full-screen reading-card skeleton that mirrors the real Card layout. */
 export function CardSkeleton() {
   return (
-    <div className="h-full w-full flex flex-col justify-center px-6 sm:px-10 lg:px-12 py-24">
+    <div className="h-full w-full flex flex-col justify-center px-6 sm:px-10 lg:px-12 py-24" role="status" aria-busy="true" aria-label="Loading content">
       <div className="max-w-xl lg:max-w-2xl mx-auto w-full animate-fade-up">
         {/* Category chip + meta */}
         <div className="flex items-center gap-3 mb-6">
