@@ -396,7 +396,7 @@ export function Feed() {
       const res = await fetch('/api/summarize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: baseContent, title: baseTitle, type: 'microessay', lang }),
+        body: JSON.stringify({ content: baseContent, title: baseTitle, type: 'microessay', lang, category: card.category }),
       })
       if (!res.ok) return // transient (5xx / network) → will retry next view
       const data = await res.json()
