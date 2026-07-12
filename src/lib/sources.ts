@@ -1269,7 +1269,7 @@ export async function fetchHindiNews(perFeed = 4): Promise<RawContent[]> {
 // India-first + global publishers, all filed under category 'news'. This powers
 // the standalone News feed (the Inshorts experience). We pull DEEP (many items
 // per feed) so the pool is large enough that a reader can scroll a long way.
-export async function fetchGeneralNews(perFeed = 10): Promise<RawContent[]> {
+export async function fetchGeneralNews(perFeed = 15): Promise<RawContent[]> {
   const jobs = GENERAL_NEWS_FEEDS.map(([name, url, section]) => fetchOneFeed(name, url, 'news', perFeed, section))
   const results = await Promise.allSettled(jobs)
   const out: RawContent[] = []
@@ -1442,7 +1442,7 @@ export async function fetchAllContent(categories: string[] = [], lang: string = 
     includePoetry ? fetchPoetry(2) : Promise.resolve([]),
     includeGuardian ? fetchGuardian(guardianTopics, 4) : Promise.resolve([]),
     includeRss ? fetchRssNews(rssTopics, 3) : Promise.resolve([]),
-    wantsNews ? fetchGeneralNews(10) : Promise.resolve([]),
+    wantsNews ? fetchGeneralNews(15) : Promise.resolve([]),
   ])
 
   const all: RawContent[] = []
