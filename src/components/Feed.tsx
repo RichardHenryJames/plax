@@ -53,6 +53,58 @@ function setCachedCards(cards: CardData[], sig: string) {
   } catch { /* quota exceeded — ignore */ }
 }
 
+// Story-fingerprint stop-words (mirror of the server list) — ignored when
+// building a headline signature for cross-batch/session news dedup.
+const STORY_STOP = new Set([
+  'the', 'a', 'an', 'and', 'or', 'but', 'of', 'to', 'in', 'on', 'at', 'for', 'with', 'by', 'from',
+  'as', 'is', 'are', 'was', 'were', 'be', 'been', 'this', 'that', 'these', 'those', 'it', 'its',
+  'his', 'her', 'their', 'our', 'your', 'has', 'have', 'had', 'will', 'would', 'can', 'could',
+  'about', 'after', 'over', 'into', 'new', 'says', 'say', 'said', 'not', 'how', 'live', 'updates',
+  'why', 'what', 'who', 'when', 'where', 'amid', 'more', 'than', 'other', 'you', 'may', 'gets', 'get',
+])
+
+// A stable, order-independent fingerprint of a news headline: the most
+// significant (longest) content words, sorted + joined. Two outlets covering the
+// same event produce very similar keys → we dedup across batches AND sessions.
+// Non-news cards get no key (never deduped this way).
+function storyKey(card: CardData): string {
+  if (card.category !== 'news') return ''
+  const words = (card.originalTitle || card.title || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\u0900-\u097F\s]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length >= 4 && !STORY_STOP.has(w))
+  if (words.length === 0) return ''
+  const sig = [...new Set(words)]
+    .sort((a, b) => b.length - a.length)
+    .slice(0, 5)
+    .sort()
+    .join('|')
+  return sig
+}
+
+// The full significant-token set of a news headline — used for FUZZY same-event
+// matching (two outlets phrase the same story differently, so exact signatures
+// miss them; token overlap catches them).
+function storyTokens(card: CardData): Set<string> {
+  if (card.category !== 'news') return new Set()
+  return new Set(
+    (card.originalTitle || card.title || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9\u0900-\u097F\s]/g, ' ')
+      .split(/\s+/)
+      .filter((w) => w.length >= 4 && !STORY_STOP.has(w))
+  )
+}
+
+// Jaccard overlap of two token sets.
+function tokensOverlap(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 || b.size === 0) return 0
+  let inter = 0
+  for (const w of a) if (b.has(w)) inter++
+  return inter / (a.size + b.size - inter)
+}
+
 // ── Personalization: sort an incoming batch so the user's high-engagement
 //    categories surface first. Stable within equal scores; a no-op for new users. ──
 function rankByEngagement(batch: CardData[], scoreOf: (category: string) => number): CardData[] {
@@ -75,6 +127,7 @@ function needsEnhance(card: CardData, lang: string): boolean {
 
 export function Feed() {
   const { selectedTopics, bookmarkedIds, engagements, addEngagement, incrementCardsRead, readCardIds, markCardRead } = usePlaxStore()
+  const markStoriesSeen = usePlaxStore((s) => s.markStoriesSeen)
   const language = usePlaxStore((s) => s.language)
   const feedFilter = useUIStore((s) => s.feedFilter)
   const newsSection = useUIStore((s) => s.newsSection)
@@ -92,6 +145,28 @@ export function Feed() {
   const seenIdsRef = useRef(new Set<string>())
   const lastFetchTimeRef = useRef(0)
   const emptyFetchCountRef = useRef(0) // tracks consecutive fetches that returned 0 new cards
+  // Persistent news story dedup: a Set of story fingerprints already shown (seeded
+  // from the store on mount, so it survives sessions), plus the keys newly seen
+  // this render pass (flushed back to the persisted store).
+  const seenStoryRef = useRef<Set<string>>(new Set())
+  const newStoryKeysRef = useRef<string[]>([])
+  // Token-sets of news stories already loaded THIS session, for fuzzy same-event
+  // dedup (different outlets phrase a story differently — exact keys miss them).
+  const loadedNewsTokensRef = useRef<Set<string>[]>([])
+
+  // Seed the persistent story-dedup set from the store once on mount, so news the
+  // user already saw in a PRIOR session doesn't reappear.
+  useEffect(() => {
+    seenStoryRef.current = new Set(usePlaxStore.getState().seenStoryKeys)
+  }, [])
+
+  // Flush any newly-seen story fingerprints back to the persisted store.
+  const flushSeenStories = useCallback(() => {
+    if (newStoryKeysRef.current.length) {
+      markStoriesSeen(newStoryKeysRef.current)
+      newStoryKeysRef.current = []
+    }
+  }, [markStoriesSeen])
 
   // Map API response to CardData
   const mapApiCards = (apiCards: Record<string, string>[]): CardData[] => {
@@ -116,6 +191,26 @@ export function Feed() {
         const titleKey = (c.title || c.content.slice(0, 80)).toLowerCase().trim()
         if (seenIdsRef.current.has(`t:${titleKey}`)) return false
         seenIdsRef.current.add(`t:${titleKey}`)
+        return true
+      })
+      // Story-level dedup for NEWS — drop any story the user has already been
+      // shown (this batch, a prior batch, or a previous session), so the same
+      // event never repeats across outlets and read news doesn't come back.
+      .filter((c) => {
+        if (c.category !== 'news') return true
+        const key = storyKey(c)
+        // 1) Exact-signature: caught it before (incl. prior sessions)?
+        if (key && seenStoryRef.current.has(key)) return false
+        // 2) Fuzzy same-event: high token overlap with an already-loaded story?
+        const toks = storyTokens(c)
+        for (const seen of loadedNewsTokensRef.current) {
+          if (tokensOverlap(toks, seen) >= 0.5) return false
+        }
+        // Keep it — record fingerprints so later cards dedup against it.
+        if (key) { seenStoryRef.current.add(key); newStoryKeysRef.current.push(key) }
+        loadedNewsTokensRef.current.push(toks)
+        // Bound the in-memory token list (recent stories are what matters).
+        if (loadedNewsTokensRef.current.length > 400) loadedNewsTokensRef.current.shift()
         return true
       })
   }
@@ -148,6 +243,7 @@ export function Feed() {
         const data = await res.json()
         if (data.cards?.length > 0) {
           const newCards = rankByEngagement(mapApiCards(data.cards), usePlaxStore.getState().getCategoryScore)
+          flushSeenStories()
           if (newCards.length > 0) {
             emptyFetchCountRef.current = 0 // reset — we got fresh cards
             newCards.forEach((c) => seenIdsRef.current.add(c.id))
@@ -187,6 +283,7 @@ export function Feed() {
     emptyFetchCountRef.current = 0
     fetchCountRef.current = 0
     lastFetchTimeRef.current = 0
+    loadedNewsTokensRef.current = [] // reset in-memory fuzzy-dedup list per topic
     setCurrentIndex(0)
     setIsInitialLoad(true)
     cardEntryTime.current = Date.now()
@@ -198,6 +295,8 @@ export function Feed() {
         seenIdsRef.current.add(c.id)
         const titleKey = (c.title || c.content.slice(0, 80)).toLowerCase().trim()
         seenIdsRef.current.add(`t:${titleKey}`)
+        // Seed fuzzy-dedup so freshly-fetched cards don't repeat cached stories.
+        if (c.category === 'news') loadedNewsTokensRef.current.push(storyTokens(c))
       })
       setCards(cached)
       console.log(`[Plax Feed] Instant load: ${cached.length} cached cards`)
@@ -221,6 +320,7 @@ export function Feed() {
           const data = await res.json()
           if (!cancelled && data.cards?.length > 0) {
             const liveCards = rankByEngagement(mapApiCards(data.cards), usePlaxStore.getState().getCategoryScore)
+            flushSeenStories()
             liveCards.forEach((c) => seenIdsRef.current.add(c.id))
             console.log(`[Plax Feed] Live refresh: ${liveCards.length} new cards`)
             setCards((prev) => {
@@ -280,6 +380,7 @@ export function Feed() {
         if (!res.ok) return
         const data = await res.json()
         const fresh = mapApiCards(data.cards || [])
+        flushSeenStories()
         if (fresh.length === 0) return
         fresh.forEach((c) => seenIdsRef.current.add(c.id))
         setCards((prev) => {
