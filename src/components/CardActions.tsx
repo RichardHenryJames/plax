@@ -100,7 +100,15 @@ export function CardActions({ card }: { card: CardData | null }) {
                 url: card.sourceUrl || window.location.origin,
               }
               if (navigator.share) {
-                navigator.share(shareData).catch(() => {})
+                navigator.share(shareData).catch((err) => {
+                  // User-cancelled share is not an error; only fall back on real
+                  // failure (unsupported / permission) so the user still gets the link.
+                  if (err?.name === 'AbortError') return
+                  navigator.clipboard
+                    .writeText(`${card.title || ''} — ${card.sourceUrl || window.location.origin}`)
+                    .then(() => flashToast(t('copied')))
+                    .catch(() => {})
+                })
               } else {
                 navigator.clipboard.writeText(`${card.title || ''} — ${card.sourceUrl || window.location.origin}`)
                   .then(() => flashToast(t('copied'))).catch(() => {})
