@@ -910,11 +910,11 @@ export function Feed() {
         )}
       </AnimatePresence>
 
-      {/* News sub-section filter bar (India / World / Tech / …) — shown when the
-          active view is all-news: either News is the only interest, OR a
-          multi-interest user filtered to News. Both cases mean every visible card
-          is a news card (which reserves top space for these pills). */}
-      {((selectedTopics.length === 1 && selectedTopics[0] === 'news') || feedFilter === 'news') && (
+      {/* News sub-section filter bar (India / World / Tech / …) — shown whenever
+          the reader is on a NEWS card (news-only feed, or a news card in a mixed
+          feed), or a section filter is already active. News cards reserve top
+          space for these pills so they never overlap content. */}
+      {(currentCard?.category === 'news' || !!newsSection) && (
         <div className="absolute top-[calc(4.75rem+env(safe-area-inset-top))] left-0 right-0 z-30 lg:top-5 pointer-events-none">
           <div className="flex gap-2 overflow-x-auto hide-scrollbar px-4 justify-start lg:justify-center pointer-events-auto">
             <button
