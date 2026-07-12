@@ -142,7 +142,10 @@ export async function POST(request: NextRequest) {
 
     // Cache: AI enhancement/translation is deterministic per (content, lang), so a
     // repeat view (or another user seeing the same card) is instant + free.
-    const ck = await cacheKey('summarize', lang, title, (content as string).slice(0, 2200))
+    // Cache key includes a prompt VERSION + category so a prompt change (e.g. the
+    // topic-aware rewrite that removed Hook/Takeaway labels) invalidates stale
+    // entries instead of serving pre-fix summaries forever.
+    const ck = await cacheKey('summarize', 'v2', category || '', lang, title, (content as string).slice(0, 2200))
     const cached = await getCachedAI<{ title: string; content: string; type: string }>(ck)
     if (cached) return NextResponse.json({ ...cached, cached: true })
 
