@@ -79,12 +79,6 @@ export function Card({ card, isActive, translating = false }: CardProps) {
                 {isHindi ? 'ताज़ा' : 'Breaking'}
               </span>
             )}
-            {card.aiEnhanced && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-[color:var(--signal)] bg-[color:var(--signal)]/10 border border-[color:var(--signal)]/25 px-2 py-1">
-                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l2.4 6.5L21 11l-6.6 2.5L12 20l-2.4-6.5L3 11l6.6-2.5L12 2z" /></svg>
-                {t('aiSummary')}
-              </span>
-            )}
             <span className="inline-flex items-center gap-1 text-dark-subtle text-xs font-medium">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               {card.readTime}
