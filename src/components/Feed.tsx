@@ -204,7 +204,7 @@ export function Feed() {
         // 2) Fuzzy same-event: high token overlap with an already-loaded story?
         const toks = storyTokens(c)
         for (const seen of loadedNewsTokensRef.current) {
-          if (tokensOverlap(toks, seen) >= 0.5) return false
+          if (tokensOverlap(toks, seen) >= 0.6) return false
         }
         // Keep it — record fingerprints so later cards dedup against it.
         if (key) { seenStoryRef.current.add(key); newStoryKeysRef.current.push(key) }
@@ -348,16 +348,16 @@ export function Feed() {
   const visibleCards = useMemo(
     () => {
       let base = feedFilter ? cards.filter((c) => c.category === feedFilter) : cards
-      // News sub-section filter (India / World / Tech / …) — only when the News
-      // feed is active and a section is chosen.
-      const isNewsFeed = selectedTopics.length === 1 && selectedTopics[0] === 'news'
-      if (isNewsFeed && newsSection) base = base.filter((c) => c.section === newsSection)
+      // News sub-section filter (India / World / Tech / …). Works whenever news is
+      // part of the feed (single OR multi-interest). Picking a section focuses the
+      // feed on that news section.
+      if (newsSection) base = base.filter((c) => c.category === 'news' && c.section === newsSection)
       // A saved card opened via /?card= is pinned to the FRONT (deduped) so the
       // reader lands on it regardless of when the live feed finishes loading.
       if (focusCard && !base.some((c) => c.id === focusCard.id)) return [focusCard, ...base]
       return base
     },
-    [cards, feedFilter, focusCard, selectedTopics, newsSection]
+    [cards, feedFilter, focusCard, newsSection]
   )
 
   // ── Auto-refresh freshness for the News feed ──────────────────────────────
@@ -910,10 +910,11 @@ export function Feed() {
         )}
       </AnimatePresence>
 
-      {/* News sub-section filter bar (India / World / Tech / …) — only on the
-          dedicated News feed. Sits in the card's top-padding zone (news cards
-          top-align + reserve space for it) so it never overlaps content. */}
-      {selectedTopics.length === 1 && selectedTopics[0] === 'news' && (
+      {/* News sub-section filter bar (India / World / Tech / …) — shown when the
+          active view is all-news: either News is the only interest, OR a
+          multi-interest user filtered to News. Both cases mean every visible card
+          is a news card (which reserves top space for these pills). */}
+      {((selectedTopics.length === 1 && selectedTopics[0] === 'news') || feedFilter === 'news') && (
         <div className="absolute top-[calc(4.75rem+env(safe-area-inset-top))] left-0 right-0 z-30 lg:top-5 pointer-events-none">
           <div className="flex gap-2 overflow-x-auto hide-scrollbar px-4 justify-start lg:justify-center pointer-events-auto">
             <button

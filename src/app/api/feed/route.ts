@@ -171,7 +171,7 @@ function dedupeStories(items: RawContent[]): RawContent[] {
     let dupe = false
     for (let i = 0; i < kept.length; i++) {
       if (!kept[i].publishedAt && kept[i].category !== 'news') continue
-      if (tokenOverlap(tokens, keptTokens[i]) >= 0.5) {
+      if (tokenOverlap(tokens, keptTokens[i]) >= 0.6) {
         dupe = true
         break
       }
