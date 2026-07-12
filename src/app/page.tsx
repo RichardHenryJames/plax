@@ -27,6 +27,8 @@ export default function Home() {
     if (!mounted) return
     const params = new URLSearchParams(window.location.search)
     const topic = params.get('topic')
+    const lang = params.get('lang')
+    if (lang === 'hi' || lang === 'en') usePlaxStore.getState().setLanguage(lang)
     if (!topic) return
     const { selectedTopics, setSelectedTopics, setOnboarded, hasOnboarded } = usePlaxStore.getState()
     if (!selectedTopics.includes(topic)) {
