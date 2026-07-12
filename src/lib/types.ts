@@ -192,13 +192,17 @@ export const TOPIC_RSS_FEEDS: Record<string, [string, string][]> = {
 export const GENERAL_NEWS_FEEDS: [string, string, string][] = [
   ['The Hindu', 'https://www.thehindu.com/news/national/feeder/default.rss', 'india'],
   ['NDTV', 'https://feeds.feedburner.com/ndtvnews-top-stories', 'india'],
+  ['India Today', 'https://www.indiatoday.in/rss/1206578', 'india'],
   ['BBC World', 'https://feeds.bbci.co.uk/news/world/rss.xml', 'world'],
   ['Al Jazeera', 'https://www.aljazeera.com/xml/rss/all.xml', 'world'],
+  ['NPR World', 'https://feeds.npr.org/1004/rss.xml', 'world'],
   ['The Verge', 'https://www.theverge.com/rss/index.xml', 'tech'],
   ['TechCrunch', 'https://techcrunch.com/feed/', 'tech'],
+  ['Ars Technica', 'http://feeds.arstechnica.com/arstechnica/index', 'tech'],
   ['CNBC', 'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664', 'business'],
   ['The Hindu Business', 'https://www.thehindubusinessline.com/feeder/default.rss', 'business'],
   ['Science Daily', 'https://www.sciencedaily.com/rss/top/science.xml', 'science'],
+  ['Phys.org', 'https://phys.org/rss-feed/', 'science'],
 ]
 
 // News sub-sections for the filter bar (id + label). 'all' is implicit.

@@ -239,7 +239,7 @@ function filterAndLimit(
     const sorted = [...cards]
       .filter((c) => c.category === 'news')
       .sort((a, b) => (b.publishedAt ?? 0) - (a.publishedAt ?? 0))
-    return capPerSource(sorted, 3).slice(0, limit)
+    return capPerSource(sorted, 6).slice(0, limit)
   }
 
   if (categories.length === 0) {
