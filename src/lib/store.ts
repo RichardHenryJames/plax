@@ -152,10 +152,20 @@ export const usePlaxStore = create<PlaxState>()(
           const { [id]: _removed, ...rest } = get().bookmarkedCards
           set({ bookmarkedIds: current.filter((i) => i !== id), bookmarkedCards: rest })
         } else {
-          set({
-            bookmarkedIds: [...current, id],
-            bookmarkedCards: card ? { ...get().bookmarkedCards, [id]: card } : get().bookmarkedCards,
-          })
+          // Cap stored bookmark CARD DATA to the most recent 150 to keep
+          // localStorage well under quota (each card is ~1KB; unbounded growth
+          // would eventually exceed the 5MB limit and silently wipe the store).
+          // The full id LIST is kept (tiny) so nothing is "lost" — only the
+          // heavy cached card body of the very oldest bookmarks is evicted.
+          const nextIds = [...current, id]
+          let nextCards = card ? { ...get().bookmarkedCards, [id]: card } : get().bookmarkedCards
+          const keys = Object.keys(nextCards)
+          if (keys.length > 150) {
+            // Evict oldest by bookmark order (bookmarkedIds is chronological).
+            const keep = new Set(nextIds.slice(-150))
+            nextCards = Object.fromEntries(Object.entries(nextCards).filter(([k]) => keep.has(k)))
+          }
+          set({ bookmarkedIds: nextIds, bookmarkedCards: nextCards })
         }
       },
 
