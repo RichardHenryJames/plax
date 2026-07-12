@@ -57,10 +57,12 @@ export function Card({ card, isActive, translating = false }: CardProps) {
           container with margin:auto/justify-center clips the overflowing top in
           Chrome). Padding clears the navbar (top) + floating action pill (bottom). */}
       <div data-card-scroll className="flex-1 relative z-10 overflow-y-auto hide-scrollbar overscroll-contain">
-        <div className={`min-h-full flex flex-col justify-center px-6 sm:px-10 lg:px-14 pb-28 lg:pb-24 ${
+        <div className={`min-h-full flex flex-col px-6 sm:px-10 lg:px-14 pb-36 lg:pb-28 ${
           isNews
-            ? 'pt-[7.25rem] lg:justify-start lg:pt-16'
-            : `pt-20 ${isLong ? 'lg:justify-start lg:pt-10' : 'lg:pt-16'}`
+            ? 'justify-start pt-[7.25rem] lg:pt-16'
+            : isLong
+            ? 'justify-start pt-20 lg:pt-10'
+            : 'justify-center pt-20 lg:pt-16'
         }`}>
           <div className="max-w-xl lg:max-w-2xl mx-auto w-full">
             {/* Category + metadata */}
