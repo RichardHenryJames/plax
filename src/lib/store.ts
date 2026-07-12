@@ -84,6 +84,11 @@ interface PlaxState {
   incrementCardsRead: () => void
   readCardIds: string[]
   markCardRead: (id: string) => void
+  // Persistent story fingerprints the user has already been shown (news dedup).
+  // Lets us drop near-duplicate stories across scroll batches AND sessions, so the
+  // same event from a different outlet never reappears (the Inshorts model).
+  seenStoryKeys: string[]
+  markStoriesSeen: (keys: string[]) => void
 
   // Quiz / active-recall stats
   quizAttempted: number
@@ -197,6 +202,15 @@ export const usePlaxStore = create<PlaxState>()(
             ? s.readCardIds
             : [...s.readCardIds.slice(-500), id], // keep last 500
         })),
+      seenStoryKeys: [],
+      markStoriesSeen: (keys) =>
+        set((s) => {
+          if (!keys.length) return {}
+          const merged = new Set(s.seenStoryKeys)
+          keys.forEach((k) => k && merged.add(k))
+          // keep the most recent ~600 (news churns; old keys can expire)
+          return { seenStoryKeys: [...merged].slice(-600) }
+        }),
 
       // Quiz / active-recall stats
       quizAttempted: 0,
