@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { unstable_cache } from 'next/cache'
 import { fetchAllContent } from '@/lib/sources'
 import { getCached, setCache } from '@/lib/cache'
 import { ProcessedCard, EMOJI_MAP, RawContent } from '@/lib/types'
@@ -6,6 +7,17 @@ import { ProcessedCard, EMOJI_MAP, RawContent } from '@/lib/types'
 // Use Node.js runtime for reliable external API fetches
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+
+// Persistent (cross-instance) cache of the raw content pool, keyed by topics+lang.
+// Unlike the in-memory Map (lost on every cold serverless start), this is backed
+// by Next's data cache so a cold instance still answers a non-refresh request
+// instantly from the last-computed pool — the key to Inshorts-like first-load
+// speed. Personalization (exclude/dedup/rank) still happens per-request downstream.
+const getPooledContent = unstable_cache(
+  async (categories: string[], lang: string) => fetchAllContent(categories, lang),
+  ['feed-pool'],
+  { revalidate: 180, tags: ['feed'] }
+)
 
 // Simple deterministic hash for stable card IDs
 function stableHash(str: string): string {
@@ -47,7 +59,11 @@ export async function GET(request: NextRequest) {
 
     // Fetch from all sources in parallel (always fresh on refresh).
     // Pass the user's categories so Reddit pulls topic-relevant subreddits.
-    const rawContents = await fetchAllContent(categories, lang)
+    // Non-refresh → persistent pooled cache (fast, cross-instance). refresh=true
+    // (pull-to-refresh / news auto-refresh) → always a live fetch.
+    const rawContents = refresh
+      ? await fetchAllContent(categories, lang)
+      : await getPooledContent([...categories].sort(), lang)
     console.log(`[Plax API] Fetched ${rawContents.length} raw items`)
 
     if (rawContents.length === 0) {
