@@ -340,7 +340,7 @@ export function Feed() {
       try {
         const cats = selectedTopics.join(',')
         const excludeIds = [...seenIdsRef.current].filter((id) => !id.startsWith('t:')).join(',')
-        const res = await fetchWithTimeout(`/api/feed?categories=${cats}&limit=30&refresh=true&lang=en&exclude=${encodeURIComponent(excludeIds)}`)
+        const res = await fetchWithTimeout(`/api/feed?categories=${cats}&limit=30&refresh=false&lang=en&exclude=${encodeURIComponent(excludeIds)}`)
         if (res.ok) {
           const data = await res.json()
           if (!cancelled && data.cards?.length > 0) {
@@ -642,7 +642,9 @@ export function Feed() {
     const remaining = visibleCards.length - currentIndex
     if (remaining <= LOAD_MORE_THRESHOLD && !isFetching && cards.length > 0) {
       console.log(`[Plax Feed] ${remaining} cards left, fetching more...`)
-      fetchMore(true)
+      // refresh=false so a warm server cache answers instantly; the route falls
+      // through to a live fetch only when the cached set is exhausted.
+      fetchMore(false)
     }
   }, [currentIndex, visibleCards.length, cards.length, isFetching, fetchMore])
 
@@ -678,8 +680,8 @@ export function Feed() {
     (newIndex: number, dir: number) => {
       if (newIndex < 0) return // can't go before first card
       if (newIndex >= visibleCards.length) {
-        // At the edge — trigger fetch & don't move yet
-        if (!isFetching) fetchMore(true)
+        // At the edge — trigger fetch & don't move yet (cache-first for speed).
+        if (!isFetching) fetchMore(false)
         return
       }
       trackEngagement(currentIndex)
