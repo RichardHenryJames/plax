@@ -567,13 +567,17 @@ export function Feed() {
     }
   }, [])
 
-  // Enhance the current card + prefetch the NEXT one so that by the time the user
-  // swipes (or toggles language), the translation is already ready — makes it feel
-  // instant. We prefetch only ONE ahead to conserve the AI token budget (each
-  // enhancement is an AI call; prefetching many ahead burns the daily quota fast).
+  // Enhance the current card + prefetch a WINDOW of upcoming cards so that by the
+  // time the user swipes (or toggles language), the translation/summary is already
+  // ready — no "Translating…" flash. The AI-cache + per-card attempt cap + inflight
+  // dedup keep this cheap (already-enhanced cards no-op, repeats are cache hits).
   useEffect(() => {
+    // Current first (highest priority), then look ahead. 4 ahead is a good balance:
+    // enough runway that scrolling always lands on a ready card, without burning
+    // the daily AI quota prefetching cards the user may never reach.
+    const AHEAD = 4
     enhanceCard(visibleCards[currentIndex])
-    enhanceCard(visibleCards[currentIndex + 1])
+    for (let i = 1; i <= AHEAD; i++) enhanceCard(visibleCards[currentIndex + i])
   }, [currentIndex, visibleCards, enhanceCard, language])
 
   // Retry loop: if the CURRENT card still isn't rendered in the active language
@@ -889,19 +893,16 @@ export function Feed() {
 
   const variants = {
     enter: (dir: number) => ({
-      y: dir > 0 ? '38%' : '-38%',
+      y: dir > 0 ? '32%' : '-32%',
       opacity: 0,
-      scale: 0.96,
     }),
     center: {
       y: 0,
       opacity: 1,
-      scale: 1,
     },
     exit: (dir: number) => ({
-      y: dir > 0 ? '-18%' : '18%',
+      y: dir > 0 ? '-14%' : '14%',
       opacity: 0,
-      scale: 0.97,
     }),
   }
 
@@ -983,9 +984,8 @@ export function Feed() {
           animate="center"
           exit="exit"
           transition={{
-            y: { type: 'tween', duration: 0.28, ease: [0.22, 1, 0.36, 1] },
-            scale: { duration: 0.28, ease: [0.22, 1, 0.36, 1] },
-            opacity: { duration: 0.18 },
+            y: { type: 'spring', stiffness: 550, damping: 42, mass: 0.7 },
+            opacity: { duration: 0.14 },
           }}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
