@@ -142,11 +142,12 @@ function rankByEngagement(batch: CardData[], scoreOf: (category: string) => numb
 
 // Whether a card is eligible for AI enhancement/translation in the given language.
 // EN: only long-form raw extracts (skip quotes/short facts). HI: every substantive
-// card (so the whole feed reads in Hindi). Mirrors the logic in enhanceCard.
+// card (so the whole feed reads in Hindi — incl. short news blurbs, which used to
+// stay English). Mirrors the logic in enhanceCard.
 function needsEnhance(card: CardData, lang: string): boolean {
   const base = card.originalContent ?? card.content
   if (lang === 'en') return card.type === 'microessay' && (base?.length ?? 0) >= 240
-  return (base?.length ?? 0) >= 120
+  return (base?.length ?? 0) >= 40
 }
 
 export function Feed() {
@@ -511,11 +512,12 @@ export function Feed() {
     const baseContent = card.originalContent ?? card.content
     const baseTitle = card.originalTitle ?? card.title
     // English: only transform long-form raw extracts (skip quotes, short facts).
-    // Hindi: enhance every substantive card so the whole feed reads in Hindi.
+    // Hindi: enhance every substantive card so the whole feed reads in Hindi
+    // (incl. short news blurbs — they used to stay English below the old 120 gate).
     if (lang === 'en') {
       if (card.type !== 'microessay' || (baseContent?.length ?? 0) < 240) return
     } else {
-      if ((baseContent?.length ?? 0) < 120) return
+      if ((baseContent?.length ?? 0) < 40) return
     }
     enhanceCounts.current.set(key, (enhanceCounts.current.get(key) ?? 0) + 1)
     enhanceInflight.current.add(key)
@@ -567,6 +569,35 @@ export function Feed() {
     }
   }, [])
 
+  // Fire-and-forget: warm the SERVER cache for a card in the language the user is
+  // NOT currently viewing, so that when they toggle the language the same request
+  // is a cache hit and the flip feels instant instead of a ~2s live LLM call. We
+  // deliberately do NOT apply the result to state (that would clobber the card the
+  // user is reading). Dedup by a separate inflight set so we only warm each card
+  // once per session.
+  const prewarmedRef = useRef<Set<string>>(new Set())
+  const prewarmOppositeLang = useCallback(async (card: CardData | undefined) => {
+    if (!card) return
+    const current = usePlaxStore.getState().language
+    const other = current === 'en' ? 'hi' : 'en'
+    if (!needsEnhance(card, other)) return
+    const key = `${card.id}:${other}`
+    if (prewarmedRef.current.has(key)) return
+    prewarmedRef.current.add(key)
+    const baseContent = card.originalContent ?? card.content
+    const baseTitle = card.originalTitle ?? card.title
+    try {
+      await fetch('/api/summarize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: baseContent, title: baseTitle, type: 'microessay', lang: other, category: card.category }),
+      })
+    } catch {
+      // Best-effort warm-up; allow a retry later by clearing the dedup mark.
+      prewarmedRef.current.delete(key)
+    }
+  }, [])
+
   // Enhance the current card + prefetch a WINDOW of upcoming cards so that by the
   // time the user swipes (or toggles language), the translation/summary is already
   // ready — no "Translating…" flash. The AI-cache + per-card attempt cap + inflight
@@ -578,7 +609,12 @@ export function Feed() {
     const AHEAD = 4
     enhanceCard(visibleCards[currentIndex])
     for (let i = 1; i <= AHEAD; i++) enhanceCard(visibleCards[currentIndex + i])
-  }, [currentIndex, visibleCards, enhanceCard, language])
+    // Pre-warm the OPPOSITE language for the card the user is on (+1 ahead) so a
+    // language toggle is INSTANT (server cache hit) instead of a ~2s live call.
+    // Fire-and-forget: only warms the shared server cache, never touches state.
+    prewarmOppositeLang(visibleCards[currentIndex])
+    prewarmOppositeLang(visibleCards[currentIndex + 1])
+  }, [currentIndex, visibleCards, enhanceCard, prewarmOppositeLang, language])
 
   // Retry loop: if the CURRENT card still isn't rendered in the active language
   // (e.g. a transient AI-quota failure), retry every couple seconds until it is
