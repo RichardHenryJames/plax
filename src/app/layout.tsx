@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { AuthProviderWrapper } from '@/components/AuthProviderWrapper'
 import { SITE, SITE_URL, TOPIC_SEO } from '@/lib/seo'
+import { withBase } from '@/lib/base-path'
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -111,12 +112,15 @@ export default function RootLayout({
       <body className="bg-dark-bg text-dark-text antialiased">
         {/* Server-rendered, screen-reader-only site nav. Present in the raw HTML
             (no JS needed) so crawlers reliably discover the topic hub + every
-            topic page directly from the homepage, independent of client render. */}
+            topic page directly from the homepage, independent of client render.
+            Raw <a> does not get basePath the way <Link> does, so these are
+            prefixed explicitly — otherwise "Home" points crawlers at the
+            website-builder app that owns the domain root. */}
         <nav aria-label="Browse topics" className="sr-only">
-          <a href="/">Home</a>
-          <a href="/topics">Explore all topics</a>
+          <a href={withBase('/')}>Home</a>
+          <a href={withBase('/topics')}>Explore all topics</a>
           {TOPIC_SEO.map((t) => (
-            <a key={t.id} href={`/topics/${t.id}`}>{t.label}</a>
+            <a key={t.id} href={withBase(`/topics/${t.id}`)}>{t.label}</a>
           ))}
         </nav>
         <AuthProviderWrapper>{children}</AuthProviderWrapper>

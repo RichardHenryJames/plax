@@ -19,11 +19,15 @@ const SEEN_IDS_CAP = 1500 // bound the in-session seen-id set (memory safety)
 
 // fetch() with a hard timeout so a slow/hung network never leaves the feed
 // spinning forever (mobile networks especially). Aborts after `ms`.
+//
+// Root-relative URLs are sent through withBase() here rather than at each call
+// site: this app is proxied at /news, and a bare /api/... would leave the zone
+// and 404 against the app that owns the domain root.
 async function fetchWithTimeout(url: string, ms = 12000): Promise<Response> {
   const ctrl = new AbortController()
   const t = setTimeout(() => ctrl.abort(), ms)
   try {
-    return await fetch(url, { signal: ctrl.signal })
+    return await fetch(url.startsWith('/') ? withBase(url) : url, { signal: ctrl.signal })
   } finally {
     clearTimeout(t)
   }

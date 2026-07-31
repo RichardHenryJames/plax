@@ -9,5 +9,9 @@
  */
 export const BASE_PATH = '/news'
 
-/** Prefix an app-absolute path so it stays inside this zone. */
-export const withBase = (path: string) => `${BASE_PATH}${path}`
+/**
+ * Prefix an app-absolute path so it stays inside this zone. Idempotent, so
+ * wrapping a value that already carries the prefix is harmless.
+ */
+export const withBase = (path: string) =>
+  path === BASE_PATH || path.startsWith(`${BASE_PATH}/`) ? path : `${BASE_PATH}${path === '/' ? '' : path}`
