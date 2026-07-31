@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useUIStore } from '@/lib/ui-store'
 import { usePlaxStore } from '@/lib/store'
 import { useT } from '@/lib/i18n'
+import { withBase } from '@/lib/base-path'
 
 export function NavBar() {
   const { user, signInWithGoogle, signOut, loading } = useAuth()
@@ -27,7 +28,7 @@ export function NavBar() {
         <Link href="/" className="flex items-center gap-2 group">
           <span className="brand-badge rounded-md transition-opacity group-hover:opacity-90">
             <img
-              src="/plaxlabs_logo.png"
+              src={withBase('/plaxlabs_logo.png')}
               alt="Plax"
               className="w-7 h-7 rounded-md"
             />

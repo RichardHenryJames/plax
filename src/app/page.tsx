@@ -11,6 +11,7 @@ import { FeedErrorBoundary } from '@/components/FeedErrorBoundary'
 import { usePlaxStore } from '@/lib/store'
 import { useUIStore } from '@/lib/ui-store'
 import { useEffect, useState } from 'react'
+import { withBase } from '@/lib/base-path'
 
 export default function Home() {
   const hasOnboarded = usePlaxStore((s) => s.hasOnboarded)
@@ -46,7 +47,7 @@ export default function Home() {
         <div className="flex flex-col items-center gap-4 animate-pulse">
           <span className="brand-badge rounded-2xl">
             <img
-              src="/plaxlabs_logo.png"
+              src={withBase('/plaxlabs_logo.png')}
               alt="Plax"
               className="w-16 h-16 rounded-2xl"
             />

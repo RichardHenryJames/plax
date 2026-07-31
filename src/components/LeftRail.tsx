@@ -6,6 +6,7 @@ import { TOPICS, usePlaxStore } from '@/lib/store'
 import { useUIStore } from '@/lib/ui-store'
 import { useAuth } from '@/components/AuthProvider'
 import { useT } from '@/lib/i18n'
+import { withBase } from '@/lib/base-path'
 
 /**
  * LeftRail — persistent desktop navigation (hidden on mobile, where NavBar is used).
@@ -35,7 +36,7 @@ export function LeftRail() {
         <Link href="/" className="flex items-center gap-2.5 group">
           <span className="brand-badge rounded-md group-hover:opacity-90 transition-opacity">
             <img
-              src="/plaxlabs_logo.png"
+              src={withBase('/plaxlabs_logo.png')}
               alt="Plax"
               className="w-9 h-9 rounded-md"
             />

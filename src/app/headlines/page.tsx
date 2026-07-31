@@ -36,7 +36,7 @@ function prepare(items: RawContent[]): RawContent[] {
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-  const url = `${SITE_URL}/news`
+  const url = `${SITE_URL}/headlines`
   return {
     title: 'Latest News Today — India & World Headlines',
     description:
@@ -60,7 +60,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function NewsHubPage() {
   const raw = await getCachedNews().catch(() => [] as RawContent[])
   const items = prepare(raw)
-  const url = `${SITE_URL}/news`
+  const url = `${SITE_URL}/headlines`
   const bySection = (id: string) => items.filter((i) => i.section === id).slice(0, 8)
 
   const jsonLd = {
@@ -118,7 +118,7 @@ export default async function NewsHubPage() {
         {NEWS_SECTIONS.map((s) => (
           <Link
             key={s.id}
-            href={`/news/${s.id}`}
+            href={`/headlines/${s.id}`}
             className="px-3.5 py-1.5 rounded-full text-sm font-semibold bg-white/[0.04] border border-white/[0.08] hover:border-[color:var(--signal)] transition"
           >
             {s.label}
@@ -137,7 +137,7 @@ export default async function NewsHubPage() {
           <section key={s.id} className="mb-12">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-white">{s.label} News</h2>
-              <Link href={`/news/${s.id}`} className="text-sm text-[color:var(--signal)] hover:underline">More {s.label} →</Link>
+              <Link href={`/headlines/${s.id}`} className="text-sm text-[color:var(--signal)] hover:underline">More {s.label} →</Link>
             </div>
             <ul className="space-y-5">
               {sectionItems.map((it, i) => (

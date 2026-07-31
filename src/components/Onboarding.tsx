@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TOPICS, usePlaxStore } from '@/lib/store'
 import { useT } from '@/lib/i18n'
+import { withBase } from '@/lib/base-path'
 
 const VALUE_KEYS = ['valueProp1', 'valueProp2', 'valueProp3']
 
@@ -46,7 +47,7 @@ export function Onboarding() {
               {/* Masthead row */}
               <div className="flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2.5">
-                  <span className="brand-badge rounded-md"><img src="/plaxlabs_logo.png" alt="Plax" className="w-7 h-7 rounded-md" /></span>
+                  <span className="brand-badge rounded-md"><img src={withBase('/plaxlabs_logo.png')} alt="Plax" className="w-7 h-7 rounded-md" /></span>
                   <span className="text-[15px] font-bold tracking-tight text-white">Plax</span>
                 </div>
                 <span className="eyebrow eyebrow--bare text-dark-subtle hidden sm:inline-flex">

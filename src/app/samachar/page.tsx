@@ -85,7 +85,7 @@ export default async function SamacharPage() {
         <p className="text-dark-muted leading-relaxed max-w-2xl">
           भारत और दुनिया की प्रमुख सुर्खियाँ, आसान भाषा में और लगातार अपडेट।{' '}
           <Link href="/?topic=news&lang=hi" className="text-[color:var(--signal)] hover:underline">लाइव समाचार फ़ीड खोलें</Link>.
-          {' '}Read in English? <Link href="/news" className="text-[color:var(--signal)] hover:underline">Latest news today</Link>.
+          {' '}Read in English? <Link href="/headlines" className="text-[color:var(--signal)] hover:underline">Latest news today</Link>.
         </p>
       </header>
 

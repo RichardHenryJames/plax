@@ -20,7 +20,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
     // News hub + Hindi hub — high priority, refreshed continuously.
     {
-      url: `${SITE_URL}/news`,
+      url: `${SITE_URL}/headlines`,
       lastModified: now,
       changeFrequency: 'hourly',
       priority: 0.95,
@@ -34,7 +34,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   ]
 
   const newsSectionRoutes: MetadataRoute.Sitemap = NEWS_SECTIONS.map((s) => ({
-    url: `${SITE_URL}/news/${s.id}`,
+    url: `${SITE_URL}/headlines/${s.id}`,
     lastModified: now,
     changeFrequency: 'hourly',
     priority: 0.85,

@@ -6,6 +6,7 @@ import { CardData } from '@/lib/sample-data'
 import { TOPICS, usePlaxStore } from '@/lib/store'
 import { useUIStore } from '@/lib/ui-store'
 import { useT } from '@/lib/i18n'
+import { withBase } from '@/lib/base-path'
 
 interface CardProps {
   card: CardData
@@ -500,7 +501,7 @@ function DeeperSection({ card, isHindi }: { card: CardData; isHindi: boolean }) 
     if (state === 'loading' || state === 'done') return
     setState('loading')
     try {
-      const res = await fetch('/api/deeper', {
+      const res = await fetch(withBase('/api/deeper'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: card.title, content: card.content, lang }),
@@ -583,7 +584,7 @@ function MoreByAuthor({ author, title, url, isHindi }: { author: string; title: 
     if (state === 'loading' || state === 'done') return
     setState('loading')
     try {
-      const res = await fetch('/api/author-books', {
+      const res = await fetch(withBase('/api/author-books'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ author, exclude: title, excludeUrl: url }),
@@ -673,7 +674,7 @@ function QuizSection({ card, isHindi }: { card: CardData; isHindi: boolean }) {
     if (state === 'loading' || state === 'ready') return
     setState('loading')
     try {
-      const res = await fetch('/api/quiz', {
+      const res = await fetch(withBase('/api/quiz'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: card.title, content: card.content, lang }),

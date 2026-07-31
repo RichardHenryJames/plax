@@ -60,12 +60,12 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const meta = SECTION_COPY[section]
   const s = NEWS_SECTIONS.find((x) => x.id === section)
   if (!meta || !s) return {}
-  const url = `${SITE_URL}/news/${section}`
+  const url = `${SITE_URL}/headlines/${section}`
   return {
     title: meta.title,
     description: meta.desc,
     keywords: [...meta.kw, 'Plax', 'news today'],
-    alternates: { canonical: `/news/${section}` },
+    alternates: { canonical: `/headlines/${section}` },
     openGraph: { title: `${meta.title} | Plax`, description: meta.desc, url, type: 'website' },
     twitter: { card: 'summary_large_image', title: `${meta.title} | Plax` },
   }
@@ -85,7 +85,7 @@ export default async function NewsSectionPage({ params }: Params) {
     .sort((a, b) => (b.publishedAt ?? 0) - (a.publishedAt ?? 0))
     .slice(0, 25)
 
-  const url = `${SITE_URL}/news/${section}`
+  const url = `${SITE_URL}/headlines/${section}`
   const jsonLd = {
     '@context': 'https://schema.org',
     '@graph': [
@@ -108,7 +108,7 @@ export default async function NewsSectionPage({ params }: Params) {
         '@type': 'BreadcrumbList',
         itemListElement: [
           { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_URL}/` },
-          { '@type': 'ListItem', position: 2, name: 'News', item: `${SITE_URL}/news` },
+          { '@type': 'ListItem', position: 2, name: 'News', item: `${SITE_URL}/headlines` },
           { '@type': 'ListItem', position: 3, name: s.label, item: url },
         ],
       },
@@ -121,7 +121,7 @@ export default async function NewsSectionPage({ params }: Params) {
 
       <nav className="text-sm text-dark-subtle mb-6">
         <Link href="/" className="hover:text-white">Home</Link> <span className="mx-1">/</span>{' '}
-        <Link href="/news" className="hover:text-white">News</Link> <span className="mx-1">/</span> {s.label}
+        <Link href="/headlines" className="hover:text-white">News</Link> <span className="mx-1">/</span> {s.label}
       </nav>
 
       <header className="mb-8">
@@ -130,11 +130,11 @@ export default async function NewsSectionPage({ params }: Params) {
       </header>
 
       <div className="flex flex-wrap gap-2 mb-10">
-        <Link href="/news" className="px-3.5 py-1.5 rounded-full text-sm font-semibold bg-white/[0.04] border border-white/[0.08] hover:border-[color:var(--signal)] transition">All News</Link>
+        <Link href="/headlines" className="px-3.5 py-1.5 rounded-full text-sm font-semibold bg-white/[0.04] border border-white/[0.08] hover:border-[color:var(--signal)] transition">All News</Link>
         {NEWS_SECTIONS.map((x) => (
           <Link
             key={x.id}
-            href={`/news/${x.id}`}
+            href={`/headlines/${x.id}`}
             className={`px-3.5 py-1.5 rounded-full text-sm font-semibold border transition ${
               x.id === section ? 'bg-[color:var(--signal)] text-black border-transparent' : 'bg-white/[0.04] border-white/[0.08] hover:border-[color:var(--signal)]'
             }`}

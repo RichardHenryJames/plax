@@ -10,6 +10,7 @@ import { usePlaxStore } from '@/lib/store'
 import { useUIStore } from '@/lib/ui-store'
 import { translate } from '@/lib/i18n'
 import { NEWS_SECTIONS } from '@/lib/types'
+import { withBase } from '@/lib/base-path'
 
 const LOAD_MORE_THRESHOLD = 10 // fetch more when 10 cards from end
 const CARD_CACHE_KEY = 'plax-card-cache'
@@ -523,7 +524,7 @@ export function Feed() {
     enhanceInflight.current.add(key)
     setEnhancingIds((s) => new Set(s).add(card.id))
     try {
-      const res = await fetch('/api/summarize', {
+      const res = await fetch(withBase('/api/summarize'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: baseContent, title: baseTitle, type: 'microessay', lang, category: card.category }),
@@ -587,7 +588,7 @@ export function Feed() {
     const baseContent = card.originalContent ?? card.content
     const baseTitle = card.originalTitle ?? card.title
     try {
-      await fetch('/api/summarize', {
+      await fetch(withBase('/api/summarize'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: baseContent, title: baseTitle, type: 'microessay', lang: other, category: card.category }),

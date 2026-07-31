@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { SITE_URL, TOPIC_SEO, getTopicSeo } from '@/lib/seo'
+import { withBase } from '@/lib/base-path'
 
 // Statically pre-render one page per topic at build time.
 export function generateStaticParams() {
@@ -177,7 +178,7 @@ export default async function TopicPage({ params }: Params) {
       <footer className="border-t border-dark-border">
         <div className="max-w-3xl mx-auto px-5 sm:px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <Link href="/topics" className="flex items-center gap-2 text-dark-muted hover:text-white transition-colors">
-            <span className="brand-badge rounded"><img src="/plaxlabs_logo.png" alt="Plax" className="w-6 h-6 rounded" /></span>
+            <span className="brand-badge rounded"><img src={withBase('/plaxlabs_logo.png')} alt="Plax" className="w-6 h-6 rounded" /></span>
             <span className="text-sm font-medium">Explore all topics</span>
           </Link>
           <p className="text-dark-subtle text-xs">© {new Date().getFullYear()} Plax Labs</p>
