@@ -1,7 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/keep-alive",
+      "_comment": "Must include the basePath. Vercel calls this path on the deployment, and every route in this app now lives under /news, so /api/keep-alive returns 404 and the free-tier Supabase project drifts towards auto-pause.",
+      "path": "/news/api/keep-alive",
       "schedule": "0 6 * * *"
     }
   ]
