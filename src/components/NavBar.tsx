@@ -2,23 +2,25 @@
 
 import Link from 'next/link'
 import { useAuth } from '@/components/AuthProvider'
-import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { useUIStore } from '@/lib/ui-store'
 import { usePlaxStore } from '@/lib/store'
 import { useT } from '@/lib/i18n'
 import { withBase } from '@/lib/base-path'
 
+/**
+ * Phone header, as in the Android app: logo, English | हिन्दी, then the few actions that matter. Topics and
+ * saved stories moved to the tabs at the bottom; the account is one quiet button, never a gate.
+ */
 export function NavBar() {
-  const { user, signInWithGoogle, signOut, loading } = useAuth()
-  const [showMenu, setShowMenu] = useState(false)
+  const { user, loading } = useAuth()
   const setCommandOpen = useUIStore((s) => s.setCommandOpen)
-  const setTopicsOpen = useUIStore((s) => s.setTopicsOpen)
+  const setAccountOpen = useUIStore((s) => s.setAccountOpen)
+  const requestRefresh = useUIStore((s) => s.requestRefresh)
   const language = usePlaxStore((s) => s.language)
   const setLanguage = usePlaxStore((s) => s.setLanguage)
   const theme = usePlaxStore((s) => s.theme)
   const toggleTheme = usePlaxStore((s) => s.toggleTheme)
-  const { t, lang } = useT()
+  const { t } = useT()
 
   return (
     <nav className="lg:hidden absolute top-0 left-0 right-0 z-50 pointer-events-none">
@@ -85,109 +87,42 @@ export function NavBar() {
           </button>
 
           <button
-            onClick={() => setTopicsOpen(true)}
-            aria-label={t('editInterests')}
+            onClick={requestRefresh}
+            aria-label={t('refresh')}
             className="p-2 text-dark-muted hover:text-white transition-colors rounded-full hover:bg-white/5"
           >
-            <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+            <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+              <path d="M20 12a8 8 0 11-2.6-5.9M20 4v5h-5" />
             </svg>
           </button>
 
-          <Link href="/profile?tab=bookmarks" aria-label={t('bookmarks')} className="p-2 text-dark-muted hover:text-white transition-colors rounded-full hover:bg-white/5">
-            <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-            </svg>
-          </Link>
-
-          {/* User Avatar / Sign In */}
+          {/* Account: one quiet button. It opens the same optional sheet as the app's Account screen. */}
           {!loading && (
-            <div className="relative">
+            <button
+              onClick={() => setAccountOpen(true)}
+              aria-label={t('account')}
+              className="ml-0.5 p-0.5 rounded-full hover:bg-white/5 transition"
+            >
               {user ? (
-                <button
-                  onClick={() => setShowMenu(!showMenu)}
-                  className="ml-0.5 p-0.5"
-                >
-                  {user.user_metadata?.avatar_url ? (
-                    <img
-                      src={user.user_metadata.avatar_url}
-                      alt="Avatar"
-                      className="w-8 h-8 rounded-full ring-1 ring-[color:var(--hair-strong)] hover:ring-[color:var(--signal)] transition"
-                    />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-[color:var(--signal)] flex items-center justify-center transition">
-                      <span className="text-sm font-bold text-[color:var(--signal-ink)]">
-                        {(user.user_metadata?.full_name || user.email || 'U')[0].toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-                </button>
+                user.user_metadata?.avatar_url ? (
+                  <img
+                    src={user.user_metadata.avatar_url}
+                    alt=""
+                    className="w-8 h-8 rounded-full ring-1 ring-[color:var(--hair-strong)] hover:ring-[color:var(--signal)] transition"
+                  />
+                ) : (
+                  <span className="w-8 h-8 rounded-full bg-[color:var(--signal)] flex items-center justify-center text-sm font-bold text-[color:var(--signal-ink)]">
+                    {(user.user_metadata?.full_name || user.email || 'U')[0].toUpperCase()}
+                  </span>
+                )
               ) : (
-                <button
-                  onClick={() => setShowMenu(!showMenu)}
-                  className={`px-3.5 py-1.5 bg-[color:var(--signal)] rounded-md text-[color:var(--signal-ink)] text-sm font-semibold hover:bg-[#ffc257] transition ml-1 ${lang === 'hi' ? 'lang-hi' : ''}`}
-                >
-                  {t('signIn')}
-                </button>
+                <span className="flex w-8 h-8 items-center justify-center text-dark-muted hover:text-white transition-colors">
+                  <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                    <path d="M12 4a4 4 0 100 8 4 4 0 000-8zM4.5 20a7.5 7.5 0 0115 0" />
+                  </svg>
+                </span>
               )}
-
-              {/* Dropdown Menu */}
-              <AnimatePresence>
-                {showMenu && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-40"
-                      onClick={() => setShowMenu(false)}
-                    />
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95, y: -5 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95, y: -5 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute right-0 top-12 w-56 bg-dark-card border border-dark-border rounded-xl shadow-2xl shadow-black/50 z-50 overflow-hidden"
-                    >
-                      {user ? (
-                        <>
-                          <div className="px-4 py-3.5 border-b border-dark-border">
-                            <p className="text-sm font-medium truncate">
-                              {user.user_metadata?.full_name || user.email?.split('@')[0]}
-                            </p>
-                            <p className="text-xs text-dark-muted truncate">{user.email}</p>
-                          </div>
-                          <Link
-                            href="/profile"
-                            onClick={() => setShowMenu(false)}
-                            className="flex items-center gap-3 px-4 py-3.5 text-sm text-dark-text hover:bg-white/5 transition"
-                          >
-                            <span>👤</span> {t('profileAndStats')}
-                          </Link>
-                          <button
-                            onClick={() => { signOut(); setShowMenu(false) }}
-                            className="w-full flex items-center gap-3 px-4 py-3.5 text-sm text-red-400 hover:bg-white/5 transition"
-                          >
-                            <span>🚪</span> {t('signOut')}
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <div className="px-4 py-3.5 border-b border-dark-border">
-                            <p className="text-sm font-medium">{t('signInToSync')}</p>
-                            <p className="text-xs text-dark-muted">{t('cloudBenefits')}</p>
-                          </div>
-                          <button
-                            onClick={() => { signInWithGoogle(); setShowMenu(false) }}
-                            className="w-full flex items-center gap-3 px-4 py-3.5 text-sm text-dark-text hover:bg-white/5 transition"
-                          >
-                            <svg className="w-4 h-4" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-                            {t('continueWithGoogle')}
-                          </button>
-                        </>
-                      )}
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
-            </div>
+            </button>
           )}
         </div>
       </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TOPICS, usePlaxStore } from '@/lib/store'
 import { useUIStore } from '@/lib/ui-store'
@@ -20,9 +20,16 @@ export function TopicEditor() {
   const setTopicsOpen = useUIStore((s) => s.setTopicsOpen)
   const setFeedFilter = useUIStore((s) => s.setFeedFilter)
   const { selectedTopics, toggleTopic } = usePlaxStore()
+  const setOnboarded = usePlaxStore((s) => s.setOnboarded)
+  const setStartOnForYou = usePlaxStore((s) => s.setStartOnForYou)
   const { user } = useAuth()
   const { t, tp, lang } = useT()
   const [query, setQuery] = useState('')
+  const countOnOpen = useRef(0)
+
+  useEffect(() => {
+    if (topicsOpen) countOnOpen.current = usePlaxStore.getState().selectedTopics.length
+  }, [topicsOpen])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -33,8 +40,11 @@ export function TopicEditor() {
   const close = () => {
     setQuery('')
     setTopicsOpen(false)
-    // Clear any single-topic filter so the refreshed multi-topic feed shows.
-    setFeedFilter(null)
+    if (usePlaxStore.getState().selectedTopics.length > 0) {
+      setOnboarded()
+      // The first choice of topics opens For you, so the reader sees what it did at once.
+      if (countOnOpen.current === 0) { setStartOnForYou(true); setFeedFilter(null) }
+    }
     // Persist to cloud for signed-in users (fire-and-forget).
     if (user) {
       const s = usePlaxStore.getState()
@@ -71,9 +81,9 @@ export function TopicEditor() {
             {/* Header */}
             <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-dark-border">
               <div>
-                <h2 className={`text-lg font-bold text-white font-display ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('yourInterests')}</h2>
+                <h2 className={`text-lg font-bold text-white font-display ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('topicsCardTitle')}</h2>
                 <p className={`text-xs text-dark-muted mt-0.5 ${lang === 'hi' ? 'lang-hi' : ''}`}>
-                  {selectedTopics.length} {t('selectedTapToAddRemove')}
+                  {selectedTopics.length} {t('selectedTapToAddRemove')} · {t('interestsDetail')}
                 </p>
               </div>
               <button

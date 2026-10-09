@@ -21,13 +21,19 @@ export function LeftRail() {
   const theme = usePlaxStore((s) => s.theme)
   const setTheme = usePlaxStore((s) => s.setTheme)
   const feedFilter = useUIStore((s) => s.feedFilter)
+  const feedTopic = useUIStore((s) => s.feedTopic)
   const setFeedFilter = useUIStore((s) => s.setFeedFilter)
+  const screen = useUIStore((s) => s.screen)
+  const setScreen = useUIStore((s) => s.setScreen)
   const setCommandOpen = useUIStore((s) => s.setCommandOpen)
   const setTopicsOpen = useUIStore((s) => s.setTopicsOpen)
-  const { user, signInWithGoogle, signOut } = useAuth()
+  const setAccountOpen = useUIStore((s) => s.setAccountOpen)
+  const setStartOnForYou = usePlaxStore((s) => s.setStartOnForYou)
+  const { user } = useAuth()
   const { t, tp, lang } = useT()
 
   const topics = TOPICS.filter((t) => selectedTopics.includes(t.id))
+  const onFeed = screen === 'feed'
 
   return (
     <aside className="hidden lg:flex flex-col w-64 shrink-0 h-full border-r border-dark-border bg-dark-card overflow-y-auto overscroll-contain thin-scrollbar">
@@ -59,27 +65,32 @@ export function LeftRail() {
         </button>
       </div>
 
-      {/* Primary nav */}
+      {/* Primary nav — the same four tabs as the phone's bottom bar and the Android app */}
       <nav className="px-2 space-y-0.5">
-        <NavItem
-          href="/"
-          active={feedFilter === null}
-          onClick={() => setFeedFilter(null)}
-          label={t('forYou')}
-          icon={
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
-          }
+        <NavButton
+          active={onFeed && feedFilter !== null}
+          onClick={() => { setStartOnForYou(false); setFeedFilter(feedTopic) }}
+          label={t('tabFeed')}
+          icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5.5 4.5h13a1 1 0 011 1v4.5h-15V5.5a1 1 0 011-1zM4.5 14h15v4.5a1 1 0 01-1 1h-13a1 1 0 01-1-1V14z" />}
         />
-        <NavItem
-          href="/profile?tab=bookmarks"
-          label={t('bookmarks')}
+        <NavButton
+          active={onFeed && feedFilter === null}
+          onClick={() => { setStartOnForYou(true); setFeedFilter(null) }}
+          label={t('tabForYou')}
+          icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 3.5l2.6 5.5 5.9.7-4.4 4.1 1.2 5.9L12 16.8l-5.3 2.9 1.2-5.9L3.5 9.7 9.4 9z" />}
+        />
+        <NavButton
+          active={screen === 'topics'}
+          onClick={() => setScreen('topics')}
+          label={t('tabTopics')}
+          icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.5 4.5H10V10H4.5zM14 4.5h5.5V10H14zM4.5 14H10v5.5H4.5zM14 14h5.5v5.5H14z" />}
+        />
+        <NavButton
+          active={screen === 'saved'}
+          onClick={() => setScreen('saved')}
+          label={t('tabSaved')}
           badge={bookmarkedIds.length || undefined}
           icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />}
-        />
-        <NavItem
-          href="/topics"
-          label={t('exploreTopics')}
-          icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM17.25 3.75a3.5 3.5 0 100 7 3.5 3.5 0 000-7zM13.5 16.5a3.75 3.75 0 117.5 0 3.75 3.75 0 01-7.5 0z" />}
         />
         <NavItem
           href="/profile"
@@ -206,41 +217,74 @@ export function LeftRail() {
         </div>
       </div>
 
-      {/* Auth */}
+      {/* Account — optional; the same sheet as on the phone */}
       <div className="px-2 py-4 border-t border-dark-border">
-        {user ? (
-          <div className="flex items-center gap-2.5 px-1">
-            {user.user_metadata?.avatar_url ? (
+        <button
+          onClick={() => setAccountOpen(true)}
+          className="focus-ring w-full flex items-center gap-2.5 px-2 py-2 rounded-xl text-left hover:bg-white/5 transition-colors"
+        >
+          {user ? (
+            user.user_metadata?.avatar_url ? (
               <img src={user.user_metadata.avatar_url} alt="" className="w-9 h-9 rounded-full ring-1 ring-[color:var(--hair-strong)]" />
             ) : (
-              <div className="w-9 h-9 rounded-full bg-[color:var(--signal)] flex items-center justify-center">
-                <span className="text-sm font-bold text-[color:var(--signal-ink)]">
-                  {(user.user_metadata?.full_name || user.email || 'U')[0].toUpperCase()}
-                </span>
-              </div>
-            )}
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-white truncate">
-                {user.user_metadata?.full_name || user.email?.split('@')[0]}
-              </p>
-              <button onClick={() => signOut()} className={`text-xs text-dark-muted hover:text-red-400 transition-colors ${lang === 'hi' ? 'lang-hi' : ''}`}>
-                {t('signOut')}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div>
-            <button
-              onClick={() => signInWithGoogle()}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-white text-gray-800 text-sm font-semibold hover:bg-gray-100 transition-colors"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-              {t('signInWithGoogle')}
-            </button>
-          </div>
-        )}
+              <span className="w-9 h-9 rounded-full bg-[color:var(--signal)] flex items-center justify-center text-sm font-bold text-[color:var(--signal-ink)]">
+                {(user.user_metadata?.full_name || user.email || 'U')[0].toUpperCase()}
+              </span>
+            )
+          ) : (
+            <span className="w-9 h-9 rounded-full bg-white/5 border border-dark-border flex items-center justify-center text-dark-muted">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                <path d="M12 4a4 4 0 100 8 4 4 0 000-8zM4.5 20a7.5 7.5 0 0115 0" />
+              </svg>
+            </span>
+          )}
+          <span className="min-w-0 flex-1">
+            <span className={`block text-sm font-medium text-white truncate ${lang === 'hi' ? 'lang-hi' : ''}`}>
+              {user ? user.user_metadata?.full_name || user.email?.split('@')[0] : t('account')}
+            </span>
+            {user && <span className="block text-xs text-dark-muted truncate">{user.email}</span>}
+          </span>
+        </button>
       </div>
     </aside>
+  )
+}
+
+function NavButton({
+  label,
+  icon,
+  active,
+  badge,
+  onClick,
+}: {
+  label: string
+  icon: React.ReactNode
+  active?: boolean
+  badge?: number
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-current={active ? 'page' : undefined}
+      className={`group relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-left transition-all ${
+        active ? 'bg-white/10 text-white' : 'text-dark-muted hover:text-white hover:bg-white/5'
+      }`}
+    >
+      {active && (
+        <motion.span
+          layoutId="nav-active"
+          className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] bg-[color:var(--signal)]"
+        />
+      )}
+      <svg className={`w-5 h-5 transition-transform group-hover:scale-110 ${active ? 'text-[color:var(--signal)]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        {icon}
+      </svg>
+      <span className="flex-1">{label}</span>
+      {badge !== undefined && (
+        <span className="text-[10px] font-semibold bg-[color:var(--signal)]/20 text-[color:var(--signal)] rounded-full px-1.5 py-0.5 tabular-nums">{badge}</span>
+      )}
+    </button>
   )
 }
 

@@ -1,12 +1,13 @@
 {
   "name": "plax",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "TikTok for readers - swipeable short-form content for smart people",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "node --test \"src/lib/*.test.mjs\""
   },
   "keywords": [
     "reading",

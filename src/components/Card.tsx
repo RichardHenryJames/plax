@@ -7,6 +7,7 @@ import { TOPICS, usePlaxStore } from '@/lib/store'
 import { useUIStore } from '@/lib/ui-store'
 import { useT } from '@/lib/i18n'
 import { withBase } from '@/lib/base-path'
+import { bodyWithoutHeadline } from '@/lib/story-body'
 
 interface CardProps {
   card: CardData
@@ -40,6 +41,8 @@ export function Card({ card, isActive, translating = false }: CardProps) {
   // Long articles get top-aligned on desktop (avoid a big centered gap on the tall
   // desktop viewport); short cards/quotes stay vertically centered.
   const isLong = (card.content?.length ?? 0) > 360
+  // The text under the headline, without the headline said again (quotes and code are shown as they are).
+  const body = card.type === 'quote' || card.type === 'code' ? card.content : bodyWithoutHeadline(card.title, card.content ?? '')
   // News cards live under the section filter pill bar, so they always top-align
   // (never center — that wastes the tall desktop viewport) and get extra top
   // padding to clear the pills.
@@ -175,15 +178,15 @@ export function Card({ card, isActive, translating = false }: CardProps) {
                   )
                 })}
               </div>
-            ) : (
+            ) : body !== '' ? (
               <div className="space-y-4">
-                {card.content.split('\n\n').map((paragraph, i) => (
+                {body.split('\n\n').map((paragraph, i) => (
                   <p key={i} className="reading-text">
                     {formatText(paragraph)}
                   </p>
                 ))}
               </div>
-            )}
+            ) : null}
           </motion.div>
           </>
           )}
@@ -412,7 +415,7 @@ function CategoryChip({
                     }`}
                   >
                     <span className="w-6 text-center">✨</span>
-                    <span className="flex-1 font-medium">{t('allTopics')}</span>
+                    <span className="flex-1 font-medium">{t('tabForYou')}</span>
                     {feedFilter === null && (
                       <svg className="w-4 h-4 text-[color:var(--signal)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
                     )}

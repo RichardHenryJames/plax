@@ -11,10 +11,31 @@ export interface SearchItem {
 
 // ─── Ephemeral UI state (NOT persisted) ───
 // Shared between the desktop rails, command palette, and the feed.
+export type Screen = 'feed' | 'topics' | 'saved'
+
 interface UIState {
-  // Active single-topic filter applied over the loaded feed (null = show all)
+  // What the main area shows. The feed is the default and is public: no account or topics are needed.
+  screen: Screen
+  setScreen: (screen: Screen) => void
+
+  // The topic read in the Feed tab ('news' = the public headlines everyone starts on), or null for the
+  // For you tab, a mix of the reader's own topics. Choosing a topic starts a feed of just that topic.
   feedFilter: string | null
   setFeedFilter: (category: string | null) => void
+  // The topic last read in the Feed tab, so returning from For you resumes it.
+  feedTopic: string
+
+  // Optional account sheet (sign in, topics and saved stories sync, sign out)
+  accountOpen: boolean
+  setAccountOpen: (open: boolean) => void
+
+  // A saved story opened from the Saved tab; the feed shows it first.
+  pinnedCardId: string | null
+  pinCard: (id: string | null) => void
+
+  // Bumped by the header refresh button; the feed looks for newer stories when it changes.
+  refreshTick: number
+  requestRefresh: () => void
 
   // News sub-section filter (india/world/tech/business/science; null = All)
   newsSection: string | null
@@ -41,8 +62,21 @@ interface UIState {
 }
 
 export const useUIStore = create<UIState>((set) => ({
-  feedFilter: null,
-  setFeedFilter: (category) => set({ feedFilter: category }),
+  screen: 'feed',
+  setScreen: (screen) => set({ screen }),
+
+  feedFilter: 'news',
+  feedTopic: 'news',
+  setFeedFilter: (category) => set((s) => ({ feedFilter: category, feedTopic: category ?? s.feedTopic, screen: 'feed' })),
+
+  accountOpen: false,
+  setAccountOpen: (open) => set({ accountOpen: open }),
+
+  pinnedCardId: null,
+  pinCard: (id) => set(id ? { pinnedCardId: id, screen: 'feed' } : { pinnedCardId: null }),
+
+  refreshTick: 0,
+  requestRefresh: () => set((s) => ({ refreshTick: s.refreshTick + 1 })),
 
   newsSection: null,
   setNewsSection: (section) => set({ newsSection: section }),

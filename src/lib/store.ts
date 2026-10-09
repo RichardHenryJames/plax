@@ -84,11 +84,6 @@ interface PlaxState {
   incrementCardsRead: () => void
   readCardIds: string[]
   markCardRead: (id: string) => void
-  // Persistent story fingerprints the user has already been shown (news dedup).
-  // Lets us drop near-duplicate stories across scroll batches AND sessions, so the
-  // same event from a different outlet never reappears (the Inshorts model).
-  seenStoryKeys: string[]
-  markStoriesSeen: (keys: string[]) => void
 
   // Quiz / active-recall stats
   quizAttempted: number
@@ -102,11 +97,18 @@ interface PlaxState {
   // Cloud sync
   syncedUserId: string | null
   setSyncedUserId: (id: string | null) => void
+  // The account whose data this browser last merged. It survives sign-out so a different account that
+  // signs in later never inherits what the previous reader chose or saved here.
+  lastUserId: string | null
+  setLastUserId: (id: string | null) => void
+  // Which feed the reader was last in, so the site opens there again (public news until they pick topics).
+  startOnForYou: boolean
+  setStartOnForYou: (value: boolean) => void
   hydrateFromCloud: (data: {
     selectedTopics: string[]
     hasOnboarded: boolean
     cardsRead: number
-    bookmarkedIds: string[]
+    bookmarks: BookmarkedCard[]
   }) => void
 }
 
@@ -212,15 +214,6 @@ export const usePlaxStore = create<PlaxState>()(
             ? s.readCardIds
             : [...s.readCardIds.slice(-500), id], // keep last 500
         })),
-      seenStoryKeys: [],
-      markStoriesSeen: (keys) =>
-        set((s) => {
-          if (!keys.length) return {}
-          const merged = new Set(s.seenStoryKeys)
-          keys.forEach((k) => k && merged.add(k))
-          // keep the most recent ~600 (news churns; old keys can expire)
-          return { seenStoryKeys: [...merged].slice(-600) }
-        }),
 
       // Quiz / active-recall stats
       quizAttempted: 0,
@@ -255,17 +248,44 @@ export const usePlaxStore = create<PlaxState>()(
       // Cloud sync
       syncedUserId: null,
       setSyncedUserId: (id) => set({ syncedUserId: id }),
+      lastUserId: null,
+      setLastUserId: (id) => set({ lastUserId: id }),
+      startOnForYou: false,
+      setStartOnForYou: (value) => set({ startOnForYou: value }),
+      // Signing in merges; it never replaces. The account's topics win when it has any, otherwise the
+      // topics chosen here are kept (and sent up by the caller). Saved stories are a union.
       hydrateFromCloud: (data) =>
-        set({
-          selectedTopics: data.selectedTopics,
-          hasOnboarded: data.hasOnboarded,
-          cardsRead: data.cardsRead,
-          bookmarkedIds: data.bookmarkedIds,
+        set((s) => {
+          const selectedTopics = data.selectedTopics.length > 0 ? data.selectedTopics : s.selectedTopics
+          const bookmarkedIds = [...s.bookmarkedIds]
+          let bookmarkedCards = { ...s.bookmarkedCards }
+          // The account lists newest first; the local list is oldest first, so older rows go in at the front.
+          for (const row of [...data.bookmarks].reverse()) {
+            if (!bookmarkedIds.includes(row.id)) bookmarkedIds.unshift(row.id)
+            if (!bookmarkedCards[row.id]) bookmarkedCards[row.id] = row
+          }
+          const keep = new Set(bookmarkedIds.slice(-150))
+          if (Object.keys(bookmarkedCards).length > 150) {
+            bookmarkedCards = Object.fromEntries(Object.entries(bookmarkedCards).filter(([id]) => keep.has(id)))
+          }
+          return {
+            selectedTopics,
+            hasOnboarded: s.hasOnboarded || data.hasOnboarded || selectedTopics.length > 0,
+            cardsRead: Math.max(s.cardsRead, data.cardsRead),
+            bookmarkedIds,
+            bookmarkedCards,
+          }
         }),
     }),
     {
       name: 'plax-store-v2',
       storage: safeStorage,
+      // The story engine's own history (seen-storage.ts) replaced the old duplicate filter kept here.
+      merge: (persisted, current) => {
+        const kept = { ...(persisted as object) } as Record<string, unknown>
+        delete kept.seenStoryKeys
+        return { ...current, ...kept }
+      },
     }
   )
 )

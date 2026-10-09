@@ -1,5 +1,12 @@
 # Plax — Supabase Setup / Recovery Runbook
 
+> **Status on 9 October 2026: the account service is down.** Both project hostnames in play
+> (`bueyaovwrntyfvnlxdlz` named below, and `dushouwvwnuxdfumnxzf` from the deployed
+> environment) no longer resolve in DNS, and `/news/api/keep-alive` answers `500
+> fetch failed`. Website sign-in and cloud sync, and the optional sign-in in the Android
+> app, cannot work until a project is restored or recreated with the steps below. Public
+> reading is unaffected: the website and the app both work signed out.
+
 Your project `bueyaovwrntyfvnlxdlz` is **paused** (free-tier auto-pause) and the dashboard
 shows "No backups found", so it may be unrecoverable. Two options — try A first (fastest),
 else do B.
@@ -55,9 +62,12 @@ If "Restore" is missing or errors ("No backups found"), do Option B.
 - Dashboard → **Authentication → URL Configuration**:
   - **Site URL**: `https://www.plaxlabs.com`
   - **Redirect URLs** (add all): 
-    - `https://www.plaxlabs.com/auth/callback`
-    - `https://plaxlabs.com/auth/callback`
-    - `http://localhost:3000/auth/callback`
+    - `https://www.plaxlabs.com/news/auth/callback`
+    - `https://plaxlabs.com/news/auth/callback`
+    - `https://www.plaxlabs.com/news/auth/app**` (the Android app's return page, see below)
+    - `http://localhost:3000/news/auth/callback`
+  - The site now lives under the `/news` base path, so the older entries without it
+    (`…/auth/callback`) no longer match the website's callback.
 
 ### 7. Set env vars
 - **Vercel** → Project → Settings → Environment Variables (Production + Preview):
@@ -67,13 +77,56 @@ If "Restore" is missing or errors ("No backups found"), do Option B.
 
 ---
 
+## The Android app's optional sign-in
+
+Plax for Android works without an account. Signing in with Google only stores the reader's
+topics and saved stories in `user_profiles.selected_topics` and `bookmarks`, the same
+tables the website uses (so topics chosen on the phone show up on the website and the
+other way round). How it connects, so a recovery needs no app update:
+
+1. The app asks `GET /news/api/auth-config` for `{ url, anonKey }` (your
+   `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY`; the anon key is public by
+   design). It accepts only an `https://<ref>.supabase.co` address.
+2. Before opening a browser it checks `GET <url>/auth/v1/settings` and requires
+   `external.google` to be `true`, so a broken or half-configured project shows
+   "Sign-in is temporarily unavailable" instead of an error page in the browser.
+3. It opens `<url>/auth/v1/authorize?provider=google&code_challenge=…&code_challenge_method=s256`
+   in a Chrome Custom Tab with `redirect_to=https://www.plaxlabs.com/news/auth/app?app=<scheme>`.
+   Supabase accepts that address without a dashboard change because it is on the Site URL's
+   host; the `…/news/auth/app**` entry above is the explicit form.
+4. `/news/auth/app` (`src/app/auth/app/route.ts`) answers with a redirect to
+   `<scheme>://auth-callback?code=…`, for the two known app schemes only
+   (`com.plaxlabs.news`, `com.plaxlabs.news.preview`) and forwarding only the standard
+   `code` / `error*` fields.
+5. The app exchanges the code with `POST <url>/auth/v1/token?grant_type=pkce` using its
+   private verifier, and keeps the session sealed by the Android Keystore.
+
+**What to check after restoring the project** (none of it could be exercised while the
+project was down, so the Android sign-in is implemented and unit-tested but **not yet
+verified end to end**):
+- `curl https://www.plaxlabs.com/news/api/auth-config` returns the new project's URL.
+- `curl -H "apikey: <anon>" <url>/auth/v1/settings` shows `"google": true`.
+- In the app: **⋮ → Account → Continue with Google**, choose an account, and you land back
+  in Plax signed in. If Google shows `redirect_uri_mismatch`, fix step 5; if Supabase
+  rejects the return address, add the `…/news/auth/app**` entry in step 6.
+- Choose topics in the app and confirm `user_profiles.selected_topics` changes; save a
+  story and confirm a row in `bookmarks` (it keeps only the id, title, category and the
+  first 500 characters, so a story restored on another phone has no link or picture).
+
+---
+
 ## How to test the Google login flow
-1. **Local**: `npm run dev` → open http://localhost:3000 → Sign in → Sign in with Google →
-   pick a Google account → should redirect back signed-in (avatar shows in the header).
+1. **Local**: `npm run dev` → open http://localhost:3000/news → **Account** (the person icon in
+   the header on a phone, or **Account** at the bottom of the left rail) → **Continue with
+   Google** → pick a Google account → should redirect back signed-in (the account button
+   shows your avatar).
 2. Verify a profile row was auto-created: Supabase → **Table Editor → user_profiles** →
    your row should be there (email, display_name, avatar_url filled by the trigger).
 3. Bookmark a card → check **Table Editor → bookmarks** for the row.
-4. **Prod**: repeat on https://www.plaxlabs.com after the Vercel redeploy.
+4. **Prod**: repeat on https://www.plaxlabs.com/news after the Vercel redeploy.
+5. Merge check: before signing in, choose a topic and save a story as a signed-out reader;
+   after signing in with a fresh account both should still be there, and both should now
+   appear in `user_profiles.selected_topics` and `bookmarks`.
 
 ### Test with a throwaway user
 Use any secondary Google account (or Google's "Add account"). If you want an email/password

@@ -1,5 +1,6 @@
 import { getSupabase } from './supabase'
 import type { User } from '@supabase/supabase-js'
+import type { BookmarkedCard } from './store'
 
 // ─── Profile type (matches user_profiles table) ───
 interface UserProfile {
@@ -24,6 +25,17 @@ interface BookmarkRow {
   card_category: string | null
   card_content: string | null
   created_at: string
+}
+
+/** A saved story as the account keeps it: text only, with no link or picture. */
+export function toBookmarkedCard(row: BookmarkRow): BookmarkedCard {
+  return {
+    id: row.card_id,
+    title: row.card_title ?? undefined,
+    content: row.card_content ?? '',
+    category: row.card_category || 'news',
+    savedAt: Date.parse(row.created_at) || Date.now(),
+  }
 }
 
 // ─── Sync user preferences to Supabase ───
@@ -75,6 +87,7 @@ export async function addBookmarkToCloud(
 ) {
   const supabase = getSupabase()
 
+  // There is no UPDATE rule on bookmarks, so a repeat must be ignored rather than merged.
   const { error } = await supabase.from('bookmarks').upsert(
     {
       user_id: user.id,
@@ -83,7 +96,7 @@ export async function addBookmarkToCloud(
       card_category: card.category || null,
       card_content: card.content?.slice(0, 500) || null,
     },
-    { onConflict: 'user_id,card_id' }
+    { onConflict: 'user_id,card_id', ignoreDuplicates: true }
   )
 
   if (error) console.error('[Plax] Add bookmark error:', error.message)
