@@ -737,10 +737,8 @@ in Hindi; results are cached (memory + Supabase `ai_cache`).
 
 ### `Profile Page` (`app/profile/page.tsx`)
 
-- Avatar, name, email, member-since date
-- Stats grid: Cards Read, Day Streak, Minutes Read, Bookmarks
-- 3 tabs: Stats (top interests + selected topics), Bookmarks (cloud-loaded), Settings (sign out)
-- Requires authentication (redirects to home if not signed in)
+- Signed in: avatar, name, email, member-since date, stats grid (Cards Read, Day Streak, Minutes Read, Bookmarks) and three tabs: Stats (top interests + selected topics), Bookmarks (cloud-loaded), Settings (sign out)
+- Signed out: the reader's on-device activity (cards read, saved stories, minutes, top interests) and a **Sign in** button that goes to the feed with the account sheet open, like every other sign-in entry. Nothing here needs an account
 
 ---
 

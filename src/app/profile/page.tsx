@@ -4,6 +4,7 @@ import { useAuth } from '@/components/AuthProvider'
 import { useEffect, useState } from 'react'
 import { getUserStats, loadBookmarksFromCloud } from '@/lib/cloud-sync'
 import { usePlaxStore, TOPICS } from '@/lib/store'
+import { useUIStore } from '@/lib/ui-store'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { useT } from '@/lib/i18n'
@@ -165,7 +166,8 @@ export default function ProfilePage() {
               <div className="flex-1 min-w-0">
                 <h3 className={`font-semibold text-white ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('signInToSyncTitle')}</h3>
                 <p className={`text-dark-muted text-sm mt-0.5 mb-3 ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('signInToSyncBody')}</p>
-                <Link href="/" className={`btn-primary focus-ring inline-flex px-4 py-2 text-sm ${lang === 'hi' ? 'lang-hi' : ''}`}>
+                {/* Goes to the feed with the account sheet open, as every other sign-in entry does. */}
+                <Link href="/" onClick={() => useUIStore.getState().setAccountOpen(true)} className={`btn-primary focus-ring inline-flex px-4 py-2 text-sm ${lang === 'hi' ? 'lang-hi' : ''}`}>
                   {t('signIn')}
                 </Link>
               </div>
