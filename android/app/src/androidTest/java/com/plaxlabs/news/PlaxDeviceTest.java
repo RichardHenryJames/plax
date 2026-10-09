@@ -15,8 +15,12 @@ import org.junit.runner.RunWith;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
+import okhttp3.OkHttpClient;
 import static org.junit.Assert.*;
 
 @RunWith(AndroidJUnit4.class)
@@ -194,6 +198,40 @@ public class PlaxDeviceTest {
             } finally { images.close(); }
         });
     }
+
+    /**
+     * OkHttp is written in Kotlin, which does not declare InterruptedException. Closing the screen interrupts a loader
+     * thread that is still connecting, and the exception then comes out of execute() where Java code does not expect it.
+     */
+    @Test public void aPictureCutOffByAnInterruptIsMissingNotACrash() throws Exception {
+        OkHttpClient interrupted = new OkHttpClient.Builder().addInterceptor(chain -> {
+            throw PlaxDeviceTest.<RuntimeException>sneaky(new InterruptedException("closed while connecting"));
+        }).build();
+        AtomicReference<Throwable> uncaught = new AtomicReference<>();
+        Thread.UncaughtExceptionHandler before = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler((thread, error) -> uncaught.compareAndSet(null, error));
+        ImageLoader[] images = new ImageLoader[1];
+        CountDownLatch answered = new CountDownLatch(1);
+        AtomicBoolean loaded = new AtomicBoolean(true);
+        try {
+            InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+                Context themed = new androidx.appcompat.view.ContextThemeWrapper(context, R.style.Theme_Plax);
+                images[0] = new ImageLoader(themed, 1080, interrupted);
+                images[0].load("https://example.com/a.jpg", new ImageView(themed), ok -> { loaded.set(ok); answered.countDown(); });
+            });
+            boolean answeredInTime = answered.await(10, TimeUnit.SECONDS);
+            assertTrue("The loader still answers when its thread is interrupted (thread died with " + uncaught.get() + ")",
+                    answeredInTime);
+            assertFalse("An interrupted download is a missing picture", loaded.get());
+            assertNull("No loader thread dies from it", uncaught.get());
+        } finally {
+            Thread.setDefaultUncaughtExceptionHandler(before);
+            InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> { if (images[0] != null) images[0].close(); });
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T extends Throwable> RuntimeException sneaky(Throwable error) throws T { throw (T) error; }
 
     @Test public void skeletonCardHasItsOwnHeightInsteadOfFillingTheScreen() {
         InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {

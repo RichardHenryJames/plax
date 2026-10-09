@@ -7,7 +7,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.LruCache;
 import android.widget.ImageView;
-import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
 import okhttp3.Call;
@@ -54,11 +53,16 @@ final class ImageLoader implements AutoCloseable {
     });
     private final Map<String, Task> tasks = new HashMap<>();
     private final Map<ImageView, Binding> bindings = new IdentityHashMap<>();
+    private final Call.Factory client;
     private boolean closed;
 
-    ImageLoader(Context context, int targetWidth) {
+    ImageLoader(Context context, int targetWidth) { this(context, targetWidth, null); }
+
+    /** Tests give their own client; the app always passes null and gets the shared image client. */
+    ImageLoader(Context context, int targetWidth, Call.Factory client) {
         this.context = context.getApplicationContext();
         this.targetWidth = Math.max(240, targetWidth);
+        this.client = client;
         workers.allowCoreThreadTimeOut(true);
     }
 
@@ -117,14 +121,17 @@ final class ImageLoader implements AutoCloseable {
 
     private Bitmap download(Task task, String url) {
         try {
-            Call call = Network.images(context.getCacheDir())
+            Call call = (client != null ? client : Network.images(context.getCacheDir()))
                     .newCall(new Request.Builder().url(url).header("Accept", "image/*").build());
             task.call = call;
             try (Response response = call.execute()) {
                 if (!response.isSuccessful() || response.body() == null) return null;
                 return decode(FeedApi.boundedRead(response.body().byteStream(), MAX_BYTES), targetWidth);
             }
-        } catch (IOException | RuntimeException unavailable) {
+        } catch (Exception unavailable) {
+            // Closing the loader interrupts its threads, and OkHttp (Kotlin) then throws InterruptedException out of
+            // execute() without declaring it. Left uncaught it would kill the whole app, so the picture is just missing.
+            if (unavailable instanceof InterruptedException) Thread.currentThread().interrupt();
             return null;
         }
     }

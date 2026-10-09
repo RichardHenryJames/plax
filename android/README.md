@@ -10,6 +10,30 @@ exists (see *Updates from inside the app*). Apart from sign-in and that update c
 which need the two small routes and the one small file listed under *Backend changes*,
 the app works against the backend as it was before this version.
 
+## What is in 1.3.1 (preview, versionCode 5)
+
+One crash fix, found because a run of the device suite that was checking the 1.3.0 updater
+died once ("Process crashed" in `appNeedsNoLoginAndSupportsTopicsSavedAndRotation`). It was in
+1.2.0 and 1.3.0 too.
+
+- **Leaving a screen while pictures were still loading could close the whole app.** Rotating the
+  phone, changing the theme or language, or backing out destroys the screen, and its picture
+  loader then interrupts its worker threads. A thread that was still connecting to a picture's
+  host got an `InterruptedException` thrown out of OkHttp (written in Kotlin, which does not
+  declare it, so the Java code never expected it); nothing caught it and Android ended the
+  process. It needs a picture in flight at that moment, so it looked random.
+- **How it was shown**: on the emulator, 150 times in a row, three real downloads were started and
+  the loader closed up to 40 ms later. Before the fix, 166 uncaught `InterruptedException`s were
+  recorded on the `plax-image` threads; after it, none. A picture that is interrupted is now just
+  missing, as when the network fails.
+- The regression test `aPictureCutOffByAnInterruptIsMissingNotACrash` gives the loader a client that
+  throws the same exception: without the fix the loader never answers (and the thread dies), with
+  it the picture is reported missing. `ImageLoader` gained a constructor taking the client; the
+  app never passes one.
+
+1.3.0 was online for a short while before this and is replaced by 1.3.1 (a published version is
+never changed). A phone that installed 1.3.0 is offered 1.3.1 by the updater.
+
 ## What is in 1.3.0 (preview, versionCode 4)
 
 Updates from inside the app
@@ -53,8 +77,8 @@ Updates from inside the app
   build and updates through Google Play.
 
 How an update reaches people is described under *Publishing an update*. **1.2.0 and
-earlier cannot update themselves**: install 1.3.0 by hand once (it installs over 1.2.0
-because the debug key is the same); every later version arrives through the app.
+earlier cannot update themselves**: install the current build (1.3.1) by hand once (it installs
+over 1.2.0 because the debug key is the same); every later version arrives through the app.
 
 ## What was in 1.2.0 (versionCode 3)
 
@@ -225,12 +249,12 @@ types: `debug` (instrumentation tests), `preview` (the shipped preview: R8-shrun
 debuggable, signed with the local Android debug key) and `release` (unsigned, reserved
 for the store package).
 
-The verified handoff copy is `artifacts\plax-1.3.0-preview.apk`, byte for byte the website's
-`public\plax-1.3.0.apk` (`artifacts\verification.json` has its hash). `artifacts\` is deliberately
+The verified handoff copy is `artifacts\plax-1.3.1-preview.apk`, byte for byte the website's
+`public\plax-1.3.1.apk` (`artifacts\verification.json` has its hash). `artifacts\` is deliberately
 git-ignored: the APKs and logs are local evidence, not repository content. The preview package is
-**com.plaxlabs.news.preview**, version **1.3.0-preview / code 4**; it installs over 1.2.0, 1.1.0 and
-1.0.0 signed by the same debug key (1.2.0 to 1.3.0 was exercised, see below) and can coexist with other
-apps. It supports Android 8 / API 26 or newer and targets Android 16 / API 36. The manifest declares one
+**com.plaxlabs.news.preview**, version **1.3.1-preview / code 5**; it installs over 1.3.0, 1.2.0, 1.1.0 and
+1.0.0 signed by the same debug key (1.2.0 to 1.3.1 and 1.3.0 to 1.3.1 were exercised, see below) and can
+coexist with other apps. It supports Android 8 / API 26 or newer and targets Android 16 / API 36. The manifest declares one
 exported browsable filter, the sign-in return address above, and `singleTask` launch so the return
 reaches the running app.
 
@@ -303,12 +327,13 @@ fixed by publishing a higher version, not by withdrawing one.
   check, a failed check counting, dismissal and its expiry, a newer version overriding
   a dismissal, manual checks and their messages, a manual tap during a running check,
   nothing offered over a dialog or sheet, store builds, and a recreated screen).
-- **62 Android instrumentation tests** (65 with `-LiveFeed`): bookmarks, the on-disk feed
+- **63 Android instrumentation tests** (66 with `-LiveFeed`): bookmarks, the on-disk feed
   cache (round trip, per-language, damaged files), card rendering and actions, skeleton
   geometry, navigation and rotation, rendering of every screen and state in both
   languages, the AI sheet (loading, result, language switch without refetch, failure,
   retry, cancel on dismiss), theme preference, Hindi translations, 15 cache-first
-  behaviours driven by a controllable network, the no-repeat flows (read, leave, return;
+  behaviours driven by a controllable network, a picture interrupted while it connects
+  (the 1.3.1 fix), the no-repeat flows (read, leave, return;
   caught-up; earlier stories; new stories) and the account flows against fakes: Keystore
   sealing and tamper detection on the real device keystore, the account sheet, sign-in
   return merging data and sign-out leaving it on the phone, topics sent while signed in,
