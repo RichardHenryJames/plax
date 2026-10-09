@@ -140,4 +140,14 @@
     <string name="account_manage">Manage account on the website</string>
     <string name="account_signed_out">Signed out. Your topics and saved stories stay on this phone.</string>
     <string name="account_signed_in">Signed in</string>
+    <string name="update_check">Check for updates</string>
+    <string name="update_play">Open Google Play</string>
+    <string name="update_title">Update available</string>
+    <string name="update_message">Plax %1$s is ready. Download it, then open the file to update; your saved stories stay on this phone.</string>
+    <string name="update_later">Later</string>
+    <string name="update_download">Download</string>
+    <string name="update_current">Plax is up to date.</string>
+    <string name="update_failed">Cannot check for updates right now. Try again later.</string>
+    <string name="update_no_browser">No browser is available to download the update.</string>
+    <string name="about_updates">Once a day, and when you choose Check for updates, Plax asks its website whether a newer version exists. Nothing about you is sent. If there is one you can download and install it yourself; Plax never installs anything on its own.</string>
 </resources>

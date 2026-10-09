@@ -2,6 +2,9 @@ package com.plaxlabs.news;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 import org.junit.*;
 import org.junit.runner.RunWith;
 import java.util.*;
@@ -51,6 +54,22 @@ public class LiveFeedTest {
         for (Story story : stories) {
             assertTrue("Hindi headline expected: " + story.title(), story.title().codePoints().anyMatch(c -> c >= 0x0900 && c <= 0x097F));
             assertTrue(story.hasSource());
+        }
+    }
+
+    @Test public void thePublishedUpdateFeedIsAcceptedByTheAppAndItsDownloadIsAnApk() throws Exception {
+        optIn();
+        AppUpdates.Release release;
+        // As the build before this one, so that whatever the website advertises as current counts as newer.
+        try (AppUpdates updates = new AppUpdates()) { release = updates.check(BuildConfig.VERSION_CODE - 1, android.os.Build.VERSION.SDK_INT); }
+        assertNotNull("the website must advertise a build at least as new as this one", release);
+        assertTrue(release.versionCode() >= BuildConfig.VERSION_CODE);
+        Request request = new Request.Builder().url(release.apkUrl()).header("Range", "bytes=0-1").build();
+        OkHttpClient client = new OkHttpClient.Builder().followRedirects(false).followSslRedirects(false).build();
+        try (Response response = client.newCall(request).execute()) {
+            assertTrue("HTTP " + response.code(), response.code() == 200 || response.code() == 206);
+            assertEquals("application/vnd.android.package-archive", response.header("Content-Type"));
+            assertEquals("an APK is a ZIP archive", "PK", response.body().source().readUtf8(2));
         }
     }
 }

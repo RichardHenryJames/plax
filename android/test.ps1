@@ -15,7 +15,7 @@ foreach ($relative in @('app\build\outputs\apk\debug\app-debug.apk', 'app\build\
 foreach ($package in @('com.plaxlabs.news.preview', 'com.plaxlabs.news.preview.test')) {
     & $adb -s $Serial shell cmd package compile -f -m speed $package | Out-Null
 }
-$names = @('PlaxDeviceTest', 'FeedFlowTest', 'AccountDeviceTest')
+$names = @('PlaxDeviceTest', 'FeedFlowTest', 'AccountDeviceTest', 'UpdateDeviceTest')
 if ($LiveFeed) { $names += 'LiveFeedTest' }
 $classes = ($names | ForEach-Object { "com.plaxlabs.news.$_" }) -join ','
 # Every @Test must run: a test dropped by a runner or a rename would otherwise pass silently.

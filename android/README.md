@@ -5,10 +5,58 @@ it does not depend on Vanishr or its signing keys, relay, account data or code.
 It reads the Plax public feed (`https://www.plaxlabs.com/news`) and, for the
 optional AI brief, the summarize endpoint. It works without an account; signing in
 with Google is optional and only syncs your topics and saved stories (see
-*Optional sign-in*). Apart from sign-in, which needs the two small routes listed under
-*Backend changes*, the app works against the backend as it was before this version.
+*Optional sign-in*). About once a day it also asks the website whether a newer build
+exists (see *Updates from inside the app*). Apart from sign-in and that update check,
+which need the two small routes and the one small file listed under *Backend changes*,
+the app works against the backend as it was before this version.
 
-## What is in 1.2.0 (preview, versionCode 3)
+## What is in 1.3.0 (preview, versionCode 4)
+
+Updates from inside the app
+- When a newer build is published, the app tells you, so nobody has to hunt for a link.
+  The design follows the update flow of the Vanishr app in this workspace, but it is
+  Plax's own code, feed and signing key: nothing is shared with Vanishr.
+- About once a day while the app comes to the front, and whenever you choose **More
+  options > Check for updates**, the app reads one small file,
+  `https://www.plaxlabs.com/news/updates.json`, and compares its `versionCode` with the
+  installed one. If the website has a newer build that this phone can run, **Update
+  available** offers **Later** or **Download**. **Download** opens the APK in the
+  browser, which saves it; opening the file makes Android ask you to confirm the install
+  (the first time it also asks you to allow installs from that browser). The update
+  installs over the current copy because it is signed with the same key, so saved
+  stories, the seen history and topics stay on the phone. **Plax never installs
+  anything by itself.**
+- **Later** (or dismissing the dialog) hides that version for 24 hours; **Check for
+  updates** still shows it. A newer version than the one dismissed is offered at once.
+- The dialog never appears over an open sheet, dialog or a sign-in that is waiting; it
+  waits for the next time you return to the app. Rotating the phone does not lose it. A
+  tap on **Check for updates** says *Plax is up to date* or *Cannot check for updates
+  right now* when there is nothing to offer, and **a check that fails counts as the
+  day's check** (opening the app offline does not retry until tomorrow; the manual item
+  always works).
+- **The feed is treated as untrusted input.** It has exactly seven fields
+  (`schemaVersion`, `versionCode`, `versionName`, `minSdk`, `apkUrl`, `sha256`, `size`) and at most 4,096 bytes;
+  anything unknown, repeated, missing, mistyped or out of range is ignored. The APK address
+  must be exactly `https://www.plaxlabs.com/news/plax-<versionName>.apk` (so the file can
+  only live on the Plax website), the size is capped at 95 MiB and a build whose
+  `minSdk` is above this phone's is not offered. The request is HTTPS only, follows no
+  redirect, keeps no cookie or cache, is not retried and sends no identifier; like any
+  HTTPS request it exposes your IP address and OkHttp's default User-Agent.
+- **What guards the installation**: the HTTPS connection to `plaxlabs.com` and Android's
+  rule that an update must carry the signature of the installed app. As in Vanishr, the
+  checksum in the feed is **not** checked inside the app (the download happens in the
+  browser); it is for people and for `verify-update.ps1`.
+- A **store build** (the `release` build type, or `-PplayStore=true`) has no updater at
+  all: the menu item says **Open Google Play** and opens the store page instead. The
+  preview build (website installs) has `PLAY_STORE=false`.
+- Only the preview package is ever offered an update; the `release` package is the store
+  build and updates through Google Play.
+
+How an update reaches people is described under *Publishing an update*. **1.2.0 and
+earlier cannot update themselves**: install 1.3.0 by hand once (it installs over 1.2.0
+because the debug key is the same); every later version arrives through the app.
+
+## What was in 1.2.0 (versionCode 3)
 
 No repeats
 - **Stories you have looked at do not come back** when you reopen the app, and one
@@ -104,10 +152,10 @@ Fixes found while auditing
 Unchanged since 1.1.0: no ads, no analytics SDK, HTTPS only, backups disabled, up
 to 200 locally saved stories readable offline.
 
-## Backend changes that ship with this version
+## Backend changes (1.2.0 and 1.3.0)
 
-The app works with either backend. The Plax repository's web code, deployed from the
-same push, adds:
+The app works with either backend; sign-in and the update check need the routes and the
+file listed last. The Plax repository's web code, deployed from the same push, adds:
 
 - **A faster AI layer** for `POST /news/api/summarize`: `src/lib/llm.ts` (staggered
   Groq `qwen3.8-27b` → Gemini `3.5-flash-lite` → `gpt-oss` chain, cool-downs for
@@ -131,6 +179,13 @@ same push, adds:
   returns after the limit is kept for the next pool.
 - Wikipedia disambiguation pages ("X may refer to:") are no longer offered as stories.
 - The two small routes used by sign-in, `/news/api/auth-config` and `/news/auth/app`.
+- **The update feed (1.3.0)**: `public/updates.json` and the one advertised APK,
+  `public/plax-<version>.apk`, served at `/news/updates.json` and `/news/plax-<version>.apk`
+  by the same deployment. `next.config.js` gives the feed `application/json`, `no-store` and
+  `nosniff`, and the APK `application/vnd.android.package-archive`, `Content-Disposition:
+  attachment` and a one-hour revalidating cache (the file name carries the version, so a
+  new build never reuses an old address). Both are marked `noindex`. An older client or a
+  deployment without the file just gets a 404 and reports that it cannot check.
 
 `npm test` (83 tests), `tsc` and `next build` pass.
 
@@ -170,14 +225,14 @@ types: `debug` (instrumentation tests), `preview` (the shipped preview: R8-shrun
 debuggable, signed with the local Android debug key) and `release` (unsigned, reserved
 for the store package).
 
-The verified handoff copy is `artifacts\plax-1.2.0-preview.apk` (`artifacts\verification.json`
-has its hash). `artifacts\` is deliberately git-ignored: the APKs and logs are local
-evidence, not repository content. The preview package is **com.plaxlabs.news.preview**,
-version **1.2.0-preview / code 3**; it installs over 1.1.0 and 1.0.0 signed by the same debug
-key (1.1.0 to 1.2.0 was exercised, see below) and can coexist with other apps. It supports
-Android 8 / API 26 or newer and targets Android 16 / API 36. The manifest declares one
-exported browsable filter, the sign-in return address above, and `singleTask` launch so the
-return reaches the running app.
+The verified handoff copy is `artifacts\plax-1.3.0-preview.apk`, byte for byte the website's
+`public\plax-1.3.0.apk` (`artifacts\verification.json` has its hash). `artifacts\` is deliberately
+git-ignored: the APKs and logs are local evidence, not repository content. The preview package is
+**com.plaxlabs.news.preview**, version **1.3.0-preview / code 4**; it installs over 1.2.0, 1.1.0 and
+1.0.0 signed by the same debug key (1.2.0 to 1.3.0 was exercised, see below) and can coexist with other
+apps. It supports Android 8 / API 26 or newer and targets Android 16 / API 36. The manifest declares one
+exported browsable filter, the sign-in return address above, and `singleTask` launch so the return
+reaches the running app.
 
 The release package is reserved as `com.plaxlabs.news`; release signing is
 intentionally not configured. Do not use the preview/debug key for a public store
@@ -185,26 +240,70 @@ release. A dedicated private signing identity, actual-device QA, publisher/conte
 licence review and store disclosures are required before publication. Nothing is
 automatically published.
 
+**The update signer.** Android installs an update only over an app signed with the same key, so
+every published preview build must be signed with the key behind the copies people already have:
+this machine's Android debug key, whose SHA-256 (`3a47d0db…d6b41c69`) is pinned in
+`update-signer.sha256` and enforced by `publish-update.ps1` and `verify-update.ps1`. If that key
+(`%USERPROFILE%\.android\debug.keystore`) is lost, or a build is made on another machine, installs
+over existing copies fail and the only remedy is to uninstall, which erases the saved stories and
+history. Back the keystore up privately (never in the repository) and move to a dedicated release
+key before wider distribution; that move is itself a break, because Android refuses an update signed
+by a different key (APK key rotation exists but is not set up here).
+
+## Publishing an update
+
+A bad feed, or a build signed with the wrong key, would leave every installed copy unable to update,
+so scripts do the checking. From `android\`:
+
+1. Raise `versionCode` and `versionName` in `app\build.gradle` (the code must exceed the one in
+   `public\updates.json`), and the website version in `..\package.json` if it changes too.
+2. `.\build.ps1`, then the device suite (`.\test.ps1 -Serial emulator-5590`).
+3. `.\publish-update.ps1`. It inspects `app\build\outputs\apk\preview\app-preview.apk` and refuses
+   it unless it is the Plax preview package, not debuggable, the version in `build.gradle`, signed by
+   the pinned key, within the size limit and newer than the published feed (the same build again is
+   harmless; the same version code with different contents is refused). Only then does it copy the
+   file to `..\public\plax-<version>.apk`, remove older `plax-*.apk` and write `..\public\updates.json`.
+4. Commit `public\updates.json` and `public\plax-<version>.apk` and push `main`. Vercel deploys both
+   in one deployment, so the feed never names a file that is not there. The advertised APK is the only
+   one kept in `public\`; older ones stay in Git history.
+5. When the deployment is Ready, `.\verify-update.ps1` fetches the live feed and APK the way the app
+   does (no redirect, HTTPS, no cache), re-applies the app's own rules, and checks the headers, the
+   size, the SHA-256, the package, the version, the minimum SDK, that the build is not debuggable, the
+   pinned signer, and that what is served is what was committed. It writes
+   `artifacts\update-verification.json` and fails loudly otherwise. `.\test.ps1 -Serial emulator-5590
+   -LiveFeed` additionally runs the app's own parser against the live feed.
+
+To roll back, revert the commit that changed `public\updates.json`: phones that have not downloaded
+the build stop being offered it. Copies that already updated stay updated, because Android will not
+install a lower version code over a higher one without an uninstall. A broken build is therefore
+fixed by publishing a higher version, not by withdrawing one.
+
 ## Tests
 
 ```powershell
 .\build.ps1 -Tasks ':app:assembleDebug', ':app:assembleDebugAndroidTest', ':app:testDebugUnitTest'
 # Start an isolated emulator named Plax_News_Test (4 GB RAM is advisable), then:
 .\test.ps1 -Serial emulator-5590
-# Optional live public-API checks (English and Hindi feed), without an account:
+# Optional live checks against the deployed site (English and Hindi feed, and the update feed):
 .\test.ps1 -Serial emulator-5590 -LiveFeed
 ```
 
-- **91 JVM unit tests**: strict JSON shape and limits, server errors, escaped URLs, cache
+- **118 JVM unit tests**: strict JSON shape and limits, server errors, escaped URLs, cache
   format, repeated-headline removal (including sentences that merely begin with the
   headline), read-time parsing, image width/sampling rules, cache-header rewriting,
   Markdown rendering rules, AI request/response validation, sections and request URLs;
   the no-repeat engine (same-event matching in English and Hindi, the seen history and
   its damaged-data handling, merging and caps, 16 tests); the feed state machine with
   fake sources (sessions, dwell, caught-up, For you, 14 tests); the sign-in protocol,
-  PKCE and token handling (16 tests) and the account manager's merge, queue and
-  session rules (24 tests).
-- **53 Android instrumentation tests** (55 with `-LiveFeed`): bookmarks, the on-disk feed
+  PKCE and token handling (16 tests); the account manager's merge, queue and
+  session rules (24 tests); the update feed parser and client (9 tests: every
+  field rule, content types, status codes, an oversized body of unknown length, the
+  client's hardening settings, and that the feed and APK committed in `public\` are
+  accepted by the app and match each other) and the update manager (18 tests: the 24-hour
+  check, a failed check counting, dismissal and its expiry, a newer version overriding
+  a dismissal, manual checks and their messages, a manual tap during a running check,
+  nothing offered over a dialog or sheet, store builds, and a recreated screen).
+- **62 Android instrumentation tests** (65 with `-LiveFeed`): bookmarks, the on-disk feed
   cache (round trip, per-language, damaged files), card rendering and actions, skeleton
   geometry, navigation and rotation, rendering of every screen and state in both
   languages, the AI sheet (loading, result, language switch without refetch, failure,
@@ -213,14 +312,23 @@ automatically published.
   caught-up; earlier stories; new stories) and the account flows against fakes: Keystore
   sealing and tamper detection on the real device keystore, the account sheet, sign-in
   return merging data and sign-out leaving it on the phone, topics sent while signed in,
-  and an unsolicited sign-in callback changing nothing. The test script precompiles the
-  debug build so timing is not class-verification time.
+  and an unsolicited sign-in callback changing nothing. Nine more cover updates on a real
+  screen: the offer and its text, **Later**, cancelling, **Download** starting the browser on
+  the exact APK address, nothing appearing over an open sheet until the app is next in front,
+  surviving rotation, the real **Check for updates** menu item (through the system's
+  accessibility tree, reading the toast it shows), a store build's menu and About text, and
+  the real preferences file. The test script precompiles the debug build so timing is not
+  class-verification time.
 
 ## Data and limits
 
 Only the public feed, publisher images and (for an AI brief you ask for) the story
 text, title, category and language are sent. No website server key, AI key or analytics
-is sent, and nothing identifies you until you sign in. **When you sign in**, the
+is sent, and nothing identifies you until you sign in. The update check (once a day while
+you use the app, or when you choose Check for updates) fetches `/news/updates.json` from
+the same website: a plain GET that carries no account, device identifier or cookie, only
+what every HTTPS request exposes (your IP address and OkHttp's default User-Agent), and
+the app stores just when it last asked and which version you postponed. **When you sign in**, the
 account service also receives your Google sign-in (through the browser, not the app),
 your chosen topics and your saved stories (id, title, category and at most 500
 characters each). The account service's address and public key are fetched from

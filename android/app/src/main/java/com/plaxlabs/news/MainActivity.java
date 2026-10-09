@@ -17,6 +17,7 @@ import android.view.HapticFeedbackConstants;
 import android.view.View;
 import android.widget.*;
 import androidx.activity.OnBackPressedCallback;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.browser.customtabs.CustomTabsIntent;
 import androidx.core.graphics.Insets;
@@ -58,6 +59,9 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
     private AccountManager accountManager;
     private AccountManager.Phase lastPhase;
     private final AccountManager.Listener accountListener = status -> runOnUiThread(() -> accountChanged(status));
+    private UpdateManager updates;
+    /** The simple dialog on screen (theme, about, clear, update), so nothing else is drawn over it. */
+    AlertDialog openDialog;
     private FeedViewModel.State shown;
     private final Map<FeedViewModel.Screen, NavItem> tabs = new EnumMap<>(FeedViewModel.Screen.class);
     private final Map<String, TextView> sections = new LinkedHashMap<>();
@@ -71,6 +75,7 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
         SplashScreen splash = SplashScreen.installSplashScreen(this);
         super.onCreate(saved);
         accountManager = AccountManager.get(this);
+        updates = UpdateManager.get(this);
         model = new ViewModelProvider(this).get(FeedViewModel.class);
         long deadline = SystemClock.uptimeMillis() + SPLASH_LIMIT_MS;
         splash.setKeepOnScreenCondition(() -> !model.ready() && SystemClock.uptimeMillis() < deadline);
@@ -475,9 +480,11 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
         menu.getMenu().add(R.string.interests_title).setOnMenuItemClickListener(item -> { chooseInterests(); return true; });
         menu.getMenu().add(R.string.theme).setOnMenuItemClickListener(item -> { chooseTheme(); return true; });
         menu.getMenu().add(R.string.about).setOnMenuItemClickListener(item -> { about(); return true; });
+        menu.getMenu().add(updates.storeBuild() ? R.string.update_play : R.string.update_check)
+                .setOnMenuItemClickListener(item -> { updates.check(true); return true; });
         menu.getMenu().add(R.string.open_site).setOnMenuItemClickListener(item -> { open(FeedApi.SITE); return true; });
         menu.getMenu().add(R.string.clear_saved).setOnMenuItemClickListener(item -> {
-            new MaterialAlertDialogBuilder(this).setTitle(R.string.clear_saved)
+            openDialog = new MaterialAlertDialogBuilder(this).setTitle(R.string.clear_saved)
                     .setMessage(signedIn() ? R.string.clear_confirm_account : R.string.clear_confirm)
                     .setNegativeButton(R.string.cancel, null)
                     .setPositiveButton(R.string.clear, (dialog, which) -> model.clearSaved()).show();
@@ -559,6 +566,16 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
         model.foreground();
     }
 
+    @Override protected void onResume() {
+        super.onResume();
+        updates.attach(updateHost);
+    }
+
+    @Override protected void onPause() {
+        updates.detach(updateHost);
+        super.onPause();
+    }
+
     @Override protected void onStop() {
         accountManager.removeListener(accountListener);
         model.background();
@@ -567,15 +584,53 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
 
     private void chooseTheme() {
         String[] names = {getString(R.string.theme_system), getString(R.string.theme_light), getString(R.string.theme_dark)};
-        new MaterialAlertDialogBuilder(this).setTitle(R.string.theme)
+        openDialog = new MaterialAlertDialogBuilder(this).setTitle(R.string.theme)
                 .setSingleChoiceItems(names, Prefs.theme(this), (dialog, which) -> { dialog.dismiss(); Prefs.theme(this, which); })
                 .setNegativeButton(R.string.cancel, null).show();
     }
 
     private void about() {
-        new MaterialAlertDialogBuilder(this).setTitle(R.string.about)
-                .setMessage(getString(R.string.about_text, BuildConfig.VERSION_NAME))
+        String text = getString(R.string.about_text, BuildConfig.VERSION_NAME);
+        // Store builds are updated by Google Play and never look for updates, so they do not describe it.
+        if (!updates.storeBuild()) text += "\n\n" + getString(R.string.about_updates);
+        openDialog = new MaterialAlertDialogBuilder(this).setTitle(R.string.about)
+                .setMessage(text)
                 .setPositiveButton(R.string.done, null).show();
+    }
+
+    /** The screen the update manager offers an update on. */
+    private final UpdateManager.Host updateHost = new UpdateManager.Host() {
+        @Override public boolean idle() { return nothingOpen(); }
+        @Override public void offer(AppUpdates.Release release) { offerUpdate(release); }
+        @Override public void say(int message) { Toast.makeText(MainActivity.this, message, Toast.LENGTH_LONG).show(); }
+        @Override public void store() { open(AppUpdates.PLAY_URL); }
+    };
+
+    /** True when an offer would not cover anything: no sheet or dialog is open and sign-in is not in progress. */
+    private boolean nothingOpen() {
+        AccountManager.Status account = accountManager.status();
+        return !isFinishing() && !isDestroyed()
+                && !(sheet != null && sheet.isShowing()) && !(interestsSheet != null && interestsSheet.isShowing())
+                && !(accountSheet != null && accountSheet.isShowing()) && !(openDialog != null && openDialog.isShowing())
+                && account.phase() != AccountManager.Phase.WAITING && !account.busy();
+    }
+
+    private void offerUpdate(AppUpdates.Release release) {
+        openDialog = new MaterialAlertDialogBuilder(this).setTitle(R.string.update_title)
+                .setMessage(getString(R.string.update_message, release.versionName()))
+                .setNegativeButton(R.string.update_later, (dialog, which) -> updates.dismiss(release))
+                .setPositiveButton(R.string.update_download, (dialog, which) -> download(release))
+                .setOnCancelListener(dialog -> updates.dismiss(release)).show();
+    }
+
+    /** The browser downloads the file; Android then asks the reader to approve installing it over this version. */
+    private void download(AppUpdates.Release release) {
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(release.apkUrl())).addCategory(Intent.CATEGORY_BROWSABLE));
+            updates.dismiss(release);
+        } catch (ActivityNotFoundException noBrowser) {
+            Toast.makeText(this, R.string.update_no_browser, Toast.LENGTH_LONG).show();
+        }
     }
 
     @Override public void save(Story story) { model.toggle(story); }
@@ -608,6 +663,7 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
         if (sheet != null) sheet.dismiss();
         if (interestsSheet != null) interestsSheet.dismiss();
         if (accountSheet != null) accountSheet.dismiss();
+        if (openDialog != null) openDialog.dismiss();
         if (skeletonPulse != null) skeletonPulse.cancel();
         if (images != null) images.close();
         super.onDestroy();

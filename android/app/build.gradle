@@ -1,5 +1,11 @@
 plugins { id 'com.android.application' }
 
+// Store builds never update themselves: Google Play does that, and the menu opens the listing instead. The release
+// type is the store build; debug and preview are the ones distributed from the website, which look for updates
+// there. -PplayStore=true or -PplayStore=false overrides this for one build.
+def playStoreOverride = providers.gradleProperty('playStore').getOrNull()
+if (playStoreOverride != null && !(playStoreOverride in ['true', 'false'])) throw new GradleException('playStore must be true or false.')
+
 android {
     namespace 'com.plaxlabs.news'
     compileSdk 36
@@ -7,8 +13,8 @@ android {
         applicationId 'com.plaxlabs.news'
         minSdk 26
         targetSdk 36
-        versionCode 3
-        versionName '1.2.0'
+        versionCode 4
+        versionName '1.3.0'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         // The browser returns to the app on this scheme after Google sign-in; each build type has its own.
         manifestPlaceholders = [authScheme: 'com.plaxlabs.news']
@@ -26,11 +32,13 @@ android {
             versionNameSuffix '-preview'
             manifestPlaceholders = [authScheme: 'com.plaxlabs.news.preview']
             buildConfigField 'String', 'AUTH_SCHEME', '"com.plaxlabs.news.preview"'
+            buildConfigField 'boolean', 'PLAY_STORE', playStoreOverride ?: 'false'
         }
         release {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            buildConfigField 'boolean', 'PLAY_STORE', playStoreOverride ?: 'true'
         }
         // The shipped preview: optimized like release (R8, not debuggable) but signed with the local
         // debug key, so it installs over earlier previews. It is not a store release.
@@ -42,6 +50,7 @@ android {
             matchingFallbacks = ['release']
             manifestPlaceholders = [authScheme: 'com.plaxlabs.news.preview']
             buildConfigField 'String', 'AUTH_SCHEME', '"com.plaxlabs.news.preview"'
+            buildConfigField 'boolean', 'PLAY_STORE', playStoreOverride ?: 'false'
         }
     }
     compileOptions {
@@ -67,4 +76,12 @@ dependencies {
     androidTestImplementation 'androidx.test:runner:1.7.0'
     androidTestImplementation 'androidx.test.ext:junit:1.3.0'
     androidTestImplementation 'androidx.test:core:1.7.0'
+    // The overflow menu is a popup window of its own, which only the system's accessibility tree can reach.
+    androidTestImplementation 'androidx.test.uiautomator:uiautomator:2.3.0'
+}
+
+// A unit test checks the update feed and APK published with the website (public/ at the repository root), so
+// publishing a new build must run it again instead of Gradle reusing the earlier result.
+tasks.withType(Test).configureEach {
+    inputs.files(fileTree(dir: file("$rootDir/../public"), includes: ['updates.json', 'plax-*.apk'])).withPropertyName('publishedUpdate')
 }

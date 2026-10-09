@@ -81,9 +81,11 @@ public class AccountDeviceTest {
         savedFile = new File(context.getFilesDir(), "saved-stories.json");
         savedBackup = savedFile.exists() ? java.nio.file.Files.readAllBytes(savedFile.toPath()) : null;
         interestsBackup = Interests.read(context);
+        QuietUpdates.install();
     }
 
     @After public void restore() throws IOException {
+        QuietUpdates.remove();
         AccountManager.use(null);
         new SecureStore(directory, alias).clear();
         delete(directory);
@@ -186,7 +188,7 @@ public class AccountDeviceTest {
 
             InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> find(root, "Sign out").performClick());
             await("the sign-out", () -> !manager.signedIn());
-            assertTrue(auth.calls.contains("logout"));
+            await("the sign-out to be sent to the account service", () -> auth.calls.contains("logout"));
             await("the signed-out view", () -> find(root, "Continue with Google") != null);
             assertEquals("Topics stay on the phone after signing out", Set.of("history", "space"), Interests.read(context));
             InstrumentationRegistry.getInstrumentation().runOnMainSync(sheet[0]::dismiss);

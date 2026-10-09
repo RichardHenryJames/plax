@@ -42,10 +42,12 @@ public class PlaxDeviceTest {
         directory = new File(context.getCacheDir(), "test-" + UUID.randomUUID());
         assertTrue(directory.mkdir());
         BriefApi.CACHE.clear();
+        QuietUpdates.install();
     }
 
     @After public void cleanupFixtureOnly() {
         BriefSheet.source = new BriefApi();
+        QuietUpdates.remove();
         if (directory == null) return;
         delete(directory);
     }

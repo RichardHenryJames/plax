@@ -140,4 +140,14 @@
     <string name="account_manage">वेबसाइट पर खाता प्रबंधित करें</string>
     <string name="account_signed_out">साइन आउट हो गए। आपके विषय और सहेजी गई ख़बरें इसी फ़ोन में रहेंगी।</string>
     <string name="account_signed_in">साइन इन हो गए</string>
+    <string name="update_check">अपडेट जाँचें</string>
+    <string name="update_play">Google Play खोलें</string>
+    <string name="update_title">अपडेट उपलब्ध है</string>
+    <string name="update_message">Plax %1$s तैयार है। इसे डाउनलोड करें, फिर अपडेट करने के लिए फ़ाइल खोलें; आपकी सहेजी गई ख़बरें इसी फ़ोन में रहेंगी।</string>
+    <string name="update_later">बाद में</string>
+    <string name="update_download">डाउनलोड करें</string>
+    <string name="update_current">आपके पास Plax का नवीनतम संस्करण है।</string>
+    <string name="update_failed">अभी अपडेट जाँचे नहीं जा सके। कृपया बाद में फिर कोशिश करें।</string>
+    <string name="update_no_browser">अपडेट डाउनलोड करने के लिए कोई ब्राउज़र उपलब्ध नहीं है।</string>
+    <string name="about_updates">दिन में एक बार, और जब आप अपडेट जाँचें चुनते हैं, Plax अपनी वेबसाइट से पूछता है कि कोई नया संस्करण है या नहीं। आपके बारे में कुछ नहीं भेजा जाता। अगर है, तो आप उसे डाउनलोड करके खुद इंस्टॉल कर सकते हैं; Plax अपने आप कुछ इंस्टॉल नहीं करता।</string>
 </resources>
