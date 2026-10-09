@@ -1,0 +1,19 @@
+# Baseline profile: compile the app's own code ahead of time, plus the HTTP/JSON path used by the first screen.
+HSPLcom/plaxlabs/news/**;->**(**)**
+Lcom/plaxlabs/news/**;
+HSPLokhttp3/OkHttpClient**;->**(**)**
+HSPLokhttp3/Request**;->**(**)**
+HSPLokhttp3/Response**;->**(**)**
+HSPLokhttp3/HttpUrl**;->**(**)**
+HSPLokhttp3/Cache**;->**(**)**
+HSPLokhttp3/internal/connection/**;->**(**)**
+HSPLokhttp3/internal/http/**;->**(**)**
+HSPLokhttp3/internal/http2/**;->**(**)**
+HSPLokhttp3/internal/cache/**;->**(**)**
+HSPLokhttp3/internal/platform/**;->**(**)**
+HSPLokio/**;->**(**)**
+HSPLcom/google/gson/JsonParser;->**(**)**
+HSPLcom/google/gson/JsonObject;->**(**)**
+HSPLcom/google/gson/JsonArray;->**(**)**
+HSPLcom/google/gson/Gson;->**(**)**
+HSPLcom/google/gson/stream/**;->**(**)**

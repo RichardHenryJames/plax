@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Plax" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/plax_accent</item>
+        <item name="colorOnPrimary">@color/plax_on_accent</item>
+        <item name="colorSecondary">@color/plax_accent</item>
+        <item name="colorOnSecondary">@color/plax_on_accent</item>
+        <item name="colorSecondaryContainer">@color/plax_accent_soft</item>
+        <item name="colorOnSecondaryContainer">@color/plax_accent_text</item>
+        <item name="colorSurface">@color/plax_surface</item>
+        <item name="colorOnSurface">@color/plax_text</item>
+        <item name="colorSurfaceVariant">@color/plax_surface_alt</item>
+        <item name="colorOnSurfaceVariant">@color/plax_text_2</item>
+        <item name="colorSurfaceContainerLowest">@color/plax_surface</item>
+        <item name="colorSurfaceContainerLow">@color/plax_surface</item>
+        <item name="colorSurfaceContainer">@color/plax_surface</item>
+        <item name="colorSurfaceContainerHigh">@color/plax_surface_alt</item>
+        <item name="colorSurfaceContainerHighest">@color/plax_surface_alt</item>
+        <item name="colorOutline">@color/plax_border</item>
+        <item name="colorOutlineVariant">@color/plax_border</item>
+        <item name="android:colorBackground">@color/plax_bg</item>
+        <item name="android:windowBackground">@color/plax_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:fontFamily">sans-serif</item>
+    </style>
+
+    <style name="Theme.Plax.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/plax_splash_bg</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash</item>
+        <item name="postSplashScreenTheme">@style/Theme.Plax</item>
+    </style>
+</resources>

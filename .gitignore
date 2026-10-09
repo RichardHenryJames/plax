@@ -35,3 +35,12 @@ next-env.d.ts
 
 # IDE
 .idea/
+
+# Standalone Android app
+/android/.gradle/
+/android/**/build/
+/android/local.properties
+/android/.tools/
+/android/artifacts/
+*.jks
+*.keystore

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="plax_bg">#0B0B0E</color>
+    <color name="plax_surface">#15151A</color>
+    <color name="plax_surface_alt">#1F1F26</color>
+    <color name="plax_border">#2B2B34</color>
+    <color name="plax_text">#F5F5F7</color>
+    <color name="plax_text_2">#A9A9B5</color>
+    <color name="plax_accent">#F5B13A</color>
+    <color name="plax_on_accent">#1A1203</color>
+    <color name="plax_accent_text">#F5B13A</color>
+    <color name="plax_accent_soft">#3A2C0E</color>
+    <color name="plax_skeleton">#24242C</color>
+    <color name="plax_splash_bg">#0B0B0E</color>
+</resources>
