@@ -134,6 +134,25 @@ same push, adds:
 
 `npm test` (83 tests), `tsc` and `next build` pass.
 
+**Checked on the live site on 9 October 2026** (from the development machine, after
+deployment `b7a3e62`; the two earlier pushes, `638d2cc` and the 1.2 release, had not
+deployed because `vercel.json` carried a key Vercel rejects, see `../TECH.md`):
+
+- Uncached English brief **1.1-1.5 s** (6.6 s before), English to Hindi **2.6-2.9 s**
+  with Devanagari output (14.5 s before), repeats 0.08-0.10 s.
+- Cold topic pools with a forced live fetch: `space` 5.3 s (30-90 s before),
+  `art` 0.6 s, `books` 8.3 s (cut at the limit, 20 stories), `finance` 1.1 s,
+  `health` 0.6 s, `history` 0.8-1.5 s (one pass returned only 4 stories, later passes
+  16-20). Normal reads come from the cache in about 0.3 s.
+- `/news/api/auth-config` answers with the project address and public key;
+  `/news/auth/app` answers 302 into the app for the two known schemes (forwarding only
+  `code` and `error*`) and 400 for anything else. Vercel writes the redirect with a slash
+  before the query (`auth-callback/?code=...`); the app accepts it and a unit test pins it.
+- The website journeys (public first load, For you, Topics, no repeats, keeping your
+  place, Saved, Hindi, the unavailable sign-in message) ran in a real browser against
+  the live site without errors, and the app's sign-in attempt against the live routes
+  ends at the unreachable account service with the friendly message.
+
 ## Build
 
 Requirements: Java 17 or 21, Android SDK platform 36 / build-tools 36.0.0,
@@ -176,7 +195,7 @@ automatically published.
 .\test.ps1 -Serial emulator-5590 -LiveFeed
 ```
 
-- **90 JVM unit tests**: strict JSON shape and limits, server errors, escaped URLs, cache
+- **91 JVM unit tests**: strict JSON shape and limits, server errors, escaped URLs, cache
   format, repeated-headline removal (including sentences that merely begin with the
   headline), read-time parsing, image width/sampling rules, cache-header rewriting,
   Markdown rendering rules, AI request/response validation, sections and request URLs;
@@ -184,7 +203,7 @@ automatically published.
   its damaged-data handling, merging and caps, 16 tests); the feed state machine with
   fake sources (sessions, dwell, caught-up, For you, 14 tests); the sign-in protocol,
   PKCE and token handling (16 tests) and the account manager's merge, queue and
-  session rules (23 tests).
+  session rules (24 tests).
 - **53 Android instrumentation tests** (55 with `-LiveFeed`): bookmarks, the on-disk feed
   cache (round trip, per-language, damaged files), card rendering and actions, skeleton
   geometry, navigation and rotation, rendering of every screen and state in both
@@ -237,7 +256,7 @@ local machine; no physical phone was available.
 
 - Checksum-pinned Gradle wrapper; debug, preview and unsigned release builds; debug
   and preview lint: **0 errors**, 9 warnings (newer dependency/tool versions only).
-- **90 JVM unit tests** and **55 instrumentation tests** passed (71 s), including the
+- **91 JVM unit tests** and **55 instrumentation tests** passed (71 s), including the
   live English and Hindi feed checks against the public API and Keystore sealing on
   the emulator's real Android Keystore.
 - The preview APK (`artifacts\plax-1.2.0-preview.apk`, 1,860,729 bytes) was inspected:

@@ -407,4 +407,11 @@ public class AccountManagerTest {
         assertNull(AccountManager.parse(SCHEME + "://auth-callback.evil.example?code=abc12345", SCHEME));
         assertNull(AccountManager.parse("::not a uri::", SCHEME));
     }
+
+    @Test public void theAddressAsTheLiveSiteSendsItIsAccepted() {
+        // The website's redirect passes through Vercel, which writes the address with a slash before the query.
+        AccountManager.Callback slash = AccountManager.parse(SCHEME + "://auth-callback/?code=abc12345-6789", SCHEME);
+        assertEquals("abc12345-6789", slash.code());
+        assertEquals("access_denied", AccountManager.parse(SCHEME + "://auth-callback/?error=access_denied&error_description=User+denied", SCHEME).error());
+    }
 }
