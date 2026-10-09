@@ -895,6 +895,13 @@ Auto-deploys on every push to `main`.
 vercel --prod
 ```
 
+### `vercel.json`
+
+It holds the daily keep-alive cron, and two things matter:
+
+- The cron path must include the base path (`/news/api/keep-alive`). Vercel calls it on the deployment and every route lives under `/news`, so `/api/keep-alive` would answer 404 and the free-tier Supabase project would drift towards auto-pause.
+- Vercel validates the file strictly. An unknown key (a `_comment`, say) fails the whole deployment with "Invalid vercel.json", and the previous production deployment keeps serving: that is why the deployments of `638d2cc` and the 1.2 release did not go out. Run `vercel build` before pushing a change to this file; it reports the same error locally.
+
 ### Environment Variables (Vercel Dashboard)
 
 | Variable | Required | Scope |
