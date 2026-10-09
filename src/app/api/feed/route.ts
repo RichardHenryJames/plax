@@ -19,6 +19,11 @@ const getPooledContent = unstable_cache(
   { revalidate: 180, tags: ['feed'] }
 )
 
+// Edge-cacheable for a minute, then served stale while it refreshes in the background.
+function sharedCacheHeaders(shareable: boolean): HeadersInit | undefined {
+  return shareable ? { 'Cache-Control': 'public, max-age=0, s-maxage=60, stale-while-revalidate=300' } : undefined
+}
+
 // Simple deterministic hash for stable card IDs
 function stableHash(str: string): string {
   let hash = 0
@@ -38,6 +43,9 @@ export async function GET(request: NextRequest) {
   const lang = searchParams.get('lang') === 'hi' ? 'hi' : 'en'
   // Client sends IDs it already has — we skip those
   const excludeIds = new Set((searchParams.get('exclude') || '').split(',').filter(Boolean))
+  // Without a per-reader exclude list or a forced refresh the answer is identical
+  // for everyone, so the CDN may serve it and refresh it in the background.
+  const shareable = !refresh && excludeIds.size === 0
 
   try {
     // Check cache first (only for non-refresh requests)
@@ -47,11 +55,11 @@ export async function GET(request: NextRequest) {
       if (cached && cached.length > 0) {
         const filtered = cached.filter((c) => !excludeIds.has(c.id))
         if (filtered.length > 0) {
-          return NextResponse.json({
-            cards: filterAndLimit(filtered, categories, limit),
-            cached: true,
-            count: filtered.length,
-          })
+          const cards = filterAndLimit(filtered, categories, limit)
+          return NextResponse.json(
+            { cards, cached: true, count: filtered.length },
+            { headers: sharedCacheHeaders(shareable && cards.length > 0) }
+          )
         }
         // All cached cards already seen — fall through to fresh fetch
       }
@@ -117,18 +125,22 @@ export async function GET(request: NextRequest) {
 
     // Remove cards the client already has
     const freshCards = excludeIds.size > 0 ? cards.filter((c) => !excludeIds.has(c.id)) : cards
+    const limited = filterAndLimit(freshCards, categories, limit)
 
-    return NextResponse.json({
-      cards: filterAndLimit(freshCards, categories, limit),
-      cached: false,
-      count: freshCards.length,
-      sources: {
-        wikipedia: rawContents.filter(r => r.source.includes('Wikipedia')).length,
-        hackernews: rawContents.filter(r => r.source === 'Hacker News').length,
-        reddit: rawContents.filter(r => r.source.includes('Reddit')).length,
-        quotes: rawContents.filter(r => r.source === 'ZenQuotes').length,
-      }
-    })
+    return NextResponse.json(
+      {
+        cards: limited,
+        cached: false,
+        count: freshCards.length,
+        sources: {
+          wikipedia: rawContents.filter(r => r.source.includes('Wikipedia')).length,
+          hackernews: rawContents.filter(r => r.source === 'Hacker News').length,
+          reddit: rawContents.filter(r => r.source.includes('Reddit')).length,
+          quotes: rawContents.filter(r => r.source === 'ZenQuotes').length,
+        },
+      },
+      { headers: sharedCacheHeaders(shareable && limited.length > 0) }
+    )
   } catch (error) {
     console.error('Feed API error:', error instanceof Error ? error.message : error)
     

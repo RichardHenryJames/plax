@@ -1,4 +1,10 @@
 import { RawContent, CATEGORY_MAP, TOPIC_SUBREDDITS, TOPIC_WIKI_QUERIES, TOPIC_WIKI_QUERIES_HI, TOPIC_NEWS_KEYWORD, TOPIC_GUARDIAN_SECTION, TOPIC_RSS_FEEDS, HINDI_RSS_FEEDS, GENERAL_NEWS_FEEDS } from './types'
+import { within, Remembered, SOURCE_DEADLINE_MS } from './deadline'
+import { isDisambiguationPage } from './wikipedia-quality'
+
+// What each source last returned (30 minutes at most), so a source that is slow or fails does not leave a
+// hole in the next pool: Art, for one, depends on a Wikipedia search that is often slower than the deadline.
+const lastGood = new Remembered<RawContent>(30 * 60 * 1000, 120)
 
 // ─── HTML Cleaning (for HN and Reddit raw content) ───
 
@@ -204,8 +210,7 @@ function isLowQualityWikipedia(
     return true
 
   // Disambiguation & list pages
-  if (/may refer to:?$/i.test(extract)) return true
-  if (/\(disambiguation\)/i.test(title)) return true
+  if (isDisambiguationPage(description, title, extract)) return true
   if (/^(List of|Lists of|Index of|Outline of|Glossary of) /i.test(title)) return true
 
   return false
@@ -1350,15 +1355,21 @@ export async function fetchAllContent(categories: string[] = [], lang: string = 
     // side AI rewrites each into a Hindi micro-essay and the author hook trails
     // deeper into the same author's catalog.
     const includeBooks = categories.length === 0 || categories.includes('books')
-    const results = await Promise.allSettled([
+    const hindiJobs: Promise<RawContent[]>[] = [
       fetchWikipediaByTopics(topicsForSearch, 6, 'hi'),
       fetchWikipediaContent(18, 'hi'),
       includeBooks ? fetchIndianAuthorBooks(6) : Promise.resolve([]),
       fetchHindiNews(4), // current Indian news in Hindi (RSS, key-free, real-time)
-    ])
+    ]
+    const hindiNames = ['WikipediaTopics', 'Wikipedia', 'IndianAuthors', 'HindiNews']
+    const memoryKeys = hindiNames.map((name) => `${name}|hi|${[...categories].sort().join(',')}`)
+    const results = await Promise.allSettled(
+      hindiJobs.map((job, i) => within(hindiNames[i], lastGood.track(memoryKeys[i], job), SOURCE_DEADLINE_MS))
+    )
     const all: RawContent[] = []
-    results.forEach((r) => {
-      if (r.status === 'fulfilled') all.push(...r.value)
+    results.forEach((r, i) => {
+      const live = r.status === 'fulfilled' ? r.value : []
+      all.push(...(live.length > 0 ? live : lastGood.recall(memoryKeys[i])))
     })
     console.log(`[Plax Sources] Hindi: ${all.length} items`)
     return all
@@ -1428,7 +1439,8 @@ export async function fetchAllContent(categories: string[] = [], lang: string = 
   // NOTE: Reddit is intentionally dropped from the active set — it is 403-blocked
   // from datacenter IPs (Vercel) and returned 0 items in every prod log, so it was
   // pure latency with no payoff. fetchReddit remains exported if ever proxied.
-  const results = await Promise.allSettled([
+  const sourceNames = ['Wikipedia', 'HackerNews', 'Quotes', 'WikipediaTopics', 'arXiv', 'Gutenberg', 'News', 'OpenLibrary', 'MetArt', 'NASA', 'Poetry', 'Guardian', 'RSS', 'NewsTopic']
+  const jobs: Promise<RawContent[]>[] = [
     includeRandom ? fetchWikipediaContent(18) : Promise.resolve([]),
     includeHN ? fetchHackerNews(15) : Promise.resolve([]),
     includeQuotes ? fetchQuotes(10) : Promise.resolve([]),
@@ -1443,18 +1455,25 @@ export async function fetchAllContent(categories: string[] = [], lang: string = 
     includeGuardian ? fetchGuardian(guardianTopics, 4) : Promise.resolve([]),
     includeRss ? fetchRssNews(rssTopics, 3) : Promise.resolve([]),
     wantsNews ? fetchGeneralNews(15) : Promise.resolve([]),
-  ])
+  ]
+  // A source that is stuck (some answered after a minute or more) must not hold the whole pool hostage.
+  // Its last good answer, if it has one, stands in for it, and what it eventually returns is kept for next time.
+  const memoryKeys = sourceNames.map((name) => `${name}|${lang}|${[...categories].sort().join(',')}`)
+  const results = await Promise.allSettled(
+    jobs.map((job, i) => within(sourceNames[i], lastGood.track(memoryKeys[i], job), SOURCE_DEADLINE_MS))
+  )
 
   const all: RawContent[] = []
-  const sourceNames = ['Wikipedia', 'HackerNews', 'Quotes', 'WikipediaTopics', 'arXiv', 'Gutenberg', 'News', 'OpenLibrary', 'MetArt', 'NASA', 'Poetry', 'Guardian', 'RSS', 'NewsTopic']
 
   results.forEach((result, i) => {
-    if (result.status === 'fulfilled') {
-      console.log(`[Plax Sources] ${sourceNames[i]}: ${result.value.length} items`)
-      all.push(...result.value)
-    } else {
-      console.error(`[Plax Sources] ${sourceNames[i]} failed:`, result.reason)
-    }
+    if (result.status === 'rejected') console.error(`[Plax Sources] ${sourceNames[i]} failed:`, result.reason)
+    const live = result.status === 'fulfilled' ? result.value : []
+    const items = live.length > 0 ? live : lastGood.recall(memoryKeys[i])
+    console.log(
+      `[Plax Sources] ${sourceNames[i]}: ${live.length} items` +
+        (live.length === 0 && items.length > 0 ? ` (${items.length} from its last good answer)` : '')
+    )
+    all.push(...items)
   })
 
   console.log(`[Plax Sources] Total: ${all.length} items from ${sourceNames.length} sources`)

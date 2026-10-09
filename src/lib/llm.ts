@@ -1,133 +1,277 @@
-// Centralized LLM text generation with a robust, non-deprecated provider chain
-// and fast-fail timeouts. Used by summarize / deeper / quiz.
+// Centralized LLM text generation for summarize / deeper / quiz / translate.
 //
-// Chain (each step only runs if the previous produced nothing):
-//   1. Gemini     (GEMINI_MODELS list — tries 2.5-flash, 2.5-flash-lite, 2.0-flash…
-//                   each model has its OWN free daily quota, multiplying capacity)
-//   2. Groq #1     (GROQ_MODEL,   default openai/gpt-oss-120b — best quality, production)
-//   3. Groq #2     (GROQ_MODEL_2, default openai/gpt-oss-20b  — 2x faster/cheaper, SEPARATE
-//                   free daily token budget → roughly doubles daily capacity)
-//   4. OpenRouter  (OPENROUTER_MODELS, several FREE models on one key — DeepSeek, Qwen,
-//                   Llama etc. Each is a separate free pool, massively extending capacity.)
+// Speed first. Measured in Oct 2026 with the production keys (median of 3 calls,
+// one 60-word news item):
+//   Groq   qwen/qwen3.8-27b        0.25-0.70 s   fast, faithful English; Hindi is serviceable
+//   Gemini gemini-3.5-flash-lite   0.9-1.3 s     best natural Hindi, faithful
+//   Groq   openai/gpt-oss-20b/120b 0.5-1.3 s     good, but can mis-expand acronyms
+//   Gemini gemini-2.5-flash        429 or 3.6 s  the previous default
+//   Gemini gemini-2.5-flash-lite   404           retired
 //
-// NOTE: we deliberately avoid llama-3.1-8b-instant / llama-3.3-70b-versatile — Groq
-// deprecates both on 2026-08-16 (replacements: gpt-oss-20b / gpt-oss-120b).
-import { GoogleGenerativeAI } from '@google/generative-ai'
-import Groq from 'groq-sdk'
+// A request races a *staggered* chain (see staggered.ts): the next provider starts
+// the moment the previous one fails, or after HEDGE_MS if it is still silent, and
+// the first answer that passes validation wins. Providers that answer 429/404 are
+// skipped for a cool-down so an exhausted quota costs nothing on later requests.
+//
+// Configuration (all optional, comma-separated `provider:model` pairs):
+//   LLM_CHAIN            general chain (brief writing, quizzes, insights)
+//   LLM_TRANSLATE_CHAIN  translation chain (ordered for the best Hindi)
+//   LLM_HEDGE_MS         stagger delay in ms (default 1500)
+// The older GEMINI_MODELS / GROQ_MODEL / GROQ_MODEL_2 / OPENROUTER_MODELS
+// variables are no longer read.
+import { raceStaggered, type Step } from './staggered'
 
-const geminiApiKey = process.env.GEMINI_API_KEY
-const groqApiKey = process.env.GROQ_API_KEY
-const openRouterKey = process.env.OPENROUTER_API_KEY
-const genAI = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : null
-const groq = groqApiKey ? new Groq({ apiKey: groqApiKey }) : null
+export type ChainName = 'default' | 'translate'
 
-// Comma-separated Gemini model IDs tried in order. Each model has its OWN free
-// daily quota pool, so listing several roughly multiplies daily capacity — when
-// one model returns "limit: 0 / 429 quota exceeded" the next is tried. 2.5-flash
-// leads because Google zeroed the 2.0-flash free tier (limit:0) in mid-2026.
-const GEMINI_MODELS = (
-  process.env.GEMINI_MODELS ||
-  'gemini-2.5-flash,gemini-2.5-flash-lite,gemini-2.0-flash,gemini-2.0-flash-lite'
-)
-  .split(',')
-  .map((s) => s.trim())
-  .filter(Boolean)
-const GROQ_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b'
-const GROQ_MODEL_2 = process.env.GROQ_MODEL_2 || 'openai/gpt-oss-20b'
-// A comma-separated list of OpenRouter FREE model IDs, tried in order. Each `:free`
-// model has its own free allocation, so listing several greatly extends capacity.
-// (Verified available on the free tier via /api/v1/models.)
-const OPENROUTER_MODELS = (
-  process.env.OPENROUTER_MODELS ||
-  'meta-llama/llama-3.3-70b-instruct:free,qwen/qwen3-next-80b-a3b-instruct:free,openai/gpt-oss-120b:free,openai/gpt-oss-20b:free'
-)
-  .split(',')
-  .map((s) => s.trim())
-  .filter(Boolean)
-
-const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T> =>
-  Promise.race([p, new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))])
-
-// ── OpenRouter (OpenAI-compatible chat completions, many free models on one key) ──
-async function openRouterGenerate(prompt: string, maxTokens: number): Promise<string> {
-  if (!openRouterKey) return ''
-  for (const model of OPENROUTER_MODELS) {
-    try {
-      const res = await withTimeout(
-        fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${openRouterKey}`,
-            'Content-Type': 'application/json',
-            // Optional attribution headers OpenRouter recommends.
-            'HTTP-Referer': 'https://www.plaxlabs.com',
-            'X-Title': 'Plax',
-          },
-          body: JSON.stringify({
-            model,
-            messages: [{ role: 'user', content: prompt }],
-            max_tokens: maxTokens,
-          }),
-        }),
-        15000
-      )
-      if (!res.ok) continue
-      const data = await res.json()
-      const text = data?.choices?.[0]?.message?.content || ''
-      if (typeof text === 'string' && text.trim()) return text
-    } catch (e) {
-      console.error(`OpenRouter (${model}) error:`, (e as Error)?.message || e)
-    }
-  }
-  return ''
+export interface GenerateOptions {
+  /** Ask the provider for a JSON object (native JSON mode where supported). */
+  json?: boolean
+  chain?: ChainName
+  temperature?: number
+  hedgeMs?: number
+  /** Reject an answer so the next provider is tried instead. */
+  accept?: (text: string) => boolean
+  /** Abort all in-flight provider calls. */
+  signal?: AbortSignal
 }
 
-// Generate raw text for a prompt, trying each provider until one succeeds.
-export async function generateText(prompt: string, maxTokens = 1024): Promise<string> {
-  // 1. Gemini — try each model in order; each has its own free daily quota pool,
-  //    so an exhausted model (429 / limit:0) falls through to the next.
-  if (genAI) {
-    for (const modelId of GEMINI_MODELS) {
-      try {
-        const model = genAI.getGenerativeModel({ model: modelId })
-        const res = await withTimeout(model.generateContent(prompt), 7000)
-        const text = res.response.text()
-        if (text?.trim()) return text
-      } catch (e) {
-        console.error(`Gemini (${modelId}) error:`, (e as Error)?.message || e)
-      }
-    }
-  }
-  // 2 & 3. Groq models in order (each has its own free daily token budget)
-  if (groq) {
-    for (const model of [GROQ_MODEL, GROQ_MODEL_2]) {
-      try {
-        const c = await withTimeout(
-          groq.chat.completions.create({
-            messages: [{ role: 'user', content: prompt }],
-            model,
-            reasoning_effort: 'low',
-            max_tokens: maxTokens,
-          }),
-          15000
-        )
-        const text = c.choices[0]?.message?.content || ''
-        if (text.trim()) return text
-      } catch (e) {
-        console.error(`Groq (${model}) error:`, (e as Error)?.message || e)
-      }
-    }
-  }
-  // 4. OpenRouter free models (last resort — biggest pool of extra free capacity)
-  const orText = await openRouterGenerate(prompt, maxTokens)
-  if (orText.trim()) return orText
-
-  return ''
+type Kind = 'groq' | 'gemini' | 'openrouter'
+interface Target {
+  kind: Kind
+  model: string
+  id: string
 }
 
-// Generate + parse the first JSON object found in the model's reply.
-export async function generateJSON<T = unknown>(prompt: string, maxTokens = 1024): Promise<T | null> {
-  const text = await generateText(prompt, maxTokens)
+const DEFAULT_CHAIN = [
+  'groq:qwen/qwen3.8-27b',
+  'gemini:gemini-3.5-flash-lite',
+  'groq:openai/gpt-oss-20b',
+  'gemini:gemini-3.1-flash-lite',
+  'groq:openai/gpt-oss-120b',
+  'openrouter:google/gemma-4-31b-it:free',
+  'openrouter:google/gemma-4-26b-a4b-it:free',
+].join(',')
+
+const TRANSLATE_CHAIN = [
+  'gemini:gemini-3.5-flash-lite',
+  'groq:openai/gpt-oss-120b',
+  'groq:qwen/qwen3.8-27b',
+  'gemini:gemini-3.1-flash-lite',
+  'groq:openai/gpt-oss-20b',
+].join(',')
+
+const TIMEOUT_MS: Record<Kind, number> = { groq: 7000, gemini: 9000, openrouter: 12000 }
+
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
+const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
+const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models'
+
+interface ChatResponse {
+  choices?: { message?: { content?: string | null } }[]
+}
+interface GeminiResponse {
+  candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] } }[]
+}
+
+export function parseChain(spec: string): Target[] {
+  const targets: Target[] = []
+  for (const raw of spec.split(',')) {
+    const item = raw.trim()
+    const split = item.indexOf(':')
+    if (split <= 0) continue
+    const kind = item.slice(0, split)
+    const model = item.slice(split + 1).trim()
+    if (!model || (kind !== 'groq' && kind !== 'gemini' && kind !== 'openrouter')) continue
+    targets.push({ kind, model, id: `${kind}:${model}` })
+  }
+  return targets
+}
+
+function apiKey(kind: Kind): string | undefined {
+  if (kind === 'groq') return process.env.GROQ_API_KEY
+  if (kind === 'gemini') return process.env.GEMINI_API_KEY
+  return process.env.OPENROUTER_API_KEY
+}
+
+// Per-isolate cool-down for providers that report an exhausted quota or a retired
+// model. Skipping them avoids paying a round trip (or a hedge delay) on every call.
+const cooldownUntil = new Map<string, number>()
+
+function noteFailure(id: string, status: number, retryAfter: string | null) {
+  let seconds = 0
+  if (status === 429) seconds = Math.min(Math.max(Number(retryAfter) || 0, 30), 300)
+  else if (status === 401 || status === 403 || status === 404) seconds = 600
+  if (seconds > 0) cooldownUntil.set(id, Date.now() + seconds * 1000)
+}
+
+function activeTargets(chain: ChainName): Target[] {
+  const spec =
+    (chain === 'translate' ? process.env.LLM_TRANSLATE_CHAIN : process.env.LLM_CHAIN) ||
+    (chain === 'translate' ? TRANSLATE_CHAIN : DEFAULT_CHAIN)
+  const configured = parseChain(spec).filter((t) => Boolean(apiKey(t.kind)))
+  const now = Date.now()
+  const ready = configured.filter((t) => (cooldownUntil.get(t.id) ?? 0) <= now)
+  return ready.length > 0 ? ready : configured
+}
+
+async function postJSON<T>(
+  url: string,
+  headers: Record<string, string>,
+  body: unknown,
+  timeoutMs: number,
+  signal: AbortSignal,
+  id: string
+): Promise<T> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  const onAbort = () => controller.abort()
+  if (signal.aborted) controller.abort()
+  else signal.addEventListener('abort', onAbort, { once: true })
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    })
+    if (!res.ok) {
+      noteFailure(id, res.status, res.headers.get('retry-after'))
+      throw new Error(`HTTP ${res.status}`)
+    }
+    return (await res.json()) as T
+  } finally {
+    clearTimeout(timer)
+    signal.removeEventListener('abort', onAbort)
+  }
+}
+
+async function callGroq(
+  target: Target,
+  prompt: string,
+  maxTokens: number,
+  o: { json: boolean; temperature: number },
+  signal: AbortSignal
+): Promise<string> {
+  const body: Record<string, unknown> = {
+    model: target.model,
+    messages: [{ role: 'user', content: prompt }],
+    max_tokens: maxTokens,
+    temperature: o.temperature,
+  }
+  // gpt-oss cannot disable reasoning, only shorten it; Qwen can skip it entirely.
+  if (target.model.includes('gpt-oss')) body.reasoning_effort = 'low'
+  else if (target.model.includes('qwen')) {
+    body.reasoning_effort = 'none'
+    body.reasoning_format = 'hidden'
+  }
+  if (o.json) body.response_format = { type: 'json_object' }
+  const data = await postJSON<ChatResponse>(
+    GROQ_URL,
+    { Authorization: `Bearer ${apiKey('groq')}` },
+    body,
+    TIMEOUT_MS.groq,
+    signal,
+    target.id
+  )
+  return data.choices?.[0]?.message?.content ?? ''
+}
+
+async function callGemini(
+  target: Target,
+  prompt: string,
+  maxTokens: number,
+  o: { json: boolean; temperature: number },
+  signal: AbortSignal
+): Promise<string> {
+  const generationConfig: Record<string, unknown> = { temperature: o.temperature, maxOutputTokens: maxTokens }
+  if (o.json) generationConfig.responseMimeType = 'application/json'
+  // Thinking tokens only add latency for rewriting and translation.
+  if (target.model.startsWith('gemini-3')) {
+    generationConfig.thinkingConfig = { thinkingLevel: target.model.includes('lite') ? 'minimal' : 'low' }
+  } else if (target.model.startsWith('gemini-2.5')) {
+    generationConfig.thinkingConfig = { thinkingBudget: 0 }
+  }
+  const data = await postJSON<GeminiResponse>(
+    `${GEMINI_URL}/${encodeURIComponent(target.model)}:generateContent`,
+    { 'x-goog-api-key': apiKey('gemini') ?? '' },
+    { contents: [{ parts: [{ text: prompt }] }], generationConfig },
+    TIMEOUT_MS.gemini,
+    signal,
+    target.id
+  )
+  const parts = data.candidates?.[0]?.content?.parts ?? []
+  return parts
+    .filter((p) => !p.thought)
+    .map((p) => p.text ?? '')
+    .join('')
+}
+
+async function callOpenRouter(
+  target: Target,
+  prompt: string,
+  maxTokens: number,
+  o: { json: boolean; temperature: number },
+  signal: AbortSignal
+): Promise<string> {
+  const data = await postJSON<ChatResponse>(
+    OPENROUTER_URL,
+    {
+      Authorization: `Bearer ${apiKey('openrouter')}`,
+      'HTTP-Referer': 'https://www.plaxlabs.com',
+      'X-Title': 'Plax',
+    },
+    {
+      model: target.model,
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: maxTokens,
+      temperature: o.temperature,
+    },
+    TIMEOUT_MS.openrouter,
+    signal,
+    target.id
+  )
+  return data.choices?.[0]?.message?.content ?? ''
+}
+
+function runTarget(
+  target: Target,
+  prompt: string,
+  maxTokens: number,
+  o: { json: boolean; temperature: number },
+  signal: AbortSignal
+): Promise<string> {
+  const call =
+    target.kind === 'groq' ? callGroq : target.kind === 'gemini' ? callGemini : callOpenRouter
+  return call(target, prompt, maxTokens, o, signal).catch((error: unknown) => {
+    if (!signal.aborted) console.warn('[llm]', target.id, (error as Error)?.message || 'failed')
+    throw error
+  })
+}
+
+// Generate raw text for a prompt. Returns '' only when every provider failed.
+export async function generateText(
+  prompt: string,
+  maxTokens = 1024,
+  options: GenerateOptions = {}
+): Promise<string> {
+  const targets = activeTargets(options.chain ?? 'default')
+  if (targets.length === 0) return ''
+  const settings = { json: options.json ?? false, temperature: options.temperature ?? 0.4 }
+  const steps: Step<string>[] = targets.map(
+    (target) => (signal) => runTarget(target, prompt, maxTokens, settings, signal)
+  )
+  const hedgeMs = options.hedgeMs ?? (Number(process.env.LLM_HEDGE_MS) || 1500)
+  const accept = options.accept
+  const text = await raceStaggered(
+    steps,
+    hedgeMs,
+    (value) => typeof value === 'string' && value.trim().length > 0 && (accept ? accept(value) : true),
+    options.signal
+  )
+  return text ?? ''
+}
+
+export function extractJSON<T = unknown>(text: string): T | null {
   const match = text.match(/\{[\s\S]*\}/)
   if (!match) return null
   try {
@@ -135,4 +279,24 @@ export async function generateJSON<T = unknown>(prompt: string, maxTokens = 1024
   } catch {
     return null
   }
+}
+
+// Generate + parse the first JSON object in the reply. An answer that is not valid
+// JSON (or fails `validate`) is rejected so the next provider is tried, instead of
+// the request failing on the first malformed reply.
+export async function generateJSON<T = unknown>(
+  prompt: string,
+  maxTokens = 1024,
+  options: Omit<GenerateOptions, 'json'> & { validate?: (value: T) => boolean } = {}
+): Promise<T | null> {
+  const { validate, accept, ...rest } = options
+  const text = await generateText(prompt, maxTokens, {
+    ...rest,
+    json: true,
+    accept: (candidate) => {
+      const value = extractJSON<T>(candidate)
+      return value !== null && (validate ? validate(value) : true) && (accept ? accept(candidate) : true)
+    },
+  })
+  return text ? extractJSON<T>(text) : null
 }

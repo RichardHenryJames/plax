@@ -5,6 +5,15 @@ import { cacheKey, getCachedAI, setCachedAI } from '@/lib/ai-cache'
 
 export const runtime = 'edge'
 
+const DEVANAGARI = /[\u0900-\u097F]/
+
+// True when most letters are Devanagari, i.e. the source is already Hindi.
+function isMostlyDevanagari(text: string): boolean {
+  const letters = text.match(/\p{L}/gu)?.length ?? 0
+  if (letters < 20) return false
+  return (text.match(/[\u0900-\u097F]/g)?.length ?? 0) / letters > 0.5
+}
+
 // Some models occasionally emit HTML (<p>, <strong>, <em>…) despite being asked
 // for markdown, and some source extracts carry stray tags. Convert emphasis tags
 // to markdown and strip everything else so the UI never shows literal <p>/<strong>.
@@ -110,8 +119,11 @@ function topicGuidance(category: string): { role: string; angle: string; words: 
 // READ like a finished piece — it should HAVE a hook and a takeaway, but must
 // NEVER print the words "Hook"/"Takeaway" or any section labels (that looks like
 // a template, not journalism).
-function buildPrompt(category: string, content: string, type: string): string {
+function buildPrompt(category: string, content: string, type: string, outputLanguage?: string): string {
   const g = topicGuidance(category)
+  const languageRule = outputLanguage
+    ? `- Write the TITLE and the text entirely in ${outputLanguage}, in natural wording a native editor would use (the source is already in that language).\n`
+    : ''
   return `You are ${g.role}. Rewrite the source below into a polished, publication-quality micro-read.
 
 SOURCE:
@@ -121,7 +133,7 @@ Requirements:
 - A compelling TITLE (max 8 words) — specific and intriguing, never clickbait.
 - ${g.words}.
 ${g.angle}
-- Write flowing prose. Do NOT use section labels or headers — NEVER write the words "Hook", "Takeaway", "Summary", "Intro", or similar. It must read like a finished article, not a template.
+${languageRule}- Write flowing prose. Do NOT use section labels or headers — NEVER write the words "Hook", "Takeaway", "Summary", "Intro", or similar. It must read like a finished article, not a template.
 - End on a resonant closing line, but do not announce it.
 - **Bold** 2–4 key phrases (never whole sentences).
 - Use ONLY markdown for emphasis (**bold**). NEVER output HTML tags (no <p>, <strong>, <em>, <br>) — plain text + markdown only.
@@ -149,6 +161,22 @@ export async function POST(request: NextRequest) {
     const cached = await getCachedAI<{ title: string; content: string; type: string }>(ck)
     if (cached) return NextResponse.json({ ...cached, cached: true })
 
+    // A Hindi source asked for in Hindi is written directly in Hindi on the
+    // translation-tuned chain. The English round trip below is slower and loses
+    // nuance for text that never needed translating. Falls through if it fails.
+    if (lang === 'hi' && isMostlyDevanagari(content)) {
+      const direct = await generateJSON<{ title?: string; content?: string }>(
+        buildPrompt(category, content, type, 'Hindi (Devanagari script)'),
+        1536,
+        { chain: 'translate', validate: (v) => typeof v.content === 'string' && DEVANAGARI.test(v.content) }
+      )
+      if (direct?.content) {
+        const result = { title: sanitizeText(direct.title || title), content: sanitizeText(direct.content), type }
+        await setCachedAI(ck, result)
+        return NextResponse.json(result)
+      }
+    }
+
     // ARCHITECTURE: for non-English we ALWAYS generate the essay in English (the
     // LLM's strongest language) and then translate it with a dedicated translation
     // API (Azure → MyMemory). This is how real products localize: cheaper, faster,
@@ -164,7 +192,9 @@ export async function POST(request: NextRequest) {
     let enTitle = title || ''
     let enContent = sanitizeText(content.slice(0, 700))
 
-    const j = await generateJSON<{ title?: string; content?: string }>(prompt, 1024)
+    const j = await generateJSON<{ title?: string; content?: string }>(prompt, 1024, {
+      validate: (v) => typeof v.content === 'string' && v.content.trim().length > 20,
+    })
     if (j?.content) {
       enTitle = sanitizeText(j.title || enTitle)
       enContent = sanitizeText(j.content)
@@ -179,7 +209,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Non-English → translate the English text (essay or raw extract) via the
-    // dedicated translation chain (Azure → MyMemory). Works regardless of LLM quota.
+    // dedicated translation chain (LLM → Azure → MyMemory). Works regardless of LLM quota.
+    // A Hindi extract that is still Hindi (every LLM failed) needs no translation.
+    if (lang === 'hi' && isMostlyDevanagari(enContent)) {
+      return NextResponse.json({ title: enTitle, content: enContent, type })
+    }
     const translated = await translateBatch([enTitle || '', enContent], targetLang)
     if (translated && (translated[0] || translated[1])) {
       const result = { title: translated[0] || enTitle, content: translated[1] || enContent, type, translated: true }
