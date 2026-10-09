@@ -6,17 +6,22 @@ A short-form reading platform that delivers personalized microessays, quotes, ex
 
 ## Native Android preview
 
-The independent [Android project](android/README.md) (version 1.2.0 preview)
+The independent [Android project](android/README.md) (version 1.3.0 preview)
 provides native swipeable Plax news cards in English or Hindi, topics, a **For you**
 feed built from topics you choose, light and dark themes, an on-device feed cache for
 instant start and offline reading, an AI brief with English/Hindi translation,
 bookmarks, sharing and publisher links. Stories you have already looked at do not come
 back when you reopen the app, and the same event reported by several outlets is shown
-once. It works without a login; signing in with Google is optional and only syncs your
+once. It tells you when a newer build is published and lets you download it from the
+app (the browser saves the APK and Android asks you to confirm; nothing installs by
+itself): the feed and APK are served by this website, see *Android update feed* in
+[TECH.md](TECH.md#android-update-feed-publicupdatesjson). It works without a login;
+signing in with Google is optional and only syncs your
 topics and saved stories with the same account the website uses (see
 [SUPABASE_SETUP.md](SUPABASE_SETUP.md): the account service is currently down, so that
 part is unverified end to end). It uses the public feed and summarize endpoints plus two
-small routes added for it, `/news/api/auth-config` and `/news/auth/app`. The AI brief is
+small routes added for sign-in, `/news/api/auth-config` and `/news/auth/app`, and the
+static update feed. The AI brief is
 fast once the backend changes described under *AI Summarization & Translation* below are
 deployed; the app works against the current backend without them.
 Open `android` in Android Studio or run `android\build.ps1` on Windows.

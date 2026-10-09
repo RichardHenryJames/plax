@@ -900,6 +900,15 @@ It holds the daily keep-alive cron, and two things matter:
 - The cron path must include the base path (`/news/api/keep-alive`). Vercel calls it on the deployment and every route lives under `/news`, so `/api/keep-alive` would answer 404 and the free-tier Supabase project would drift towards auto-pause.
 - Vercel validates the file strictly. An unknown key (a `_comment`, say) fails the whole deployment with "Invalid vercel.json", and the previous production deployment keeps serving: that is why the deployments of `638d2cc` and the 1.2 release did not go out. Run `vercel build` before pushing a change to this file; it reports the same error locally.
 
+### Android update feed (`public/updates.json`)
+
+The native app ([android/README.md](android/README.md), *Updates from inside the app*) updates itself from two static files that deploy with the website: `public/updates.json` (seven fields: `schemaVersion`, `versionCode`, `versionName`, `minSdk`, `apkUrl`, `sha256`, `size`) at `/news/updates.json`, and the one advertised build, `public/plax-<version>.apk`, at `/news/plax-<version>.apk`. The app only reads `https://www.plaxlabs.com/news/...` (the apex redirects to `www`, and the app follows no redirect, so the feed must always be reached on `www`).
+
+- **Headers** come from `headers()` in `next.config.js`: the feed is `application/json; charset=utf-8` with `Cache-Control: no-store`; the APK is `application/vnd.android.package-archive` with `Content-Disposition: attachment` and `public, max-age=3600, must-revalidate`. Both send `nosniff` and `X-Robots-Tag: noindex`. Vercel was seen adding its own `Content-Disposition: inline` to static files, so confirm after a deployment that these headers won: `android\verify-update.ps1` does.
+- **Publishing** is `android\publish-update.ps1` (it validates the APK and writes both files), a commit, a push, then `android\verify-update.ps1` once the deployment is Ready. The steps and the signing caveat are in the Android README, *Publishing an update*.
+- **Rollback** is reverting the commit that changed `updates.json`. Installed apps never go back to a lower version code.
+- The files are in `public/`, so deleting or editing them by hand can strand or mislead every installed copy; change them only through the script.
+
 ### Environment Variables (Vercel Dashboard)
 
 | Variable | Required | Scope |

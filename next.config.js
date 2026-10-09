@@ -11,6 +11,33 @@ const nextConfig = {
   turbopack: {
     root: __dirname,
   },
+
+  // The Android app's update feed and the APK it points to are static files in public/ (see
+  // android/README.md, "Publishing an update"). The app reads the feed with an exact JSON type and
+  // a no-store request, so the feed must never be cached by anything between the site and the phone.
+  async headers() {
+    return [
+      {
+        source: '/updates.json',
+        headers: [
+          { key: 'Content-Type', value: 'application/json; charset=utf-8' },
+          { key: 'Cache-Control', value: 'no-store' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Robots-Tag', value: 'noindex' },
+        ],
+      },
+      {
+        source: '/:file(plax-\\d+\\.\\d+\\.\\d+\\.apk)',
+        headers: [
+          { key: 'Content-Type', value: 'application/vnd.android.package-archive' },
+          { key: 'Content-Disposition', value: 'attachment; filename=:file' },
+          { key: 'Cache-Control', value: 'public, max-age=3600, must-revalidate' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Robots-Tag', value: 'noindex' },
+        ],
+      },
+    ]
+  },
 }
 
 module.exports = nextConfig
