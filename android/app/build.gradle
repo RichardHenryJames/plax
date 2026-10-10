@@ -81,7 +81,10 @@ dependencies {
 }
 
 // A unit test checks the update feed and APK published with the website (public/ at the repository root), so
-// publishing a new build must run it again instead of Gradle reusing the earlier result.
+// publishing a new build must run it again instead of Gradle reusing the earlier result. Another one runs the
+// account code against a local Supabase stack when PLAX_LOCAL_STACK names its .env; it is skipped otherwise, and
+// the setting is an input so that a run with the stack is never answered by an earlier run without it.
 tasks.withType(Test).configureEach {
     inputs.files(fileTree(dir: file("$rootDir/../public"), includes: ['updates.json', 'plax-*.apk'])).withPropertyName('publishedUpdate')
+    inputs.property('localAuthStack', providers.environmentVariable('PLAX_LOCAL_STACK').orElse(''))
 }

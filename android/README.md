@@ -130,12 +130,18 @@ Optional sign-in
   title, category and at most 500 characters of text). Signing in **merges**: the
   account's topics win when it has any, otherwise yours are kept and uploaded; saved
   stories are a union. A different account never has this phone's data uploaded to it.
-- **Status: the account service is unreachable today.** The Supabase project behind
-  Plax accounts no longer resolves (see `../SUPABASE_SETUP.md`). The app says
-  "Sign-in is temporarily unavailable. Plax keeps working without it" and works as
-  before. Sign-in is covered by unit and device tests against fakes only. **It has not
-  been verified end to end**, including Google's consent screen and Chrome's handling
-  of the redirect into the app.
+- **Status: the account service is unreachable today, and that is why sign-in says it is
+  unavailable.** The Supabase project behind Plax accounts no longer resolves, so no app
+  version can sign in until the project is restored or replaced (`../SUPABASE_SETUP.md`
+  has the one-minute restore and the check that proves it worked). The app says "Sign-in
+  is temporarily unavailable. Plax keeps working without it" and works as before. Once a
+  working project is behind the website, installed apps sign in without an update: the
+  app learns the address from `/news/api/auth-config`. Sign-in is covered by unit and
+  device tests against fakes and, since 10 October, by an opt-in test that runs the app's
+  real account code against a real GoTrue, PostgREST and Postgres (see *Tests*). **Not
+  verified end to end**: Google's consent screen, and the redirect into the app as the
+  real flow performs it (see *Sign-in against a real Supabase stack*), which need a Google
+  account and a real project.
 
 Also
 - A body that merely starts with the headline is no longer cut mid-sentence ("Evolution"
@@ -333,7 +339,14 @@ fixed by publishing a higher version, not by withdrawing one.
 .\test.ps1 -Serial emulator-5590
 # Optional live checks against the deployed site (English and Hindi feed, and the update feed):
 .\test.ps1 -Serial emulator-5590 -LiveFeed
+# Optional: the account code against a real Supabase stack on this machine (needs Docker, see below):
+..\scripts\auth-stack\up.ps1
+$env:PLAX_LOCAL_STACK = (Resolve-Path ..\scripts\auth-stack\.env).Path
+.\build.ps1 -Tasks ':app:testDebugUnitTest', '--tests', 'com.plaxlabs.news.AccountLocalStackTest', '--rerun'
+..\scripts\auth-stack\down.ps1
 ```
+
+A normal `.\build.ps1` lists 131 JVM tests and skips 13 of them (the stack tests below); 118 run.
 
 - **118 JVM unit tests**: strict JSON shape and limits, server errors, escaped URLs, cache
   format, repeated-headline removal (including sentences that merely begin with the
@@ -350,6 +363,19 @@ fixed by publishing a higher version, not by withdrawing one.
   check, a failed check counting, dismissal and its expiry, a newer version overriding
   a dismissal, manual checks and their messages, a manual tap during a running check,
   nothing offered over a dialog or sheet, store builds, and a recreated screen).
+- **13 opt-in tests against a real Supabase stack** (`AccountLocalStackTest`, skipped unless
+  `PLAX_LOCAL_STACK` names the `.env` that `scripts\auth-stack\up.ps1` writes). The app's real
+  `AccountManager` and `Supabase` client talk to a real GoTrue, PostgREST, Kong gateway and Postgres loaded with
+  the project's `supabase-schema.sql`. Only the website's address lookup and Google's consent screen are replaced:
+  the one-time code Google would return is issued by the stack, by e-mail, for the very code challenge the app
+  created. Covered: the service offers Google and refuses a call without the project key; the address the app builds
+  is accepted and sent on to Google; sign-in creates the account and the trigger-made profile and uploads the phone's
+  topics and saved stories; the same account on a second phone receives them; changes made while signed in reach the
+  account (saving, removing, topics); saving a story twice is ignored, not refused; one account never sees, removes or
+  forges another's rows and the anonymous key reads nothing; a code works once and only with its verifier; an expired
+  token is told apart from a refused change; a session that has run out is refreshed, and one revoked elsewhere ends
+  cleanly with "sign in again"; signing out revokes the phone's session; a denied or invented code leaves the reader
+  signed out with a message; and the reading-streak function changes only the caller's own row.
 - **63 Android instrumentation tests** (66 with `-LiveFeed`): bookmarks, the on-disk feed
   cache (round trip, per-language, damaged files), card rendering and actions, skeleton
   geometry, navigation and rotation, rendering of every screen and state in both
@@ -404,6 +430,40 @@ labelled as such.
 
 Inshorts describes the requested interaction style only; Plax is not affiliated with
 it. Article content and images belong to their respective publishers.
+
+## Sign-in against a real Supabase stack (10 October 2026)
+
+Reported that day: Account > Continue with Google showed "Sign-in is temporarily unavailable". That message is the app
+being right: the account project (`dushouwvwnuxdfumnxzf`) no longer resolves in DNS (three resolvers), so no version of
+the app or the website can sign in. Nothing in the app is at fault and no update fixes it; see `../SUPABASE_SETUP.md`
+for why it most likely paused and how to restore it. What was done instead, so that nothing else fails the moment a
+project is back:
+
+- The account code had only ever run against fakes. A real local stack (`scripts\auth-stack`: Postgres, GoTrue,
+  PostgREST and Kong from Supabase's own images, `supabase-schema.sql` applied as the SQL editor would) now runs it for
+  real: **13 of 13 tests pass**, including the negative ones (wrong verifier, reused code, expired and revoked sessions,
+  another account's data). The app needed no change. The test is opt-in and skipped by the normal build.
+- It found a **hole in the schema, not in the app**: `update_reading_streak` is `SECURITY DEFINER` and never checked its
+  caller, so anyone holding only the public anon key could change any reader's streak and last-read time by passing
+  their id (measured on the stack: HTTP 204 and the victim's row changed). The website calls this function, so it was
+  fixed in `supabase-schema.sql` (the caller must be that reader; the anonymous role loses `EXECUTE`). Against the old
+  schema the new test fails with "another reader's streak must not change"; re-running the fixed schema on that same
+  database repairs it and all 13 pass. A restored project still has the old function until the schema is run again.
+- `scripts\check-accounts.ps1` checks the live chain (address, service, Google, tables and row-level security, the streak
+  function, the keep-alive) and names a fix for each failure. Tested by breaking the stack five ways (Google off,
+  sign-ups off, the old function, a missing table, and the real dead production project): each was reported by name,
+  and a first run on a healthy stack found and fixed a bug in the script itself.
+- Seen on the emulator (Android 16, Chrome 133) against the live site, with the 1.3.1 build: **Account > Continue with
+  Google shows exactly the reported message** ("Sign-in is temporarily unavailable. Plax keeps working without it; try
+  again later.") and opens no browser. And the website's real redirect reaches the app: Chrome loaded
+  `https://www.plaxlabs.com/news/auth/app?app=com.plaxlabs.news.preview&code=<placeholder>`, the site answered
+  `302 -> com.plaxlabs.news.preview://auth-callback?code=...`, Android started `VIEW` on that address for the app's
+  `MainActivity`, and the app came to the front, opened its account sheet, stayed signed out (it never asked for the
+  code) and did not crash. This was an ordinary Chrome tab and a placeholder code; the real flow uses a Chrome Custom
+  Tab with a code from Google, which could not be tried.
+- Not covered: Google's consent screen, the Authorized redirect URI in the Google console, the Redirect URLs list in
+  Supabase, the Custom Tab path with a real code, and a real hosted project (its key formats, defaults and rate
+  limits). Those are the one manual sign-in the runbook ends with.
 
 ## Verification performed for 1.3.1 (9 and 10 October 2026)
 
