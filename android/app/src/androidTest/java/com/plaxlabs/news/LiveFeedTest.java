@@ -64,11 +64,15 @@ public class LiveFeedTest {
         try (AppUpdates updates = new AppUpdates()) { release = updates.check(BuildConfig.VERSION_CODE - 1, android.os.Build.VERSION.SDK_INT); }
         assertNotNull("the website must advertise a build at least as new as this one", release);
         assertTrue(release.versionCode() >= BuildConfig.VERSION_CODE);
-        Request request = new Request.Builder().url(release.apkUrl()).header("Range", "bytes=0-1").build();
+        // A plain GET, never a Range request: the shared cache in front of the site once stored the answer to
+        // "Range: bytes=0-1" as the whole file. Reading two bytes and closing the response stops the download.
+        Request request = new Request.Builder().url(release.apkUrl()).build();
         OkHttpClient client = new OkHttpClient.Builder().followRedirects(false).followSslRedirects(false).build();
         try (Response response = client.newCall(request).execute()) {
-            assertTrue("HTTP " + response.code(), response.code() == 200 || response.code() == 206);
+            assertEquals("HTTP " + response.code(), 200, response.code());
             assertEquals("application/vnd.android.package-archive", response.header("Content-Type"));
+            long length = Long.parseLong(String.valueOf(response.header("Content-Length")));
+            assertTrue("the whole file is served, not a part (" + length + " bytes)", length > 100_000);
             assertEquals("an APK is a ZIP archive", "PK", response.body().source().readUtf8(2));
         }
     }
