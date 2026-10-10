@@ -50,6 +50,14 @@ Updates from inside the app
   installs over the current copy because it is signed with the same key, so saved
   stories, the seen history and topics stay on the phone. **Plax never installs
   anything by itself.**
+- **Expect warnings from Android and Google Play Protect.** The preview is not distributed
+  through Google Play and its signing key is unknown to Google, so a phone with Play Protect
+  on can stop the installation with **App blocked to protect your device: Play Protect hasn't
+  seen an app from this developer before**. It is not final: **More details > Install anyway**
+  completes the update (this is what happened on the test emulator, see *Verification*). The
+  app cannot skip these screens and its dialog does not describe them, so anyone asked to
+  update should be told about them. Whether a different signing key or a Google Play release
+  removes the warning has not been tried.
 - **Later** (or dismissing the dialog) hides that version for 24 hours; **Check for
   updates** still shows it. A newer version than the one dismissed is offered at once.
 - The dialog never appears over an open sheet, dialog or a sign-in that is waiting; it
@@ -382,7 +390,59 @@ labelled as such.
 Inshorts describes the requested interaction style only; Plax is not affiliated with
 it. Article content and images belong to their respective publishers.
 
-## Verification performed (9 October 2026)
+## Verification performed for 1.3.1 (9 October 2026)
+
+On the isolated Android 16 (API 36, x86_64) `Plax_News_Test` emulator (Chrome 133, Google Play
+services and Play Protect present), the local machine and the live website; no physical phone was
+available. What 1.3.1 does not touch is covered by the 1.2.0 checks below.
+
+- **Builds and tests**: debug, preview and unsigned release builds (the store build compiles
+  under R8 with `PLAY_STORE = true`; debug and preview have it false); debug and preview lint
+  **0 errors**, 1 warning (a newer Gradle exists). **118 JVM tests**, none skipped (the one that
+  reads `public\updates.json` and the APK ran against the committed files), and **63 device
+  tests**. After deployment, `-LiveFeed` ran **66 device tests** (179 s), including the app's
+  own parser against the deployed feed.
+- **What the website serves** (`verify-update.ps1`, 19 of 19 checks, run against the deployment
+  of commit `1e883d8`): the feed answers 200 without a redirect as `application/json` with
+  `Cache-Control: no-store`, has exactly the seven fields, and names this site's versioned
+  APK; the APK answers 200 as `application/vnd.android.package-archive` with `Content-Disposition:
+  attachment`; its size and SHA-256 equal the feed and the committed file; it is the preview
+  package, 1.3.1 / code 5, minSdk 26, not debuggable, signature valid and signed by the pinned
+  key. (Vercel keeps its own `Content-Disposition: inline` on the feed, which does not matter
+  to the app.) The apex `plaxlabs.com` redirects with 308 to `www`, which is why the app uses `www`.
+- **The update, end to end, with the real feed and a real browser.** A clean 1.3.0 install
+  asked the live feed on its first start and showed **Update available: Plax 1.3.1 is ready**
+  (the Hindi text was checked on screen through the menu too). **Later** closed it and
+  relaunching inside 24 hours showed nothing; **More options > Check for updates** offered
+  it again. **Download** made the app start `ACTION_VIEW` + `BROWSABLE` for
+  `https://www.plaxlabs.com/news/plax-1.3.1.apk`; Chrome (after its own first-run screens) saved
+  `plax-1.3.1.apk`, 1,867,429 bytes, recorded as downloaded from that HTTPS address, and
+  `sha256sum` on the phone matched the feed. Opening the file from Chrome's download list, Android
+  first refused installs from Chrome and offered **Settings > Allow from this source**; then it asked
+  **Do you want to update this app?** (it recognised an update of the installed Plax); then **Play
+  Protect blocked it** (see above) until **More details > Install anyway**. The phone then reported
+  1.3.1 / code 5, the saved story was still in Saved, there was no offer and no crash, and
+  **Check for updates** said **Plax is up to date.**
+- **The one-time manual install**: 1.2.0 with a saved story, then the file downloaded from the
+  site installed over it (`adb install -r`): the story survived and nothing crashed.
+- **The crash fixed in 1.3.1**, on the real R8 builds: the phone was wiped and the app launched
+  25 times, turning to landscape and back three times at random moments while the first pictures
+  downloaded.
+  **1.3.0 crashed 3 times** (all `InterruptedException` on `plax-image` threads); **1.3.1 crashed
+  0 times in 25 rounds and 0 times in 50 more** with a second random sequence. The same
+  mechanism isolated in the loader (150 closes with real downloads): 166 uncaught exceptions
+  before the fix, none after. The sample is small, so the rates are indicative only.
+- **Cold start** with the update check on: 1.39 to 2.20 s over six runs after the first, median
+  1.57 s (1.52 s for 1.2.0 on the same emulator, which is within its noise). The check runs on
+  a worker after the first frame.
+
+Not verified for updates: a **physical phone**; **other browsers or phone makers' installers** (only
+Chrome and the stock package installer were driven); whether a Google Play release or another
+signing key avoids Play Protect's warning; the update dialog's behaviour with TalkBack; and a
+failed or very slow download on a flaky network (the download is the browser's). The 24-hour rule,
+failed checks, hostile feeds and store builds are covered by the JVM and device tests only.
+
+## Verification performed for 1.2.0 (9 October 2026)
 
 All on the isolated Android 16 (API 36, x86_64) `Plax_News_Test` emulator and the
 local machine; no physical phone was available.
