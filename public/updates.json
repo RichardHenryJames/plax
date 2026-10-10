@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "versionCode": 5,
-  "versionName": "1.3.1",
+  "versionCode": 6,
+  "versionName": "1.4.0",
   "minSdk": 26,
-  "apkUrl": "https://www.plaxlabs.com/news/plax-1.3.1.apk",
-  "sha256": "816b6e9db6f88c29b3d733a59f55e357ff8af75297f7cc4ce138b51be8f8b998",
-  "size": 1867429
+  "apkUrl": "https://www.plaxlabs.com/news/plax-1.4.0.apk",
+  "sha256": "f389e81809d3cc0d52748a067e50d87e90500c53beabc2b8e7a8b102ba01ac9c",
+  "size": 1870353
 }
