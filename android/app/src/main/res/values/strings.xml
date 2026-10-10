@@ -38,7 +38,7 @@
     <string name="source_unavailable">Source link unavailable</string>
     <string name="browser_unavailable">No browser is available to open this link.</string>
     <string name="share_unavailable">No app is available to share this story.</string>
-    <string name="source_unknown">Source not listed</string>
+    <string name="share_preparing">Preparing link…</string>    <string name="source_unknown">Source not listed</string>
     <string name="just_now">Just now</string>
     <string name="minutes_ago">%1$d min ago</string>
     <string name="hours_ago">%1$d h ago</string>

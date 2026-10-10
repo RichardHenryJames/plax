@@ -10,6 +10,43 @@ exists (see *Updates from inside the app*). Apart from sign-in and that update c
 which need the two small routes and the one small file listed under *Backend changes*,
 the app works against the backend as it was before this version.
 
+## What is in 1.4.0 (preview, versionCode 6)
+
+Share a story as a page on Plax, and the same look as the website.
+
+- **Share sends Plax's own page for the story**, not the publisher's article:
+  `https://www.plaxlabs.com/news/s/<slug>-<id>`. Pasted into WhatsApp (or anything else that makes link
+  previews) it shows a card with the story's headline and a picture Plax draws, and the page itself
+  shows a short summary with its source, sends the reader to the publisher for the full report, and
+  can be found through the site's sitemap. The message is the headline with the link on its own line.
+- **How the app gets the link.** Every story the feed serves now carries `sig`, a signature the server
+  made over the story. Share sends the story, exactly as served, to `POST /api/share`; the server
+  accepts it only if the signature matches, stores the page and answers with its address. The app
+  checks that the answer is a story page of *this* story on the Plax site before using it. The story
+  is the only thing sent: nothing about the reader. The design, limits and fallbacks are in
+  [TECH.md](../TECH.md#shared-story-pages).
+- **Sharing still always works.** A story without a signature (one cached or saved by 1.3.x, or a
+  quote), one with no publisher link, a slow or failing server, or a missing network all end the
+  same way: the publisher's link is shared, as in 1.3.1. After tapping Share the app waits at most
+  4 seconds for the link, says "Preparing link…" if that takes more than 0.7 s, ignores a second tap
+  meanwhile, and opens nothing if the screen was left or the app went to the background.
+- **Cache and saved format** gained an optional `sig`; an unsigned story writes none, and older
+  versions ignore the field, so nothing needs migrating and a downgrade is safe. Stories saved or
+  cached by 1.3.x are shared by their publisher's link until the feed hands the app a fresh copy.
+- **No new permission, library, tracker or account requirement.**
+- **The website now matches the app**, which is the reference: the same header, section chips, card,
+  action row, typography (serif headlines, sans text) and theme choice (System by default). The
+  differences are deliberate and listed in [TECH.md](../TECH.md#navigation--bottomnavtsx-leftrailtsx-navbartsx-headermenutsx-brandmarktsx).
+
+Needs on the website side: `POST /api/share` and the story pages, deployed with the same push as this
+version; an app that cannot reach them falls back as above.
+
+New tests: `ShareLinksTest` (9 JVM tests, including a golden vector shared with the website's unit
+tests so the two sides cannot drift apart), and `ShareDeviceTest` (6 tests on the real screen: the
+site is asked only for signed stories, the share sheet opens only once the link is made, the
+fallback opens it too, a second tap is not a second share, closing the screen abandons the request,
+and a link that arrives while the app is in the background opens nothing).
+
 ## What is in 1.3.1 (preview, versionCode 5)
 
 One crash fix, found because a run of the device suite that was checking the 1.3.0 updater
@@ -346,9 +383,15 @@ $env:PLAX_LOCAL_STACK = (Resolve-Path ..\scripts\auth-stack\.env).Path
 ..\scripts\auth-stack\down.ps1
 ```
 
-A normal `.\build.ps1` lists 131 JVM tests and skips 13 of them (the stack tests below); 118 run.
+A normal `.\build.ps1` lists 140 JVM tests and skips 13 of them (the stack tests below); 127 run.
 
-- **118 JVM unit tests**: strict JSON shape and limits, server errors, escaped URLs, cache
+**Run the device suite on a quiet machine.** Its checks are made by UiAutomator against a software-rendered
+emulator, so they time out when the machine is busy. A first 1.4.0 run, with a Gradle daemon, the website's dev
+server, a Docker stack and a second emulator all running, failed 9 tests (three in `UpdateDeviceTest` that were
+looking for the menu, then the new share tests behind them); the same tests passed alone, and all 69 passed once
+the other work was stopped. Stop `gradlew --stop`, dev servers and containers first.
+
+- **127 JVM unit tests**: strict JSON shape and limits, server errors, escaped URLs, cache
   format, repeated-headline removal (including sentences that merely begin with the
   headline), read-time parsing, image width/sampling rules, cache-header rewriting,
   Markdown rendering rules, AI request/response validation, sections and request URLs;
@@ -362,7 +405,12 @@ A normal `.\build.ps1` lists 131 JVM tests and skips 13 of them (the stack tests
   accepted by the app and match each other) and the update manager (18 tests: the 24-hour
   check, a failed check counting, dismissal and its expiry, a newer version overriding
   a dismissal, manual checks and their messages, a manual tap during a running check,
-  nothing offered over a dialog or sheet, store builds, and a recreated screen).
+  nothing offered over a dialog or sheet, store builds, and a recreated screen); and the
+  share link (`ShareLinksTest`, 9 tests: which stories can have a page, that the request is
+  exactly what the website verifies (a golden vector shared with its unit tests), which answers
+  are trusted (only this story's page on the Plax site: wrong host, port, scheme, path, query or
+  id are refused), the message the share sheet is given in each case, and that the signature
+  survives the cache and saved files while older files still load).
 - **13 opt-in tests against a real Supabase stack** (`AccountLocalStackTest`, skipped unless
   `PLAX_LOCAL_STACK` names the `.env` that `scripts\auth-stack\up.ps1` writes). The app's real
   `AccountManager` and `Supabase` client talk to a real GoTrue, PostgREST, Kong gateway and Postgres loaded with
@@ -376,7 +424,7 @@ A normal `.\build.ps1` lists 131 JVM tests and skips 13 of them (the stack tests
   token is told apart from a refused change; a session that has run out is refreshed, and one revoked elsewhere ends
   cleanly with "sign in again"; signing out revokes the phone's session; a denied or invented code leaves the reader
   signed out with a message; and the reading-streak function changes only the caller's own row.
-- **63 Android instrumentation tests** (66 with `-LiveFeed`): bookmarks, the on-disk feed
+- **69 Android instrumentation tests** (73 with `-LiveFeed`): bookmarks, the on-disk feed
   cache (round trip, per-language, damaged files), card rendering and actions, skeleton
   geometry, navigation and rotation, rendering of every screen and state in both
   languages, the AI sheet (loading, result, language switch without refetch, failure,

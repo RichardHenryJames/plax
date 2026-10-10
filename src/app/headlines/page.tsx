@@ -104,7 +104,7 @@ export default async function NewsHubPage() {
       </nav>
 
       <header className="mb-8">
-        <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3 font-display">Latest News Today — India &amp; World</h1>
+        <h1 className="headline text-3xl sm:text-4xl text-white mb-3">Latest News Today — India &amp; World</h1>
         <p className="text-dark-muted leading-relaxed max-w-2xl">
           Top headlines from India and across the world, summarized clearly and updated continuously.
           Browse the latest in technology, business, science and world affairs — or{' '}

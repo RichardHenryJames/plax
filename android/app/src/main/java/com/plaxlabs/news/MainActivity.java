@@ -11,6 +11,8 @@ import android.graphics.drawable.InsetDrawable;
 import android.graphics.drawable.StateListDrawable;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
@@ -26,6 +28,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
+import androidx.lifecycle.Lifecycle;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.widget.ViewPager2;
@@ -34,7 +37,15 @@ import java.util.*;
 
 public final class MainActivity extends AppCompatActivity implements StoryAdapter.Actions {
     private static final long SPLASH_LIMIT_MS = 700;
+    /** A share that takes longer than this to get its link says so, instead of leaving the tap unanswered. */
+    private static final long PREPARING_HINT_MS = 700;
     private static final String HANDLED = "plax.callback.handled";
+
+    private final Handler main = new Handler(Looper.getMainLooper());
+    /** A link is being made for a share; a second tap meanwhile would only open a second chooser. */
+    private boolean sharing;
+    private Cancelable shareRequest;
+    private final Runnable preparingHint = () -> Toast.makeText(this, R.string.share_preparing, Toast.LENGTH_SHORT).show();
 
     private Ui ui;
     private FeedViewModel model;
@@ -635,10 +646,27 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
 
     @Override public void save(Story story) { model.toggle(story); }
 
+    /**
+     * Shares the story as a page on Plax when it can have one (a link that previews well and brings readers here),
+     * and as its publisher's link otherwise or whenever the page cannot be made in time.
+     */
     @Override public void share(Story story) {
-        String message = (story.title().isBlank() ? getString(R.string.app_name) : story.title()) + "\n"
-                + (story.hasSource() ? story.sourceUrl() : FeedApi.SITE);
-        Intent intent = new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, message);
+        if (sharing) return;
+        if (!ShareLinks.eligible(story)) { send(story, ""); return; }
+        sharing = true;
+        main.postDelayed(preparingHint, PREPARING_HINT_MS);
+        shareRequest = ShareLinks.source.link(story, link -> runOnUiThread(() -> {
+            main.removeCallbacks(preparingHint);
+            sharing = false;
+            // A chooser opened from the background would be blocked, and one for a closed screen is pointless.
+            if (!isFinishing() && !isDestroyed() && getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.STARTED))
+                send(story, link);
+        }));
+    }
+
+    private void send(Story story, String plaxLink) {
+        Intent intent = new Intent(Intent.ACTION_SEND).setType("text/plain")
+                .putExtra(Intent.EXTRA_TEXT, ShareLinks.message(story, plaxLink, getString(R.string.app_name)));
         try { startActivity(Intent.createChooser(intent, getString(R.string.share_chooser))); }
         catch (ActivityNotFoundException failure) { Toast.makeText(this, R.string.share_unavailable, Toast.LENGTH_LONG).show(); }
     }
@@ -660,6 +688,8 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
     }
 
     @Override protected void onDestroy() {
+        main.removeCallbacks(preparingHint);
+        if (shareRequest != null) shareRequest.cancel();
         if (sheet != null) sheet.dismiss();
         if (interestsSheet != null) interestsSheet.dismiss();
         if (accountSheet != null) accountSheet.dismiss();

@@ -25,7 +25,7 @@ export function TopicsScreen() {
   return (
     <div className={`feed-container overflow-y-auto thin-scrollbar overscroll-contain ${lang === 'hi' ? 'lang-hi' : ''}`} data-no-feed-scroll>
       <div className="mx-auto w-full max-w-3xl px-5 pt-[calc(4.75rem+env(safe-area-inset-top))] lg:pt-10 pb-10">
-        <h1 className="text-3xl font-bold text-white font-display leading-tight">{t('topicsHeading')}</h1>
+        <h1 className="headline text-3xl text-white">{t('topicsHeading')}</h1>
         <p className="mt-2 mb-5 text-sm text-dark-muted">{t('topicsSub')}</p>
 
         <button

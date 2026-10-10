@@ -1,0 +1,31 @@
+{
+  "about": "One story, as the feed serves it and as the Android app sends it back. The Android unit test (ShareLinksTest) parses `served` with the app's own FeedParser and must produce exactly `body`; the web unit test (share.test.mjs) checks that the server signs `served` as `sig` and accepts `body` as that very story. If either side's canonical form drifts, one of the two fails. `secret` only exists to make the vector reproducible.",
+  "secret": "plax-share-test-vector-secret-0001",
+  "sig": "45cf1f8654294cfdfa03b1376166de5b",
+  "served": {
+    "id": "the-hindu-vector1",
+    "title": "  Leaders’ “march” in Srinagar: ₹5 crore & ‘more’ — पूरी खबर  ",
+    "content": "First line.\n\nSecond paragraph with <b>markup</b> & an emoji 🎉 and a trailing space. ",
+    "source": " The Hindu ",
+    "sourceUrl": "https://www.thehindu.com/news/story.ece?x=1&amp;y=2&#038;z=3",
+    "image": "https://th-i.thgim.com/a.jpg?w=1&#38;h=2",
+    "publishedAt": 1791621638608,
+    "category": "news",
+    "section": "india",
+    "readTime": "20s",
+    "type": "microessay",
+    "sig": "45cf1f8654294cfdfa03b1376166de5b"
+  },
+  "body": {
+    "id": "the-hindu-vector1",
+    "title": "Leaders’ “march” in Srinagar: ₹5 crore & ‘more’ — पूरी खबर",
+    "content": "First line.\n\nSecond paragraph with <b>markup</b> & an emoji 🎉 and a trailing space.",
+    "source": "The Hindu",
+    "sourceUrl": "https://www.thehindu.com/news/story.ece?x=1&y=2&z=3",
+    "image": "https://th-i.thgim.com/a.jpg?w=1&h=2",
+    "publishedAt": 1791621638608,
+    "category": "news",
+    "section": "india",
+    "sig": "45cf1f8654294cfdfa03b1376166de5b"
+  }
+}

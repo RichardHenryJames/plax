@@ -81,7 +81,7 @@ export default async function SamacharPage() {
       </nav>
 
       <header className="mb-8">
-        <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">आज की ताज़ा खबरें — भारत और दुनिया</h1>
+        <h1 className="headline text-3xl sm:text-4xl text-white mb-3">आज की ताज़ा खबरें — भारत और दुनिया</h1>
         <p className="text-dark-muted leading-relaxed max-w-2xl">
           भारत और दुनिया की प्रमुख सुर्खियाँ, आसान भाषा में और लगातार अपडेट।{' '}
           <Link href="/?topic=news&lang=hi" className="text-[color:var(--signal)] hover:underline">लाइव समाचार फ़ीड खोलें</Link>.

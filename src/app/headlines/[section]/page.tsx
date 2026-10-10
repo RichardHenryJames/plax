@@ -125,7 +125,7 @@ export default async function NewsSectionPage({ params }: Params) {
       </nav>
 
       <header className="mb-8">
-        <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3 font-display">{meta.title}</h1>
+        <h1 className="headline text-3xl sm:text-4xl text-white mb-3">{meta.title}</h1>
         <p className="text-dark-muted leading-relaxed max-w-2xl">{meta.desc}</p>
       </header>
 

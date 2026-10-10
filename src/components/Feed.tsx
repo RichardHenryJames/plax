@@ -211,6 +211,7 @@ export function Feed({ categories }: { categories: string[] }) {
       publishedAt: c.publishedAt ? Number(c.publishedAt) : undefined,
       image: c.image || undefined,
       section: c.section || undefined,
+      sig: c.sig || undefined,
     }))
   }
 
@@ -501,6 +502,10 @@ export function Feed({ categories }: { categories: string[] }) {
       enhancedLang: 'en',
       originalContent: saved.content,
       originalTitle: saved.title,
+      image: saved.image,
+      publishedAt: saved.publishedAt,
+      section: saved.section,
+      sig: saved.sig,
     })
     setCurrentIndex(0)
   }, [pinnedCardId, pinCard])
@@ -1055,10 +1060,11 @@ export function Feed({ categories }: { categories: string[] }) {
           <div className="flex gap-2 overflow-x-auto hide-scrollbar px-4 justify-start lg:justify-center pointer-events-auto">
             <button
               onClick={() => setNewsSection(null)}
-              className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition ${
+              aria-pressed={newsSection === null}
+              className={`shrink-0 px-4 py-1.5 rounded-full text-[13px] font-semibold whitespace-nowrap transition ${
                 newsSection === null
-                  ? 'bg-[color:var(--signal)] text-black'
-                  : 'glass text-dark-text hover:text-white'
+                  ? 'bg-[color:var(--signal)] text-[color:var(--signal-ink)]'
+                  : 'bg-[var(--wash-1)] text-dark-text hover:bg-[var(--wash-2)]'
               }`}
             >
               {language === 'hi' ? 'सभी' : 'All'}
@@ -1067,11 +1073,12 @@ export function Feed({ categories }: { categories: string[] }) {
               <button
                 key={s.id}
                 onClick={() => setNewsSection(s.id)}
-                className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition ${
+                aria-pressed={newsSection === s.id}
+                className={`shrink-0 px-4 py-1.5 rounded-full text-[13px] font-semibold whitespace-nowrap transition ${
                   newsSection === s.id
-                    ? 'bg-[color:var(--signal)] text-black'
-                    : 'glass text-dark-text hover:text-white'
-                }`}
+                    ? 'bg-[color:var(--signal)] text-[color:var(--signal-ink)]'
+                    : 'bg-[var(--wash-1)] text-dark-text hover:bg-[var(--wash-2)]'
+                } ${language === 'hi' ? 'lang-hi' : ''}`}
               >
                 {language === 'hi' ? s.labelHi : s.label}
               </button>
@@ -1159,7 +1166,7 @@ export function Feed({ categories }: { categories: string[] }) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 2 }}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 text-dark-subtle text-xs flex flex-col items-center gap-1.5 pointer-events-none"
+          className="absolute bottom-[6.25rem] lg:bottom-28 left-1/2 -translate-x-1/2 z-30 text-dark-subtle text-xs flex flex-col items-center gap-1.5 pointer-events-none"
         >
           <motion.div
             animate={{ y: [0, -8, 0] }}

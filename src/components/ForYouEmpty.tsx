@@ -28,7 +28,7 @@ export function ForYouEmpty() {
           </svg>
         </div>
         <div>
-          <h2 className="text-white text-2xl font-bold font-display mb-2">{t('forYouTitle')}</h2>
+          <h2 className="headline text-white text-2xl mb-2">{t('forYouTitle')}</h2>
           <p className="text-dark-muted text-sm leading-relaxed">{t('forYouDetail')}</p>
         </div>
         <button onClick={() => setTopicsOpen(true)} className="btn-primary focus-ring px-6 py-3 text-sm">

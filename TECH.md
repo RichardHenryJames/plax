@@ -8,21 +8,22 @@
 
 1. [Architecture Overview](#architecture-overview)
 2. [API Endpoints](#api-endpoints)
-3. [Content Sources](#content-sources)
-4. [Category System](#category-system)
-5. [Feed Pipeline](#feed-pipeline)
-6. [No-repeat Engine](#no-repeat-engine)
-7. [Caching Strategy](#caching-strategy)
-8. [Authentication & Cloud Sync](#authentication--cloud-sync)
-9. [State Management](#state-management)
-10. [Personalization Engine](#personalization-engine)
-11. [AI Layer](#ai-layer)
-12. [UI Components](#ui-components)
-13. [Database Schema](#database-schema)
-14. [Error Handling](#error-handling)
-15. [Performance](#performance)
-16. [Security](#security)
-17. [Deployment](#deployment)
+3. [Shared Story Pages](#shared-story-pages)
+4. [Content Sources](#content-sources)
+5. [Category System](#category-system)
+6. [Feed Pipeline](#feed-pipeline)
+7. [No-repeat Engine](#no-repeat-engine)
+8. [Caching Strategy](#caching-strategy)
+9. [Authentication & Cloud Sync](#authentication--cloud-sync)
+10. [State Management](#state-management)
+11. [Personalization Engine](#personalization-engine)
+12. [AI Layer](#ai-layer)
+13. [UI Components](#ui-components)
+14. [Database Schema](#database-schema)
+15. [Error Handling](#error-handling)
+16. [Performance](#performance)
+17. [Security](#security)
+18. [Deployment](#deployment)
 
 ---
 
@@ -138,7 +139,8 @@ Returns personalized content cards. Runtime: `nodejs`, `force-dynamic`.
       "category": "science",
       "readTime": "45s",
       "emoji": "🔬",
-      "fetchedAt": 1707123456789
+      "fetchedAt": 1707123456789,
+      "sig": "45cf1f8654294cfdfa03b1376166de5b"
     }
   ],
   "cached": false,
@@ -170,6 +172,34 @@ Returns personalized content cards. Runtime: `nodejs`, `force-dynamic`.
 | `fact` | Source includes "On This Day" |
 | `did-you-know` | Content < 200 characters |
 | `microessay` | Everything else |
+
+`sig` (1.4.0, optional) is the server's signature over the card as served (see [Shared story pages](#shared-story-pages)). Clients that do not know it ignore it, so older apps and cached cards keep working; a card without one is simply shared by its publisher's link.
+
+---
+
+### POST /api/share
+
+Turns a card a reader is sharing into a story page and returns its address. Runtime: `nodejs`, `force-dynamic`, always `Cache-Control: no-store`.
+
+**Request:** the card exactly as the feed served it, plus its `sig` (`id`, `title`, `content`, `source`, `sourceUrl`, `image`, `publishedAt`, `category`, `section`, `sig`). At most 32 KB.
+
+**Response (200):** `{ "url": "https://www.plaxlabs.com/news/s/<slug>-<id>", "id": "<id>" }`. Asking again for the same card returns the same address.
+
+| Status | `error` | Meaning |
+|---|---|---|
+| 400 | `invalid` | Not a well-formed card (missing text, a non-web link, text over its limit, a bad signature shape) |
+| 403 | `unverified` | The signature does not match the card: its words, link or picture were changed |
+| 413 | `too_large` | Over 32 KB |
+| 429 | `slow_down` | More than 30 requests a minute from one address (per warm instance) |
+| 503 | `unavailable` | No signing secret configured, or the story store did not take the write. No address is promised in that case |
+
+Clients treat anything but 200 as "no Plax link" and share the publisher's link, so a failure never stops sharing.
+
+---
+
+### GET /s/\<slug\>-\<id\>
+
+The story page (see below). `<id>` is the first 16 hex characters of the signature; `<slug>` is only for reading. A wrong slug answers `308` to the right one, an unknown id `404`, and an unreachable store a `500` (retried by search engines, never cached).
 
 ---
 
@@ -215,6 +245,48 @@ Returns `{ url, anonKey }`: the public Supabase project URL and anon key (both a
 ### GET /auth/app?app=\<scheme\>&code=\<code\>
 
 The web half of Android sign-in. Supabase returns the browser here after Google; the route answers `302` to `<scheme>://auth-callback?code=…` so the app receives the one-time code. Only the app's two schemes (`com.plaxlabs.news`, `com.plaxlabs.news.preview`) are accepted, and only `code`, `error`, `error_code` and `error_description` are forwarded (printable ASCII, at most 1,024 characters each), so the page cannot open anything else or carry arbitrary data into the app. Any other `app` gets `400`. The response is `no-store`, `no-referrer` and carries a restrictive CSP, with a link in the body in case the browser does not follow the redirect (`src/lib/app-redirect.ts`, unit-tested). Supabase must list `https://www.plaxlabs.com/news/auth/app` as a redirect URL (see `SUPABASE_SETUP.md`).
+
+---
+
+## Shared Story Pages
+
+Tapping Share on a story sends a link to **Plax's own page for that story** (`https://www.plaxlabs.com/news/s/<slug>-<id>`) rather than the publisher's article. The page previews well in WhatsApp and other chat apps, can be found through the sitemap, shows a short summary with its source, and sends readers to the publisher for the full report and to Plax for more. It is built so that nobody can put words of their own on the site's domain.
+
+### Why the card is signed
+
+News pools rotate and clients keep stories for days, so a link cannot be re-resolved from the feed later; it must be made from the card the reader holds, and the server must be able to trust that card.
+
+1. `/api/feed` adds `sig` to every card: an HMAC-SHA256 (truncated to 128 bits) over `id`, `title`, `content`, `source`, `sourceUrl`, `image`, `publishedAt`, `category` and `section`, joined with a separator that cannot occur in them (`src/lib/share.ts`, `src/lib/share-sign.ts`).
+2. The key is derived (HMAC, fixed label) from `SHARE_SECRET` when set, otherwise from the existing `SUPABASE_SERVICE_ROLE_KEY`, so **no new environment variable is needed**. With neither, cards are simply unsigned.
+3. On Share the client sends the card back. `POST /api/share` accepts it only if the signature verifies (timing-safe), so a changed headline, link or picture is refused with `403`.
+4. Both sides canonicalise text first (control characters removed, ends trimmed, and `&amp;`/`&#038;`/`&#38;` decoded in the two web addresses, as the Android parser does), so a card that went through the app still verifies. `android/app/src/test/resources/share-vector.json` is a golden vector that the Android unit test and the website's unit test both check, so the two implementations cannot drift apart unnoticed.
+5. A translated card is shared by its **original** words (`originalTitle`/`originalContent`), which are what the signature covers; saved copies keep the signed fields (`BookmarkedCard.image/publishedAt/section/sig`).
+6. A stored record is looked up by `sid`, the first 64 bits of the signature. It is not a secret and not guessable into a different page: a card with another signature has another `sid`.
+
+### Storage and the page
+
+- Records are kept in the existing `ai_cache` table under `share:v1:<sid>` (server-only, service role; no schema change). `putDurable` reports whether the write really reached the database, so no link is ever handed out for a page that does not exist. Records never expire, so a link keeps working after the story has left every feed.
+- `src/app/s/[slug]/page.tsx` is server-rendered from the stored record: headline, source, publish time, the summary without the headline repeated (`story-body.ts`), the publisher's picture (hot-linked, `no-referrer`, https only, hidden if it fails), a "Read the full story at …" button, Share and Copy link, and links to the section or topic.
+- Metadata: absolute canonical URL, Open Graph `article`, Twitter large card, JSON-LD `WebPage` (`isBasedOn` the publisher's work, not claiming authorship) with a breadcrumb. Hindi stories (detected by script) get `lang="hi"`, `hi_IN` and the Devanagari serif.
+- Everything from the record is escaped by React; JSON-LD has `<` escaped so a headline cannot close the script element; links are re-validated as `http(s)` and pictures as `https` when the page renders, whatever the record holds.
+- **Caching:** `revalidate = 120`. A viral link costs one database read per two minutes. If the store is unreachable the page answers `500` (not cached, and an already-cached page keeps being served) instead of a `404`, which search engines would take as gone. A missing story is a `404` cached for the same two minutes.
+- `src/app/sitemap.ts` lists the 500 newest shared stories (hourly), failing soft.
+
+### The preview picture
+
+`/s/<slug>/opengraph-image` draws a 1200×630 card: the Plax mark, the section, the headline set large in Newsreader Bold (`assets/og/`, SIL OFL, 30 KB), and the source. It is drawn, not copied from the publisher. Satori, which draws it, does **not** shape Devanagari correctly (vowel signs land on the wrong letter), so a card never draws Hindi: a Hindi headline gets a plain branded card (and a non-Latin source name is left off the line below it), and the Hindi headline reaches the preview through `og:title`, which the chat app sets itself. `₹` is written `Rs` (the font has no glyph for it). The image is cached immutably, except the stand-in drawn when the store cannot be asked.
+
+### Clients
+
+- **Web** (`src/lib/share-client.ts`, `CardActions.tsx`): the link is made first (3.5 s limit) and its address checked against the card's signature; then `navigator.share` (or the clipboard). Browsers that only open the share sheet straight from the tap (iOS Safari) show "Link ready. Tap Share again", and the next tap is instant because the link is remembered. Copy puts the Plax link in the pasted text.
+- **Android** (`ShareLinks.java`, `MainActivity.share`): the same request from a worker thread (4 s limit, "Preparing link…" after 0.7 s), the answer accepted only if it is a story page of this story on the Plax site itself, a second tap ignored while one is pending, nothing opened if the screen is gone or in the background.
+- **Fallback everywhere:** no signature (an older cached card, a quote), no publisher link, or any failure → the publisher's link is shared exactly as before.
+
+### Limits worth knowing
+
+- The page carries a short summary and the source's headline with attribution and a link out, as the `/headlines` pages already do. An original summary per story would be stronger for search and safer for copyright; that is not built.
+- There are no Android App Links: the domain root belongs to another application, so a tapped Plax link opens in the browser, not the app.
+- `/robots.txt` at the domain root is owned by that other application; discovery goes through this zone's `sitemap.xml`.
 
 ---
 
@@ -579,9 +651,13 @@ interface PlaxState {
   toggleTopic: (topic) => void
   startOnForYou: boolean            // the first choice of topics opens For you once
 
+  // Appearance
+  themeMode: 'system' | 'light' | 'dark'   // the reader's choice; System (the default) follows the device, like the Android app
+  theme: string                     // what that resolves to right now; kept current by ThemeSync
+
   // Bookmarks
   bookmarkedIds: string[]           // card IDs, oldest first
-  bookmarkedCards: Record<string, BookmarkedCard>  // the saved stories themselves (last 150)
+  bookmarkedCards: Record<string, BookmarkedCard>  // the saved stories themselves (last 150); a story saved from 1.4.0 keeps what the share signature covers, so it can still be shared
   toggleBookmark: (id) => void
 
   // Engagement
@@ -607,6 +683,8 @@ interface PlaxState {
 ```
 
 **Persistence:** `plax-store-v2` in localStorage. Uses `createJSONStorage` with SSR-safe fallback.
+
+**Theme:** `lib/theme.ts` holds the rules (`resolveTheme`, `themeModeOf`) and `THEME_SCRIPT`, which `layout.tsx` runs in the page head before anything is drawn; `ThemeSync` keeps the `<html>` class right afterwards and follows the device's setting live while the choice is System. State saved before the System option existed has only `theme`: an explicit `light` carries over, while `dark` (the old default, indistinguishable from a choice) becomes System. `theme.test.mjs` runs the head script itself against the functions for every combination.
 
 `lib/ui-store.ts` holds what is not persisted: `screen` (`feed` / `topics` / `saved`), `feedFilter` (`'news'` by default = Feed tab; a topic id = that topic; `null` = For you), `accountOpen`, `pinnedCardId` (opens a saved story in the feed), and `refreshTick`.
 
@@ -710,23 +788,31 @@ in Hindi; results are cached (memory + Supabase `ai_cache`).
 
 ### `Card.tsx` — Content Card
 
+The card follows the Android app's layout, so the website and the app read the same.
+
 | Feature | Implementation |
 |---------|---------------|
-| Layout | Full-screen, centered content with gradient background glow |
-| Typography | Merriweather (serif) for reading, Inter for UI, JetBrains Mono for code |
+| Layout | The picture leads (rounded; 16:10 on a phone, 16:9 wider), then the tag and origin line, the headline, the text and the extras (see below). On desktop the same column sits between the two side panels |
+| Tag and origin | News: a soft marigold tag with the section ("INDIA") and `Source · 2h ago · 20s`; "Breaking" within 30 minutes. Other topics keep the topic chip (its dropdown manages topics) |
+| Typography | One system with the app: **Newsreader Bold** serif for headlines and the wordmark (`.headline`, `.wordmark`), **Inter** for the text people read (`.reading-text`), JetBrains Mono for code. Hindi headlines use Noto Serif Devanagari Bold, Hindi text Noto Sans Devanagari |
 | Content types | Quote (blockquote + left bar), code (monospace block), standard (paragraphs) |
 | Body text | Without the headline said twice (`lib/story-body.ts`, the same rule as the Android app); nothing is drawn when the body only repeats the headline |
+| Extras | **Go deeper** (AI insights, a soft pill with a sparkle) and the quiz open inline below the text |
 | Text formatting | `**bold**`, `` `code` ``, `→ arrows`, `• bullets` |
-| Read progress | Circular SVG progress ring (violet → cyan gradient) |
-| Actions | Discuss (copy to clipboard), Share (Web Share API or clipboard), Bookmark |
-| Bookmark feedback | Animated toast: "✓ Saved" / "Removed" |
 | Cloud sync | Bookmark add/remove syncs to Supabase if signed in |
 
-### Navigation — `BottomNav.tsx`, `LeftRail.tsx`, `NavBar.tsx`
+### `CardActions.tsx` — the action bar
 
-- **Four places** — Feed, For you, Topics, Saved (`ui-store` `screen` + `feedFilter`). A bottom bar on phones (`BottomNav`), a side rail on desktop (`LeftRail`, which also holds language, theme, the reader's topics and the account button)
-- **Mobile header (`NavBar`)** — logo, EN/हि, theme, search, "check for new stories", and a quiet account button that opens `AccountSheet`
-- Feed tab = news (default) or one topic; For you = a mix of the reader's chosen topics, with `ForYouEmpty` until some are chosen
+Fixed at the bottom of the feed, as in the app: a wide **Read full story** button with the publisher's host under it, then round buttons: **Listen** (text to speech), **Copy** (tablet and wider; a phone's share sheet already copies), **Save** (marigold when saved, with the signed fields kept so the story can be shared later) and **Share**. The buttons are solid (`--control`), so text scrolling beneath never shows through. Share and Copy make the story's Plax link first (see [Shared story pages](#shared-story-pages)) and fall back to the publisher's link.
+
+### Navigation — `BottomNav.tsx`, `LeftRail.tsx`, `NavBar.tsx`, `HeaderMenu.tsx`, `BrandMark.tsx`
+
+- **Four places** — Feed, For you, Topics, Saved (`ui-store` `screen` + `feedFilter`). A bottom bar on phones (`BottomNav`), a side rail on desktop (`LeftRail`, which also holds search, language, theme (System / Light / Dark), the reader's topics and the account button)
+- **Mobile header (`NavBar`)** — the Plax mark, **English | हिन्दी**, "check for new stories", and a ⋮ menu (`HeaderMenu`, "More options") holding Search, Account, Your topics and Theme. This is the Android header, plus the website's search
+- **`BrandMark`** — the logo's P as a flat glyph (cut from the logo image with a CSS mask, so it follows the text colour in both themes) and the wordmark in the headline serif; used by the header, the rail, the story pages and the topic pages
+- The section chips (All, India, World, …) are soft filled pills. The Feed tab = news (default) or one topic; For you = a mix of the reader's chosen topics, with `ForYouEmpty` until some are chosen
+
+**Intentionally different from the app:** the website has Listen and Copy, a search palette (⌘K), the left and right panels on desktop (navigation, stats and shortcuts), and an inline Go deeper panel where the app opens an AI-brief sheet. Everything else (header, chips, card, action row, tabs, theme choice) is meant to be the same; if one drifts, the screenshots in the 1.4.0 verification show what it should look like.
 
 ### `TopicsScreen.tsx`, `TopicEditor.tsx`, `SavedScreen.tsx`, `AccountSheet.tsx`, `CaughtUp.tsx`
 
@@ -877,7 +963,8 @@ Cache:
 | Client keys | `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are safe to expose (RLS protects data) |
 | Data access | Row Level Security on all tables — users can only access their own data |
 | OAuth | Handled by Supabase Auth — no password storage |
-| XSS | React's built-in escaping; no `dangerouslySetInnerHTML` |
+| XSS | React's built-in escaping. `dangerouslySetInnerHTML` is used only for JSON-LD blocks and the theme script; in anything carrying story text (the story page's JSON-LD) `<` is escaped so a headline cannot close the script element |
+| Shared story pages | Only a card this server signed can become a page (HMAC, timing-safe compare), so nobody can publish words of their own on the domain; the page re-validates links (`http(s)`) and pictures (`https`) on every render; `/api/share` is size-capped, rate-limited and `no-store`. See [Shared story pages](#shared-story-pages) |
 | CSRF | Supabase handles session tokens via secure cookies |
 
 ---
@@ -922,6 +1009,7 @@ The native app ([android/README.md](android/README.md), *Updates from inside the
 | `NEXT_PUBLIC_SUPABASE_URL` | For auth | Client + Server |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | For auth | Client + Server |
 | `SUPABASE_SERVICE_ROLE_KEY` | For server ops | Server only |
+| `SHARE_SECRET` | Optional | Server only. Signs story cards (see [Shared story pages](#shared-story-pages)); when unset the key is derived from `SUPABASE_SERVICE_ROLE_KEY`, so nothing needs adding. Rotating either one changes what new cards are signed with. Existing share links keep working, because stored pages are looked up by their name and not re-verified; cards cached on readers' devices from before the rotation fail verification (`403`) and are shared by their publisher's link until the feed refreshes them |
 
 ### Build
 

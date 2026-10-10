@@ -3,10 +3,15 @@ import { unstable_cache } from 'next/cache'
 import { fetchAllContent } from '@/lib/sources'
 import { getCached, setCache } from '@/lib/cache'
 import { ProcessedCard, EMOJI_MAP, RawContent } from '@/lib/types'
+import { signCard, signingKey } from '@/lib/share-sign'
 
 // Use Node.js runtime for reliable external API fetches
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+
+// Every card is signed so that, when a reader shares it, the server can tell a card it served from one somebody made
+// up (see lib/share.ts). Without a key the cards simply carry no signature and sharing falls back to the source link.
+const SHARE_KEY = signingKey()
 
 // Persistent (cross-instance) cache of the raw content pool, keyed by topics+lang.
 // Unlike the in-memory Map (lost on every cold serverless start), this is backed
@@ -102,7 +107,7 @@ export async function GET(request: NextRequest) {
     const cards: ProcessedCard[] = uniqueRaw.map((raw) => {
       const src = raw.source.toLowerCase().replace(/[^a-z0-9]/g, '-')
       const contentKey = `${src}-${(raw.title || '').slice(0, 60)}-${raw.content.slice(0, 120)}`
-      return {
+      const card: ProcessedCard = {
         id: `${src}-${stableHash(contentKey)}`,
         type: determineType(raw.content, raw.source),
         title: raw.title || undefined,
@@ -118,6 +123,8 @@ export async function GET(request: NextRequest) {
         image: raw.image,
         section: raw.section,
       }
+      const sig = signCard(card, SHARE_KEY)
+      return sig ? { ...card, sig } : card
     })
 
     // Cache the full set (before excluding client's read cards)

@@ -22,6 +22,8 @@ export interface CardData {
   image?: string
   // News sub-section (india/world/tech/business/science) — powers the filter bar.
   section?: string
+  // The server's signature over this card as the feed served it; lets the card be shared as a Plax link (lib/share.ts).
+  sig?: string
 }
 
 // No hardcoded cards — all content comes from live API sources

@@ -124,3 +124,68 @@ export async function setCachedAI(key: string, value: unknown, ttl = DEFAULT_TTL
   memSet(key, value, ttl)
   await supaSet(key, value)
 }
+
+// For data that must outlive an instance, such as a shared story's page. Unlike the AI cache this says whether the
+// value really reached the database: a link that was handed out but never stored would be dead for everyone.
+export async function putDurable(key: string, value: unknown): Promise<boolean> {
+  if (!SUPABASE_URL || !SERVICE_KEY) return false
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/ai_cache`, {
+      method: 'POST',
+      headers: {
+        apikey: SERVICE_KEY,
+        Authorization: `Bearer ${SERVICE_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'resolution=merge-duplicates,return=minimal',
+      },
+      body: JSON.stringify({ key, value }),
+      signal: AbortSignal.timeout(4000),
+    })
+    if (res.ok) memSet(key, value, DEFAULT_TTL)
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
+export type DurableRead<T> = { status: 'found'; value: T } | { status: 'missing' } | { status: 'unavailable' }
+
+/**
+ * One stored value, telling "there is none" apart from "the database could not be asked". A page that mistook an
+ * outage for a missing story would answer a good link with a 404, which search engines take as gone for good.
+ */
+export async function getDurable<T = unknown>(key: string): Promise<DurableRead<T>> {
+  const cached = memGet(key)
+  if (cached !== null) return { status: 'found', value: cached as T }
+  if (!SUPABASE_URL || !SERVICE_KEY) return { status: 'unavailable' }
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/ai_cache?key=eq.${encodeURIComponent(key)}&select=value`,
+      { headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` }, signal: AbortSignal.timeout(4000) }
+    )
+    if (!res.ok) return { status: 'unavailable' }
+    const rows = await res.json()
+    if (!Array.isArray(rows)) return { status: 'unavailable' }
+    if (rows.length === 0 || rows[0]?.value == null) return { status: 'missing' }
+    memSet(key, rows[0].value, DEFAULT_TTL)
+    return { status: 'found', value: rows[0].value as T }
+  } catch {
+    return { status: 'unavailable' }
+  }
+}
+
+/** The newest values whose key starts with `prefix`, newest first. Empty when the database cannot be reached. */
+export async function listDurable<T = unknown>(prefix: string, limit: number): Promise<T[]> {
+  if (!SUPABASE_URL || !SERVICE_KEY) return []
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/ai_cache?key=like.${encodeURIComponent(prefix)}*&select=value&order=created_at.desc&limit=${Math.max(1, Math.min(limit, 1000))}`,
+      { headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` }, signal: AbortSignal.timeout(4000) }
+    )
+    if (!res.ok) return []
+    const rows = await res.json()
+    return Array.isArray(rows) ? rows.map((row: { value: T }) => row.value) : []
+  } catch {
+    return []
+  }
+}

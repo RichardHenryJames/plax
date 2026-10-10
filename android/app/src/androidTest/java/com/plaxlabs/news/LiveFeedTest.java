@@ -57,6 +57,30 @@ public class LiveFeedTest {
         }
     }
 
+    @Test public void theLiveSiteTurnsAStoryTheAppSharesIntoAPageThatServesIt() throws Exception {
+        optIn();
+        Story story = null;
+        for (Story candidate : load("en", null)) if (ShareLinks.eligible(candidate)) { story = candidate; break; }
+        assertNotNull("the live feed must serve signed stories with a publisher link", story);
+
+        CountDownLatch done = new CountDownLatch(1);
+        AtomicReference<String> link = new AtomicReference<>();
+        new ShareLinks().link(story, answer -> { link.set(answer); done.countDown(); });
+        assertTrue("the site must answer", done.await(15, TimeUnit.SECONDS));
+        assertFalse("the live site must accept the story exactly as the app sends it back", link.get().isEmpty());
+        assertTrue(link.get(), link.get().startsWith(FeedApi.SITE + "/s/"));
+
+        OkHttpClient client = new OkHttpClient.Builder().followRedirects(false).followSslRedirects(false).build();
+        try (Response page = client.newCall(new Request.Builder().url(link.get()).build()).execute()) {
+            assertEquals("HTTP " + page.code(), 200, page.code());
+            String html = page.body().string();
+            assertTrue("the page names itself as the canonical address", html.contains("rel=\"canonical\" href=\"" + link.get() + "\""));
+            assertTrue("and previews as an article", html.contains("property=\"og:type\" content=\"article\""));
+            assertTrue("with a picture", html.contains("property=\"og:image\""));
+        }
+        android.util.Log.i("PlaxLive", "story page made for " + story.id() + ": " + link.get());
+    }
+
     @Test public void thePublishedUpdateFeedIsAcceptedByTheAppAndItsDownloadIsAnApk() throws Exception {
         optIn();
         AppUpdates.Release release;

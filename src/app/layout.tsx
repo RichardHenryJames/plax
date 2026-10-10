@@ -3,6 +3,7 @@ import './globals.css'
 import { AuthProviderWrapper } from '@/components/AuthProviderWrapper'
 import { SITE, SITE_URL, TOPIC_SEO } from '@/lib/seo'
 import { withBase } from '@/lib/base-path'
+import { THEME_SCRIPT } from '@/lib/theme'
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -62,7 +63,11 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#0a0a0c',
+  // The browser's own bar takes the colour of the page, in either theme.
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f7f4ee' },
+    { media: '(prefers-color-scheme: dark)', color: '#0a0a0c' },
+  ],
 }
 
 // Organization + WebSite structured data (helps brand knowledge panel + rich results)
@@ -97,13 +102,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <head>
-        {/* Apply the persisted theme before paint to avoid a flash of the wrong
-            theme. Reads the zustand-persisted store snapshot from localStorage. */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `try{var s=JSON.parse(localStorage.getItem('plax-store-v2')||'{}');var t=s&&s.state&&s.state.theme;var e=document.documentElement;if(t==='light'){e.classList.add('light');e.classList.remove('dark');}else{e.classList.add('dark');e.classList.remove('light');}}catch(e){}`,
-          }}
-        />
+        {/* Apply the reader's theme (System by default) before paint to avoid a flash of the wrong
+            theme. Reads the zustand-persisted store snapshot from localStorage; see lib/theme.ts. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

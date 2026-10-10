@@ -52,6 +52,8 @@ final class FeedParser {
             value.addProperty("section", story.section()); value.addProperty("source", story.source());
             value.addProperty("sourceUrl", story.sourceUrl()); value.addProperty("image", story.image());
             value.addProperty("readTime", story.readTime()); value.addProperty("publishedAt", story.publishedAt());
+            // Only stories the server signed carry it, so what an older version wrote and read stays the same.
+            if (!story.sig().isEmpty()) value.addProperty("sig", story.sig());
             values.add(value);
         }
         root.add("stories", values);
@@ -82,11 +84,19 @@ final class FeedParser {
                     text(value, "content", 8000, true), text(value, "category", 80, true),
                     text(value, "section", 40, false), text(value, "source", 200, false),
                     url(text(value, "sourceUrl", 4096, false)), url(text(value, "image", 4096, false)),
-                    text(value, "readTime", 60, false), number(value, "publishedAt"));
+                    text(value, "readTime", 60, false), number(value, "publishedAt"), signature(value));
             if (!ids.add(story.id())) throw new IOException("Duplicate story identifier");
             result.add(story);
         }
         return List.copyOf(result);
+    }
+
+    /** The signature is optional and only ever used to share; a missing or damaged one never fails the feed. */
+    private static String signature(JsonObject value) {
+        JsonElement item = value.get("sig");
+        if (item == null || !item.isJsonPrimitive() || !item.getAsJsonPrimitive().isString()) return "";
+        String signature = item.getAsString().strip();
+        return Story.isSignature(signature) ? signature : "";
     }
 
     private static String text(JsonObject value, String key, int maximum, boolean required) throws IOException {

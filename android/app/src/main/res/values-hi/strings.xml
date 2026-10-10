@@ -38,6 +38,7 @@
     <string name="source_unavailable">स्रोत लिंक उपलब्ध नहीं</string>
     <string name="browser_unavailable">इस लिंक को खोलने के लिए कोई ब्राउज़र उपलब्ध नहीं है।</string>
     <string name="share_unavailable">इस ख़बर को साझा करने के लिए कोई ऐप उपलब्ध नहीं है।</string>
+    <string name="share_preparing">लिंक तैयार हो रहा है…</string>
     <string name="source_unknown">स्रोत का नाम उपलब्ध नहीं</string>
     <string name="just_now">अभी</string>
     <string name="minutes_ago">%1$d मिनट पहले</string>

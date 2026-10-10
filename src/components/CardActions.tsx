@@ -7,6 +7,8 @@ import { usePlaxStore } from '@/lib/store'
 import { useAuth } from '@/components/AuthProvider'
 import { addBookmarkToCloud, removeBookmarkFromCloud } from '@/lib/cloud-sync'
 import { useT } from '@/lib/i18n'
+import { withBase } from '@/lib/base-path'
+import { createShareLink, shareBody, signedFields } from '@/lib/share-client'
 
 /**
  * CardActions — the Copy / Share / Save dock.
@@ -87,17 +89,33 @@ export function CardActions({ card }: { card: CardData | null }) {
 
   if (!card) return null
 
+  // Where "Read full story" goes, shown under it as the app does.
+  const sourceHost = (() => {
+    try {
+      return card.sourceUrl ? new URL(card.sourceUrl).hostname.replace(/^www\./, '') : ''
+    } catch {
+      return ''
+    }
+  })()
+  // The card's own page on Plax (a link that previews well and brings readers here), or null when it cannot have
+  // one; the publisher's link is shared instead, as it always was.
+  const plaxLink = async (): Promise<string | null> => {
+    const body = shareBody(card)
+    return body ? createShareLink(body, { endpoint: withBase('/api/share') }) : null
+  }
+
   const handleBookmark = () => {
     const wasBookmarked = isBookmarked
     toggleBookmark(card.id, {
       id: card.id,
-      title: card.title,
+      title: card.originalTitle ?? card.title,
       content: card.originalContent ?? card.content,
       category: card.category,
       source: card.source,
       sourceUrl: card.sourceUrl,
       emoji: card.emoji,
       savedAt: Date.now(),
+      ...signedFields(card),
     })
     setShowBookmarkFeedback(true)
     setTimeout(() => setShowBookmarkFeedback(false), 1200)
@@ -109,20 +127,35 @@ export function CardActions({ card }: { card: CardData | null }) {
 
   return (
     <div className="absolute inset-x-0 bottom-0 z-40 pointer-events-none">
-      {/* Bottom scrim (mobile only — desktop dock floats over the panel) */}
-      <div className="lg:hidden absolute inset-x-0 bottom-0 h-32 gradient-bottom" />
+      {/* Fade, so text scrolling under the bar stays readable */}
+      <div className="absolute inset-x-0 bottom-0 h-28 gradient-bottom" />
 
-      {/* Action dock */}
-      <div className="relative flex items-center justify-center pb-[calc(1.25rem+env(safe-area-inset-bottom))] lg:pb-8 pt-10">
-        <div className="action-pill pointer-events-auto flex items-center gap-1 p-1.5">
+      {/* Action bar — the same row as the app's: Read full story, then round buttons. Listen and Copy are the website's own. */}
+      <div className="relative mx-auto w-full lg:max-w-3xl px-5 sm:px-10 lg:px-14 pb-3 lg:pb-7 pt-4 pointer-events-none">
+        <div className="pointer-events-auto max-w-xl lg:max-w-2xl mx-auto flex items-center gap-2">
+          {card.sourceUrl && card.type !== 'quote' && (
+            <a
+              href={card.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="focus-ring group flex-1 min-w-0 flex items-center justify-between gap-2 h-12 sm:h-14 pl-4 pr-3.5 rounded-2xl bg-[var(--control)] hover:bg-[var(--control-hover)] text-dark-text transition-colors"
+            >
+              <span className="min-w-0 text-left">
+                <span className="block text-[15px] font-semibold leading-tight truncate">{t('readFullStory')}</span>
+                {sourceHost && <span className="block text-xs text-dark-muted leading-tight truncate">{sourceHost}</span>}
+              </span>
+              <svg className="w-5 h-5 shrink-0 text-dark-muted group-hover:text-dark-text transition-colors" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 17L17 7M9 7h8v8" />
+              </svg>
+            </a>
+          )}
+          <div className="ml-auto flex items-center gap-2">
           {/* Listen (text-to-speech) — hands-free audio reading */}
           <button
             onClick={toggleSpeech}
             aria-label={speaking ? t('listenStop') : t('listen')}
             data-tip={speaking ? t('listenStop') : t('listen')}
-            className={`tooltip focus-ring flex items-center justify-center w-11 h-11 rounded-full transition-all duration-200 ${
-              speaking ? 'text-[color:var(--signal)] bg-[color:var(--signal)]/12' : 'text-dark-muted hover:text-white hover:bg-white/10'
-            }`}
+            className={`flex ${ROUND} ${speaking ? ROUND_ON : ROUND_OFF}`}
           >
             {speaking ? (
               <svg className="w-[19px] h-[19px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -138,14 +171,15 @@ export function CardActions({ card }: { card: CardData | null }) {
           </button>
           <ActionButton
             label={t('copy')}
+            hiddenOnPhone
             icon={
               <svg className="w-[19px] h-[19px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M8 7h8M8 11h5M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
             }
-            onClick={() => {
+            onClick={async () => {
               // Copy a shareable, attributed snippet (title + a clean excerpt +
-              // source link) rather than just a truncated title — more useful to
+              // link) rather than just a truncated title — more useful to
               // paste and better for word-of-mouth sharing.
               const plain = card.content
                 .replace(/\*\*(.*?)\*\*/g, '$1') // strip bold markers
@@ -153,7 +187,7 @@ export function CardActions({ card }: { card: CardData | null }) {
                 .replace(/\s+/g, ' ')
                 .trim()
               const excerpt = plain.slice(0, 200).trim()
-              const link = card.sourceUrl || 'https://plaxlabs.com'
+              const link = (await plaxLink()) || card.sourceUrl || 'https://plaxlabs.com'
               const text = [
                 card.title ? `“${card.title}”` : '',
                 `${excerpt}${excerpt.length >= 200 ? '…' : ''}`,
@@ -163,47 +197,14 @@ export function CardActions({ card }: { card: CardData | null }) {
               navigator.clipboard.writeText(text).then(() => flashToast(t('copied'))).catch(() => {})
             }}
           />
-          <ActionButton
-            label={t('share')}
-            icon={
-              <svg className="w-[19px] h-[19px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-              </svg>
-            }
-            onClick={() => {
-              const shareData = {
-                title: card.title || 'Plax',
-                text: card.content.slice(0, 200) + '…',
-                url: card.sourceUrl || window.location.origin,
-              }
-              if (navigator.share) {
-                navigator.share(shareData).catch((err) => {
-                  // User-cancelled share is not an error; only fall back on real
-                  // failure (unsupported / permission) so the user still gets the link.
-                  if (err?.name === 'AbortError') return
-                  navigator.clipboard
-                    .writeText(`${card.title || ''} — ${card.sourceUrl || window.location.origin}`)
-                    .then(() => flashToast(t('copied')))
-                    .catch(() => {})
-                })
-              } else {
-                navigator.clipboard.writeText(`${card.title || ''} — ${card.sourceUrl || window.location.origin}`)
-                  .then(() => flashToast(t('copied'))).catch(() => {})
-              }
-            }}
-          />
-
-          <span className="w-px h-6 bg-white/10 mx-0.5" />
-
           {/* Save */}
           <div className="relative">
             <button
               onClick={handleBookmark}
               aria-label={isBookmarked ? t('remove') : t('save')}
+              aria-pressed={isBookmarked}
               data-tip={isBookmarked ? t('saved') : t('save')}
-              className={`tooltip focus-ring flex items-center justify-center w-11 h-11 rounded-full transition-all duration-200 ${
-                isBookmarked ? 'text-[color:var(--signal)] bg-[color:var(--signal)]/12' : 'text-dark-muted hover:text-white hover:bg-white/10'
-              }`}
+              className={`flex ${ROUND} ${isBookmarked ? ROUND_ON : ROUND_OFF}`}
             >
               <motion.svg
                 key={String(isBookmarked)}
@@ -232,6 +233,44 @@ export function CardActions({ card }: { card: CardData | null }) {
               )}
             </AnimatePresence>
           </div>
+
+          <ActionButton
+            label={t('share')}
+            icon={
+              <svg className="w-[19px] h-[19px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+              </svg>
+            }
+            onClick={async () => {
+              const wrapped = await plaxLink()
+              const url = wrapped || card.sourceUrl || window.location.origin
+              // A Plax link is a preview card of its own, so the message is just the headline above it.
+              const shareData = wrapped
+                ? { title: card.title || 'Plax', text: card.title || 'Plax', url }
+                : { title: card.title || 'Plax', text: card.content.slice(0, 200) + '…', url }
+              const copyInstead = () =>
+                navigator.clipboard
+                  .writeText(`${card.title || ''} — ${url}`)
+                  .then(() => flashToast(t('copied')))
+                  .catch(() => {})
+              if (!navigator.share) {
+                copyInstead()
+                return
+              }
+              navigator.share(shareData).catch((err) => {
+                // Closing the share sheet is not an error.
+                if (err?.name === 'AbortError') return
+                // Some browsers (iOS Safari) only open the sheet straight from the tap, not after the link had to be
+                // made. It is made now, so the next tap shares at once.
+                if (err?.name === 'NotAllowedError' && wrapped) {
+                  flashToast(t('shareAgain'))
+                  return
+                }
+                copyInstead()
+              })
+            }}
+          />
+          </div>
         </div>
       </div>
 
@@ -253,13 +292,18 @@ export function CardActions({ card }: { card: CardData | null }) {
   )
 }
 
-function ActionButton({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick?: () => void }) {
+// The round buttons beside "Read full story", as in the app: soft discs, marigold when switched on.
+const ROUND = 'tooltip focus-ring items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-full transition-colors'
+const ROUND_OFF = 'bg-[var(--control)] text-dark-text hover:bg-[var(--control-hover)]'
+const ROUND_ON = 'bg-[var(--signal-soft)] text-[color:var(--signal-text)]'
+
+function ActionButton({ icon, label, onClick, hiddenOnPhone = false }: { icon: React.ReactNode; label: string; onClick?: () => void; hiddenOnPhone?: boolean }) {
   return (
     <button
       onClick={onClick}
       aria-label={label}
       data-tip={label}
-      className="tooltip icon-btn focus-ring flex items-center justify-center w-11 h-11"
+      className={`${hiddenOnPhone ? 'hidden sm:flex' : 'flex'} ${ROUND} ${ROUND_OFF}`}
     >
       {icon}
     </button>

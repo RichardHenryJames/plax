@@ -28,6 +28,8 @@ export interface ProcessedCard {
   publishedAt?: number // epoch ms — original publish time for news cards (relative timestamp)
   image?: string // hero image URL (news cards)
   section?: string // news sub-section (india/world/tech/business/science)
+  /** The server's signature over the card (lib/share.ts). Lets a shared story be trusted; absent when signing is off. */
+  sig?: string
 }
 
 // ─── Category mapping for sources ───

@@ -44,24 +44,24 @@ export function SavedScreen() {
                 <path d="M7 3.5h10a1.5 1.5 0 011.5 1.5v15l-6.5-3.5L5.5 20V5A1.5 1.5 0 017 3.5z" />
               </svg>
             </div>
-            <h2 className="text-white text-2xl font-bold font-display">{t('savedHeading')}</h2>
+            <h2 className="headline text-white text-2xl">{t('savedHeading')}</h2>
             <p className="text-dark-muted text-sm max-w-xs leading-relaxed">{t('savedEmptyDetail')}</p>
           </motion.div>
         ) : (
           <>
-            <h1 className="text-3xl font-bold text-white font-display leading-tight mb-5">{t('tabSaved')}</h1>
+            <h1 className="headline text-3xl text-white mb-5">{t('tabSaved')}</h1>
             <ul className="space-y-3">
               {saved.map((card) => {
                 const topic = TOPICS.find((x) => x.id === card.category)
                 return (
                   <li key={card.id} className="rounded-2xl border border-dark-border bg-dark-card p-4">
-                    <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-[color:var(--signal)]">
+                    <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-[color:var(--signal-text)]">
                       <span aria-hidden>{topic?.emoji ?? card.emoji ?? '✨'}</span>
                       <span>{topic ? tp(topic.id, topic.label) : card.category}</span>
                       {card.source && <span className="normal-case tracking-normal font-medium text-dark-muted">· {card.source}</span>}
                     </div>
                     {card.title && (
-                      <h2 className="mt-2 text-lg font-bold text-white font-display leading-snug">
+                      <h2 className="headline mt-2 text-xl text-white">
                         <button onClick={() => pinCard(card.id)} className="focus-ring rounded-md text-left hover:text-[color:var(--signal)] transition-colors">
                           {card.title}
                         </button>
@@ -71,7 +71,7 @@ export function SavedScreen() {
                     <div className="mt-3 flex items-center gap-2">
                       <button
                         onClick={() => pinCard(card.id)}
-                        className="btn-primary focus-ring px-4 py-2 text-xs"
+                        className="btn-flat focus-ring px-4 h-9 text-[13px]"
                       >
                         {t('openStory')}
                       </button>

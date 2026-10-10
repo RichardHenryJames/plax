@@ -8,6 +8,7 @@ import { useUIStore } from '@/lib/ui-store'
 import { useT } from '@/lib/i18n'
 import { withBase } from '@/lib/base-path'
 import { bodyWithoutHeadline } from '@/lib/story-body'
+import { NEWS_SECTIONS } from '@/lib/types'
 
 interface CardProps {
   card: CardData
@@ -31,7 +32,7 @@ function relativeTimeLabel(publishedAt: number | undefined, hindi: boolean): str
 }
 
 export function Card({ card, isActive, translating = false }: CardProps) {
-  const { t, tp } = useT()
+  const { tp } = useT()
   const topicMeta = TOPICS.find((t) => t.id === card.category)
   const gradientClass = topicMeta?.color || (card.category === 'general' ? 'from-slate-500 to-slate-600' : 'from-gray-500 to-gray-600')
   const categoryLabel = topicMeta ? tp(card.category, topicMeta.label) : (card.category === 'general' ? tp('general', 'Discover') : card.category === 'news' ? tp('news', 'News') : card.category)
@@ -50,6 +51,9 @@ export function Card({ card, isActive, translating = false }: CardProps) {
   // Relative "2h ago" for time-sensitive news cards (only when a publish time is
   // known and reasonably recent — stale timestamps aren't worth showing).
   const relativeTime = relativeTimeLabel(card.publishedAt, isHindi)
+  // The tag on a news card is its section ("India"), as in the app; without one it is plain "News".
+  const newsSection = NEWS_SECTIONS.find((s) => s.id === card.section)
+  const sectionLabel = newsSection ? (isHindi ? newsSection.labelHi : newsSection.label) : categoryLabel
   // "Breaking" for very fresh news (published within the last 30 minutes).
   const isBreaking = !!card.publishedAt && Date.now() - card.publishedAt < 30 * 60 * 1000 && Date.now() - card.publishedAt >= 0
 
@@ -61,7 +65,7 @@ export function Card({ card, isActive, translating = false }: CardProps) {
           container with margin:auto/justify-center clips the overflowing top in
           Chrome). Padding clears the navbar (top) + floating action pill (bottom). */}
       <div data-card-scroll className="flex-1 relative z-10 overflow-y-auto hide-scrollbar overscroll-contain">
-        <div className={`min-h-full flex flex-col px-6 sm:px-10 lg:px-14 pb-36 lg:pb-28 ${
+        <div className={`min-h-full flex flex-col px-5 sm:px-10 lg:px-14 pb-28 ${
           isNews
             ? 'justify-start pt-[7.25rem] lg:pt-16'
             : isLong
@@ -69,51 +73,65 @@ export function Card({ card, isActive, translating = false }: CardProps) {
             : 'justify-center pt-20 lg:pt-16'
         }`}>
           <div className="max-w-xl lg:max-w-2xl mx-auto w-full">
-            {/* Category + metadata */}
-            <motion.div
-            initial={{ opacity: 0, y: 6 }}
-            animate={isActive ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.2 }}
-            className="flex items-center flex-wrap gap-2.5 mb-6"
-          >
-            <CategoryChip category={card.category} label={categoryLabel} emoji={card.emoji} gradientClass={gradientClass} isHindi={isHindi} />
-            {isBreaking && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-white bg-red-600 px-2 py-1 rounded-sm">
-                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                {isHindi ? 'ताज़ा' : 'Breaking'}
-              </span>
+            {/* Hero image — a news card carries the publisher's picture, and it leads the card as in the app.
+                Hidden if it fails to load. */}
+            {card.image && !translating && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={isActive ? { opacity: 1, y: 0 } : {}}
+                transition={{ duration: 0.3 }}
+                className="mb-4 overflow-hidden rounded-3xl bg-[var(--wash-1)]"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={card.image}
+                  alt={card.title || 'News image'}
+                  loading="lazy"
+                  className="w-full aspect-[16/10] sm:aspect-[16/9] object-cover"
+                  onError={(e) => { (e.currentTarget.closest('div') as HTMLElement).style.display = 'none' }}
+                />
+              </motion.div>
             )}
-            <span className="inline-flex items-center gap-1 text-dark-subtle text-xs font-medium">
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-              {card.readTime}
-            </span>
-            {relativeTime && (
-              <span className="inline-flex items-center gap-1 text-[color:var(--signal)] text-xs font-semibold">
-                <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--signal)] animate-pulse" />
-                {relativeTime}
-              </span>
-            )}
-          </motion.div>
 
-          {/* Hero image — news cards carry a publisher thumbnail; a subtle framed
-              image makes the feed far more visual/premium. Hidden on error. */}
-          {card.image && !translating && (
+            {/* Tag and origin. A news card reads "INDIA  The Hindu · 20m ago · 20s" under its picture, as in the app. */}
             <motion.div
-              initial={{ opacity: 0, y: 8 }}
+              initial={{ opacity: 0, y: 6 }}
               animate={isActive ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.3 }}
-              className="mb-6 -mt-1 overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02]"
+              transition={{ duration: 0.2 }}
+              className="flex items-center flex-wrap gap-x-3 gap-y-2 mb-3.5"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={card.image}
-                alt={card.title || 'News image'}
-                loading="lazy"
-                className="w-full h-44 sm:h-52 lg:h-56 object-cover"
-                onError={(e) => { (e.currentTarget.closest('div') as HTMLElement).style.display = 'none' }}
-              />
+              {isNews ? (
+                <span className="px-2.5 py-1 rounded-full bg-[color:var(--signal)]/15 text-[color:var(--signal-text)] text-[11px] font-bold uppercase tracking-wider">
+                  {sectionLabel}
+                </span>
+              ) : (
+                <CategoryChip category={card.category} label={categoryLabel} emoji={card.emoji} gradientClass={gradientClass} isHindi={isHindi} />
+              )}
+              {isBreaking && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[#ffffff] bg-red-600 px-2 py-1 rounded-sm">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#ffffff] animate-pulse" />
+                  {isHindi ? 'ताज़ा' : 'Breaking'}
+                </span>
+              )}
+              {isNews ? (
+                <span className="text-dark-muted text-[13px] font-medium">
+                  {[card.source, relativeTime, card.readTime].filter(Boolean).join(' · ')}
+                </span>
+              ) : (
+                <>
+                  <span className="inline-flex items-center gap-1 text-dark-subtle text-xs font-medium">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    {card.readTime}
+                  </span>
+                  {relativeTime && (
+                    <span className="inline-flex items-center gap-1 text-[color:var(--signal-text)] text-xs font-semibold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--signal)] animate-pulse" />
+                      {relativeTime}
+                    </span>
+                  )}
+                </>
+              )}
             </motion.div>
-          )}
 
           {/* Title */}
           {translating ? (
@@ -125,7 +143,7 @@ export function Card({ card, isActive, translating = false }: CardProps) {
               initial={{ opacity: 0, y: 10 }}
               animate={isActive ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-              className="text-[26px] sm:text-[32px] lg:text-[34px] font-bold text-white mb-6 leading-[1.15] tracking-[-0.02em] font-display"
+              className="headline text-[28px] sm:text-[34px] lg:text-[38px] text-white mb-4"
             >
               {card.sourceUrl ? (
                 <a
@@ -133,12 +151,9 @@ export function Card({ card, isActive, translating = false }: CardProps) {
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
-                  className="hover:text-[color:var(--signal)] transition-colors inline-flex items-start gap-2 group"
+                  className="hover:text-[color:var(--signal)] transition-colors"
                 >
                   {card.title}
-                  <svg className="w-4 h-4 mt-2 flex-shrink-0 text-dark-subtle group-hover:text-[color:var(--signal)] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
                 </a>
               ) : (
                 card.title
@@ -194,27 +209,9 @@ export function Card({ card, isActive, translating = false }: CardProps) {
           {/* Actions row — the trigger buttons sit horizontally (wrapping as needed)
               so they take less vertical space, especially on desktop; the expanded
               panels (Go deeper insights / Test yourself quiz) use `basis-full` to
-              break onto their own full-width line below the button row. */}
-          <div className="mt-7 flex flex-wrap items-start gap-2.5">
-            {/* Read full story CTA */}
-            {card.sourceUrl && card.type !== 'quote' && (
-              <motion.a
-                href={card.sourceUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                initial={{ opacity: 0, y: 8 }}
-                animate={isActive ? { opacity: 1, y: 0 } : {}}
-                transition={{ delay: 0.28 }}
-                className="btn-secondary focus-ring group inline-flex items-center gap-2 px-4 py-2.5 text-sm"
-              >
-                {t('readFullStory')}
-                <svg className="w-4 h-4 text-dark-muted group-hover:text-[color:var(--signal)] group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </motion.a>
-            )}
-
+              break onto their own full-width line below the button row. "Read full
+              story", Save and Share live in the bar fixed at the bottom (CardActions). */}
+          <div className="mt-6 flex flex-wrap items-start gap-2.5">
             {/* Go deeper — AI-generated bonus insights on tap */}
             {card.type !== 'quote' && (card.content?.length ?? 0) > 120 && (
               <DeeperSection card={card} isHindi={isHindi} />
@@ -233,8 +230,8 @@ export function Card({ card, isActive, translating = false }: CardProps) {
             )}
           </div>
 
-          {/* Author / Source credibility */}
-          {(card.author || card.source) && (
+          {/* Author / source credibility. A news card already names its source under the picture. */}
+          {(card.author || (card.source && !isNews)) && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={isActive ? { opacity: 1 } : {}}
@@ -527,13 +524,13 @@ function DeeperSection({ card, isHindi }: { card: CardData; isHindi: boolean }) 
         <button
           onClick={load}
           disabled={state === 'loading'}
-          className="focus-ring group inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[color:var(--signal)]/10 border border-[color:var(--signal)]/25 text-[color:var(--signal)] text-sm font-medium hover:bg-[color:var(--signal)]/15 transition disabled:opacity-60"
+          className="focus-ring group inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-[color:var(--signal)]/15 text-[color:var(--signal-text)] text-sm font-semibold hover:bg-[color:var(--signal)]/25 transition disabled:opacity-60"
         >
           {state === 'loading' ? (
-            <span className="w-4 h-4 border-[1.5px] border-[color:var(--signal)] border-t-transparent rounded-full animate-spin" />
+            <span className="w-4 h-4 border-[1.5px] border-[color:var(--signal-text)] border-t-transparent rounded-full animate-spin" />
           ) : (
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            <svg className="w-[18px] h-[18px]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3zM18.5 15l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9.9-2.1z" />
             </svg>
           )}
           {state === 'loading' ? t('deeperLoading') : t('goDeeper')}

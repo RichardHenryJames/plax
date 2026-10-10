@@ -6,11 +6,12 @@ A short-form reading platform that delivers personalized microessays, quotes, ex
 
 ## Native Android preview
 
-The independent [Android project](android/README.md) (version 1.3.1 preview)
+The independent [Android project](android/README.md) (version 1.4.0 preview)
 provides native swipeable Plax news cards in English or Hindi, topics, a **For you**
-feed built from topics you choose, light and dark themes, an on-device feed cache for
+feed built from topics you choose, light and dark themes (following the phone by default), an on-device feed cache for
 instant start and offline reading, an AI brief with English/Hindi translation,
-bookmarks, sharing and publisher links. Stories you have already looked at do not come
+bookmarks, sharing and publisher links. **Share sends a link to Plax's own page for the story**, which previews well in chat apps
+and is found through the site's sitemap (see *Share a story* below). Stories you have already looked at do not come
 back when you reopen the app, and the same event reported by several outlets is shown
 once. It tells you when a newer build is published and lets you download it from the
 app (the browser saves the APK and Android asks you to confirm; nothing installs by
@@ -42,7 +43,9 @@ This is a debug-signed preview, not a published Play Store release.
 - **🎯 16 topic categories** — Science, Technology, Philosophy, Psychology, History, Finance, Space, Programming, Books, Health, Math, Nature, Art, Physics, Business, Language
 - **🔖 Bookmarks** — Save cards with instant animated feedback; they live in the Saved tab and, when signed in, in your account
 - **♾️ Infinite scroll** — Auto-fetches more content as you approach the end of your card stack
-- **🌙 Dark and light themes** — Warm marigold on near-black, or on paper
+- **🌙 Dark and light themes** — Warm marigold on near-black, or on paper. **System** is the default, like the app; Light and Dark are one tap away
+- **🎨 The same design as the app** — Serif headlines and a plain-sans text, the picture first, a soft tag and `Source · age · read time` line, and one action row. On desktop the same column sits between a left and a right panel
+- **🔗 Share a story** — Share and Copy make a link to **Plax's own page** for the story (`/news/s/<headline>-<id>`) instead of the publisher's: it previews as a card with the headline in WhatsApp and elsewhere, shows a short summary with its source and a link to the full report, and is listed in the sitemap. Only a story this server signed can become a page, so nobody can put words of their own on the domain; if anything fails, the publisher's link is shared as before. See [TECH.md](TECH.md#shared-story-pages)
 
 ### Content Sources (All Free, No API Keys Required)
 - **Wikipedia** — Random articles + "On This Day" historical facts
@@ -147,25 +150,30 @@ plax/
 │   │   ├── page.tsx                   # Main page: public News first, then Feed / For you / Topics / Saved
 │   │   ├── api/
 │   │   │   ├── auth-config/route.ts   # Public Supabase URL + anon key, for the Android app
-│   │   │   ├── feed/route.ts          # Content feed API (Node.js runtime)
+│   │   │   ├── feed/route.ts          # Content feed API (Node.js runtime); signs every card
+│   │   │   ├── share/route.ts         # Turns a signed card into a story page, returns its address
 │   │   │   └── summarize/route.ts     # AI summarization API (Edge runtime)
 │   │   ├── auth/
 │   │   │   ├── app/route.ts           # Hands the Google sign-in code back to the Android app
 │   │   │   └── callback/route.ts      # Supabase OAuth callback handler
-│   │   └── profile/
-│   │       └── page.tsx               # User profile, stats, bookmarks
+│   │   ├── profile/
+│   │   │   └── page.tsx               # User profile, stats, bookmarks
+│   │   └── s/[slug]/                  # Shared story pages: page, preview picture, 404 and error states
 │   ├── components/
 │   │   ├── AccountSheet.tsx           # Optional Google sign-in, with an honest "unavailable" state
 │   │   ├── AuthProvider.tsx           # Supabase auth context (user, session)
 │   │   ├── AuthProviderWrapper.tsx    # Conditionally wraps app with auth
 │   │   ├── BottomNav.tsx              # Feed / For you / Topics / Saved on phones
-│   │   ├── Card.tsx                   # Content card (typography, actions, bookmark)
+│   │   ├── BrandMark.tsx              # The Plax mark: logo glyph + serif wordmark
+│   │   ├── Card.tsx                   # Content card (picture, tag line, serif headline, text, extras)
+│   │   ├── CardActions.tsx            # Action bar: Read full story, Listen, Copy, Save, Share
 │   │   ├── CaughtUp.tsx               # "You're all caught up" end-of-list card
 │   │   ├── CloudSync.tsx              # Invisible bridge: Zustand ↔ Supabase (merges, never replaces)
 │   │   ├── Feed.tsx                   # Swipeable feed (drag, keyboard, scroll) + no-repeat engine wiring
 │   │   ├── ForYouEmpty.tsx            # For you before any topic is chosen
+│   │   ├── HeaderMenu.tsx             # The ⋮ menu: search, account, topics, theme
 │   │   ├── LeftRail.tsx               # Desktop navigation rail
-│   │   ├── NavBar.tsx                 # Mobile header (logo, language, theme, search, refresh, account)
+│   │   ├── NavBar.tsx                 # Mobile header (mark, English | हिन्दी, refresh, menu)
 │   │   ├── SavedScreen.tsx            # Saved stories
 │   │   ├── TopicEditor.tsx            # Topic picker sheet
 │   │   └── TopicsScreen.tsx           # Topics grid
@@ -178,13 +186,19 @@ plax/
 │       ├── deadline.ts                # Per-source time limit for the feed fetchers
 │       ├── sample-data.ts             # CardData type + personalization helpers
 │       ├── seen-storage.ts            # Reads and writes the seen history in localStorage
+│       ├── share.ts                   # Story-link rules: canonical form, address, validation (shared with the app's tests)
+│       ├── share-client.ts            # Browser side of sharing: make the link, check it
+│       ├── share-sign.ts              # Server only: HMAC signing and verification of cards
+│       ├── share-store.ts             # Stored story pages (the existing ai_cache table)
 │       ├── sources.ts                 # Content fetchers (Wikipedia, HN, Reddit, ZenQuotes, news)
-│       ├── store.ts                   # Zustand store (topics, bookmarks, engagements)
+│       ├── store.ts                   # Zustand store (topics, bookmarks, engagements, theme)
 │       ├── story-body.ts              # Body text without the headline repeated (as in the app)
 │       ├── story-engine.ts            # No-repeat engine: same-event matching, seen history, merging
 │       ├── supabase.ts                # Supabase client (browser + server)
+│       ├── theme.ts                   # System / Light / Dark rules and the before-paint script
 │       ├── types.ts                   # RawContent, ProcessedCard, category maps
 │       └── wikipedia-quality.ts       # Drops Wikipedia disambiguation pages
+├── assets/og/                         # Newsreader Bold (SIL OFL) for the share preview picture
 ├── android/                           # Native Android app (see android/README.md)
 │   └── plaxlabs_logo.png             # App logo
 ├── supabase-schema.sql               # Full database schema

@@ -4,10 +4,30 @@ import java.net.URI;
 import java.util.Locale;
 
 record Story(String id, String title, String content, String category, String section,
-             String source, String sourceUrl, String image, String readTime, long publishedAt) {
+             String source, String sourceUrl, String image, String readTime, long publishedAt, String sig) {
     private static final int MINIMUM_BODY = 12;
     static final String CAUGHT_UP_ID = "__caught_up__";
     private static final Story CAUGHT_UP = new Story(CAUGHT_UP_ID, "", "", "news", "", "", "", "", "", 0);
+
+    Story {
+        if (sig == null) sig = "";
+    }
+
+    /** A story without the server's signature: one saved before it existed, restored from the cloud, or a quote. */
+    Story(String id, String title, String content, String category, String section,
+          String source, String sourceUrl, String image, String readTime, long publishedAt) {
+        this(id, title, content, category, section, source, sourceUrl, image, readTime, publishedAt, "");
+    }
+
+    /** The server's signature over a story as it served it: 32 lower-case hexadecimal characters. */
+    static boolean isSignature(String value) {
+        if (value == null || value.length() != 32) return false;
+        for (int index = 0; index < value.length(); index++) {
+            char digit = value.charAt(index);
+            if ((digit < '0' || digit > '9') && (digit < 'a' || digit > 'f')) return false;
+        }
+        return true;
+    }
 
     /** Marks the end of the new stories. It is shown like a card but is never a real story. */
     static Story caughtUp() { return CAUGHT_UP; }

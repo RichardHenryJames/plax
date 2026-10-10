@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
+import { themeModeOf, type ThemeMode } from './theme'
 
 // ─── Topic Categories ───
 export const TOPICS = [
@@ -34,6 +35,11 @@ export interface BookmarkedCard {
   sourceUrl?: string
   emoji?: string
   savedAt: number
+  // What the server signed besides the above, so a saved story can still be shared as a Plax link.
+  image?: string
+  publishedAt?: number
+  section?: string
+  sig?: string
 }
 
 // ─── Engagement Tracking ───
@@ -59,9 +65,13 @@ interface PlaxState {
   language: string
   setLanguage: (lang: string) => void
 
-  // UI theme. 'dark' (default) | 'light'
+  // UI theme. `themeMode` is the reader's choice (System by default, like the Android app); `theme` is what that
+  // resolves to right now, kept up to date by ThemeSync.
+  themeMode: ThemeMode
+  setThemeMode: (mode: ThemeMode) => void
   theme: string
   setTheme: (theme: string) => void
+  setResolvedTheme: (theme: string) => void
   toggleTheme: () => void
 
   // Bookmarks
@@ -140,9 +150,16 @@ export const usePlaxStore = create<PlaxState>()(
       language: 'en',
       setLanguage: (lang) => set({ language: lang }),
 
+      themeMode: 'system',
+      setThemeMode: (mode) => set({ themeMode: mode }),
       theme: 'dark',
-      setTheme: (theme) => set({ theme }),
-      toggleTheme: () => set({ theme: get().theme === 'light' ? 'dark' : 'light' }),
+      // Choosing a theme by name is an explicit choice of it.
+      setTheme: (theme) => set({ themeMode: theme === 'light' ? 'light' : 'dark', theme }),
+      setResolvedTheme: (theme) => set({ theme }),
+      toggleTheme: () => {
+        const next = get().theme === 'light' ? 'dark' : 'light'
+        set({ themeMode: next, theme: next })
+      },
 
       // Bookmarks
       bookmarkedIds: [],
@@ -284,6 +301,8 @@ export const usePlaxStore = create<PlaxState>()(
       merge: (persisted, current) => {
         const kept = { ...(persisted as object) } as Record<string, unknown>
         delete kept.seenStoryKeys
+        // Saved state from before the System option has only `theme`; see themeModeOf for what carries over.
+        kept.themeMode = themeModeOf(kept)
         return { ...current, ...kept }
       },
     }

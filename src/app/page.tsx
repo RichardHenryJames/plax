@@ -16,6 +16,7 @@ import { TOPICS, usePlaxStore } from '@/lib/store'
 import { useUIStore } from '@/lib/ui-store'
 import { useEffect, useState } from 'react'
 import { withBase } from '@/lib/base-path'
+import { BrandMark } from '@/components/BrandMark'
 
 export default function Home() {
   const selectedTopics = usePlaxStore((s) => s.selectedTopics)
@@ -53,14 +54,8 @@ export default function Home() {
   if (!mounted) {
     return (
       <main className="h-[100dvh] bg-dark-bg flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4 animate-pulse">
-          <span className="brand-badge rounded-2xl">
-            <img
-              src={withBase('/plaxlabs_logo.png')}
-              alt="Plax"
-              className="w-16 h-16 rounded-2xl"
-            />
-          </span>
+        <div className="animate-pulse">
+          <BrandMark size="lg" href={null} />
         </div>
       </main>
     )

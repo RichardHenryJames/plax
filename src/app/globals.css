@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Noto+Serif+Devanagari:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,300..800;1,6..72,400&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Noto+Serif+Devanagari:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -121,13 +121,38 @@ body {
   justify-content: center;
 }
 
-/* ── Reading Typography ── */
+/* ── Reading Typography ──
+   One type system on the site and in the Android app: a bold serif for headlines and the wordmark, a plain sans for the
+   text people read. */
 .reading-text {
-  font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
-  font-size: 1.03rem;
-  line-height: 1.68;
-  letter-spacing: -0.003em;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  letter-spacing: -0.005em;
   color: var(--text-body);
+}
+
+/* A story's headline, and the Plax wordmark. */
+.headline {
+  font-family: 'Newsreader', Georgia, 'Noto Serif', 'Times New Roman', serif;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.16;
+}
+.wordmark {
+  font-family: 'Newsreader', Georgia, 'Noto Serif', 'Times New Roman', serif;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+/* The logo's P as a flat glyph in the surrounding text colour (the app's header does the same), cut out of the logo
+   image so it never needs a second asset. The element sets --mark to the image. */
+.brand-glyph {
+  display: inline-block;
+  background-color: currentColor;
+  -webkit-mask: var(--mark) center / contain no-repeat;
+  mask: var(--mark) center / contain no-repeat;
 }
 
 .code-text {
@@ -158,6 +183,13 @@ body {
 .lang-hi h1,
 .lang-hi .font-display {
   line-height: 1.45 !important;
+}
+/* Hindi headlines are set in the serif too, as in the app. This is more specific than the rule above, so it wins. */
+.lang-hi .headline {
+  font-family: 'Noto Serif Devanagari', 'Nirmala UI', 'Mangal', serif !important;
+  font-weight: 700;
+  line-height: 1.5 !important;
+  letter-spacing: normal !important;
 }
 
 /* ── Display headings ── */
@@ -232,6 +264,22 @@ body {
   cursor: not-allowed;
   transform: none;
   box-shadow: 4px 4px 0 0 rgba(0, 0, 0, 0.55);
+}
+
+/* The app's primary button: flat marigold, no offset shadow. */
+.btn-flat {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: var(--signal);
+  color: var(--signal-ink);
+  font-weight: 650;
+  border-radius: 1rem;
+  transition: filter 0.15s;
+}
+.btn-flat:hover {
+  filter: brightness(1.06);
 }
 
 .btn-secondary {
@@ -398,6 +446,10 @@ body {
                                  Hex #f5b13a; deep variant #e0912a; ink-on-signal #17130a. */
   --signal-deep: #e0912a;
   --signal-ink: #17130a;      /* near-black text that sits on the signal */
+  --signal-text: #f5b13a;     /* marigold as TEXT: the signal itself on dark, a deep amber on light (see html.light) */
+  --signal-soft: #3a2d12;     /* marigold wash as a SOLID colour, for controls that scrolling text passes under */
+  --control: #1b1b20;         /* round and wide buttons of the action bar: solid, so nothing shows through them */
+  --control-hover: #26262d;
   --paper: #ece6da;           /* warm editorial cream for light sections */
   --paper-ink: #1a1712;       /* text on paper */
   --ink-900: #0c0c0e;
@@ -426,6 +478,10 @@ body {
 html.light {
   --background: #f7f4ee;
   --foreground: #201b14;
+  --signal-text: #8a5a00;           /* deep amber: marigold itself is too pale to read as text on paper */
+  --signal-soft: #f7e4b9;
+  --control: #ebe6db;
+  --control-hover: #e1dbcd;
   --color-dark-bg: #f7f4ee;         /* app background — warm off-white */
   --color-dark-card: #ffffff;       /* cards */
   --color-dark-card-hover: #f1ece2;

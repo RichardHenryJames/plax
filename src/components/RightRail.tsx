@@ -7,6 +7,7 @@ import { useUIStore } from '@/lib/ui-store'
 import { useAuth } from '@/components/AuthProvider'
 import { addBookmarkToCloud, removeBookmarkFromCloud } from '@/lib/cloud-sync'
 import { useT } from '@/lib/i18n'
+import { signedFields } from '@/lib/share-client'
 
 /**
  * RightRail — desktop context panel (hidden below xl).
@@ -37,13 +38,14 @@ export function RightRail() {
     const wasBookmarked = isBookmarked
     toggleBookmark(currentCard.id, {
       id: currentCard.id,
-      title: currentCard.title,
+      title: currentCard.originalTitle ?? currentCard.title,
       content: currentCard.originalContent ?? currentCard.content,
       category: currentCard.category,
       source: currentCard.source,
       sourceUrl: currentCard.sourceUrl,
       emoji: currentCard.emoji,
       savedAt: Date.now(),
+      ...signedFields(currentCard),
     })
     if (user) {
       if (wasBookmarked) removeBookmarkFromCloud(user, currentCard.id)

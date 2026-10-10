@@ -32,7 +32,7 @@ export function CaughtUp({
         </svg>
       </div>
       <div className="max-w-sm">
-        <h2 className="text-white text-2xl font-bold font-display mb-2">{t('caughtUp')}</h2>
+        <h2 className="headline text-white text-2xl mb-2">{t('caughtUp')}</h2>
         <p className="text-dark-muted text-sm leading-relaxed">{t('caughtUpDetail')}</p>
       </div>
       <div className="flex flex-col items-stretch gap-2.5 w-full max-w-xs">
