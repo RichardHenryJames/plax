@@ -215,9 +215,10 @@ file listed last. The Plax repository's web code, deployed from the same push, a
   `public/plax-<version>.apk`, served at `/news/updates.json` and `/news/plax-<version>.apk`
   by the same deployment. `next.config.js` gives the feed `application/json`, `no-store` and
   `nosniff`, and the APK `application/vnd.android.package-archive`, `Content-Disposition:
-  attachment` and a one-hour revalidating cache (the file name carries the version, so a
-  new build never reuses an old address). Both are marked `noindex`. An older client or a
-  deployment without the file just gets a 404 and reports that it cannot check.
+  attachment` and **`no-store`** too (the file name carries the version, so a new build never
+  reuses an old address). Both are marked `noindex`. The APK was first cacheable and that
+  broke it once: see *Never send a Range request to the production APK* below. An older
+  client or a deployment without the file just gets a 404 and reports that it cannot check.
 
 `npm test` (83 tests), `tsc` and `next build` pass.
 
@@ -299,11 +300,25 @@ so scripts do the checking. From `android\`:
    in one deployment, so the feed never names a file that is not there. The advertised APK is the only
    one kept in `public\`; older ones stay in Git history.
 5. When the deployment is Ready, `.\verify-update.ps1` fetches the live feed and APK the way the app
-   does (no redirect, HTTPS, no cache), re-applies the app's own rules, and checks the headers, the
-   size, the SHA-256, the package, the version, the minimum SDK, that the build is not debuggable, the
-   pinned signer, and that what is served is what was committed. It writes
-   `artifacts\update-verification.json` and fails loudly otherwise. `.\test.ps1 -Serial emulator-5590
-   -LiveFeed` additionally runs the app's own parser against the live feed.
+   does (no redirect, HTTPS, no cache), re-applies the app's own rules, and checks the headers
+   (including that the APK is `no-store`), the size, the SHA-256, the package, the version, the minimum
+   SDK, that the build is not debuggable, the pinned signer, and that what is served is what was
+   committed. It writes `artifacts\update-verification.json` and fails loudly otherwise. `.\test.ps1
+   -Serial emulator-5590 -LiveFeed` additionally runs the app's own parser against the live feed and
+   downloads the start of the APK.
+
+**Never send a Range request to the production APK** (not from a script, a test or `curl -r`). On
+10 October 2026 the live device test asked for `bytes=0-1`; the shared cache in front of
+`www.plaxlabs.com` stored that 2-byte `206 Partial Content` answer as the file and returned it to
+every plain download, after a redeploy as well, until its one-hour lifetime ran out. The fix is the
+APK's `no-store` header. Probe files with different policies, deployed for the purpose, showed it
+on the real site: with `public, max-age=3600` a ranged request that arrives first poisoned the later
+plain downloads (206, 2 bytes); with `no-store` it did not, in two samples, and neither did a
+cacheable file with `no-store` only for requests that carry a `Range` header. A bad entry is not
+removed by redeploying: it needs a cache purge from the Vercel project's own team (dashboard or a
+CLI signed in to it), or it ages out; publishing under a new version number avoids it. Browsers and
+download managers also send ranged requests when they resume a download, which is why the file must
+not be cacheable.
 
 To roll back, revert the commit that changed `public\updates.json`: phones that have not downloaded
 the build stop being offered it. Copies that already updated stay updated, because Android will not

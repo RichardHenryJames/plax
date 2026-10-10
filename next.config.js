@@ -17,7 +17,8 @@ const nextConfig = {
   // a no-store request, so the feed must never be cached by anything between the site and the phone.
   // The APK is not cacheable either: on 10 October 2026 a request for its first two bytes (Range: bytes=0-1)
   // was stored by the shared cache in front of this site as if it were the whole file, and every later
-  // download got those 2 bytes for an hour. Nothing that stores the answer to a ranged request may store this file.
+  // download got those 2 bytes for an hour. Probe files showed that with "public, max-age" a ranged request
+  // arriving first poisons later plain downloads, and that with no-store it does not (two samples).
   async headers() {
     return [
       {
@@ -39,12 +40,6 @@ const nextConfig = {
           { key: 'X-Robots-Tag', value: 'noindex' },
         ],
       },
-      // TEMPORARY: probes for how the shared cache treats a ranged request that arrives first. Removed once measured.
-      { source: '/probe-cached.bin', headers: [{ key: 'Cache-Control', value: 'public, max-age=3600, must-revalidate' }] },
-      { source: '/probe-nostore.bin', headers: [{ key: 'Cache-Control', value: 'no-store' }] },
-      { source: '/probe-nostore2.bin', headers: [{ key: 'Cache-Control', value: 'no-store' }] },
-      { source: '/probe-rangerule.bin', headers: [{ key: 'Cache-Control', value: 'public, max-age=3600, must-revalidate' }] },
-      { source: '/probe-rangerule.bin', has: [{ type: 'header', key: 'range' }], headers: [{ key: 'Cache-Control', value: 'no-store' }] },
     ]
   },
 }

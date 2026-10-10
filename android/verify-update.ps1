@@ -10,6 +10,9 @@ It writes its findings to artifacts\update-verification.json (not tracked by Git
 
 -Fetch rehearses against a copy of the site (for example `next start`): requests go there, while the feed must still name
 the real origin, as it will in production.
+
+It only ever sends plain GETs. Never test the production APK with a Range request: the shared cache in front of the site
+once stored the answer to "Range: bytes=0-1" as the whole file and served those 2 bytes to every download for an hour.
 #>
 param([string]$Origin = 'https://www.plaxlabs.com/news', [string]$Fetch = '')
 $ErrorActionPreference = 'Stop'
@@ -102,6 +105,7 @@ Write-Output "APK at $download"
 $apkResponse = Fetch $download
 Check 'APK answers 200 with no redirect' ($apkResponse.Status -eq 200) "(HTTP $($apkResponse.Status))"
 Check 'APK is served as an Android package' ($apkResponse.Type -eq 'application/vnd.android.package-archive') "($($apkResponse.Type))"
+Check 'APK is not cacheable, so no shared cache can keep a part of it' ($apkResponse.Cache -match '(^|,)\s*no-store\b') "(Cache-Control: $($apkResponse.Cache))"
 Check 'APK size matches the feed' ($apkResponse.Bytes.Length -eq [long]$feed.size) "($($apkResponse.Bytes.Length) vs $($feed.size))"
 $temporary = Join-Path ([System.IO.Path]::GetTempPath()) "plax-verify-$($feed.versionName).apk"
 [System.IO.File]::WriteAllBytes($temporary, $apkResponse.Bytes)
