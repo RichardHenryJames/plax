@@ -405,7 +405,7 @@ labelled as such.
 Inshorts describes the requested interaction style only; Plax is not affiliated with
 it. Article content and images belong to their respective publishers.
 
-## Verification performed for 1.3.1 (9 October 2026)
+## Verification performed for 1.3.1 (9 and 10 October 2026)
 
 On the isolated Android 16 (API 36, x86_64) `Plax_News_Test` emulator (Chrome 133, Google Play
 services and Play Protect present), the local machine and the live website; no physical phone was
@@ -415,16 +415,27 @@ available. What 1.3.1 does not touch is covered by the 1.2.0 checks below.
   under R8 with `PLAY_STORE = true`; debug and preview have it false); debug and preview lint
   **0 errors**, 1 warning (a newer Gradle exists). **118 JVM tests**, none skipped (the one that
   reads `public\updates.json` and the APK ran against the committed files), and **63 device
-  tests**. After deployment, `-LiveFeed` ran **66 device tests** (179 s), including the app's
-  own parser against the deployed feed.
-- **What the website serves** (`verify-update.ps1`, 19 of 19 checks, run against the deployment
-  of commit `1e883d8`): the feed answers 200 without a redirect as `application/json` with
+  tests**. After deployment, `-LiveFeed` ran **66 device tests** (137 s), including the app's
+  own parser against the deployed feed and a plain download of the start of the APK.
+- **What the website serves** (`verify-update.ps1`, 20 of 20 checks, run on 10 October against the
+  deployment of commit `c616c0c`): the feed answers 200 without a redirect as `application/json` with
   `Cache-Control: no-store`, has exactly the seven fields, and names this site's versioned
   APK; the APK answers 200 as `application/vnd.android.package-archive` with `Content-Disposition:
-  attachment`; its size and SHA-256 equal the feed and the committed file; it is the preview
-  package, 1.3.1 / code 5, minSdk 26, not debuggable, signature valid and signed by the pinned
-  key. (Vercel keeps its own `Content-Disposition: inline` on the feed, which does not matter
-  to the app.) The apex `plaxlabs.com` redirects with 308 to `www`, which is why the app uses `www`.
+  attachment` and `Cache-Control: no-store`; its size and SHA-256 equal the feed and the committed
+  file; it is the preview package, 1.3.1 / code 5, minSdk 26, not debuggable, signature valid and
+  signed by the pinned key. (Vercel keeps its own `Content-Disposition: inline` on the feed, which
+  does not matter to the app.) The apex `plaxlabs.com` redirects with 308 to `www`, which is why the
+  app uses `www`.
+- **A failure this verification found.** The first run of `verify-update.ps1` after the docs push
+  failed: the APK answered `206 Partial Content` with 2 bytes. My own live device test had asked
+  for `bytes=0-1`; the shared cache in front of `www.plaxlabs.com` stored that answer as the whole
+  file (the APK was then cacheable, `public, max-age=3600`), served it to plain downloads even
+  after a redeploy, and let it go exactly an hour later (06:48 to 07:48 UTC on 10 October). To my
+  knowledge only the test emulator could have fetched the file in that time. Probe files then
+  showed on the real site that a ranged request arriving first poisons a cacheable file and does
+  not poison a `no-store` one. The APK is now `no-store`, the live test makes a plain request and
+  asserts that the whole file is served, and `verify-update.ps1` asserts `no-store`. Afterwards:
+  the verifier passed, the device suite passed (66 of 66) and the URL was still whole after it.
 - **The update, end to end, with the real feed and a real browser.** A clean 1.3.0 install
   asked the live feed on its first start and showed **Update available: Plax 1.3.1 is ready**
   (the Hindi text was checked on screen through the menu too). **Later** closed it and
@@ -437,7 +448,10 @@ available. What 1.3.1 does not touch is covered by the 1.2.0 checks below.
   **Do you want to update this app?** (it recognised an update of the installed Plax); then **Play
   Protect blocked it** (see above) until **More details > Install anyway**. The phone then reported
   1.3.1 / code 5, the saved story was still in Saved, there was no offer and no crash, and
-  **Check for updates** said **Plax is up to date.**
+  **Check for updates** said **Plax is up to date.** The download and install were repeated on
+  10 October after the APK became `no-store`: the same 1,867,429 bytes and SHA-256, installed
+  over a clean 1.3.0 to version code 5 (Play Protect did not intervene the second time on that
+  emulator).
 - **The one-time manual install**: 1.2.0 with a saved story, then the file downloaded from the
   site installed over it (`adb install -r`): the story survived and nothing crashed.
 - **The crash fixed in 1.3.1**, on the real R8 builds: the phone was wiped and the app launched
