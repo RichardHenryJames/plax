@@ -42,8 +42,10 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
     private static final String HANDLED = "plax.callback.handled";
 
     private final Handler main = new Handler(Looper.getMainLooper());
-    /** A link is being made for a share; a second tap meanwhile would only open a second chooser. */
-    private boolean sharing;
+    /** The story a link is being made for, if any; a second tap meanwhile must not open a second chooser. */
+    private Story sharingStory;
+    /** Which request is current, so that one given up on is never obeyed if it answers later. */
+    private int shareGeneration;
     private Cancelable shareRequest;
     private final Runnable preparingHint = () -> Toast.makeText(this, R.string.share_preparing, Toast.LENGTH_SHORT).show();
 
@@ -648,20 +650,35 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
 
     /**
      * Shares the story as a page on Plax when it can have one (a link that previews well and brings readers here),
-     * and as its publisher's link otherwise or whenever the page cannot be made in time.
+     * and as its publisher's link otherwise or whenever the page cannot be made in time. Tapping Share again on the
+     * same story while the link is being made means "do not wait": its publisher's link goes out at once.
      */
     @Override public void share(Story story) {
-        if (sharing) return;
+        if (sharingStory != null) {
+            boolean sameStory = sharingStory.id().equals(story.id());
+            giveUpWaiting();
+            if (sameStory) { send(story, ""); return; }
+        }
         if (!ShareLinks.eligible(story)) { send(story, ""); return; }
-        sharing = true;
+        sharingStory = story;
+        int generation = ++shareGeneration;
         main.postDelayed(preparingHint, PREPARING_HINT_MS);
         shareRequest = ShareLinks.source.link(story, link -> runOnUiThread(() -> {
+            if (generation != shareGeneration) return;
             main.removeCallbacks(preparingHint);
-            sharing = false;
+            sharingStory = null;
             // A chooser opened from the background would be blocked, and one for a closed screen is pointless.
             if (!isFinishing() && !isDestroyed() && getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.STARTED))
                 send(story, link);
         }));
+    }
+
+    /** Stops waiting for the link being made, whatever it says later. */
+    private void giveUpWaiting() {
+        shareGeneration++;
+        main.removeCallbacks(preparingHint);
+        if (shareRequest != null) shareRequest.cancel();
+        sharingStory = null;
     }
 
     private void send(Story story, String plaxLink) {
@@ -688,8 +705,7 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
     }
 
     @Override protected void onDestroy() {
-        main.removeCallbacks(preparingHint);
-        if (shareRequest != null) shareRequest.cancel();
+        giveUpWaiting();
         if (sheet != null) sheet.dismiss();
         if (interestsSheet != null) interestsSheet.dismiss();
         if (accountSheet != null) accountSheet.dismiss();

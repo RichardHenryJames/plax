@@ -119,6 +119,12 @@ public class ShareLinksTest {
         assertEquals(SIG, FeedParser.feed("{\"cards\":[{\"id\":\"a\",\"content\":\"Text\",\"category\":\"news\",\"sig\":\" " + SIG + " \"}]}").get(0).sig());
     }
 
+    @Test public void theWaitForALinkIsLongEnoughForAColdServer() {
+        // A first request to a sleeping serverless instance took longer than the 4 seconds 1.4.0 allowed, so the page was
+        // silently lost for exactly the shares that were slow. A reader who does not want to wait taps again.
+        assertTrue(ShareLinks.WAIT_SECONDS >= 6 && ShareLinks.WAIT_SECONDS <= 10);
+    }
+
     @Test public void storiesBuiltWithoutASignatureHaveNone() {
         Story story = new Story("a", "T", "C", "news", "", "", "", "", "", 0);
         assertEquals("", story.sig());

@@ -10,6 +10,29 @@ exists (see *Updates from inside the app*). Apart from sign-in and that update c
 which need the two small routes and the one small file listed under *Backend changes*,
 the app works against the backend as it was before this version.
 
+## What is in 1.4.1 (preview, versionCode 7)
+
+A fix to 1.4.0's Share, found by testing the installed, OTA-updated 1.4.0 against the real site.
+
+- **What went wrong.** 1.4.0 waited at most 4 seconds for the site to make a story's page. On the emulator
+  the share sheet opened after 4.4 s carrying the *publisher's* link: the app had asked, given up, and fallen
+  back, which is the safe outcome but a silent loss of the feature. The site needs 0.3-2.2 s from the
+  development machine for a story it has not seen (0.5 s typical for a warm server, more when a sleeping serverless
+  instance has to start), plus the phone's own network. Four seconds is not enough for that, and the cases that
+  are slow are the ones that lost their page.
+- **Waits as long as it takes to be realistic**: 7 seconds (connect 5 s). The "Preparing link..." hint still appears
+  after 0.7 s.
+- **A reader is never stuck.** Tapping Share again on the same story while it waits means "do not wait": the request
+  is abandoned and the publisher's link goes out at once. Tapping Share on a *different* story abandons the first
+  and makes the second's link. A request that was given up on is never obeyed if it answers later (each request is
+  numbered, and the screen acts only on the current one).
+- **The site got faster in the same release.** Saving a page is now one database write that leaves an existing page
+  alone, instead of a read and then a write (`share-store.ts`; PostgREST's `ignore-duplicates` answers 201 for a
+  duplicate and keeps the original, checked against the real service). The website also waits up to 6 s, shows a
+  spinner on Share or Copy, and a second click gives up waiting there too.
+- Nothing else changed: no new permission, library or data. 1.4.0 is not altered (a published version never is);
+  a phone on 1.4.0 is offered 1.4.1 by the updater.
+
 ## What is in 1.4.0 (preview, versionCode 6)
 
 Share a story as a page on Plax, and the same look as the website.
@@ -383,15 +406,18 @@ $env:PLAX_LOCAL_STACK = (Resolve-Path ..\scripts\auth-stack\.env).Path
 ..\scripts\auth-stack\down.ps1
 ```
 
-A normal `.\build.ps1` lists 140 JVM tests and skips 13 of them (the stack tests below); 127 run.
+A normal `.\build.ps1` lists 141 JVM tests and skips 13 of them (the stack tests below); 128 run.
 
 **Run the device suite on a quiet machine.** Its checks are made by UiAutomator against a software-rendered
 emulator, so they time out when the machine is busy. A first 1.4.0 run, with a Gradle daemon, the website's dev
 server, a Docker stack and a second emulator all running, failed 9 tests (three in `UpdateDeviceTest` that were
 looking for the menu, then the new share tests behind them); the same tests passed alone, and all 69 passed once
-the other work was stopped. Stop `gradlew --stop`, dev servers and containers first.
+the other work was stopped. Stop `gradlew --stop`, dev servers and containers first. The suite also assumes a
+clean app: if you have used it by hand on the emulator (a saved story is enough), clear it first with
+`adb shell pm clear com.plaxlabs.news.preview`, or `appNeedsNoLoginAndSupportsTopicsSavedAndRotation` will not
+find the empty Saved tab.
 
-- **127 JVM unit tests**: strict JSON shape and limits, server errors, escaped URLs, cache
+- **128 JVM unit tests**: strict JSON shape and limits, server errors, escaped URLs, cache
   format, repeated-headline removal (including sentences that merely begin with the
   headline), read-time parsing, image width/sampling rules, cache-header rewriting,
   Markdown rendering rules, AI request/response validation, sections and request URLs;
@@ -406,7 +432,7 @@ the other work was stopped. Stop `gradlew --stop`, dev servers and containers fi
   check, a failed check counting, dismissal and its expiry, a newer version overriding
   a dismissal, manual checks and their messages, a manual tap during a running check,
   nothing offered over a dialog or sheet, store builds, and a recreated screen); and the
-  share link (`ShareLinksTest`, 9 tests: which stories can have a page, that the request is
+  share link (`ShareLinksTest`, 10 tests: which stories can have a page, that the request is
   exactly what the website verifies (a golden vector shared with its unit tests), which answers
   are trusted (only this story's page on the Plax site: wrong host, port, scheme, path, query or
   id are refused), the message the share sheet is given in each case, and that the signature
@@ -424,7 +450,7 @@ the other work was stopped. Stop `gradlew --stop`, dev servers and containers fi
   token is told apart from a refused change; a session that has run out is refreshed, and one revoked elsewhere ends
   cleanly with "sign in again"; signing out revokes the phone's session; a denied or invented code leaves the reader
   signed out with a message; and the reading-streak function changes only the caller's own row.
-- **69 Android instrumentation tests** (73 with `-LiveFeed`): bookmarks, the on-disk feed
+- **70 Android instrumentation tests** (74 with `-LiveFeed`): bookmarks, the on-disk feed
   cache (round trip, per-language, damaged files), card rendering and actions, skeleton
   geometry, navigation and rotation, rendering of every screen and state in both
   languages, the AI sheet (loading, result, language switch without refetch, failure,

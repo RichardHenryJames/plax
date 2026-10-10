@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shareBody, signedFields, storyAddress, createShareLink, knownShareLink, resetShareLinks } from './share-client.ts'
+import { shareBody, signedFields, storyAddress, createShareLink, knownShareLink, resetShareLinks, SHARE_WAIT_MS } from './share-client.ts'
 import { signCard, signingKey } from './share-sign.ts'
 import { shareId, sharePath, readShareCard } from './share.ts'
 
@@ -105,13 +105,39 @@ test('every way the server can fail yields no link, never an exception', async (
   }
 })
 
+// Like fetch: a request whose signal is already aborted fails at once, and one aborted later fails then.
+const waiting = (onAbort) => (_endpoint, init) => new Promise((_resolve, reject) => {
+  const fail = () => { onAbort?.(); reject(new DOMException('aborted', 'AbortError')) }
+  if (init.signal.aborted) return fail()
+  init.signal.addEventListener('abort', fail)
+})
+
 test('a server that does not answer in time is given up on', async () => {
   resetShareLinks()
   const body = shareBody(signed())
-  const fetcher = (_endpoint, init) => new Promise((_resolve, reject) => {
-    init.signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
-  })
   const started = Date.now()
-  assert.equal(await createShareLink(body, { endpoint: '/news/api/share', fetcher, timeoutMs: 60 }), null)
+  assert.equal(await createShareLink(body, { endpoint: '/news/api/share', fetcher: waiting(), timeoutMs: 60 }), null)
   assert.ok(Date.now() - started < 1000)
+})
+
+test('a reader who stops waiting ends the request at once, and nothing is remembered', async () => {
+  resetShareLinks()
+  const body = shareBody(signed())
+  let aborted = false
+  const fetcher = waiting(() => { aborted = true })
+  const stop = new AbortController()
+  const started = Date.now()
+  const pending = createShareLink(body, { endpoint: '/news/api/share', fetcher, timeoutMs: 60_000, signal: stop.signal })
+  setTimeout(() => stop.abort(), 20)
+  assert.equal(await pending, null)
+  assert.ok(aborted, 'the request itself was cancelled')
+  assert.ok(Date.now() - started < 1000, 'without waiting for the limit')
+  assert.equal(knownShareLink(body), null)
+  // Abandoned before it even starts: it fails at once rather than running.
+  assert.equal(await createShareLink(body, { endpoint: '/news/api/share', fetcher, timeoutMs: 60_000, signal: stop.signal }), null)
+})
+
+test('the time allowed is long enough for a cold server', () => {
+  // 3.5 s was too short in practice: a first request to a sleeping serverless instance took longer than that.
+  assert.ok(SHARE_WAIT_MS >= 6000 && SHARE_WAIT_MS <= 10_000, String(SHARE_WAIT_MS))
 })

@@ -6,7 +6,7 @@ A short-form reading platform that delivers personalized microessays, quotes, ex
 
 ## Native Android preview
 
-The independent [Android project](android/README.md) (version 1.4.0 preview)
+The independent [Android project](android/README.md) (version 1.4.1 preview)
 provides native swipeable Plax news cards in English or Hindi, topics, a **For you**
 feed built from topics you choose, light and dark themes (following the phone by default), an on-device feed cache for
 instant start and offline reading, an AI brief with English/Hindi translation,

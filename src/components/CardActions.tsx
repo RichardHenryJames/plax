@@ -8,7 +8,7 @@ import { useAuth } from '@/components/AuthProvider'
 import { addBookmarkToCloud, removeBookmarkFromCloud } from '@/lib/cloud-sync'
 import { useT } from '@/lib/i18n'
 import { withBase } from '@/lib/base-path'
-import { createShareLink, shareBody, signedFields } from '@/lib/share-client'
+import { createShareLink, knownShareLink, shareBody, signedFields } from '@/lib/share-client'
 
 /**
  * CardActions — the Copy / Share / Save dock.
@@ -24,6 +24,9 @@ export function CardActions({ card }: { card: CardData | null }) {
   const [showBookmarkFeedback, setShowBookmarkFeedback] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const [speaking, setSpeaking] = useState(false)
+  // Which of Share or Copy is waiting for the story's page to be made, if either, and how to stop waiting.
+  const [making, setMaking] = useState<'share' | 'copy' | null>(null)
+  const waiting = useRef<AbortController | null>(null)
   const cardIdRef = useRef<string | null>(card?.id ?? null)
 
   const isBookmarked = card ? bookmarkedIds.includes(card.id) : false
@@ -98,10 +101,27 @@ export function CardActions({ card }: { card: CardData | null }) {
     }
   })()
   // The card's own page on Plax (a link that previews well and brings readers here), or null when it cannot have
-  // one; the publisher's link is shared instead, as it always was.
-  const plaxLink = async (): Promise<string | null> => {
+  // one; the publisher's link is shared instead, as it always was. A first request can take a few seconds, so the
+  // button shows it is working, and a second click gives up waiting: the first click then carries on with the
+  // publisher's link.
+  const plaxLink = async (purpose: 'share' | 'copy'): Promise<string | null> => {
     const body = shareBody(card)
-    return body ? createShareLink(body, { endpoint: withBase('/api/share') }) : null
+    if (!body) return null
+    if (knownShareLink(body)) return knownShareLink(body)
+    const own = new AbortController()
+    waiting.current = own
+    setMaking(purpose)
+    try {
+      return await createShareLink(body, { endpoint: withBase('/api/share'), signal: own.signal })
+    } finally {
+      if (waiting.current === own) waiting.current = null
+      setMaking(null)
+    }
+  }
+  const stopWaiting = (): boolean => {
+    if (!waiting.current) return false
+    waiting.current.abort()
+    return true
   }
 
   const handleBookmark = () => {
@@ -172,12 +192,14 @@ export function CardActions({ card }: { card: CardData | null }) {
           <ActionButton
             label={t('copy')}
             hiddenOnPhone
+            busy={making === 'copy'}
             icon={
               <svg className="w-[19px] h-[19px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M8 7h8M8 11h5M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
             }
             onClick={async () => {
+              if (stopWaiting()) return
               // Copy a shareable, attributed snippet (title + a clean excerpt +
               // link) rather than just a truncated title — more useful to
               // paste and better for word-of-mouth sharing.
@@ -187,7 +209,7 @@ export function CardActions({ card }: { card: CardData | null }) {
                 .replace(/\s+/g, ' ')
                 .trim()
               const excerpt = plain.slice(0, 200).trim()
-              const link = (await plaxLink()) || card.sourceUrl || 'https://plaxlabs.com'
+              const link = (await plaxLink('copy')) || card.sourceUrl || 'https://plaxlabs.com'
               const text = [
                 card.title ? `“${card.title}”` : '',
                 `${excerpt}${excerpt.length >= 200 ? '…' : ''}`,
@@ -236,13 +258,15 @@ export function CardActions({ card }: { card: CardData | null }) {
 
           <ActionButton
             label={t('share')}
+            busy={making === 'share'}
             icon={
               <svg className="w-[19px] h-[19px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
               </svg>
             }
             onClick={async () => {
-              const wrapped = await plaxLink()
+              if (stopWaiting()) return
+              const wrapped = await plaxLink('share')
               const url = wrapped || card.sourceUrl || window.location.origin
               // A Plax link is a preview card of its own, so the message is just the headline above it.
               const shareData = wrapped
@@ -297,15 +321,20 @@ const ROUND = 'tooltip focus-ring items-center justify-center w-11 h-11 sm:w-12 
 const ROUND_OFF = 'bg-[var(--control)] text-dark-text hover:bg-[var(--control-hover)]'
 const ROUND_ON = 'bg-[var(--signal-soft)] text-[color:var(--signal-text)]'
 
-function ActionButton({ icon, label, onClick, hiddenOnPhone = false }: { icon: React.ReactNode; label: string; onClick?: () => void; hiddenOnPhone?: boolean }) {
+function ActionButton({ icon, label, onClick, hiddenOnPhone = false, busy = false }: { icon: React.ReactNode; label: string; onClick?: () => void; hiddenOnPhone?: boolean; busy?: boolean }) {
   return (
     <button
       onClick={onClick}
       aria-label={label}
+      aria-busy={busy || undefined}
       data-tip={label}
       className={`${hiddenOnPhone ? 'hidden sm:flex' : 'flex'} ${ROUND} ${ROUND_OFF}`}
     >
-      {icon}
+      {busy ? (
+        <span className="w-[18px] h-[18px] border-[1.5px] border-current border-t-transparent rounded-full animate-spin" aria-hidden="true" />
+      ) : (
+        icon
+      )}
     </button>
   )
 }

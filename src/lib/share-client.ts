@@ -63,23 +63,33 @@ export function storyAddress(url: unknown, id: unknown, body: ShareBody): string
 
 const made = new Map<string, string>()
 
+/**
+ * How long a reader waits for the link at most. The first request to a cold server can take a couple of seconds, and a
+ * slow connection adds to that; giving up too early would silently lose the page for the very shares that are slow.
+ */
+export const SHARE_WAIT_MS = 6000
+
 /** Whether this session already made the card's link, so that sharing it again needs no wait at all. */
 export function knownShareLink(body: ShareBody): string | null {
   return made.get(body.sig) ?? null
 }
 
 /**
- * Asks the server to make the card's story page and returns its address, or null if that did not work out in time.
- * The address is the server's own, checked against the card's signature before it is trusted.
+ * Asks the server to make the card's story page and returns its address, or null if that did not work out in time
+ * (or the caller gave up by aborting `signal`). The address is the server's own, checked against the card's signature
+ * before it is trusted. A first request to a cold server can take a couple of seconds, so the limit is generous.
  */
 export async function createShareLink(
   body: ShareBody,
-  options: { endpoint: string; fetcher?: typeof fetch; timeoutMs?: number }
+  options: { endpoint: string; fetcher?: typeof fetch; timeoutMs?: number; signal?: AbortSignal }
 ): Promise<string | null> {
   const known = made.get(body.sig)
   if (known) return known
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 3500)
+  const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? SHARE_WAIT_MS)
+  const giveUp = () => controller.abort()
+  if (options.signal?.aborted) controller.abort()
+  options.signal?.addEventListener('abort', giveUp)
   try {
     const response = await (options.fetcher ?? fetch)(options.endpoint, {
       method: 'POST',
@@ -99,6 +109,7 @@ export async function createShareLink(
     return null
   } finally {
     clearTimeout(timer)
+    options.signal?.removeEventListener('abort', giveUp)
   }
 }
 

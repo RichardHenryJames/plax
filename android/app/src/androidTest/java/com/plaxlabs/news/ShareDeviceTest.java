@@ -67,10 +67,10 @@ public class ShareDeviceTest {
 
     /** The system share sheet lives in its own package ("android" before Android 14), not in the app's. */
     private boolean sheetShown(long waitMs) {
+        String sheet = android.os.Build.VERSION.SDK_INT >= 34 ? "com.android.intentresolver" : "android";
         long deadline = SystemClock.uptimeMillis() + waitMs;
         do {
-            String current = device.getCurrentPackageName();
-            if ("android".equals(current) || "com.android.intentresolver".equals(current)) return true;
+            if (sheet.equals(device.getCurrentPackageName())) return true;
             SystemClock.sleep(150);
         } while (SystemClock.uptimeMillis() < deadline);
         return false;
@@ -122,19 +122,41 @@ public class ShareDeviceTest {
         }
     }
 
-    @Test public void tappingAgainWhileTheLinkIsBeingMadeDoesNotStartAnotherShare() {
+    @Test public void tappingTheSameStoryAgainWhileWaitingSharesThePublishersLinkAtOnce() {
         try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
-            scenario.onActivity(activity -> { activity.share(signed()); activity.share(signed()); });
+            scenario.onActivity(activity -> activity.share(signed()));
             awaitCalls(shares, 1);
-            SystemClock.sleep(300);
-            assertEquals("the second tap is not a second request", 1, shares.calls.size());
-            shares.calls.get(0).result().done(PAGE);
-            assertTrue(sheetShown(8_000));
+            assertFalse("nothing opens while the link is still being made", sheetShown(0));
+            scenario.onActivity(activity -> activity.share(signed()));
+            assertTrue("a second tap stops the wait and the share sheet opens at once", sheetShown(8_000));
+            assertTrue("the request for the link was given up on", shares.calls.get(0).cancelled().get());
+            assertEquals("and no second request was made", 1, shares.calls.size());
             closeSheet();
+            // Whatever the abandoned request says later is not obeyed.
+            shares.calls.get(0).result().done(PAGE);
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync();
+            assertFalse("a late answer opens nothing", sheetShown(1_500));
             scenario.onActivity(activity -> activity.share(signed()));
             awaitCalls(shares, 2);
             shares.calls.get(1).result().done(PAGE);
-            assertTrue("and once it is done, sharing works again", sheetShown(8_000));
+            assertTrue("and sharing works again afterwards", sheetShown(8_000));
+            closeSheet();
+        }
+    }
+
+    @Test public void tappingAnotherStoryWhileWaitingMakesThatStorysLinkInstead() {
+        Story other = new Story("hindu-2", "Another headline altogether", "A second story, with enough words.",
+                "news", "india", "The Hindu", "https://www.thehindu.com/b", "", "20s", 1_791_621_638_700L, "0123456789abcdef0123456789abcdef");
+        try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
+            scenario.onActivity(activity -> activity.share(signed()));
+            awaitCalls(shares, 1);
+            scenario.onActivity(activity -> activity.share(other));
+            awaitCalls(shares, 2);
+            assertEquals(other, shares.calls.get(1).story());
+            assertTrue("the first story's request was given up on", shares.calls.get(0).cancelled().get());
+            assertFalse("and nothing opened for the first story", sheetShown(0));
+            shares.calls.get(1).result().done(FeedApi.SITE + "/s/another-headline-altogether-0123456789abcdef");
+            assertTrue("the second story's link opens the share sheet", sheetShown(8_000));
             closeSheet();
         }
     }

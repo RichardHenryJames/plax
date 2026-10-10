@@ -127,7 +127,8 @@ export async function setCachedAI(key: string, value: unknown, ttl = DEFAULT_TTL
 
 // For data that must outlive an instance, such as a shared story's page. Unlike the AI cache this says whether the
 // value really reached the database: a link that was handed out but never stored would be dead for everyone.
-export async function putDurable(key: string, value: unknown): Promise<boolean> {
+// `keepExisting` stores it only if the key is free, in one round trip and without touching what is there.
+export async function putDurable(key: string, value: unknown, options: { keepExisting?: boolean } = {}): Promise<boolean> {
   if (!SUPABASE_URL || !SERVICE_KEY) return false
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/ai_cache`, {
@@ -136,7 +137,7 @@ export async function putDurable(key: string, value: unknown): Promise<boolean> 
         apikey: SERVICE_KEY,
         Authorization: `Bearer ${SERVICE_KEY}`,
         'Content-Type': 'application/json',
-        Prefer: 'resolution=merge-duplicates,return=minimal',
+        Prefer: `resolution=${options.keepExisting ? 'ignore' : 'merge'}-duplicates,return=minimal`,
       },
       body: JSON.stringify({ key, value }),
       signal: AbortSignal.timeout(4000),

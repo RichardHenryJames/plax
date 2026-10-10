@@ -17,8 +17,8 @@ import okhttp3.*;
  * story), so the story itself is the only data sent. Any trouble means no link, and the publisher's link is shared.
  */
 final class ShareLinks implements ShareSource {
-    /** The longest a reader waits for the link after tapping Share. */
-    static final int WAIT_SECONDS = 4;
+    /** The longest a reader waits for the link after tapping Share. A first request to a cold server takes a couple of seconds. */
+    static final int WAIT_SECONDS = 7;
     /** The site's own link-making service and the pages it makes live in the same place as the feed. */
     static final String ENDPOINT = FeedApi.SITE + "/api/share";
 
@@ -95,7 +95,7 @@ final class ShareLinks implements ShareSource {
         Handle handle = new Handle();
         STARTER.execute(() -> {
             // Built here, so that the caller can return to drawing at once.
-            OkHttpClient client = Network.api().newBuilder().connectTimeout(3, TimeUnit.SECONDS)
+            OkHttpClient client = Network.api().newBuilder().connectTimeout(5, TimeUnit.SECONDS)
                     .readTimeout(WAIT_SECONDS, TimeUnit.SECONDS).callTimeout(WAIT_SECONDS, TimeUnit.SECONDS).build();
             Call call = client.newCall(new Request.Builder().url(ENDPOINT).header("Accept", "application/json")
                     .post(RequestBody.create(requestBody(story), JSON)).build());

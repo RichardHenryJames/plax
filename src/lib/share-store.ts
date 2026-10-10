@@ -24,19 +24,14 @@ export async function loadShare(sid: string): Promise<ShareRecord | null> {
 }
 
 /**
- * Stores the card for its story page and returns the stored copy. Null when the database did not take it, so no link
- * is promised. A story that is already stored is returned as it is: the same signature always means the same card.
+ * Stores the card for its story page and returns it. Null when the database did not take it, so no link is promised.
+ * It is one write that leaves an existing page as it is: the same signature always means the same card, so there is
+ * nothing to compare, and a read first would only cost the reader a second trip to the database.
  */
 export async function saveShare(card: ShareCard, signature: string): Promise<ShareRecord | null> {
   const sid = shareId(signature)
-  try {
-    const stored = await loadShare(sid)
-    if (stored) return stored
-  } catch {
-    // The read failed, not necessarily the write: try to store it anyway.
-  }
   const record: ShareRecord = { v: 1, sid, ...card, createdAt: Date.now() }
-  return (await putDurable(keyFor(sid), record)) ? record : null
+  return (await putDurable(keyFor(sid), record, { keepExisting: true })) ? record : null
 }
 
 /** The most recently shared stories, for the sitemap. */
