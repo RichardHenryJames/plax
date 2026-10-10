@@ -539,6 +539,56 @@ project is back:
   Supabase, the Custom Tab path with a real code, and a real hosted project (its key formats, defaults and rate
   limits). Those are the one manual sign-in the runbook ends with.
 
+## Verification performed for 1.4.0 and 1.4.1 (10 October 2026)
+
+On the isolated Android 16 (API 36, x86_64) `Plax_News_Test` emulator (Chrome, Google Play services and Play Protect
+present), the development machine and the live website; no physical phone was available.
+
+- **Builds and tests (1.4.1)**: debug and preview builds, lint **0 errors**, 1 warning (a newer Gradle exists) for both;
+  **141 JVM tests**, none failing, 13 opt-in skipped; **70 device tests**, and **74** with `-LiveFeed` (170 s, from a
+  clean app on a quiet machine). The website: `tsc` clean, `npm test` **112** (83 before), a production build.
+- **The website in a real browser** (Edge driven by Playwright, production build against a local Supabase stack so no
+  real data was written): the share flow, **15 of 15** checks (a Plax link and the headline as the message, one request per
+  card, the page exists, the Copy text carries the link, the publisher's link when the server is down, "tap again" for
+  browsers that refuse a late share, and no separate Copy on a phone); a deliberately slow endpoint, **10 of 10** (spinner,
+  a second click shares the publisher's link in 0.5 s, nothing is shared twice, one request). Phone, tablet and desktop
+  screenshots in both themes were compared with the app: header, chips, card, action row, tabs, Hindi (Devanagari serif)
+  and the story page match; the intended differences are listed in [TECH.md](../TECH.md).
+- **What the website serves** (`verify-update.ps1`, 20 of 20 checks for **each** of 1.4.0 and 1.4.1): the feed answers 200 with
+  no redirect and `no-store`, the APK is served as an Android package, not cacheable, the size and SHA-256 match, the
+  package, version, minimum SDK and pinned signer are right, and it is not debuggable.
+- **Production, after deployment**: all 12 sampled feed cards were signed; `POST /api/share` answered 200 for a real card,
+  **403 for the same card with its headline changed** and 400 without a signature; the story page answered 200 to a
+  browser and to WhatsApp and Facebook crawler user agents (CDN miss, then hit) with the canonical URL, `article` Open Graph
+  tags and an image; the preview picture is a 85 KB PNG in the bundled serif (the font file was traced into the serverless
+  function). The app's own `LiveFeedTest` made story pages for real, first-time stories in **1.19 / 0.89 / 0.90 s** and
+  again in 1.27 / 0.90 / 0.90 s, and fetched the pages.
+- **The update path, twice, through the real feed** (the browser saves the APK, Android asks to confirm): the published 1.3.1
+  was offered 1.4.0, and the published 1.4.0 (recovered byte for byte from its commit) was offered 1.4.1. In each case the
+  downloaded file was exactly the advertised size with the advertised SHA-256 and came from the advertised URL; the system
+  installer said "Do you want to update this app?" (so it recognised the signature), Play Protect showed its usual first-time
+  "App blocked" warning for this sideloaded build and **More details > Install anyway** completed it ("App installed");
+  a story saved before the update was still in **Saved** afterwards, the app was not offered the update again, and there were no
+  crashes. From the updated app a real **Share** handed the share sheet
+  `<headline> https://www.plaxlabs.com/news/s/<headline>-<id>` (the headline and the Plax link, as designed).
+
+**Found and fixed while verifying** (so they are not rediscovered):
+
+- **Lint**: the new "Preparing link..." string had no Hindi translation (the app has `values-hi`); added.
+- **The 4-second wait was too short (fixed in 1.4.1).** The first test of the OTA-updated 1.4.0 handed the share sheet the
+  *publisher's* link after 4.4 s: the app had asked, given up and fallen back. See *What is in 1.4.1*.
+- The device suite is sensitive to load and to leftover data (see *Tests*); both were hit once and are documented.
+- Playwright against `next dev` showed a stale CSS bundle (a hot-reload artefact, not the product); a clean start fixed it.
+  A production build was used for the final browser checks.
+
+**Not verified:** anything on a physical phone (the share sheet, Chrome's download and Play Protect behave as on this emulator
+only as far as the emulator reproduces them); WhatsApp's own rendering of the preview (what a crawler fetches was checked, not
+how WhatsApp draws it, and WhatsApp caches previews for a while); that Google will index or rank the story pages (nothing can
+show that yet); iOS Safari's handling of a share started after a network call (the "tap again" path was simulated, not run on
+an iPhone); a Hindi preview picture (Hindi headlines get a plain branded card by design, because the drawing library cannot
+shape Devanagari: verified, see TECH.md). The Play Protect warning on first install of a sideloaded build remains; the app
+cannot skip it.
+
 ## Verification performed for 1.3.1 (9 and 10 October 2026)
 
 On the isolated Android 16 (API 36, x86_64) `Plax_News_Test` emulator (Chrome 133, Google Play

@@ -59,26 +59,38 @@ public class LiveFeedTest {
 
     @Test public void theLiveSiteTurnsAStoryTheAppSharesIntoAPageThatServesIt() throws Exception {
         optIn();
-        Story story = null;
-        for (Story candidate : load("en", null)) if (ShareLinks.eligible(candidate)) { story = candidate; break; }
-        assertNotNull("the live feed must serve signed stories with a publisher link", story);
+        List<Story> shareable = new ArrayList<>();
+        for (Story candidate : load("en", null)) if (ShareLinks.eligible(candidate) && shareable.size() < 3) shareable.add(candidate);
+        assertFalse("the live feed must serve signed stories with a publisher link", shareable.isEmpty());
 
-        CountDownLatch done = new CountDownLatch(1);
-        AtomicReference<String> link = new AtomicReference<>();
-        new ShareLinks().link(story, answer -> { link.set(answer); done.countDown(); });
-        assertTrue("the site must answer", done.await(15, TimeUnit.SECONDS));
-        assertFalse("the live site must accept the story exactly as the app sends it back", link.get().isEmpty());
-        assertTrue(link.get(), link.get().startsWith(FeedApi.SITE + "/s/"));
+        // Each is a story this app has not shared before, so each is a real first request: the site must make the page
+        // within the time the app waits, or Share would quietly fall back to the publisher's link (as 1.4.0's 4 s did).
+        String first = null;
+        List<Long> took = new ArrayList<>();
+        for (Story story : shareable) {
+            CountDownLatch done = new CountDownLatch(1);
+            AtomicReference<String> link = new AtomicReference<>();
+            long started = System.nanoTime();
+            new ShareLinks().link(story, answer -> { link.set(answer); done.countDown(); });
+            assertTrue("the site must answer", done.await(ShareLinks.WAIT_SECONDS + 3, TimeUnit.SECONDS));
+            long ms = (System.nanoTime() - started) / 1_000_000;
+            took.add(ms);
+            assertFalse("the live site must accept the story exactly as the app sends it back", link.get().isEmpty());
+            assertTrue(link.get(), link.get().startsWith(FeedApi.SITE + "/s/"));
+            assertTrue("the page was made in " + ms + " ms, inside the app's " + ShareLinks.WAIT_SECONDS + " s wait",
+                    ms < ShareLinks.WAIT_SECONDS * 1000L);
+            if (first == null) first = link.get();
+        }
+        android.util.Log.i("PlaxLive", "story pages made in " + took + " ms; first: " + first);
 
         OkHttpClient client = new OkHttpClient.Builder().followRedirects(false).followSslRedirects(false).build();
-        try (Response page = client.newCall(new Request.Builder().url(link.get()).build()).execute()) {
+        try (Response page = client.newCall(new Request.Builder().url(first).build()).execute()) {
             assertEquals("HTTP " + page.code(), 200, page.code());
             String html = page.body().string();
-            assertTrue("the page names itself as the canonical address", html.contains("rel=\"canonical\" href=\"" + link.get() + "\""));
+            assertTrue("the page names itself as the canonical address", html.contains("rel=\"canonical\" href=\"" + first + "\""));
             assertTrue("and previews as an article", html.contains("property=\"og:type\" content=\"article\""));
             assertTrue("with a picture", html.contains("property=\"og:image\""));
         }
-        android.util.Log.i("PlaxLive", "story page made for " + story.id() + ": " + link.get());
     }
 
     @Test public void thePublishedUpdateFeedIsAcceptedByTheAppAndItsDownloadIsAnApk() throws Exception {
