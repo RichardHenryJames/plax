@@ -1,0 +1,93 @@
+name: plaxauth
+
+# A real Supabase auth + database stack on this machine only (127.0.0.1): the same GoTrue, PostgREST, Kong and Postgres
+# images Supabase runs, loaded with ../../supabase-schema.sql. It exists so the Android account code can be tested
+# against the real services instead of fakes (android/app/src/test/.../AccountLocalStackTest.java) and so the schema
+# can be proven before it is run on the live project. Start it with up.ps1; remove it with down.ps1.
+#
+# Two settings can be changed for one run, to see how a half-configured project behaves:
+#   $env:GOOGLE_ENABLED = 'false'    Google sign-in switched off
+#   $env:DISABLE_SIGNUP = 'true'     new readers not allowed to sign up
+services:
+  db:
+    image: public.ecr.aws/supabase/postgres:17.6.1.165
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: postgres
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXP: "3600"
+    ports: ["127.0.0.1:54322:5432"]
+    volumes: ["plaxauth-db:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-h", "localhost"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  mail:
+    image: public.ecr.aws/supabase/mailpit:v1.22.3
+    ports: ["127.0.0.1:54324:8025"]
+
+  auth:
+    image: public.ecr.aws/supabase/gotrue:v2.196.0
+    depends_on: { db: { condition: service_healthy } }
+    ports: ["127.0.0.1:54326:9999"]
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: "9999"
+      API_EXTERNAL_URL: http://localhost:54321
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${DB_PASSWORD}@db:5432/postgres
+      # What the Plax website's Supabase settings say (SUPABASE_SETUP.md, step 6).
+      GOTRUE_SITE_URL: https://www.plaxlabs.com
+      GOTRUE_URI_ALLOW_LIST: ${URI_ALLOW_LIST}
+      GOTRUE_DISABLE_SIGNUP: ${DISABLE_SIGNUP:-false}
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_EXP: "3600"
+      GOTRUE_JWT_SECRET: ${JWT_SECRET}
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_MAILER_AUTOCONFIRM: "false"
+      GOTRUE_SMTP_ADMIN_EMAIL: admin@example.test
+      GOTRUE_SMTP_HOST: mail
+      GOTRUE_SMTP_PORT: "1025"
+      GOTRUE_SMTP_SENDER_NAME: Plax test
+      GOTRUE_MAILER_URLPATHS_CONFIRMATION: /auth/v1/verify
+      GOTRUE_MAILER_URLPATHS_INVITE: /auth/v1/verify
+      GOTRUE_MAILER_URLPATHS_RECOVERY: /auth/v1/verify
+      GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: /auth/v1/verify
+      # Google with throwaway credentials: enough for /settings to say "google": true and for /authorize to build
+      # its redirect; Google's consent screen itself cannot be exercised here.
+      GOTRUE_EXTERNAL_GOOGLE_ENABLED: ${GOOGLE_ENABLED:-true}
+      GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID: local-test-client.apps.googleusercontent.com
+      GOTRUE_EXTERNAL_GOOGLE_SECRET: local-test-secret
+      GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI: http://localhost:54321/auth/v1/callback
+      GOTRUE_RATE_LIMIT_EMAIL_SENT: "1000"
+
+  rest:
+    image: public.ecr.aws/supabase/postgrest:v16.1
+    depends_on: { db: { condition: service_healthy } }
+    ports: ["127.0.0.1:54327:3000"]
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${DB_PASSWORD}@db:5432/postgres
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+
+  kong:
+    image: public.ecr.aws/supabase/kong:2.8.1
+    depends_on: [auth, rest]
+    ports: ["127.0.0.1:54321:8000"]
+    volumes: ["./kong.yml:/home/kong/kong.yml:ro"]
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl
+      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
+      KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
+
+volumes:
+  plaxauth-db:

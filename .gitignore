@@ -44,3 +44,7 @@ next-env.d.ts
 /android/artifacts/
 *.jks
 *.keystore
+
+# Local Supabase test stack: throwaway secrets and the gateway's keys are generated, never committed
+/scripts/auth-stack/.env
+/scripts/auth-stack/kong.yml

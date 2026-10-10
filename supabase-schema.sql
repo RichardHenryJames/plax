@@ -122,13 +122,19 @@ CREATE TRIGGER update_user_profiles_updated_at
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
 
 -- ── Reading streak helper (call from app) ──
--- Checks if last_read_at was yesterday → increment streak, else reset to 1
+-- Checks if last_read_at was yesterday → increment streak, else reset to 1.
+-- SECURITY DEFINER bypasses row-level security, so the function must check the caller itself: without that, anyone
+-- holding the public anon key could change another reader's streak just by passing their id.
 CREATE OR REPLACE FUNCTION public.update_reading_streak(p_user_id UUID)
 RETURNS void AS $$
 DECLARE
   v_last_read DATE;
   v_today DATE := CURRENT_DATE;
 BEGIN
+  IF p_user_id IS DISTINCT FROM auth.uid() THEN
+    RAISE EXCEPTION 'You can only update your own reading streak' USING ERRCODE = '42501';
+  END IF;
+
   SELECT last_read_at::DATE INTO v_last_read
   FROM public.user_profiles WHERE id = p_user_id;
 
@@ -142,7 +148,11 @@ BEGIN
     WHERE id = p_user_id;
   END IF;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+-- Only signed-in readers may call it (replacing a function keeps its earlier grants, so state them).
+REVOKE EXECUTE ON FUNCTION public.update_reading_streak(UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.update_reading_streak(UUID) TO authenticated, service_role;
 
 -- ════════════════════════════════════════════════════════════
 -- AI result cache (shared, durable). Once ANY user generates a card's
