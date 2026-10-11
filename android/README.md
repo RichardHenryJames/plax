@@ -324,12 +324,14 @@ types: `debug` (instrumentation tests), `preview` (the shipped preview: R8-shrun
 debuggable, signed with the local Android debug key) and `release` (unsigned, reserved
 for the store package).
 
-The verified handoff copy is `artifacts\plax-1.3.1-preview.apk`, byte for byte the website's
-`public\plax-1.3.1.apk` (`artifacts\verification.json` has its hash). `artifacts\` is deliberately
-git-ignored: the APKs and logs are local evidence, not repository content. The preview package is
-**com.plaxlabs.news.preview**, version **1.3.1-preview / code 5**; it installs over 1.3.0, 1.2.0, 1.1.0 and
-1.0.0 signed by the same debug key (1.2.0 to 1.3.1 and 1.3.0 to 1.3.1 were exercised, see below) and can
-coexist with other apps. It supports Android 8 / API 26 or newer and targets Android 16 / API 36. The manifest declares one
+The verified handoff copy is the newest `artifacts\plax-<version>-preview.apk` (now `plax-1.4.1-preview.apk`), byte
+for byte the website's `public\plax-<version>.apk`. `publish-update.ps1` leaves it there when it publishes, and
+`artifacts\update-verification.json` (written by `verify-update.ps1`) has the hash the live site was checked against.
+`artifacts\` is deliberately git-ignored: the APKs and logs are local evidence, not repository content. The preview
+package is **com.plaxlabs.news.preview**, version **1.4.1-preview / code 7**; it installs over every earlier preview
+build (1.0.0 to 1.4.0), all signed by the same debug key (1.3.1 to 1.4.0 and 1.4.0 to 1.4.1 were exercised through the
+real update feed, and 1.2.0 and 1.3.0 to 1.3.1 earlier; see below) and can coexist with other apps. It supports Android
+8 / API 26 or newer and targets Android 16 / API 36. The manifest declares one
 exported browsable filter, the sign-in return address above, and `singleTask` launch so the return
 reaches the running app.
 
@@ -361,7 +363,8 @@ so scripts do the checking. From `android\`:
    it unless it is the Plax preview package, not debuggable, the version in `build.gradle`, signed by
    the pinned key, within the size limit and newer than the published feed (the same build again is
    harmless; the same version code with different contents is refused). Only then does it copy the
-   file to `..\public\plax-<version>.apk`, remove older `plax-*.apk` and write `..\public\updates.json`.
+   file to `..\public\plax-<version>.apk`, remove older `plax-*.apk` and write `..\public\updates.json`;
+   last, it leaves a local copy of the same file at `artifacts\plax-<version>-preview.apk` (not committed).
 4. Commit `public\updates.json` and `public\plax-<version>.apk` and push `main`. Vercel deploys both
    in one deployment, so the feed never names a file that is not there. The advertised APK is the only
    one kept in `public\`; older ones stay in Git history.

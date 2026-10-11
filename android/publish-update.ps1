@@ -1,8 +1,10 @@
 #requires -Version 7.4
 <#
 Publishes a built Android APK as the website's update: copies it to public/plax-<version>.apk and writes
-public/updates.json, the feed the app reads. It only changes files. Committing and pushing them is what deploys
-the website, and verify-update.ps1 then checks what is really being served. See README.md, "Publishing an update".
+public/updates.json, the feed the app reads. Last, it leaves a local, Git-ignored copy of the published file at
+android/artifacts/plax-<version>-preview.apk, the one to install by hand or give to someone. It only changes files.
+Committing and pushing the public/ files is what deploys the website, and verify-update.ps1 then checks what is
+really being served. See README.md, "Publishing an update".
 
   .\publish-update.ps1                     # the preview build from build.ps1
   .\publish-update.ps1 -Apk C:\path\x.apk  # another build of the same package
@@ -99,8 +101,15 @@ $feed = [ordered]@{
 [System.IO.File]::WriteAllText($feedFile, (($feed | ConvertTo-Json) + "`n"), [System.Text.UTF8Encoding]::new($false))
 if ((Get-Item $feedFile).Length -gt 4096) { throw 'The feed is larger than the app accepts.' }
 
+# The same bytes beside the test evidence (artifacts\ is Git-ignored), under the name earlier handoffs used. It comes
+# last so that a failure here cannot leave public\ half updated.
+$handoff = Join-Path $PSScriptRoot 'artifacts'
+New-Item -ItemType Directory -Path $handoff -Force | Out-Null
+Copy-Item -LiteralPath $target -Destination (Join-Path $handoff "plax-$version-preview.apk") -Force
+
 Write-Output "Prepared $version (code $versionCode, minSdk $minSdk, $size bytes, sha256 $hash)."
 Write-Output "  public\plax-$version.apk"
 Write-Output "  public\updates.json"
 Write-Output 'Not published yet. Run the website checks, then commit and push these files with android\update-signer.sha256;'
 Write-Output 'when the deployment finishes run .\verify-update.ps1 to check what the site serves.'
+Write-Output "Local copy, not committed: android\artifacts\plax-$version-preview.apk"
