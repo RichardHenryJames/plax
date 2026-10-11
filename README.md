@@ -147,7 +147,7 @@ plax/
 │   ├── app/
 │   │   ├── globals.css                # Tailwind v4 + custom styles
 │   │   ├── layout.tsx                 # Root layout (AuthProviderWrapper)
-│   │   ├── page.tsx                   # Main page: public News first, then Feed / For you / Topics / Saved
+│   │   ├── page.tsx                   # Home: reads the first stories on the server (for crawlers), renders HomeApp
 │   │   ├── api/
 │   │   │   ├── auth-config/route.ts   # Public Supabase URL + anon key, for the Android app
 │   │   │   ├── feed/route.ts          # Content feed API (Node.js runtime); signs every card
@@ -172,6 +172,7 @@ plax/
 │   │   ├── Feed.tsx                   # Swipeable feed (drag, keyboard, scroll) + no-repeat engine wiring
 │   │   ├── ForYouEmpty.tsx            # For you before any topic is chosen
 │   │   ├── HeaderMenu.tsx             # The ⋮ menu: search, account, topics, theme
+│   │   ├── HomeApp.tsx                # The app itself: public News first, then Feed / For you / Topics / Saved
 │   │   ├── LeftRail.tsx               # Desktop navigation rail
 │   │   ├── NavBar.tsx                 # Mobile header (mark, English | हिन्दी, refresh, menu)
 │   │   ├── SavedScreen.tsx            # Saved stories

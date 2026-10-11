@@ -144,7 +144,7 @@ function needsEnhance(card: CardData, lang: string): boolean {
   return (base?.length ?? 0) >= 40
 }
 
-export function Feed({ categories }: { categories: string[] }) {
+export function Feed({ categories, seed }: { categories: string[]; seed?: Record<string, string>[] }) {
   const { bookmarkedIds, engagements, addEngagement, incrementCardsRead, markCardRead } = usePlaxStore()
   const language = usePlaxStore((s) => s.language)
   const newsSection = useUIStore((s) => s.newsSection)
@@ -435,7 +435,17 @@ export function Feed({ categories }: { categories: string[] }) {
       let result: 'done' | 'deeper' | 'failed' = 'done'
       try {
         result = await loadFirst(false, () => cancelled)
-        if (!cancelled && result === 'failed') setLoadFailed(cardsRef.current.length === 0)
+        if (!cancelled && result === 'failed') {
+          // Nothing cached and the server cannot be reached: offline, or a crawler that robots.txt keeps off /api/.
+          // Show the stories this page arrived with (the same ones the server would have sent) instead of an error.
+          if (cardsRef.current.length === 0 && sig === 'news' && seed && seed.length > 0) {
+            const fallback = replace([], [], mapApiCards(seed), seen(), Date.now())
+            earlierRef.current = fallback.earlier
+            setEarlierCount(fallback.earlier.length)
+            commit(fallback.visible)
+          }
+          setLoadFailed(cardsRef.current.length === 0)
+        }
       } catch (err) {
         console.error('[Plax Feed] Live fetch failed:', err)
       } finally {
