@@ -107,7 +107,7 @@ export default async function NewsSectionPage({ params }: Params) {
       {
         '@type': 'BreadcrumbList',
         itemListElement: [
-          { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_URL}/` },
+          { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL },
           { '@type': 'ListItem', position: 2, name: 'News', item: `${SITE_URL}/headlines` },
           { '@type': 'ListItem', position: 3, name: s.label, item: url },
         ],

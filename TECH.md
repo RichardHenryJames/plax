@@ -283,11 +283,19 @@ News pools rotate and clients keep stories for days, so a link cannot be re-reso
 - **Why 6-7 seconds.** The first release allowed 4 s and the installed app fell back to the publisher's link when a sleeping serverless instance had to start. From a workstation the endpoint needs 0.3-2.2 s for a story it has not stored (about 0.5 s warm), and a phone's network adds to that. Waiting is bounded, visible and cancellable by tapping again; being unable to wait is the failure to avoid.
 - **Fallback everywhere:** no signature (an older cached card, a quote), no publisher link, or any failure → the publisher's link is shared exactly as before.
 
+### Search visibility
+
+- **Automatic.** A new share is a page as soon as `POST /api/share` answers, and `sitemap.xml` lists it within about an hour (it is rebuilt hourly and carries the 500 newest shared stories). The domain's `robots.txt` belongs to the other application and lists this zone's `sitemap.xml` and `news-sitemap.xml` (checked on 11 October 2026), so nothing has to be set up here for crawlers to find them.
+- **One address per page.** The sitemap, `rel="canonical"`, `og:url`, the English/Hindi `hreflang` pair and the breadcrumbs must all name the same address, and it must answer `200` without a redirect. Under the `/news` base path the values in `alternates` are prefixed again (`'/news'` became `/news/news`, a `404`) and `'/'` becomes `/news/`, which redirects to `/news`. Use the page's own path (`'/headlines'`) and, for the home page, the absolute `SITE_URL`. Both mistakes were left over from the move to `/news` (the news hub named a canonical that did not exist, and the sitemap listed the redirecting home address) and were fixed on 11 October 2026.
+- **How to check.** Fetch `/news/sitemap.xml`, then every address in it without following redirects: each must answer `200`, carry no `noindex` and name itself as its canonical, and the English and Hindi hubs must name each other in `hreflang`.
+- **Manual, in Google Search Console** (DNS carries a Google verification record for `plaxlabs.com`, so a property probably exists): under Sitemaps add `news/sitemap.xml`, then watch Pages for the reason any address is not indexed. Indexing cannot be forced: Google says crawling takes from a few days to a few weeks, "Request indexing" in URL Inspection is for a few addresses and has a quota, and the Indexing API is only for job postings and livestream videos. A link sent in a private chat is never seen by a crawler, so sharing to WhatsApp does not by itself bring a page to Google; the sitemap does.
+- **`news-sitemap.xml` does not make Plax a Google News source.** Google's news sitemaps are for articles first published on the site in the last two days, with their real publication dates; this one lists the hub pages stamped with the time it was built (every 15 minutes). It does no harm and every address in it is also in `sitemap.xml`, so it is not worth submitting. Removing it would also mean editing the other application's `robots.txt`.
+
 ### Limits worth knowing
 
 - The page carries a short summary and the source's headline with attribution and a link out, as the `/headlines` pages already do. An original summary per story would be stronger for search and safer for copyright; that is not built.
 - There are no Android App Links: the domain root belongs to another application, so a tapped Plax link opens in the browser, not the app.
-- `/robots.txt` at the domain root is owned by that other application; discovery goes through this zone's `sitemap.xml`.
+- `/robots.txt` at the domain root is owned by that other application, which lists this zone's sitemaps (see *Search visibility*); `src/app/robots.ts` here is only the copy served at `/news/robots.txt`.
 
 ---
 

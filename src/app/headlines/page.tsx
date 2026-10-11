@@ -45,7 +45,7 @@ export async function generateMetadata(): Promise<Metadata> {
       'latest news', 'news today', 'India news', 'world news', 'breaking news',
       'top headlines', 'technology news', 'business news', 'science news', 'Plax news',
     ],
-    alternates: { canonical: '/news', languages: { 'en-IN': '/news', 'hi-IN': '/samachar' } },
+    alternates: { canonical: '/headlines', languages: { 'en-IN': '/headlines', 'hi-IN': '/samachar' } },
     openGraph: {
       title: 'Latest News Today — India & World Headlines | Plax',
       description:
@@ -88,7 +88,7 @@ export default async function NewsHubPage() {
       {
         '@type': 'BreadcrumbList',
         itemListElement: [
-          { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_URL}/` },
+          { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL },
           { '@type': 'ListItem', position: 2, name: 'News', item: url },
         ],
       },

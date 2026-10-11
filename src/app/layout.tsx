@@ -17,8 +17,9 @@ export const metadata: Metadata = {
   authors: [{ name: 'Plax Labs', url: SITE_URL }],
   creator: 'Plax Labs',
   publisher: 'Plax Labs',
+  // Absolute, because '/' would resolve to ".../news/", which redirects to ".../news".
   alternates: {
-    canonical: '/',
+    canonical: SITE_URL,
   },
   openGraph: {
     type: 'website',

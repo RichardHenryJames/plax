@@ -139,7 +139,7 @@ export default async function StoryPage({ params }: Params) {
         '@type': 'BreadcrumbList',
         '@id': `${pageUrl}#breadcrumb`,
         itemListElement: [
-          { '@type': 'ListItem', position: 1, name: 'Plax', item: `${SITE_URL}/` },
+          { '@type': 'ListItem', position: 1, name: 'Plax', item: SITE_URL },
           ...(tag.section ? [{ '@type': 'ListItem', position: 2, name: tag.text, item: `${SITE_URL}/headlines/${tag.section}` }] : []),
           { '@type': 'ListItem', position: tag.section ? 3 : 2, name: headline, item: pageUrl },
         ],

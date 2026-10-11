@@ -13,7 +13,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const staticRoutes: MetadataRoute.Sitemap = [
     {
-      url: `${SITE_URL}/`,
+      // Without the trailing slash: ".../news/" redirects to this address.
+      url: SITE_URL,
       lastModified: now,
       changeFrequency: 'daily',
       priority: 1,

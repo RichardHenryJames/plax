@@ -30,7 +30,7 @@ export async function generateMetadata(): Promise<Metadata> {
       'ताज़ा खबरें', 'आज की खबरें', 'हिंदी समाचार', 'भारत समाचार', 'ब्रेकिंग न्यूज़',
       'हिंदी न्यूज़', 'दुनिया की खबरें', 'Plax समाचार', 'latest hindi news',
     ],
-    alternates: { canonical: '/samachar', languages: { 'hi-IN': '/samachar', 'en-IN': '/news' } },
+    alternates: { canonical: '/samachar', languages: { 'hi-IN': '/samachar', 'en-IN': '/headlines' } },
     openGraph: {
       title: 'आज की ताज़ा खबरें — भारत और दुनिया | Plax',
       description: 'भारत और दुनिया की प्रमुख सुर्खियाँ, आसान भाषा में — लगातार अपडेट।',
