@@ -16,7 +16,8 @@ export default function PrivacyPage() {
     <LegalPage title="Privacy Policy" updated={LEGAL.updated}>
       <P>
         This policy covers the Plax app for Android and the Plax website at plaxlabs.com/news, both made by {LEGAL.operator}. Plax
-        shows short summaries of news stories from publishers, in English and Hindi, with a link to the full story.
+        shows short summaries of news stories from publishers, in English and Hindi, with a link to the full story. Questions about
+        this policy, the app or your data: {mail}.
       </P>
 
       <Section title="The short version">
@@ -151,7 +152,7 @@ export default function PrivacyPage() {
         </P>
       </Section>
 
-      <Section title="Contact">
+      <Section title="Contact" id="contact">
         <P>
           {LEGAL.operator}, {mail}.
         </P>

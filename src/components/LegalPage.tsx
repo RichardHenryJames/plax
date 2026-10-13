@@ -32,9 +32,9 @@ export function LegalPage({ title, updated, children }: { title: string; updated
   )
 }
 
-export function Section({ title, children }: { title: string; children: ReactNode }) {
+export function Section({ title, id, children }: { title: string; id?: string; children: ReactNode }) {
   return (
-    <section className="mt-9">
+    <section id={id} className="mt-9 scroll-mt-6">
       <h2 className="headline text-[22px] sm:text-[26px] text-white mb-3">{title}</h2>
       <div className="space-y-3.5">{children}</div>
     </section>
