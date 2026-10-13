@@ -442,7 +442,7 @@ reports.
 
 | Item | State |
 |---|---|
-| Privacy policy URL | `https://www.plaxlabs.com/news/privacy`, live once this version is deployed; also linked inside the app |
+| Privacy policy URL | `https://www.plaxlabs.com/news/privacy` (live), also linked inside the app |
 | Account deletion | In the app: Account, then Delete account. Web resource for the Data safety form: `https://www.plaxlabs.com/news/delete-account` |
 | Data safety | Answer from what the code does (below), then check it against Google's definitions |
 | App access | Nothing is locked: every feature works without signing in, so no reviewer login is needed |
@@ -451,7 +451,7 @@ reports.
 | Content rating | The questionnaire is yours to answer; the feed shows publishers' headlines, which can be about crime or violence |
 | News apps | If the Console asks for a news-app declaration, the publisher is Plax Labs and every story is attributed to its source with a link out |
 | Testing | A personal developer account created after 13 November 2023 must first run a closed test with at least 12 testers for 14 days |
-| Listing | Name, short and full description, a 512 px icon, a 1024x500 feature graphic and 2 to 8 phone screenshots (at most 2:1) |
+| Listing | Name, short and full description, a 512 px icon, a 1024x500 feature graphic and 2 to 8 phone screenshots (at most 2:1). Drafts of the text and the three kinds of graphic, made from the app's own launcher vector and real screenshots of the store build (1080x2160), are in `artifacts\play\` (local, not committed) |
 | Content licensing | Plax shows headlines, short summaries and pictures that belong to publishers, with attribution and a link to the full story. Whether that is acceptable for a store listing is a licensing question for you, not something a test can show |
 
 *Data safety, from the code.* Nothing is collected without an account except what any web service sees (an IP address in the
@@ -649,6 +649,11 @@ On the isolated Android 16 (API 36, x86_64) `Plax_News_Test` emulator, the devel
 - **The new Android screens on the emulator**, light and dark: the signed-in sheet with the outlined **Delete account** button, the
   confirmation, the spinner while it runs, and the signed-out sheet with "Your account was deleted" and its toast. The dialog buttons'
   contrast was measured (1.58:1 before, 5.18:1 after, light theme) and the result photographed.
+- **Production, after deployment**: `/privacy` and `/delete-account` answer 200 (one `h1`, their own canonical address, indexable) and are in
+  `sitemap.xml`; `POST /api/account/delete` answers 401 to no header and to a made-up token (which shows it reached the real account service
+  and was refused: a missing configuration or an unreachable service would be 503) and 405 to GET, always `no-store`; the update feed still
+  serves 1.4.1, so the website's installed apps are untouched; and the store build installed from the bundle opens the live privacy page from
+  its menu in a Chrome Custom Tab. No real account was deleted in production: a real deletion there would need a real reader's account.
 - **Builds and tests**: debug, preview and release build; lint **0 errors**, 1 warning (a newer Gradle exists) for debug and preview;
   **150 JVM tests** listed, 0 failing, 14 opt-in skipped; **72 device tests** pass (210 s, clean app, settled emulator); website `tsc` clean,
   `npm test` **122** (112 before), production build.
