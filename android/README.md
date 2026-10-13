@@ -438,7 +438,10 @@ new apps from 31 August 2026); is not debuggable; has cleartext traffic and back
 There is no native code, so Google Play's 16 KB page-size rule does not apply. The R8 mapping travels inside the bundle for crash
 reports.
 
-**What only you can do in the Play Console**, and what to enter (nothing here is submitted for you):
+**What only you can do in the Play Console**, and what to enter (nothing here is submitted for you). The complete,
+field-by-field version, with the copy-paste listing text, the Data safety answers, the declarations, the reviewer text and the
+release steps, each item marked READY, DRAFT, OWNER or HOLD, is [`PLAY-CONSOLE-ANSWERS-1.5.0.txt`](PLAY-CONSOLE-ANSWERS-1.5.0.txt)
+next to this file; this table is only the summary:
 
 | Item | State |
 |---|---|
@@ -449,14 +452,15 @@ reports.
 | Ads | None |
 | Target audience | The policy says Plax is for people 13 and over, so choose 13+ (not children) to match it |
 | Content rating | The questionnaire is yours to answer; the feed shows publishers' headlines, which can be about crime or violence |
-| News apps | If the Console asks for a news-app declaration, the publisher is Plax Labs and every story is attributed to its source with a link out |
+| News apps | Plax is an aggregator, so the News and Magazine declaration applies (required since 27 August 2025). Every story is attributed to its source with a link out; the answers are in section 9 of the answers file, and the legal-entity facts are yours |
 | Testing | A personal developer account created after 13 November 2023 must first run a closed test with at least 12 testers for 14 days |
-| Listing | Name, short and full description, a 512 px icon, a 1024x500 feature graphic and 2 to 8 phone screenshots (at most 2:1). Drafts of the text and the three kinds of graphic, made from the app's own launcher vector and real screenshots of the store build (1080x2160), are in `artifacts\play\` (local, not committed) |
+| Listing | The copy-paste text (English, and a Hindi draft), its character counts and the alt text are in the answers file. The graphics (a 512 px icon, a 1024x500 feature graphic and six 1080x2160 phone screenshots of the store build, at most 2:1) are in `artifacts\play\` (local, not committed). Three screenshots show a publisher's photograph: see the note in section 4 of the answers file before uploading them |
 | Content licensing | Plax shows headlines, short summaries and pictures that belong to publishers, with attribution and a link to the full story. Whether that is acceptable for a store listing is a licensing question for you, not something a test can show |
 
 *Data safety, from the code.* Nothing is collected without an account except what any web service sees (an IP address in the
 hosting provider's connection log), which Google treats as processed, not collected, when it is not stored by you. With a Google
-account: email address and name (Personal info), the account id (Identifiers), the topics chosen and the stories saved (the
+account: email address and name (Personal info), the address of the Google profile picture (declare it as Photos to be safe),
+the account id (Identifiers), the topics chosen and the stories saved (the
 Android app) and, on the website only, reading activity. Purpose: app functionality and account management. Encrypted in transit
 (HTTPS). Users can ask for deletion, in the app and at the web resource above. No data is sold, and none is shared for advertising;
 story text sent for an AI brief goes to AI services acting for Plax and carries no account.
