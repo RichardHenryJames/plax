@@ -102,6 +102,9 @@ public class AccountLocalStackTest {
         }
         anon = values.get("ANON_KEY"); service = values.get("SERVICE_KEY"); jwtSecret = values.get("JWT_SECRET");
         assertTrue("ANON_KEY, SERVICE_KEY and JWT_SECRET are expected in " + path, anon != null && service != null && jwtSecret != null);
+        // Deleting an account is the one website call that can run for real: against a local build of the website that
+        // uses this same stack (PLAX_LOCAL_SITE, e.g. http://127.0.0.1:3128/news). Without it that test is skipped.
+        String localSite = System.getenv("PLAX_LOCAL_SITE");
         OkHttpClient app = new OkHttpClient.Builder().followRedirects(false).followSslRedirects(false).addInterceptor(chain -> {
             Request request = chain.request();
             HttpUrl url = request.url();
@@ -109,6 +112,9 @@ public class AccountLocalStackTest {
                 String body = "{\"url\":\"https://" + PROJECT_HOST + "\",\"anonKey\":\"" + anon + "\"}";
                 return new Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(200).message("OK")
                         .body(ResponseBody.create(body, MediaType.get("application/json"))).build();
+            }
+            if (localSite != null && !localSite.isBlank() && url.toString().equals(FeedApi.SITE + "/api/account/delete")) {
+                return chain.proceed(request.newBuilder().url(localSite + "/api/account/delete").build());
             }
             if (!url.host().equals(PROJECT_HOST)) throw new IOException("The account code contacted " + url.host());
             return chain.proceed(request.newBuilder().url(url.newBuilder().scheme("http").host("127.0.0.1").port(54321).build()).build());
@@ -363,6 +369,39 @@ public class AccountLocalStackTest {
                 || !phone.store.text.contains(held.access()) && !phone.store.text.contains(held.refresh()) && !phone.store.text.contains("\"session\""));
         try { supabase.refresh(config, held.refresh()); fail("the old refresh token must be dead"); }
         catch (AuthApi.Rejected refused) { assertTrue("HTTP " + refused.status, refused.status == 400 || refused.status == 401 || refused.status == 403); }
+    }
+
+    @Test public void deletingTheAccountThroughTheWebsiteRemovesItAndItsDataAndNobodyElses() throws Exception {
+        String site = System.getenv("PLAX_LOCAL_SITE");
+        Assume.assumeTrue("Set PLAX_LOCAL_SITE to a local build of the website that uses this stack, e.g. http://127.0.0.1:3128/news",
+                site != null && !site.isBlank());
+        String first = email(), second = email();
+        Phone leaving = new Phone(Set.of("science", "space"), List.of(story("story-a"), story("story-b")));
+        leaving.signInAs(first);
+        Phone staying = new Phone(Set.of("art"), List.of(story("story-z")));
+        staying.signInAs(second);
+        String leavingId = userId(first), stayingId = userId(second);
+        AuthApi.Tokens held = tokensOf(leaving);
+        assertEquals("the account holds what the phone uploaded", Set.of("story-a", "story-b"), bookmarkIds(leavingId));
+
+        leaving.account.deleteAccount();
+
+        assertEquals(AccountManager.Phase.SIGNED_OUT, leaving.account.status().phase());
+        assertEquals("the reader is told it is done", R.string.account_deleted, leaving.account.status().message());
+        assertTrue("no token is kept on the phone", leaving.store.text == null
+                || !leaving.store.text.contains(held.access()) && !leaving.store.text.contains(held.refresh()) && !leaving.store.text.contains("\"session\""));
+        assertEquals("the account's profile row is gone", 0, rows("user_profiles?id=eq." + leavingId + "&select=id").size());
+        assertEquals("its saved stories are gone", Set.of(), bookmarkIds(leavingId));
+        assertEquals("its reading activity is gone", 0, rows("engagements?user_id=eq." + leavingId + "&select=id").size());
+        send(new Request.Builder().url(GATEWAY + "/auth/v1/admin/users/" + leavingId)
+                .header("apikey", service).header("Authorization", "Bearer " + service).build(), 404);
+        assertEquals("the phone's own topics are left alone", Set.of("science", "space"), leaving.topics);
+        try { supabase.refresh(config, held.refresh()); fail("the old refresh token must be dead"); }
+        catch (AuthApi.Rejected refused) { assertTrue("HTTP " + refused.status, refused.status == 400 || refused.status == 401 || refused.status == 403); }
+
+        assertEquals("another reader's topics are untouched", Set.of("art"), storedTopics(stayingId));
+        assertEquals("and their saved story", Set.of("story-z"), bookmarkIds(stayingId));
+        assertEquals(AccountManager.Phase.SIGNED_IN, staying.account.status().phase());
     }
 
     @Test public void theStreakFunctionChangesOnlyTheCallersOwnRow() throws Exception {

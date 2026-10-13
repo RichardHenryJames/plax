@@ -16,6 +16,9 @@ final class AccountSheet {
         void signIn();
         void interests();
         void website();
+        /** Asks for confirmation, then deletes the account. */
+        void deleteAccount();
+        void privacy();
     }
 
     final BottomSheetDialog dialog;
@@ -69,6 +72,11 @@ final class AccountSheet {
 
     private void render(AccountManager.Status status) {
         content.removeAllViews();
+        // While the account is being deleted nothing else is offered: there is nothing to tap that would not be ignored.
+        if (status.phase() == AccountManager.Phase.SIGNED_IN && status.message() == R.string.account_deleting) {
+            progress(R.string.account_deleting);
+            return;
+        }
         switch (status.phase()) {
             case SIGNED_IN -> signedIn(status);
             case WAITING -> waiting(status);
@@ -85,22 +93,30 @@ final class AccountSheet {
         LinearLayout.LayoutParams size = new LinearLayout.LayoutParams(-1, -2);
         size.topMargin = ui.dp(20);
         content.addView(ui.primaryButton(R.string.sign_in_google, actions::signIn), size);
+        LinearLayout.LayoutParams policy = new LinearLayout.LayoutParams(-1, -2);
+        policy.topMargin = ui.dp(10);
+        content.addView(ui.secondaryButton(activity.getString(R.string.privacy_policy), actions::privacy), policy);
     }
 
     private void waiting(AccountManager.Status status) {
+        progress(R.string.signing_in);
+        LinearLayout.LayoutParams size = new LinearLayout.LayoutParams(-1, -2);
+        size.topMargin = ui.dp(20);
+        if (!status.busy()) content.addView(ui.secondaryButton(activity.getString(R.string.sign_in_cancel), account::cancel), size);
+    }
+
+    /** A spinner and what is being waited for, announced to screen readers as it appears. */
+    private void progress(int message) {
         LinearLayout row = ui.row();
         ProgressBar progress = new ProgressBar(activity);
         progress.setIndeterminateTintList(android.content.res.ColorStateList.valueOf(ui.accentText));
-        progress.setContentDescription(activity.getString(R.string.signing_in));
+        progress.setContentDescription(activity.getString(message));
         row.addView(progress, new LinearLayout.LayoutParams(ui.dp(24), ui.dp(24)));
-        TextView text = ui.text(activity.getString(R.string.signing_in), 15, ui.text, true);
+        TextView text = ui.text(activity.getString(message), 15, ui.text, true);
         text.setPadding(ui.dp(12), 0, 0, 0);
         text.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         row.addView(text, new LinearLayout.LayoutParams(0, -2, 1));
         content.addView(row);
-        LinearLayout.LayoutParams size = new LinearLayout.LayoutParams(-1, -2);
-        size.topMargin = ui.dp(20);
-        if (!status.busy()) content.addView(ui.secondaryButton(activity.getString(R.string.sign_in_cancel), account::cancel), size);
     }
 
     private void signedIn(AccountManager.Status status) {
@@ -119,6 +135,9 @@ final class AccountSheet {
         LinearLayout.LayoutParams out = new LinearLayout.LayoutParams(-1, -2);
         out.topMargin = ui.dp(10);
         content.addView(ui.secondaryButton(activity.getString(R.string.sign_out), account::signOut), out);
+        LinearLayout.LayoutParams remove = new LinearLayout.LayoutParams(-1, -2);
+        remove.topMargin = ui.dp(10);
+        content.addView(ui.dangerButton(activity.getString(R.string.account_delete), actions::deleteAccount), remove);
     }
 
     private void note(int message) {

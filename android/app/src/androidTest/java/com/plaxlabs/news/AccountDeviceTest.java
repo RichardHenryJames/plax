@@ -7,6 +7,7 @@ import android.os.SystemClock;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+import androidx.appcompat.app.AlertDialog;
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -30,7 +31,7 @@ public class AccountDeviceTest {
     private static final String CODE = "c".repeat(36);
 
     private static final class FakeAuth implements AuthApi {
-        IOException checkFailure;
+        IOException checkFailure, deleteFailure;
         final List<String> calls = Collections.synchronizedList(new ArrayList<>());
         volatile String lastCode;
 
@@ -42,6 +43,10 @@ public class AccountDeviceTest {
         }
         @Override public Tokens refresh(AuthConfig config, String refreshToken) throws IOException { throw new IOException("unused"); }
         @Override public void logout(AuthConfig config, String access) { calls.add("logout"); }
+        @Override public void deleteAccount(String access) throws IOException {
+            calls.add("delete");
+            if (deleteFailure != null) throw deleteFailure;
+        }
     }
 
     private static final class FakeCloud implements CloudApi {
@@ -136,17 +141,23 @@ public class AccountDeviceTest {
         FakeAuth auth = new FakeAuth();
         auth.checkFailure = new IOException("down");
         AccountManager manager = manager(auth, new FakeCloud(), new MemoryStore());
+        boolean[] privacyOpened = new boolean[1];
         try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
             AccountSheet[] sheet = new AccountSheet[1];
             scenario.onActivity(activity -> sheet[0] = AccountSheet.show(activity, new Ui(activity), manager, new AccountSheet.Actions() {
                 @Override public void signIn() { manager.begin(url -> { throw new AssertionError("No browser for a service that is down"); }); }
                 @Override public void interests() { }
                 @Override public void website() { }
+                @Override public void deleteAccount() { throw new AssertionError("Nothing to delete when signed out"); }
+                @Override public void privacy() { privacyOpened[0] = true; }
             }));
             View root = sheet[0].dialog.getWindow().getDecorView();
             assertNotNull(find(root, "Your Plax account"));
             assertNotNull(findContaining(root, "Plax works without an account"));
             assertNotNull(findContaining(root, "uploads your chosen topics and saved stories"));
+            assertNull("There is no account to delete before signing in", find(root, "Delete account"));
+            InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> find(root, "Privacy policy").performClick());
+            assertTrue("The privacy policy is one tap from where sign-in is offered", privacyOpened[0]);
             InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> find(root, "Continue with Google").performClick());
             await("the unavailable notice", () -> find(root, "Sign-in is temporarily unavailable. Plax keeps working without it; try again later.") != null);
             assertNotNull("The reader can try again", find(root, "Continue with Google"));
@@ -193,6 +204,90 @@ public class AccountDeviceTest {
             assertEquals("Topics stay on the phone after signing out", Set.of("history", "space"), Interests.read(context));
             InstrumentationRegistry.getInstrumentation().runOnMainSync(sheet[0]::dismiss);
         }
+    }
+
+    @Test public void deletingTheAccountAsksFirstThenDeletesAndLeavesTheReadersDataOnThePhone() throws Exception {
+        FakeAuth auth = new FakeAuth();
+        AccountManager manager = signedInThroughTheBrowserReturn(auth);
+        Interests.write(context, Set.of("history"));
+        try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(browserReturn())) {
+            await("the sign-in", manager::signedIn);
+            View root = openAccountSheet(scenario);
+            await("the signed-in view", () -> find(root, "Signed in as Asha Rao") != null);
+
+            // Asking comes first, and saying no deletes nothing.
+            InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> find(root, "Delete account").performClick());
+            AlertDialog ask = awaitDialog(scenario);
+            assertNotNull(find(ask.getWindow().getDecorView(), "Delete your Plax account?"));
+            assertNotNull(findContaining(ask.getWindow().getDecorView(), "cannot be undone"));
+            InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> ask.getButton(AlertDialog.BUTTON_NEGATIVE).performClick());
+            await("the dialog to close", () -> !ask.isShowing());
+            SystemClock.sleep(300);
+            assertTrue("Cancelling deleted nothing", manager.signedIn() && !auth.calls.contains("delete"));
+
+            // Saying yes deletes the account and leaves the reader signed out, with the phone's own data in place.
+            InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> find(root, "Delete account").performClick());
+            AlertDialog confirm = awaitDialog(scenario);
+            InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> confirm.getButton(AlertDialog.BUTTON_POSITIVE).performClick());
+            await("the deletion to reach the account service", () -> auth.calls.contains("delete"));
+            await("the signed-out view", () -> find(root, "Continue with Google") != null);
+            assertFalse(manager.signedIn());
+            assertNotNull("The reader is told it is done", findContaining(root, "Your account was deleted"));
+            assertNull("There is no account left to delete", find(root, "Delete account"));
+            assertFalse("Deleting is not a sign-out: there is no session left to revoke", auth.calls.contains("logout"));
+            assertEquals("Topics stay on the phone after deleting the account", Set.of("history"), Interests.read(context));
+            InstrumentationRegistry.getInstrumentation().runOnMainSync(shownSheet(scenario)::dismiss);
+        }
+    }
+
+    @Test public void aDeletionThatFailsKeepsTheReaderSignedInAndTellsThem() throws Exception {
+        FakeAuth auth = new FakeAuth();
+        auth.deleteFailure = new IOException("offline");
+        AccountManager manager = signedInThroughTheBrowserReturn(auth);
+        try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(browserReturn())) {
+            await("the sign-in", manager::signedIn);
+            View root = openAccountSheet(scenario);
+            await("the signed-in view", () -> find(root, "Signed in as Asha Rao") != null);
+            InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> find(root, "Delete account").performClick());
+            AlertDialog confirm = awaitDialog(scenario);
+            InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> confirm.getButton(AlertDialog.BUTTON_POSITIVE).performClick());
+            await("the notice", () -> findContaining(root, "Could not delete your account right now") != null);
+            assertTrue("Still signed in", manager.signedIn());
+            assertNotNull("and able to try again", find(root, "Delete account"));
+            InstrumentationRegistry.getInstrumentation().runOnMainSync(shownSheet(scenario)::dismiss);
+        }
+    }
+
+    /** A manager that is waiting for the browser's return, so the callback intent below completes a sign-in. */
+    private AccountManager signedInThroughTheBrowserReturn(FakeAuth auth) {
+        AccountManager manager = manager(auth, new FakeCloud(), new MemoryStore());
+        AccountManager.use(manager);
+        manager.begin(url -> { });
+        await("the pending sign-in", () -> manager.status().phase() == AccountManager.Phase.WAITING);
+        return manager;
+    }
+
+    private Intent browserReturn() {
+        return new Intent(Intent.ACTION_VIEW, Uri.parse(BuildConfig.AUTH_SCHEME + "://auth-callback?code=" + CODE))
+                .setClass(context, MainActivity.class);
+    }
+
+    private static AccountSheet shownSheet(ActivityScenario<MainActivity> scenario) {
+        AccountSheet[] sheet = new AccountSheet[1];
+        scenario.onActivity(activity -> sheet[0] = shownAccountSheet(activity));
+        return sheet[0];
+    }
+
+    /** The account sheet the browser's return opens, as the view tree to look in. */
+    private static View openAccountSheet(ActivityScenario<MainActivity> scenario) {
+        await("the account sheet", () -> { AccountSheet shown = shownSheet(scenario); return shown != null && shown.isShowing(); });
+        return shownSheet(scenario).dialog.getWindow().getDecorView();
+    }
+
+    private static AlertDialog awaitDialog(ActivityScenario<MainActivity> scenario) {
+        AlertDialog[] dialog = new AlertDialog[1];
+        await("the confirmation", () -> { scenario.onActivity(activity -> dialog[0] = activity.openDialog); return dialog[0] != null && dialog[0].isShowing(); });
+        return dialog[0];
     }
 
     @Test public void topicsChosenWhileSignedInAreSentToTheAccount() throws Exception {

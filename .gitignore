@@ -44,6 +44,8 @@ next-env.d.ts
 /android/artifacts/
 *.jks
 *.keystore
+# The Google Play upload key's passwords live outside the repository; this keeps a copy made by mistake out of Git too.
+upload.properties
 
 # Local Supabase test stack: throwaway secrets and the gateway's keys are generated, never committed
 /scripts/auth-stack/.env

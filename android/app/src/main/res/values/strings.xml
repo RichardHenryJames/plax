@@ -138,6 +138,14 @@
     <string name="account_expired">Your sign-in expired. Sign in again to keep syncing.</string>
     <string name="account_sync_failed">Could not sync right now. Your changes are kept and will be sent later.</string>
     <string name="account_manage">Manage account on the website</string>
+    <string name="account_delete">Delete account</string>
+    <string name="account_delete_title">Delete your Plax account?</string>
+    <string name="account_delete_message">This permanently deletes your Plax account and everything stored in it: your email, name, topics, saved stories and reading activity. It cannot be undone.\n\nTopics and saved stories already on this phone stay here.</string>
+    <string name="account_delete_confirm">Delete permanently</string>
+    <string name="account_deleting">Deleting your account&#8230;</string>
+    <string name="account_deleted">Your account was deleted. Your topics and saved stories stay on this phone.</string>
+    <string name="account_delete_failed">Could not delete your account right now. Nothing was changed. Please try again.</string>
+    <string name="privacy_policy">Privacy policy</string>
     <string name="account_signed_out">Signed out. Your topics and saved stories stay on this phone.</string>
     <string name="account_signed_in">Signed in</string>
     <string name="update_check">Check for updates</string>

@@ -493,6 +493,7 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
         menu.getMenu().add(R.string.interests_title).setOnMenuItemClickListener(item -> { chooseInterests(); return true; });
         menu.getMenu().add(R.string.theme).setOnMenuItemClickListener(item -> { chooseTheme(); return true; });
         menu.getMenu().add(R.string.about).setOnMenuItemClickListener(item -> { about(); return true; });
+        menu.getMenu().add(R.string.privacy_policy).setOnMenuItemClickListener(item -> { open(FeedApi.PRIVACY_URL); return true; });
         menu.getMenu().add(updates.storeBuild() ? R.string.update_play : R.string.update_check)
                 .setOnMenuItemClickListener(item -> { updates.check(true); return true; });
         menu.getMenu().add(R.string.open_site).setOnMenuItemClickListener(item -> { open(FeedApi.SITE); return true; });
@@ -525,7 +526,18 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
             @Override public void signIn() { startSignIn(); }
             @Override public void interests() { accountSheet.dismiss(); chooseInterests(); }
             @Override public void website() { open(FeedApi.SITE); }
+            @Override public void deleteAccount() { confirmDeleteAccount(); }
+            @Override public void privacy() { open(FeedApi.PRIVACY_URL); }
         });
+    }
+
+    /** Asks first: a deleted account cannot be brought back. The sheet shows the progress and the result. */
+    private void confirmDeleteAccount() {
+        if (openDialog != null && openDialog.isShowing()) return;
+        openDialog = new MaterialAlertDialogBuilder(this).setTitle(R.string.account_delete_title)
+                .setMessage(R.string.account_delete_message)
+                .setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.account_delete_confirm, (dialog, which) -> accountManager.deleteAccount()).show();
     }
 
     /** Checks the account service first, so the reader is never sent to a browser page that cannot work. */
@@ -556,7 +568,8 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
         if (lastPhase != status.phase()) {
             if (lastPhase == AccountManager.Phase.WAITING && status.phase() == AccountManager.Phase.SIGNED_IN)
                 Toast.makeText(this, R.string.account_signed_in, Toast.LENGTH_SHORT).show();
-            if (status.message() == R.string.account_signed_out) Toast.makeText(this, status.message(), Toast.LENGTH_LONG).show();
+            if (status.message() == R.string.account_signed_out || status.message() == R.string.account_deleted)
+                Toast.makeText(this, status.message(), Toast.LENGTH_LONG).show();
             lastPhase = status.phase();
             if (shown != null) render(shown);
         }
@@ -608,6 +621,7 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
         if (!updates.storeBuild()) text += "\n\n" + getString(R.string.about_updates);
         openDialog = new MaterialAlertDialogBuilder(this).setTitle(R.string.about)
                 .setMessage(text)
+                .setNeutralButton(R.string.privacy_policy, (dialog, which) -> open(FeedApi.PRIVACY_URL))
                 .setPositiveButton(R.string.done, null).show();
     }
 

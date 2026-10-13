@@ -5,10 +5,33 @@ it does not depend on Vanishr or its signing keys, relay, account data or code.
 It reads the Plax public feed (`https://www.plaxlabs.com/news`) and, for the
 optional AI brief, the summarize endpoint. It works without an account; signing in
 with Google is optional and only syncs your topics and saved stories (see
-*Optional sign-in*). About once a day it also asks the website whether a newer build
-exists (see *Updates from inside the app*). Apart from sign-in and that update check,
+*Optional sign-in*), and can be deleted again from the app (see *What is in 1.5.0*). About once a day it also asks the website whether a newer build
+exists (see *Updates from inside the app*), except in the Google Play build, which Google Play updates (see *Publishing to Google Play*). Apart from sign-in and that update check,
 which need the two small routes and the one small file listed under *Backend changes*,
 the app works against the backend as it was before this version.
+
+## What is in 1.5.0 (versionCode 8): ready for Google Play
+
+The first version built as a Google Play bundle (`com.plaxlabs.news`, the store build) as well as the website's preview
+APK. Google Play requires an account made inside an app to be deletable from the app and from a web page, and a privacy
+policy that is linked from inside the app. Plax had neither, so this version adds them. How the app reads, saves and shares
+did not change.
+
+- **Delete account** (Account sheet, signed in). A red outlined button asks first ("This permanently deletes your Plax
+  account and everything stored in it ... It cannot be undone. Topics and saved stories already on this phone stay here"),
+  then the app calls the website's `POST /api/account/delete` with the reader's own access token, refreshed and retried once
+  like every other account call. The website asks the account service whose token it is and deletes *that* user only; the
+  profile, saved stories and reading activity go with it (`ON DELETE CASCADE`). If it cannot be done the reader stays signed in
+  and is told "Nothing was changed"; if it is done the phone is signed out (without a pointless logout call), keeps its own topics
+  and saved stories, and says so. While it runs the sheet shows only a spinner.
+- **Privacy policy in the app**: the menu, **About** and the sign-in screen open `https://www.plaxlabs.com/news/privacy`, the page
+  Google Play is told about. `https://www.plaxlabs.com/news/delete-account` is the web resource for people who no longer have the
+  app: sign in with Google and delete, or email.
+- **Dialog buttons are readable in the light theme.** Their text was the accent colour, 1.6:1 against the dialog (the guideline
+  is 4.5:1); it is now the accent-text colour, 5.2:1. The dark theme is unchanged (8.8:1). This affects every dialog, including
+  the older ones.
+- **Store tooling**: release signing from a private upload key, `new-upload-key.ps1` and `package-aab.ps1`.
+- No new permission, library, analytics or tracking: the store build still asks for `INTERNET` only.
 
 ## What is in 1.4.1 (preview, versionCode 7)
 
@@ -321,8 +344,8 @@ $env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
 
 This builds the debug and preview APKs, runs the unit tests and lints both. Build
 types: `debug` (instrumentation tests), `preview` (the shipped preview: R8-shrunk, not
-debuggable, signed with the local Android debug key) and `release` (unsigned, reserved
-for the store package).
+debuggable, signed with the local Android debug key) and `release` (the Google Play store
+build, signed with the Plax upload key when it is present; see *Publishing to Google Play*).
 
 The verified handoff copy is the newest `artifacts\plax-<version>-preview.apk` (now `plax-1.4.1-preview.apk`), byte
 for byte the website's `public\plax-<version>.apk`. `publish-update.ps1` leaves it there when it publishes, and
@@ -335,11 +358,9 @@ real update feed, and 1.2.0 and 1.3.0 to 1.3.1 earlier; see below) and can coexi
 exported browsable filter, the sign-in return address above, and `singleTask` launch so the return
 reaches the running app.
 
-The release package is reserved as `com.plaxlabs.news`; release signing is
-intentionally not configured. Do not use the preview/debug key for a public store
-release. A dedicated private signing identity, actual-device QA, publisher/content
-licence review and store disclosures are required before publication. Nothing is
-automatically published.
+The release package is `com.plaxlabs.news`, built by `package-aab.ps1` and signed with its own private upload key, never
+the preview/debug key (see *Publishing to Google Play*). Publisher and content licensing and the store's disclosures are the
+owner's to review before publication. Nothing is automatically published.
 
 **The update signer.** Android installs an update only over an app signed with the same key, so
 every published preview build must be signed with the key behind the copies people already have:
@@ -394,6 +415,52 @@ the build stop being offered it. Copies that already updated stay updated, becau
 install a lower version code over a higher one without an uninstall. A broken build is therefore
 fixed by publishing a higher version, not by withdrawing one.
 
+## Publishing to Google Play
+
+The `release` build type is the store build: package `com.plaxlabs.news`, R8-shrunk, `PLAY_STORE = true` (it never looks for
+updates itself; the menu says **Open Google Play** instead, and **About** says nothing about update checks), and its own Google
+sign-in return scheme (`com.plaxlabs.news`, which the website's `/auth/app` route already accepts). The website keeps
+distributing the separate `com.plaxlabs.news.preview` APK; the two install side by side and are updated by different channels.
+
+**The upload key (once).** `.\new-upload-key.ps1` makes a 4096-bit RSA key in `%USERPROFILE%\.plax-signing\`, outside the
+repository and readable only by your account, and an `upload.properties` that `app\build.gradle` reads (`PLAX_UPLOAD_PROPERTIES`
+names another place). The passwords are random, written only to that file and never printed. **Back the folder up somewhere
+private.** With Play App Signing (the default for new apps) Google keeps the key that signs what people install; this key only
+proves that an upload is yours, and if it is lost Google Play support can register a new one. It is never the Android debug
+key, which `package-aab.ps1` refuses. Without the file the release type is simply unsigned.
+
+**The bundle.** `.\package-aab.ps1` builds `:app:bundleRelease`, checks the result with Google's bundletool (downloaded once from
+its official release into `.tools\` and compared with the SHA-256 that release publishes) and leaves `artifacts\plax-<version>.aab`,
+the R8 mapping and `artifacts\aab-verification.json`. It stops unless the bundle validates; has exactly one signer and it is the
+upload key; is `com.plaxlabs.news` at the version in `app\build.gradle`; has min SDK 26 and target SDK 36 (Google Play requires 36 for
+new apps from 31 August 2026); is not debuggable; has cleartext traffic and backups off; asks for no permission but `INTERNET`
+(plus the AndroidX receiver-protection one) and never `REQUEST_INSTALL_PACKAGES`; and is under 200 MB. `-NoBuild` only re-checks.
+There is no native code, so Google Play's 16 KB page-size rule does not apply. The R8 mapping travels inside the bundle for crash
+reports.
+
+**What only you can do in the Play Console**, and what to enter (nothing here is submitted for you):
+
+| Item | State |
+|---|---|
+| Privacy policy URL | `https://www.plaxlabs.com/news/privacy`, live once this version is deployed; also linked inside the app |
+| Account deletion | In the app: Account, then Delete account. Web resource for the Data safety form: `https://www.plaxlabs.com/news/delete-account` |
+| Data safety | Answer from what the code does (below), then check it against Google's definitions |
+| App access | Nothing is locked: every feature works without signing in, so no reviewer login is needed |
+| Ads | None |
+| Target audience | The policy says Plax is for people 13 and over, so choose 13+ (not children) to match it |
+| Content rating | The questionnaire is yours to answer; the feed shows publishers' headlines, which can be about crime or violence |
+| News apps | If the Console asks for a news-app declaration, the publisher is Plax Labs and every story is attributed to its source with a link out |
+| Testing | A personal developer account created after 13 November 2023 must first run a closed test with at least 12 testers for 14 days |
+| Listing | Name, short and full description, a 512 px icon, a 1024x500 feature graphic and 2 to 8 phone screenshots (at most 2:1) |
+| Content licensing | Plax shows headlines, short summaries and pictures that belong to publishers, with attribution and a link to the full story. Whether that is acceptable for a store listing is a licensing question for you, not something a test can show |
+
+*Data safety, from the code.* Nothing is collected without an account except what any web service sees (an IP address in the
+hosting provider's connection log), which Google treats as processed, not collected, when it is not stored by you. With a Google
+account: email address and name (Personal info), the account id (Identifiers), the topics chosen and the stories saved (the
+Android app) and, on the website only, reading activity. Purpose: app functionality and account management. Encrypted in transit
+(HTTPS). Users can ask for deletion, in the app and at the web resource above. No data is sold, and none is shared for advertising;
+story text sent for an AI brief goes to AI services acting for Plax and carries no account.
+
 ## Tests
 
 ```powershell
@@ -406,21 +473,28 @@ fixed by publishing a higher version, not by withdrawing one.
 ..\scripts\auth-stack\up.ps1
 $env:PLAX_LOCAL_STACK = (Resolve-Path ..\scripts\auth-stack\.env).Path
 .\build.ps1 -Tasks ':app:testDebugUnitTest', '--tests', 'com.plaxlabs.news.AccountLocalStackTest', '--rerun'
+# The 14th of them, deleting an account, also needs the website built and started against the same stack (its three Supabase
+# variables pointed at http://127.0.0.1:54321 and the stack's keys, then `npm run build`, `npx next start -p 3128`):
+$env:PLAX_LOCAL_SITE = 'http://127.0.0.1:3128/news'
 ..\scripts\auth-stack\down.ps1
 ```
 
-A normal `.\build.ps1` lists 141 JVM tests and skips 13 of them (the stack tests below); 128 run.
+A normal `.\build.ps1` lists 150 JVM tests and skips 14 of them (the stack tests below); 136 run.
 
-**Run the device suite on a quiet machine.** Its checks are made by UiAutomator against a software-rendered
-emulator, so they time out when the machine is busy. A first 1.4.0 run, with a Gradle daemon, the website's dev
+**Run the device suite on a quiet machine, on an emulator that has finished starting.** Its checks are made by UiAutomator against a
+software-rendered emulator, so they time out when the machine is busy. A first 1.4.0 run, with a Gradle daemon, the website's dev
 server, a Docker stack and a second emulator all running, failed 9 tests (three in `UpdateDeviceTest` that were
 looking for the menu, then the new share tests behind them); the same tests passed alone, and all 69 passed once
-the other work was stopped. Stop `gradlew --stop`, dev servers and containers first. The suite also assumes a
+the other work was stopped. Stop `gradlew --stop`, dev servers and containers first. A freshly cold-booted emulator needs several
+minutes as well: for the first minutes its load average is above 30, and System UI, Google Play services, the Google app and
+Wellbeing raise "not responding" dialogs that sit over the app. A 1.5.0 run started straight after boot failed 9 tests (three in
+`UpdateDeviceTest`, six in `ShareDeviceTest`, the last two classes, all at "the screen is up" or "the share sheet opens"); after the
+load fell below 1 and the dialogs were dismissed all 72 passed. The suite also assumes a
 clean app: if you have used it by hand on the emulator (a saved story is enough), clear it first with
 `adb shell pm clear com.plaxlabs.news.preview`, or `appNeedsNoLoginAndSupportsTopicsSavedAndRotation` will not
 find the empty Saved tab.
 
-- **128 JVM unit tests**: strict JSON shape and limits, server errors, escaped URLs, cache
+- **136 JVM unit tests**: strict JSON shape and limits, server errors, escaped URLs, cache
   format, repeated-headline removal (including sentences that merely begin with the
   headline), read-time parsing, image width/sampling rules, cache-header rewriting,
   Markdown rendering rules, AI request/response validation, sections and request URLs;
@@ -428,7 +502,9 @@ find the empty Saved tab.
   its damaged-data handling, merging and caps, 16 tests); the feed state machine with
   fake sources (sessions, dwell, caught-up, For you, 14 tests); the sign-in protocol,
   PKCE and token handling (16 tests); the account manager's merge, queue and
-  session rules (24 tests); the update feed parser and client (9 tests: every
+  session rules (30 tests, six of them about deleting the account: the token used, a refresh first, a refused
+  token retried once, a failure leaving the account in place, a session that cannot be refreshed ending cleanly,
+  and doing nothing when signed out), and the HTTP the deletion sends (`SupabaseTest`); the update feed parser and client (9 tests: every
   field rule, content types, status codes, an oversized body of unknown length, the
   client's hardening settings, and that the feed and APK committed in `public\` are
   accepted by the app and match each other) and the update manager (18 tests: the 24-hour
@@ -440,7 +516,7 @@ find the empty Saved tab.
   are trusted (only this story's page on the Plax site: wrong host, port, scheme, path, query or
   id are refused), the message the share sheet is given in each case, and that the signature
   survives the cache and saved files while older files still load).
-- **13 opt-in tests against a real Supabase stack** (`AccountLocalStackTest`, skipped unless
+- **14 opt-in tests against a real Supabase stack** (`AccountLocalStackTest`, skipped unless
   `PLAX_LOCAL_STACK` names the `.env` that `scripts\auth-stack\up.ps1` writes). The app's real
   `AccountManager` and `Supabase` client talk to a real GoTrue, PostgREST, Kong gateway and Postgres loaded with
   the project's `supabase-schema.sql`. Only the website's address lookup and Google's consent screen are replaced:
@@ -452,8 +528,11 @@ find the empty Saved tab.
   forges another's rows and the anonymous key reads nothing; a code works once and only with its verifier; an expired
   token is told apart from a refused change; a session that has run out is refreshed, and one revoked elsewhere ends
   cleanly with "sign in again"; signing out revokes the phone's session; a denied or invented code leaves the reader
-  signed out with a message; and the reading-streak function changes only the caller's own row.
-- **70 Android instrumentation tests** (74 with `-LiveFeed`): bookmarks, the on-disk feed
+  signed out with a message; and the reading-streak function changes only the caller's own row. The 14th, which also needs
+  `PLAX_LOCAL_SITE`, runs the app's own deletion through the real website route into the real stack: the account, its profile,
+  saved stories and reading activity are gone, the old refresh token is dead, the phone is signed out with its own topics intact,
+  and a second reader's account and data are untouched.
+- **72 Android instrumentation tests** (76 with `-LiveFeed`): bookmarks, the on-disk feed
   cache (round trip, per-language, damaged files), card rendering and actions, skeleton
   geometry, navigation and rotation, rendering of every screen and state in both
   languages, the AI sheet (loading, result, language switch without refetch, failure,
@@ -463,7 +542,9 @@ find the empty Saved tab.
   caught-up; earlier stories; new stories) and the account flows against fakes: Keystore
   sealing and tamper detection on the real device keystore, the account sheet, sign-in
   return merging data and sign-out leaving it on the phone, topics sent while signed in,
-  and an unsolicited sign-in callback changing nothing. Nine more cover updates on a real
+  an unsolicited sign-in callback changing nothing, and deleting the account (asking first, cancelling deleting nothing,
+  confirming signing the reader out with the phone's data kept, a failure keeping them signed in, and the privacy policy one
+  tap from the sign-in screen). Nine more cover updates on a real
   screen: the offer and its text, **Later**, cancelling, **Download** starting the browser on
   the exact APK address, nothing appearing over an open sheet until the app is next in front,
   surviving rotation, the real **Check for updates** menu item (through the system's
@@ -541,6 +622,45 @@ project is back:
 - Not covered: Google's consent screen, the Authorized redirect URI in the Google console, the Redirect URLs list in
   Supabase, the Custom Tab path with a real code, and a real hosted project (its key formats, defaults and rate
   limits). Those are the one manual sign-in the runbook ends with.
+
+## Verification performed for 1.5.0 (13 October 2026)
+
+On the isolated Android 16 (API 36, x86_64) `Plax_News_Test` emulator, the development machine, and a local Supabase stack
+(GoTrue, PostgREST, Postgres loaded with `supabase-schema.sql`); no physical phone, and no real Google account or Play Console.
+
+- **The bundle** `artifacts\plax-1.5.0.aab` (3,053,017 bytes): bundletool 1.18.3 validates it; one signer, the Plax upload key
+  (SHA-256 `dade46fd…de1219`, not the debug key); package `com.plaxlabs.news`, 1.5.0 (8), min SDK 26, target SDK 36, not debuggable,
+  no cleartext, no backups, one permission (`INTERNET`) plus the AndroidX receiver-protection one, no native code, R8 mapping included.
+- **Installed from the bundle with bundletool** (the device gets a 2.7 MB base split): it opens in about 3 s on the emulator, loads
+  the live feed, the menu says **Open Google Play** and not **Check for updates**, **About** has no update paragraph and a **Privacy
+  policy** button, the sign-in sheet has a **Privacy policy** button and no **Delete account** before an account exists; no crash, no
+  ANR, no cleartext or StrictMode message. This is the store build behaving as a store build, on one emulator.
+- **Deleting an account, end to end.** The website route against a real GoTrue and PostgREST (20 checks): no header, a made-up token
+  and a damaged signature each answer 401 and delete nothing; GET is 405; a real token deletes its own account, its profile row,
+  saved story and reading activity (the cascade), the answer is `no-store` and carries no token or key, the reader can no longer sign
+  in, the deleted reader's old token is refused with 401, a second reader with the same kind of data is untouched until they delete
+  theirs, and a burst of bad tries is answered with 429. The app's own code through the same route (the 14th stack test) passes, as
+  do 30 account-manager and 18 Supabase-client unit tests with fakes.
+- **The website pages in a real browser** (Edge, phone and desktop widths, light and dark): `/delete-account` signed out (the Google button goes to the
+  account service with a return address of `/news/auth/callback?next=%2Fnews%2Fdelete-account`), signed in (who, asking first, **Keep
+  my account** deleting nothing, then deleting for real and the account gone from the service), a busy service (told, nothing lost, try
+  again), an ended sign-in (asked to sign in again); `/privacy` (all the topics above, one `h1`, its own canonical address, no sideways
+  overflow on a phone). The Account sheet and ⋮ menu show the new links.
+- **The new Android screens on the emulator**, light and dark: the signed-in sheet with the outlined **Delete account** button, the
+  confirmation, the spinner while it runs, and the signed-out sheet with "Your account was deleted" and its toast. The dialog buttons'
+  contrast was measured (1.58:1 before, 5.18:1 after, light theme) and the result photographed.
+- **Builds and tests**: debug, preview and release build; lint **0 errors**, 1 warning (a newer Gradle exists) for debug and preview;
+  **150 JVM tests** listed, 0 failing, 14 opt-in skipped; **72 device tests** pass (210 s, clean app, settled emulator); website `tsc` clean,
+  `npm test` **122** (112 before), production build.
+
+**Found and fixed while verifying** (so they are not rediscovered): the pale dialog buttons above; and a device run started right after
+a cold boot failed 9 tests because of "not responding" dialogs from Google's own apps (see *Tests*), not because of the app.
+
+**Not verified:** that Google Play accepts the app (review is the Console's); real Google sign-in from the Play-installed build (the
+sign-in path is the browser flow the preview build has used since 1.0, and the Play build's return scheme is accepted by the website,
+but a real Google account was not used); anything on a physical phone; that the AI-brief wording or the licensing of publishers'
+content satisfies Google Play's policies for news apps. The Data safety and content-rating answers above are drafts to check, not
+certified.
 
 ## Verification performed for 1.4.0 and 1.4.1 (10 October 2026)
 

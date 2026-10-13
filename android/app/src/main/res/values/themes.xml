@@ -23,6 +23,13 @@
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:fontFamily">sans-serif</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.Plax.Dialog</item>
+    </style>
+
+    <!-- Dialog buttons are text on the dialog surface, where the accent colour itself is too pale in the light theme
+         (1.6:1); the accent-text colour is 5.2:1 there and unchanged in the dark theme. -->
+    <style name="ThemeOverlay.Plax.Dialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="colorPrimary">@color/plax_accent_text</item>
     </style>
 
     <style name="Theme.Plax.Starting" parent="Theme.SplashScreen">

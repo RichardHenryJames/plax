@@ -10,6 +10,7 @@
     <color name="plax_on_accent">#1A1203</color>
     <color name="plax_accent_text">#F5B13A</color>
     <color name="plax_accent_soft">#3A2C0E</color>
+    <color name="plax_danger">#F2B8B5</color>
     <color name="plax_skeleton">#24242C</color>
     <color name="plax_splash_bg">#0B0B0E</color>
 </resources>

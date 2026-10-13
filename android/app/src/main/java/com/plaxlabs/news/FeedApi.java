@@ -9,6 +9,8 @@ import okhttp3.*;
 
 final class FeedApi implements FeedSource {
     static final String SITE = "https://www.plaxlabs.com/news";
+    /** The privacy policy, which Google Play also links to; the app opens it from the menu, About and the account sheet. */
+    static final String PRIVACY_URL = SITE + "/privacy";
     private static final ExecutorService STARTER = Executors.newSingleThreadExecutor(task -> {
         Thread thread = new Thread(task, "plax-feed-start"); thread.setDaemon(true); return thread;
     });

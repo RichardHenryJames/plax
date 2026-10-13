@@ -117,6 +117,32 @@ public class SupabaseTest {
         assertEquals(2, sent.size());
     }
 
+    @Test public void deletingTheAccountAsksThePlaxWebsiteWithTheReadersOwnToken() throws Exception {
+        reply(200, "{\"deleted\":true}");
+        supabase.deleteAccount("access-secret");
+        Sent request = sent.get(0);
+        assertEquals("POST", request.method());
+        assertEquals("https://www.plaxlabs.com/news/api/account/delete", request.url().toString());
+        assertEquals("Bearer access-secret", request.headers().get("Authorization"));
+        assertNull("Neither the project key nor any account id is sent: the website learns who from the token",
+                request.headers().get("apikey"));
+        assertFalse(request.body().contains(USER));
+        assertEquals(1, sent.size());
+    }
+
+    @Test public void aDeletionIsOnlyDoneWhenTheWebsiteSaysSo() {
+        reply(401, "{\"error\":\"unauthorized\"}");
+        assertThrows("A refused token is told apart so it can be refreshed", AuthApi.Unauthorized.class, () -> supabase.deleteAccount("t"));
+        for (int code : new int[]{429, 500, 503, 302}) {
+            reply(code, "{\"error\":\"unavailable\",\"detail\":\"secret-detail\"}");
+            IOException failure = assertThrows("Not deleted: " + code, IOException.class, () -> supabase.deleteAccount("t"));
+            assertFalse("A busy website is not a refusal", failure instanceof AuthApi.Rejected);
+            assertFalse("Response bodies never reach error messages", String.valueOf(failure.getMessage()).contains("secret-detail"));
+        }
+        reply(400, "{}");
+        assertThrows(AuthApi.Rejected.class, () -> supabase.deleteAccount("t"));
+    }
+
     @Test public void eachKindOfFailureIsToldApart() {
         reply(401, "{}");
         assertThrows(AuthApi.Unauthorized.class, () -> supabase.topics(config, tokens));

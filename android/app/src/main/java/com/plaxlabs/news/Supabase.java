@@ -85,6 +85,12 @@ final class Supabase implements AuthApi, CloudApi {
         catch (IOException ignored) { /* the phone has already forgotten the session */ }
     }
 
+    /** Asks the Plax website, which checks the token with the account service and deletes that account only. */
+    @Override public void deleteAccount(String access) throws IOException {
+        send(new Request.Builder().url(site + "/api/account/delete").header("Accept", "application/json")
+                .header("Authorization", "Bearer " + access).post(RequestBody.create("{}", JSON)));
+    }
+
     private Tokens tokens(String text) throws IOException {
         try {
             JsonObject root = JsonParser.parseString(text).getAsJsonObject();

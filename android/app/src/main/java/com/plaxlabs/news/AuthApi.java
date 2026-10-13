@@ -30,4 +30,10 @@ interface AuthApi {
 
     /** Best effort: the phone forgets the session either way. */
     void logout(AuthConfig config, String access);
+
+    /**
+     * Permanently deletes the account this access token belongs to, with everything stored in it. Not best effort: a
+     * failure is thrown, and the account is then still there ({@link Unauthorized}: the token was refused).
+     */
+    void deleteAccount(String access) throws IOException;
 }

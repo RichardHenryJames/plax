@@ -15,7 +15,7 @@ import androidx.core.view.ViewCompat;
 
 /** Programmatic view helpers. Every colour comes from resources so day and night themes both work. */
 final class Ui {
-    final int bg, surface, surfaceAlt, border, text, text2, accent, onAccent, accentText, accentSoft, skeleton;
+    final int bg, surface, surfaceAlt, border, text, text2, accent, onAccent, accentText, accentSoft, skeleton, danger;
     private final Context context;
     private final float density;
     private final boolean fontPadding;
@@ -29,7 +29,7 @@ final class Ui {
         border = color(R.color.plax_border); text = color(R.color.plax_text); text2 = color(R.color.plax_text_2);
         accent = color(R.color.plax_accent); onAccent = color(R.color.plax_on_accent);
         accentText = color(R.color.plax_accent_text); accentSoft = color(R.color.plax_accent_soft);
-        skeleton = color(R.color.plax_skeleton);
+        skeleton = color(R.color.plax_skeleton); danger = color(R.color.plax_danger);
     }
 
     private int color(int id) { return ContextCompat.getColor(context, id); }
@@ -132,6 +132,17 @@ final class Ui {
         view.setPadding(dp(28), 0, dp(28), 0);
         view.setMinHeight(dp(52));
         view.setBackground(touch(round(accentSoft, 16), 16));
+        view.setOnClickListener(item -> click.run());
+        return view;
+    }
+
+    /** For something that cannot be undone: an outline in the warning colour, never the accent. */
+    TextView dangerButton(CharSequence label, Runnable click) {
+        TextView view = text(label, 15, danger, true);
+        view.setGravity(Gravity.CENTER);
+        view.setPadding(dp(28), 0, dp(28), 0);
+        view.setMinHeight(dp(52));
+        view.setBackground(touch(outline(Color.TRANSPARENT, danger, 16), 16));
         view.setOnClickListener(item -> click.run());
         return view;
     }

@@ -13,7 +13,7 @@ public class AccountManagerTest {
 
     private static final class FakeAuth implements AuthApi {
         AuthConfig config = new AuthConfig("https://abcdefghij.supabase.co", "k".repeat(30));
-        IOException configFailure, checkFailure, exchangeFailure, refreshFailure;
+        IOException configFailure, checkFailure, exchangeFailure, refreshFailure, deleteFailure;
         final List<String> calls = new ArrayList<>();
         Tokens next, refreshed;
         String lastCode, lastVerifier;
@@ -31,6 +31,14 @@ public class AccountManagerTest {
             return refreshed;
         }
         @Override public void logout(AuthConfig value, String access) { calls.add("logout:" + access); }
+        @Override public void deleteAccount(String access) throws IOException {
+            calls.add("delete:" + access);
+            if (deleteFailure != null) {
+                IOException thrown = deleteFailure;
+                if (thrown instanceof Unauthorized) deleteFailure = null; // a refused token is refused once
+                throw thrown;
+            }
+        }
     }
 
     private static final class FakeCloud implements CloudApi {
@@ -367,6 +375,79 @@ public class AccountManagerTest {
         assertEquals(Set.of("art"), local); assertEquals(List.of("kept"), ids(localSaved));
         account.saved(story("after"), true);
         assertFalse("Signed out, nothing is sent", cloud.calls.contains("add:[after]"));
+    }
+
+    @Test public void deletingTheAccountUsesTheReadersTokenAndLeavesLikeSigningOut() {
+        local = new TreeSet<>(Set.of("art")); localSaved = new ArrayList<>(List.of(story("kept")));
+        signIn();
+        auth.calls.clear(); cloud.calls.clear();
+        int landed = landing.topics.size() + landing.saved.size();
+        account.deleteAccount();
+        assertEquals("Only the deletion, with the reader's own token; the account is gone, so there is nothing to log out of",
+                List.of("delete:access-1"), auth.calls);
+        assertTrue("The reader was shown that it was under way",
+                statuses.stream().anyMatch(s -> s.message() == R.string.account_deleting && s.busy()));
+        assertEquals(AccountManager.Phase.SIGNED_OUT, account.status().phase());
+        assertEquals(R.string.account_deleted, account.status().message());
+        assertFalse(account.signedIn());
+        assertFalse("The session is no longer kept", store.text != null && store.text.contains("access-1"));
+        assertEquals("The phone's own data is left alone", Set.of("art"), local);
+        assertEquals(List.of("kept"), ids(localSaved));
+        assertEquals("Nothing was pushed to the phone's screens", landed, landing.topics.size() + landing.saved.size());
+        account.saved(story("after"), true); account.interests(Set.of("math"));
+        assertTrue("Signed out, nothing is sent to an account that no longer exists", cloud.calls.isEmpty());
+    }
+
+    @Test public void anExpiredTokenIsRefreshedBeforeTheAccountIsDeleted() {
+        signIn();
+        clock.addAndGet(3_600_000 - 30_000);
+        auth.calls.clear();
+        account.deleteAccount();
+        assertEquals(List.of("config", "refresh:refresh-1", "delete:access-2"), auth.calls);
+        assertEquals(R.string.account_deleted, account.status().message());
+    }
+
+    @Test public void aTokenRefusedWhileDeletingIsRefreshedOnceAndTheDeletionRetried() {
+        signIn();
+        auth.calls.clear();
+        auth.deleteFailure = new AuthApi.Unauthorized();
+        account.deleteAccount();
+        assertEquals(List.of("delete:access-1", "refresh:refresh-1", "delete:access-2"), auth.calls);
+        assertEquals(AccountManager.Phase.SIGNED_OUT, account.status().phase());
+        assertEquals(R.string.account_deleted, account.status().message());
+    }
+
+    @Test public void aDeletionThatFailsLeavesTheAccountInPlaceAndSaysSo() {
+        signIn();
+        auth.deleteFailure = new IOException("offline");
+        account.deleteAccount();
+        assertEquals(AccountManager.Phase.SIGNED_IN, account.status().phase());
+        assertEquals(R.string.account_delete_failed, account.status().message());
+        assertFalse("Not stuck waiting", account.status().busy());
+        assertTrue("Still signed in, with the session kept", account.signedIn() && store.text.contains("access-1"));
+        auth.deleteFailure = null;
+        account.deleteAccount();
+        assertEquals("The reader can simply try again", R.string.account_deleted, account.status().message());
+        assertEquals(AccountManager.Phase.SIGNED_OUT, account.status().phase());
+    }
+
+    @Test public void aSessionThatCannotBeRefreshedIsEndedNotDeleted() {
+        signIn();
+        auth.calls.clear();
+        auth.deleteFailure = new AuthApi.Unauthorized();
+        auth.refreshFailure = new AuthApi.Rejected(400);
+        account.deleteAccount();
+        assertEquals(List.of("delete:access-1", "refresh:refresh-1"), auth.calls);
+        assertEquals(AccountManager.Phase.SIGNED_OUT, account.status().phase());
+        assertEquals("The reader is told the sign-in ended, not that the account was deleted",
+                R.string.account_expired, account.status().message());
+    }
+
+    @Test public void deletingWhenSignedOutDoesNothing() {
+        create();
+        account.deleteAccount();
+        assertTrue(auth.calls.isEmpty() && cloud.calls.isEmpty());
+        assertEquals(AccountManager.Phase.SIGNED_OUT, account.status().phase());
     }
 
     @Test public void theSessionSurvivesARestartWithoutTheNetwork() {

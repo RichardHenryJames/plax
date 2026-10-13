@@ -288,6 +288,40 @@ final class AccountManager implements FeedViewModel.Cloud {
 
     // FeedViewModel.Cloud
 
+    /**
+     * Deletes the account and everything stored in it, then leaves as signing out does: the topics and saved stories on
+     * the phone stay, and nothing else is kept. If the service refuses or cannot be reached the account is still there,
+     * the reader is told, and stays signed in to try again.
+     */
+    void deleteAccount() {
+        worker.execute(() -> {
+            if (data.session == null) return;
+            publish(Phase.SIGNED_IN, R.string.account_deleting, true);
+            try {
+                AuthConfig current = config();
+                try {
+                    auth.deleteAccount(fresh(current).access());
+                } catch (AuthApi.Unauthorized expired) {
+                    // The token looked good but was refused: once more, with a new one.
+                    if (data.session == null) throw new Ended();
+                    data.session = new AuthApi.Tokens(data.session.access(), data.session.refresh(), 0, data.session.userId(),
+                            data.session.email(), data.session.name());
+                    auth.deleteAccount(fresh(current).access());
+                }
+            } catch (Ended finished) {
+                return; // the session is gone and the reader has been told
+            } catch (IOException failed) {
+                publish(Phase.SIGNED_IN, R.string.account_delete_failed, false);
+                return;
+            }
+            data.session = null; data.verifier = null; data.queue.clear(); data.dirty = false; data.lastSync = 0;
+            quietly();
+            publish(Phase.SIGNED_OUT, R.string.account_deleted, false);
+        });
+    }
+
+    // FeedViewModel.Cloud
+
     @Override public void listen(FeedViewModel.Sink next) {
         sink = next;
         if (next != null) resume();

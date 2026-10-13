@@ -6,6 +6,15 @@ plugins { id 'com.android.application' }
 def playStoreOverride = providers.gradleProperty('playStore').getOrNull()
 if (playStoreOverride != null && !(playStoreOverride in ['true', 'false'])) throw new GradleException('playStore must be true or false.')
 
+// The key that signs the bundle for Google Play (the upload key) is kept outside the repository, in a properties file
+// on the machine that builds: PLAX_UPLOAD_PROPERTIES names it, otherwise ~/.plax-signing/upload.properties. Run
+// new-upload-key.ps1 once to make both. Without the file the release type stays unsigned, so a build can never be
+// signed with a key by accident, and package-aab.ps1 refuses to hand over an unsigned bundle.
+def uploadPropertiesFile = file(providers.environmentVariable('PLAX_UPLOAD_PROPERTIES')
+        .orElse("${System.getProperty('user.home')}/.plax-signing/upload.properties").get())
+def uploadProperties = new Properties()
+if (uploadPropertiesFile.isFile()) uploadPropertiesFile.withInputStream { uploadProperties.load(it) }
+
 android {
     namespace 'com.plaxlabs.news'
     compileSdk 36
@@ -13,8 +22,8 @@ android {
         applicationId 'com.plaxlabs.news'
         minSdk 26
         targetSdk 36
-        versionCode 7
-        versionName '1.4.1'
+        versionCode 8
+        versionName '1.5.0'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         // The browser returns to the app on this scheme after Google sign-in; each build type has its own.
         manifestPlaceholders = [authScheme: 'com.plaxlabs.news']
@@ -25,6 +34,16 @@ android {
     }
     androidResources {
         localeFilters += ['en', 'hi']
+    }
+    signingConfigs {
+        if (uploadProperties.getProperty('storeFile')) {
+            upload {
+                storeFile file(uploadProperties.getProperty('storeFile'))
+                storePassword uploadProperties.getProperty('storePassword')
+                keyAlias uploadProperties.getProperty('keyAlias')
+                keyPassword uploadProperties.getProperty('keyPassword')
+            }
+        }
     }
     buildTypes {
         debug {
@@ -39,6 +58,7 @@ android {
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             buildConfigField 'boolean', 'PLAY_STORE', playStoreOverride ?: 'true'
+            if (signingConfigs.findByName('upload')) signingConfig signingConfigs.upload
         }
         // The shipped preview: optimized like release (R8, not debuggable) but signed with the local
         // debug key, so it installs over earlier previews. It is not a store release.
@@ -87,4 +107,5 @@ dependencies {
 tasks.withType(Test).configureEach {
     inputs.files(fileTree(dir: file("$rootDir/../public"), includes: ['updates.json', 'plax-*.apk'])).withPropertyName('publishedUpdate')
     inputs.property('localAuthStack', providers.environmentVariable('PLAX_LOCAL_STACK').orElse(''))
+    inputs.property('localSite', providers.environmentVariable('PLAX_LOCAL_SITE').orElse(''))
 }

@@ -139,6 +139,14 @@
     <string name="account_expired">आपका साइन इन समाप्त हो गया। सिंक जारी रखने के लिए फिर साइन इन करें।</string>
     <string name="account_sync_failed">अभी सिंक नहीं हो सका। आपके बदलाव सुरक्षित हैं और बाद में भेजे जाएँगे।</string>
     <string name="account_manage">वेबसाइट पर खाता प्रबंधित करें</string>
+    <string name="account_delete">खाता हटाएँ</string>
+    <string name="account_delete_title">क्या आप अपना Plax खाता हटाना चाहते हैं?</string>
+    <string name="account_delete_message">इससे आपका Plax खाता और उसमें सहेजी हर चीज़ हमेशा के लिए हट जाएगी: आपका ईमेल, नाम, विषय, सहेजी गई ख़बरें और पढ़ने की गतिविधि। इसे वापस नहीं किया जा सकता।\n\nइस फ़ोन पर पहले से मौजूद विषय और सहेजी गई ख़बरें यहीं रहेंगी।</string>
+    <string name="account_delete_confirm">हमेशा के लिए हटाएँ</string>
+    <string name="account_deleting">आपका खाता हटाया जा रहा है&#8230;</string>
+    <string name="account_deleted">आपका खाता हटा दिया गया। आपके विषय और सहेजी गई ख़बरें इस फ़ोन पर रहेंगी।</string>
+    <string name="account_delete_failed">अभी आपका खाता नहीं हटाया जा सका। कुछ नहीं बदला है। कृपया फिर कोशिश करें।</string>
+    <string name="privacy_policy">गोपनीयता नीति</string>
     <string name="account_signed_out">साइन आउट हो गए। आपके विषय और सहेजी गई ख़बरें इसी फ़ोन में रहेंगी।</string>
     <string name="account_signed_in">साइन इन हो गए</string>
     <string name="update_check">अपडेट जाँचें</string>
