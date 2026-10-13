@@ -3,6 +3,7 @@ import { SITE_URL, TOPIC_SEO } from '@/lib/seo'
 import { NEWS_SECTIONS } from '@/lib/types'
 import { sharePath } from '@/lib/share'
 import { recentShares } from '@/lib/share-store'
+import { LEGAL } from '@/lib/legal'
 
 // Shared stories join the sitemap as they appear; an hour's delay is fine for a page that never changes.
 export const revalidate = 3600
@@ -37,6 +38,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: now,
       changeFrequency: 'hourly',
       priority: 0.95,
+    },
+    // The policy pages Google Play requires; they change rarely, so they say when.
+    {
+      url: `${SITE_URL}/privacy`,
+      lastModified: new Date(LEGAL.updatedIso),
+      changeFrequency: 'yearly',
+      priority: 0.3,
+    },
+    {
+      url: `${SITE_URL}/delete-account`,
+      lastModified: new Date(LEGAL.updatedIso),
+      changeFrequency: 'yearly',
+      priority: 0.3,
     },
   ]
 

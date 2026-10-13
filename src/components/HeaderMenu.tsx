@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { useAuth } from '@/components/AuthProvider'
 import { useUIStore } from '@/lib/ui-store'
 import { usePlaxStore } from '@/lib/store'
@@ -103,6 +104,10 @@ export function HeaderMenu() {
             <svg className="w-5 h-5 text-dark-muted" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 4.5H10V10H4.5zM14 4.5h5.5V10H14zM4.5 14H10v5.5H4.5zM14 14h5.5v5.5H14z" /></svg>
             {t('yourTopics')}
           </button>
+          <Link role="menuitem" href="/privacy" onClick={() => setOpen(false)} className={item}>
+            <svg className="w-5 h-5 text-dark-muted" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7.5 3v5.5c0 4.6-3.1 8.2-7.5 9.5-4.4-1.3-7.5-4.9-7.5-9.5V6L12 3z" /></svg>
+            {t('privacyPolicy')}
+          </Link>
 
           <div className="px-3 pt-2.5 pb-2 mt-1 border-t border-dark-border">
             <p className={`text-[11px] font-semibold uppercase tracking-wider text-dark-subtle mb-2 ${hindi}`}>{t('theme')}</p>

@@ -112,6 +112,13 @@ export function AccountSheet() {
                     >
                       {t('signOut')}
                     </button>
+                    <Link
+                      href="/delete-account"
+                      onClick={close}
+                      className="focus-ring w-full py-3 rounded-xl text-sm font-semibold text-red-400 text-center hover:bg-white/5 transition"
+                    >
+                      {t('deleteAccount')}
+                    </Link>
                   </div>
                 </>
               ) : (
@@ -131,6 +138,9 @@ export function AccountSheet() {
                       {t('accountUnavailable')}
                     </p>
                   )}
+                  <Link href="/privacy" onClick={close} className="focus-ring mt-4 block text-center text-[13px] font-semibold text-dark-muted underline rounded">
+                    {t('privacyPolicy')}
+                  </Link>
                 </>
               )}
             </div>

@@ -121,6 +121,7 @@ export default function RootLayout({
         <nav aria-label="Browse topics" className="sr-only">
           <a href={withBase('/')}>Home</a>
           <a href={withBase('/topics')}>Explore all topics</a>
+          <a href={withBase('/privacy')}>Privacy policy</a>
           {TOPIC_SEO.map((t) => (
             <a key={t.id} href={withBase(`/topics/${t.id}`)}>{t.label}</a>
           ))}

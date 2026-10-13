@@ -10,6 +10,7 @@ import {
 } from 'react'
 import type { User, Session } from '@supabase/supabase-js'
 import { getSupabase } from '@/lib/supabase'
+import { withBase } from '@/lib/base-path'
 
 // ─── Types ───
 export type SignInResult = 'redirecting' | 'unavailable'
@@ -18,7 +19,7 @@ interface AuthContextType {
   user: User | null
   session: Session | null
   loading: boolean
-  signInWithGoogle: () => Promise<SignInResult>
+  signInWithGoogle: (next?: string) => Promise<SignInResult>
   signOut: () => Promise<void>
 }
 
@@ -98,14 +99,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  const signInWithGoogle = useCallback(async (): Promise<SignInResult> => {
+  const signInWithGoogle = useCallback(async (next?: string): Promise<SignInResult> => {
     if (!(await accountServiceReady())) return 'unavailable'
     try {
       const supabase = getSupabase()
+      // `next` is a path inside this site (the callback only follows single-slash local paths); without it the
+      // reader comes back to the news.
+      const back = next ? `?next=${encodeURIComponent(withBase(next))}` : ''
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/news/auth/callback`,
+          redirectTo: `${window.location.origin}/news/auth/callback${back}`,
         },
       })
       if (error) throw error

@@ -59,6 +59,7 @@ This is a debug-signed preview, not a published Play Store release.
 - **Reading streaks** — Daily streak tracking with automatic reset logic
 - **Engagement analytics** — Per-card time tracking, completion rates, category preferences
 - **Profile page** — Stats, top interests, bookmarks, account management
+- **Privacy policy and deleting your account** — A [privacy policy](https://www.plaxlabs.com/news/privacy) and a [delete-account page](https://www.plaxlabs.com/news/delete-account) (sign in with Google and delete, with no app needed; email as a fallback), plus **Account → Delete account** in the Android app. Deleting removes the account and everything stored in it: its profile, saved stories and reading activity (see [TECH.md](TECH.md#post-apiaccountdelete)). Both pages are what Google Play asks for.
 - **Status:** the Supabase project behind sign-in is currently unreachable (see [SUPABASE_SETUP.md](SUPABASE_SETUP.md)). The account sheet says "Sign-in is temporarily unavailable" and everything else keeps working; sign-in itself has been unit-tested but not verified end to end since this change
 
 ### AI Summarization & Translation
@@ -151,6 +152,7 @@ plax/
 │   │   ├── api/
 │   │   │   ├── auth-config/route.ts   # Public Supabase URL + anon key, for the Android app
 │   │   │   ├── feed/route.ts          # Content feed API (Node.js runtime); signs every card
+│   │   │   ├── account/delete/route.ts # Deletes the caller's own account (proved by their token), for the app and /delete-account
 │   │   │   ├── share/route.ts         # Turns a signed card into a story page, returns its address
 │   │   │   └── summarize/route.ts     # AI summarization API (Edge runtime)
 │   │   ├── auth/
@@ -158,6 +160,8 @@ plax/
 │   │   │   └── callback/route.ts      # Supabase OAuth callback handler
 │   │   ├── profile/
 │   │   │   └── page.tsx               # User profile, stats, bookmarks
+│   │   ├── privacy/page.tsx           # Privacy policy (linked from the app and entered in the Play Console)
+│   │   ├── delete-account/page.tsx    # How to delete the account, with a sign-in-and-delete panel (no app needed)
 │   │   └── s/[slug]/                  # Shared story pages: page, preview picture, 404 and error states
 │   ├── components/
 │   │   ├── AccountSheet.tsx           # Optional Google sign-in, with an honest "unavailable" state
@@ -169,6 +173,8 @@ plax/
 │   │   ├── CardActions.tsx            # Action bar: Read full story, Listen, Copy, Save, Share
 │   │   ├── CaughtUp.tsx               # "You're all caught up" end-of-list card
 │   │   ├── CloudSync.tsx              # Invisible bridge: Zustand ↔ Supabase (merges, never replaces)
+│   │   ├── DeleteAccountPanel.tsx     # Sign in with Google and delete the account, for /delete-account
+│   │   ├── LegalPage.tsx              # Frame and type of the privacy and delete-account pages
 │   │   ├── Feed.tsx                   # Swipeable feed (drag, keyboard, scroll) + no-repeat engine wiring
 │   │   ├── ForYouEmpty.tsx            # For you before any topic is chosen
 │   │   ├── HeaderMenu.tsx             # The ⋮ menu: search, account, topics, theme
@@ -180,11 +186,13 @@ plax/
 │   │   └── TopicsScreen.tsx           # Topics grid
 │   └── lib/
 │       ├── ai.ts                      # Gemini/Groq summarization & quiz gen
+│       ├── account-delete.ts          # Deleting a reader's own account (checks whose token it is first); unit-tested
 │       ├── app-redirect.ts            # Builds the redirect back into the Android app
 │       ├── cache.ts                   # In-memory server cache (Map-based)
 │       ├── cloud-sync.ts              # Supabase CRUD: prefs, bookmarks, engagements
 │       ├── database.types.ts          # Supabase generated types
 │       ├── deadline.ts                # Per-source time limit for the feed fetchers
+│       ├── legal.ts                   # Contact address and dates stated by the privacy and delete-account pages
 │       ├── sample-data.ts             # CardData type + personalization helpers
 │       ├── seen-storage.ts            # Reads and writes the seen history in localStorage
 │       ├── share.ts                   # Story-link rules: canonical form, address, validation (shared with the app's tests)

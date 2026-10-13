@@ -246,6 +246,21 @@ Returns `{ url, anonKey }`: the public Supabase project URL and anon key (both a
 
 The web half of Android sign-in. Supabase returns the browser here after Google; the route answers `302` to `<scheme>://auth-callback?code=…` so the app receives the one-time code. Only the app's two schemes (`com.plaxlabs.news`, `com.plaxlabs.news.preview`) are accepted, and only `code`, `error`, `error_code` and `error_description` are forwarded (printable ASCII, at most 1,024 characters each), so the page cannot open anything else or carry arbitrary data into the app. Any other `app` gets `400`. The response is `no-store`, `no-referrer` and carries a restrictive CSP, with a link in the body in case the browser does not follow the redirect (`src/lib/app-redirect.ts`, unit-tested). Supabase must list `https://www.plaxlabs.com/news/auth/app` as a redirect URL (see `SUPABASE_SETUP.md`).
 
+### POST /api/account/delete
+
+Deletes the account of whoever calls it: Google Play requires that an account made inside an app can be deleted again, with its data, from the app and from a web page. It is used by the Android app (Account, Delete account) and by the website's `/delete-account` page.
+
+- **Request:** `Authorization: Bearer <the reader's own Supabase access token>`, no body. Nothing in the request names an account.
+- **How it decides:** `src/lib/account-delete.ts` asks the account service (`GET /auth/v1/user` with that token) whose token it is, requires the answer's `id` to be a UUID (it becomes part of an address), and calls the admin API (`DELETE /auth/v1/admin/users/<id>`, hard delete) with the service-role key, which never leaves the server. So one reader cannot delete another, and the reader's token is never sent anywhere but the account service.
+- **What goes:** the auth user, and through `ON DELETE CASCADE` its `user_profiles`, `bookmarks` and `engagements` rows, sessions and sign-in identities. Nothing else in the database refers to a person (`ai_cache` and shared story pages hold no personal data).
+- **Answers** (all `no-store`): `200 {"deleted":true}` (also when the account is already gone, so a lost answer can be retried), `401` (no, malformed, expired or unknown token), `405` for other methods, `429` after 10 requests a minute from one address (best effort, per warm instance), `503` when it cannot be done now (the account service or its configuration is unavailable); in that case nothing was deleted or it can safely be asked again.
+- **No cookies and no CORS answer**, so another website cannot call it for a reader. The token is never put in a result or a log.
+- **Tested** with a fake account service (`src/lib/account-delete.test.mjs`, 10 tests) and end to end against a real local GoTrue and PostgREST (no token, made-up token, damaged signature, GET, a real deletion with the cascade checked in every table, a second reader untouched, the old token refused, the limit).
+
+### GET /privacy and GET /delete-account
+
+Plain server-rendered pages (`src/app/privacy`, `src/app/delete-account`, text and facts in `src/lib/legal.ts`, frame in `LegalPage.tsx`). The privacy policy states what stays on a device, what the servers receive, the AI and translation services that can see story text, what a Google account stores (on the website: email, name, picture address, topics, saved stories and reading activity; the Android app sends only topics and saved stories), retention, deletion, children (13 and over) and a contact. The delete page lets a reader without the app delete from the browser: `DeleteAccountPanel` signs in with Google (returning to the page through the callback's `next` parameter), asks first, then calls the route above with the session's token; email is the fallback. Both are linked from the ⋮ menu and the Account sheet, listed in the sitemap, and are the two URLs entered in the Play Console. The contact address and the dates live in `legal.ts`; change the policy text and `updated`/`updatedIso` together.
+
 ---
 
 ## Shared Story Pages
