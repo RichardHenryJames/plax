@@ -421,7 +421,9 @@ public class PlaxDeviceTest {
                 R.string.new_stories, R.string.empty_saved, R.string.read_full_story, R.string.brief_note,
                 R.string.for_you, R.string.caught_up, R.string.caught_up_detail, R.string.check_new, R.string.no_new_stories,
                 R.string.for_you_title, R.string.for_you_detail, R.string.choose_interests, R.string.interests_detail,
-                R.string.account_intro, R.string.account_upload_note, R.string.sign_in_google, R.string.account_unavailable};
+                R.string.account_intro, R.string.account_upload_note, R.string.sign_in_google, R.string.account_unavailable,
+                R.string.contact_us, R.string.contact_intro, R.string.contact_send, R.string.contact_copy, R.string.contact_page,
+                R.string.contact_no_mail};
         for (int id : translated) {
             String name = context.getResources().getResourceEntryName(id);
             assertNotEquals("Missing Hindi translation for " + name, context.getString(id), localized.getString(id));
@@ -432,8 +434,10 @@ public class PlaxDeviceTest {
         assertTrue(localized.getQuantityString(R.plurals.read_earlier, 3, 3).contains("3"));
         assertNotEquals(context.getResources().getQuantityString(R.plurals.read_earlier, 3, 3),
                 localized.getQuantityString(R.plurals.read_earlier, 3, 3));
-        assertTrue("The version placeholder survives translation", localized.getString(R.string.about_text, "9.9.9").contains("9.9.9"));
-        assertTrue(context.getString(R.string.about_text, "9.9.9").contains("9.9.9"));
+        assertTrue("The version placeholder survives translation", localized.getString(R.string.about_text, "9.9.9", Contact.EMAIL).contains("9.9.9"));
+        assertTrue("The contact address survives translation", localized.getString(R.string.about_text, "9.9.9", Contact.EMAIL).contains(Contact.EMAIL));
+        assertTrue(context.getString(R.string.about_text, "9.9.9", Contact.EMAIL).contains("9.9.9"));
+        assertTrue(context.getString(R.string.about_text, "9.9.9", Contact.EMAIL).contains(Contact.EMAIL));
     }
 
     private static void await(String what, BooleanSupplier condition) {

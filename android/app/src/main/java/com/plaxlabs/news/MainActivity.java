@@ -2,6 +2,8 @@ package com.plaxlabs.news;
 
 import android.animation.ObjectAnimator;
 import android.content.ActivityNotFoundException;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.Color;
@@ -10,6 +12,7 @@ import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.InsetDrawable;
 import android.graphics.drawable.StateListDrawable;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -69,6 +72,7 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
     private BriefSheet sheet;
     private InterestsSheet interestsSheet;
     private AccountSheet accountSheet;
+    private ContactSheet contactSheet;
     private AccountManager accountManager;
     private AccountManager.Phase lastPhase;
     private final AccountManager.Listener accountListener = status -> runOnUiThread(() -> accountChanged(status));
@@ -493,6 +497,7 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
         menu.getMenu().add(R.string.interests_title).setOnMenuItemClickListener(item -> { chooseInterests(); return true; });
         menu.getMenu().add(R.string.theme).setOnMenuItemClickListener(item -> { chooseTheme(); return true; });
         menu.getMenu().add(R.string.about).setOnMenuItemClickListener(item -> { about(); return true; });
+        menu.getMenu().add(R.string.contact_us).setOnMenuItemClickListener(item -> { contact(); return true; });
         menu.getMenu().add(R.string.privacy_policy).setOnMenuItemClickListener(item -> { open(FeedApi.PRIVACY_URL); return true; });
         menu.getMenu().add(updates.storeBuild() ? R.string.update_play : R.string.update_check)
                 .setOnMenuItemClickListener(item -> { updates.check(true); return true; });
@@ -616,13 +621,39 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
     }
 
     private void about() {
-        String text = getString(R.string.about_text, BuildConfig.VERSION_NAME);
+        String text = getString(R.string.about_text, BuildConfig.VERSION_NAME, Contact.EMAIL);
         // Store builds are updated by Google Play and never look for updates, so they do not describe it.
         if (!updates.storeBuild()) text += "\n\n" + getString(R.string.about_updates);
         openDialog = new MaterialAlertDialogBuilder(this).setTitle(R.string.about)
                 .setMessage(text)
                 .setNeutralButton(R.string.privacy_policy, (dialog, which) -> open(FeedApi.PRIVACY_URL))
                 .setPositiveButton(R.string.done, null).show();
+    }
+
+    /** Contact us: the address to write to, who makes Plax and its contact page, one tap from the menu. */
+    private void contact() {
+        if (contactSheet != null && contactSheet.isShowing()) return;
+        contactSheet = ContactSheet.show(this, ui, new ContactSheet.Actions() {
+            @Override public void email() { writeToUs(); }
+            @Override public void copy() { copyAddress(false); }
+            @Override public void page() { open(Contact.PAGE_URL); }
+        });
+    }
+
+    /** Opens a new message to us in the reader's mail app. With no mail app the address is copied, so it is never a dead end. */
+    private void writeToUs() {
+        Intent message = new Intent(Intent.ACTION_SENDTO, Uri.parse(Contact.mailto()))
+                .putExtra(Intent.EXTRA_SUBJECT, Contact.subject(getString(R.string.app_name), BuildConfig.VERSION_NAME));
+        try { startActivity(message); }
+        catch (ActivityNotFoundException noMailApp) { copyAddress(true); }
+    }
+
+    private void copyAddress(boolean noMailApp) {
+        ClipboardManager clipboard = getSystemService(ClipboardManager.class);
+        clipboard.setPrimaryClip(ClipData.newPlainText(getString(R.string.contact_email_label), Contact.EMAIL));
+        if (noMailApp) Toast.makeText(this, R.string.contact_no_mail, Toast.LENGTH_LONG).show();
+        // From Android 13 the system confirms a copy itself.
+        else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) Toast.makeText(this, R.string.contact_copied, Toast.LENGTH_SHORT).show();
     }
 
     /** The screen the update manager offers an update on. */
@@ -639,6 +670,7 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
         return !isFinishing() && !isDestroyed()
                 && !(sheet != null && sheet.isShowing()) && !(interestsSheet != null && interestsSheet.isShowing())
                 && !(accountSheet != null && accountSheet.isShowing()) && !(openDialog != null && openDialog.isShowing())
+                && !(contactSheet != null && contactSheet.isShowing())
                 && account.phase() != AccountManager.Phase.WAITING && !account.busy();
     }
 
@@ -723,6 +755,7 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
         if (sheet != null) sheet.dismiss();
         if (interestsSheet != null) interestsSheet.dismiss();
         if (accountSheet != null) accountSheet.dismiss();
+        if (contactSheet != null) contactSheet.dismiss();
         if (openDialog != null) openDialog.dismiss();
         if (skeletonPulse != null) skeletonPulse.cancel();
         if (images != null) images.close();
