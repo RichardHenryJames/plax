@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { excerpt, latinCardText, parseShareSegment } from '@/lib/share'
 import { loadShare } from '@/lib/share-store'
 import { getTopicSeo } from '@/lib/seo'
+import { PTile } from '@/lib/brand-tile'
 import { NEWS_SECTIONS } from '@/lib/types'
 
 // The picture a chat app shows when a Plax story link is pasted: the headline set large on the brand colours. It is
@@ -75,14 +76,7 @@ export default async function Image({ params }: Params) {
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-            <div
-              style={{
-                width: 60, height: 60, borderRadius: 17, background: '#f5b13a', color: '#17130a',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, fontWeight: 700,
-              }}
-            >
-              P
-            </div>
+            <PTile size={60} />
             <div style={{ fontSize: 44, fontWeight: 700, color: 'rgba(255,255,255,0.94)', letterSpacing: '-0.01em' }}>Plax</div>
           </div>
           <div

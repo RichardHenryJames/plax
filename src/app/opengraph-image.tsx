@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og'
+import { PTile } from '@/lib/brand-tile'
 
 // Dynamic 1200×630 OpenGraph image for the whole site (much better for social
 // shares than the square logo). Rendered at the edge, cached by Next.
@@ -26,22 +27,7 @@ export default function OgImage() {
       >
         {/* Brand */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-          <div
-            style={{
-              width: 64,
-              height: 64,
-              borderRadius: 18,
-              background: '#f5b13a',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 38,
-              fontWeight: 800,
-              color: 'white',
-            }}
-          >
-            P
-          </div>
+          <PTile size={64} />
           <div style={{ fontSize: 34, fontWeight: 700, color: 'rgba(255,255,255,0.92)' }}>Plax</div>
         </div>
 

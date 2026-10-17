@@ -1,5 +1,6 @@
 import { ImageResponse } from 'next/og'
 import { getTopicSeo, TOPIC_SEO } from '@/lib/seo'
+import { PTile } from '@/lib/brand-tile'
 
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
@@ -32,22 +33,7 @@ export default async function TopicOgImage({ params }: { params: Promise<{ topic
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-          <div
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: 16,
-              background: '#f5b13a',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 32,
-              fontWeight: 800,
-              color: 'white',
-            }}
-          >
-            P
-          </div>
+          <PTile size={56} />
           <div style={{ fontSize: 30, fontWeight: 700, color: 'rgba(255,255,255,0.9)' }}>Plax</div>
         </div>
 
