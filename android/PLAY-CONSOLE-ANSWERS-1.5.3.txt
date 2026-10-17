@@ -1,7 +1,7 @@
 PLAX - GOOGLE PLAY CONSOLE ANSWERS AND SUBMISSION CHECKLIST
-Prepared: 13 October 2026. Revised: 17 October 2026, after Google Play's News and Magazines policy notice (below)
-and again the same day for the new amber app icon (version 1.5.2)
-Candidate examined: 1.5.2, version code 10, com.plaxlabs.news (the Google Play build)
+Prepared: 13 October 2026. Revised: 17 October 2026, after Google Play's News and Magazines policy notice (below),
+again the same day for the new amber app icon (version 1.5.2) and a third time for one consistent logo (1.5.3)
+Candidate examined: 1.5.3, version code 11, com.plaxlabs.news (the Google Play build)
 Official Google guidance checked for this handoff; references are at the end.
 
 
@@ -20,26 +20,36 @@ What was fixed in the code (all verified, see the README of this folder):
            and a mail link, who runs Plax, what to write about, how replies work, where the stories come from.
            It is linked from the menu, the desktop side panel, the footer of every public page and the privacy
            policy, it is in the sitemap, and it is live (checked 17 October 2026).
-  App:     version 1.5.2 (code 10). Menu (three dots) > Contact us opens a page that shows the address in plain
+  App:     version 1.5.3 (code 11). Menu (three dots) > Contact us opens a page that shows the address in plain
            sight, who makes Plax, buttons to email or copy the address, the website contact page as a button
            and written out in full, and a line crediting publishers. About Plax also shows the address.
            English and Hindi. No new permission.
-  Icon:    1.5.2 also has a new app icon: an amber tile (#F59E0B) with a dark "P" (#1A1203), replacing the
+  Icon:    Since 1.5.2 the app icon is an amber tile (#F59E0B) with a dark "P" (#1A1203), replacing the
            near-black tile with a white "P". A white "P" on amber is only about 2:1 contrast; the dark one is
-           about 8.6:1. The icon does not affect the policy notice; it is the same release only so you upload
-           once. 1.5.1 (code 9, black icon) was built earlier the same day and is superseded.
+           about 8.6:1. 1.5.3 also makes the "P" itself the same everywhere: it was drawn three ways (the real
+           logo, a hand-drawn app vector that matched it only 74%, and a typed letter on the share-card
+           images), and now the launcher icon, the app header, both splash screens, the favicon, the Play icon
+           and the share cards all draw one outline traced from the real logo (99.1% overlap, against 74% for
+           the old hand-drawn one). None of this
+           affects the policy notice; it is the same release only so you upload once. 1.5.1 (code 9, black
+           icon) and 1.5.2 (code 10, amber icon, older hand-drawn "P") were built earlier the same day and are
+           superseded.
 
 What only you can do, in this order (I cannot sign in to your Console, and I did not change anything in it):
-  1. UPLOAD THE NEW BUNDLE. android\artifacts\plax-1.5.2.aab (section 1). Google's notice is about the app, so
+  1. UPLOAD THE NEW BUNDLE. android\artifacts\plax-1.5.3.aab (section 1). Google's notice is about the app, so
      the fixed app has to be the one reviewed. Create a new release on the track the app is on (Production, or
      the test track you used), enter the release notes in section 3, and send it for review. The version code must
-     be higher than any you have uploaded; this one is 10. If you already uploaded plax-1.5.1.aab (code 9) and it
-     is in review, you may leave that review to finish: it has the same Contact fix, only the old black icon.
-     Uploading 1.5.2 to the same track instead replaces it and starts the review again.
-  2. UPLOAD THE NEW STORE ICON. Main store listing > Graphics > App icon: android\artifacts\play\icon-512.png
-     (512 x 512, amber, dark "P"). Without this the Play page keeps showing the old black icon while the app
-     on the phone is amber. Replace the feature graphic too (android\artifacts\play\feature-1024x500.png: the
-     same amber), so the listing is one colour. The screenshots do not show the icon, so they stay.
+     be higher than any you have uploaded; this one is 11. If you already uploaded plax-1.5.1.aab (code 9) or
+     plax-1.5.2.aab (code 10) and it is in review, you may leave that review to finish: both have the same
+     Contact fix, only an older icon. Uploading 1.5.3 to the same track instead replaces it and starts the
+     review again.
+  2. UPLOAD THE NEW STORE GRAPHICS. Main store listing > Graphics (all in android\artifacts\play\):
+       App icon ......... icon-512.png (512 x 512, amber, dark "P"; redrawn in 1.5.3 from the real logo).
+       Feature graphic .. feature-1024x500.png (the same amber; unchanged since 1.5.2, so skip it if you
+                          already uploaded that one).
+       Phone screenshots  screenshots\01 to 06 (section 4). They were retaken for 1.5.3 because the "P" in
+                          the app header changed; the old ones show the older hand-drawn "P".
+     Without the icon the Play page keeps showing the old one while the app on the phone is amber.
   3. STORE LISTING CONTACT DETAILS. Grow users > Store presence > Store settings (the labels may differ a little in
      your Console): "Store listing contact details".
         Email address ... richardhenryjames64@gmail.com
@@ -56,7 +66,7 @@ What only you can do, in this order (I cannot sign in to your Console, and I did
      the Philosophy topic name ZenQuotes but have no link; they are not news, and nothing was changed there.
   6. WAIT FOR REVIEW. The app stays "not available" until Google approves the new release. Use "Submit an appeal"
      (the notice says 5 to 8 days) only if the fixed release is rejected again; say what changed: a dedicated
-     website contact page, an in-app Contact us page, version 1.5.2.
+     website contact page, an in-app Contact us page, version 1.5.3.
 
 Do not uninstall, republish under another package or change the package name: the existing app, its users and its
 account data stay as they are.
@@ -64,7 +74,7 @@ account data stay as they are.
 
 READ THIS FIRST
 ===============
-This sheet is for plax-1.5.2.aab, the Google Play build. It is NOT for the website APK
+This sheet is for plax-1.5.3.aab, the Google Play build. It is NOT for the website APK
 (plax-1.4.1.apk, package com.plaxlabs.news.preview): that is a different app and must never
 be uploaded to Play.
 
@@ -168,7 +178,7 @@ request, labelled, can contain mistakes), the publishers as the source of storie
 and now the contact address (the same one in the app, on the website, in the store listing
 contact details and in the declaration). If you change what the app collects or shows, issue
 a NEW higher version code and update every one of them. Never re-upload a changed bundle under
-a version code you have already uploaded: 1.5.0 was code 8, 1.5.1 was 9, this one is 10.
+a version code you have already uploaded: 1.5.0 was code 8, 1.5.1 was 9, 1.5.2 was 10, this one is 11.
 
 HOLD G - The app is not available until Google approves the fix
 Since 16 October 2026 Policy status says "App not available on Google Play". Nothing in the
@@ -196,7 +206,7 @@ Contains ads:                 No
 In-app purchases:             No
 Subscriptions:                No
 Package/application ID:       com.plaxlabs.news
-Version name / code:          1.5.2 / 10
+Version name / code:          1.5.3 / 11
 Minimum Android:              Android 8.0 / API 26
 Target Android:               Android 16 / API 36
 Languages in the app:         English and Hindi
@@ -213,17 +223,18 @@ needs a different package. [S17]
 API 36 meets the target requirement for new apps from 31 August 2026. [S13]
 
 Release artifact:
-  android\artifacts\plax-1.5.2.aab
-  3,057,281 bytes (about 2.9 MiB)
+  android\artifacts\plax-1.5.3.aab
+  3,058,301 bytes (about 2.9 MiB)
   SHA-256:
-  710910dc9ceb45a6fc1a38710bd52f95759adf98d2da5b512a20efe1b0b7f697
+  6961f2bfd3ac14d2c82cd26842ebac9377420020a0b32a5011b20bf34143ffbc
   Signed by the Plax upload key (certificate SHA-256, public):
   DA:DE:46:FD:37:D3:CB:9E:F3:B3:72:2D:3D:A8:A4:4D:D4:F7:43:3C:E9:24:8D:F7:C2:54:3F:0A:56:DE:12:19
   Certificate SHA-1, public:
   8C:D4:EC:82:5D:72:0E:13:4D:0A:E9:F6:45:19:BC:F0:F4:BF:5F:03
   Check the SHA-256 in Console's app bundle details after upload.
   (Earlier bundles are superseded and are not this release: plax-1.5.0.aab, code 8, has no Contact
-  us page; plax-1.5.1.aab, code 9, has it but still the old black icon.)
+  us page; plax-1.5.1.aab, code 9, has it but still the old black icon; plax-1.5.2.aab, code 10, has
+  the amber icon but the older hand-drawn "P".)
 
 Declarations Console asks when you create the app (OWNER confirms): the Developer Program
 Policies and US export laws. Read them; do not tick them on someone's behalf.
@@ -313,13 +324,13 @@ Questions, corrections or publisher requests: richardhenryjames64@gmail.com. Mor
 END_FULL_DESCRIPTION
 
 Release name (internal Console label):
-1.5.2 (10)
+1.5.3 (11)
 
 BEGIN_RELEASE_NOTES
 <en-IN>
 New: Contact us in the menu, with our email address and a link to the contact page on the website.
 The address is also shown in About.
-New app icon: amber with a dark P.
+New app icon: amber with a dark P, the same P as on plaxlabs.com.
 </en-IN>
 END_RELEASE_NOTES
 
@@ -371,7 +382,7 @@ BEGIN_HI_RELEASE_NOTES
 <hi-IN>
 नया: मेनू में "हमसे संपर्क करें", जिसमें हमारा ईमेल पता और वेबसाइट के संपर्क पेज का लिंक है।
 यह पता "Plax के बारे में" में भी दिखता है।
-नया ऐप आइकन: एम्बर रंग का, गहरे रंग के P के साथ।
+नया ऐप आइकन: एम्बर रंग का, गहरे रंग के P के साथ, वही P जो plaxlabs.com पर है।
 </hi-IN>
 END_HI_RELEASE_NOTES
 
@@ -387,12 +398,13 @@ alpha channel; the icon is a fully opaque 32-bit PNG, as Google's icon specifica
 
 App icon - required:                                                       READY
   android\artifacts\play\icon-512.png   512 x 512, 32-bit PNG (every pixel opaque), about
-  9 KB. Google's icon specification: 512 x 512, 32-bit PNG, sRGB, up to 1,024 KB, full square,
+  16 KB. Google's icon specification: 512 x 512, 32-bit PNG, sRGB, up to 1,024 KB, full square,
   no shadow. [S03, S27]
   It is the launcher artwork: a dark "P" (#1A1203) on amber (#F59E0B), full-bleed; Play applies
-  its own rounded mask and shadow, so neither is in the file. The dark "P" is the readable choice:
+  its own rounded mask and shadow, so neither is in the file. The "P" is the outline traced from
+  the real logo, the same one the app and the website draw. The dark "P" is the readable choice:
   about 8.6 : 1 against the amber, where a white "P" would be about 2.1 : 1. Upload this file
-  in the Console too (step 2 at the top), or the Play page keeps the old black icon.
+  in the Console too (step 2 at the top), or the Play page keeps the old icon.
 
 Feature graphic - required for the standard listing:                       READY
   android\artifacts\play\feature-1024x500.png   1024 x 500, 24-bit PNG, no alpha, about
@@ -406,25 +418,23 @@ Feature graphic - required for the standard listing:                       READY
   not meet.
 
 Phone screenshots (minimum two, up to eight):          READY technically; content CHECK
-  android\artifacts\play\screenshots\
-    01-feed.png           the news feed, light theme      story from The Hindu, with its photograph
-    02-hindi.png          the same feed in Hindi          story from NDTV Hindi, with photographs
+  android\artifacts\play\screenshots\      (retaken on 17 October 2026 with 1.5.3, for its header "P")
+    01-feed.png           the Science section, light      Phys.org story, with a photograph of a mantis shrimp
+    02-hindi.png          the feed in Hindi               NDTV Hindi story, with a photograph of electricity pylons
     03-topics.png         the Topics screen               nothing from a publisher
     04-choose-topics.png  choosing topics for For you     nothing from a publisher
     05-for-you.png        the For you feed                a Wikipedia entry, no photograph
-    06-feed-dark.png      the dark theme                  the same story from The Hindu as 01
+    06-feed-dark.png      the dark theme                  Science Daily story, no publisher photograph
   Each is 1080 x 2160 (exactly 2:1, the tallest Play allows: the longest side may not exceed
-  twice the shortest), 24-bit PNG, about 150 KB to 1.4 MB. They were taken with the status
-  bar in demo mode (10:00) and the emulator's size restored afterwards. [S03]
-  CHECK 01, 02 and 06 before you upload them. They are real captures, so they carry a
-  publisher's photograph: 01 and 06 a highway protest and a named Union Minister; 02 an
-  astrology story with a photograph of a woman and a religious picture. Those pictures
-  belong to their publishers (HOLD A), they show identifiable people, and the stories are
-  political or religious. The safer course is to retake them with a story from an open source
-  (for example a NASA or Wikipedia card under the Space topic) or a card without a
-  photograph, or to get the publisher's permission. 03, 04 and 05 hold nothing from a
-  publisher. Never edit a screenshot or paste in a different story: screenshots must show the
-  real app. [S03]
+  twice the shortest), 24-bit PNG, about 140 KB to 1.2 MB. They were taken with the status
+  bar in demo mode (10:00, Wi-Fi and battery only) and the emulator's size restored afterwards. [S03]
+  CHECK 01 and 02 before you upload them. They are real captures, so each carries one
+  publisher's photograph: 01 a mantis shrimp (Phys.org), 02 electricity pylons at sunset (NDTV).
+  Neither shows an identifiable person and neither story is political or religious, but the
+  pictures still belong to their publishers (HOLD A). If you want no publisher picture at all,
+  retake them with a card that has none (a Science Daily or Wikipedia card, as in 06 and 05), or
+  get the publisher's permission. 03 to 06 hold no publisher photograph. Never edit a screenshot
+  or paste in a different story: screenshots must show the real app. [S03]
 
 Alt text for each asset (Console asks for it)                              DRAFT
   Keep each to 140 characters or less, do not start with "image of", and say what matters.
@@ -433,9 +443,9 @@ Alt text for each asset (Console asks for it)                              DRAFT
   feature-1024x500.png
     Plax on an amber banner: short news in English and Hindi, with India, World, Tech and Business sections.
   01-feed.png
-    The Feed tab with an English news story: picture, source, headline and summary, language switch and section tabs.
+    The Feed tab on the Science section: a Phys.org story about mantis shrimp eyes, with picture, source, headline and summary.
   02-hindi.png
-    The same Feed in Hindi, showing a Hindi news story with its source and a Read full story button.
+    The Feed in Hindi, showing an NDTV story about a blackout in Sri Lanka with its picture, source and a Read full story button.
   03-topics.png
     The Topics tab listing topics such as Science, Technology and Space, with a prompt to choose topics for the For you feed.
   04-choose-topics.png
@@ -443,7 +453,7 @@ Alt text for each asset (Console asks for it)                              DRAFT
   05-for-you.png
     The For you tab showing a Space story from Wikipedia with a Read full story button.
   06-feed-dark.png
-    The Feed tab in the dark theme with a news story and its Read full story, AI brief, save and share buttons.
+    The Feed tab in the dark theme with a Science Daily story and its Read full story, AI brief, save and share buttons.
   If you retake a screenshot, rewrite its alt text to match what it shows.
 
 Tablet / Chromebook / TV / Wear screenshots:
@@ -844,7 +854,7 @@ Update behavior of the provided AAB:
 - It never checks a website for updates. The menu entry is "Open Google Play" and About says
   nothing about update checks. Google Play delivers updates.
 - Version codes must keep rising for this package (the next upload must be higher than any
-  you have uploaded; 1.5.2 is 10, so use 11 or more after it). The website APK is a different
+  you have uploaded; 1.5.3 is 11, so use 12 or more after it). The website APK is a different
   package with its own numbers.
 - Plax from Google Play is a separate app from the website APK. Saved stories and topics held
   only in the website app do not move; signing in with Google restores what was synced.
@@ -883,7 +893,7 @@ Production-access questions and how to answer them:
                                                      and the test is done.
 
 Technical evidence gathered locally (NOT a substitute for Play testing):
-- 157 JVM unit tests (14 opt-in skipped) and 78 device tests pass; lint has 0 errors.
+- 161 JVM unit tests (14 opt-in skipped) and 78 device tests pass; lint has 0 errors.
 - The account flows, including deleting an account, were run against a real local Supabase
   stack, and the deletion route was checked with a second user left untouched.
 - The bundle was validated with Google's bundletool, signed only by the upload key, and
@@ -892,6 +902,10 @@ Technical evidence gathered locally (NOT a substitute for Play testing):
   showing the address and the contact page, and its button opened the live page in Chrome.
 - The amber icon (new in 1.5.2) was looked at in the emulator's own launcher, next to the old
   one; a test fails if the "P" ever stops being easy to see against the icon's background.
+- One "P" (new in 1.5.3): the launcher entry, the splash and the header were looked at on the
+  bundle installed on the emulator, and the six screenshots were retaken from it. A test on each
+  side (BrandTest in the app, brand.test.mjs on the website) fails if a drawable, the website's
+  outline, the colours, the icon sizes or the manifest drift apart, or a share card types a "P" again.
 - The contact, privacy and delete-account pages were checked in a real browser, and live after
   deploy; the contact page is in the sitemap and every public page links to it.
 - No full real-Google-account login on a Play build and no Play review has been done.
@@ -904,8 +918,8 @@ Rollout steps (for a new app; for the 16 October notice only steps 4, 7 and 8 an
     app access, content rating, target audience, News declaration (with the contact page URL),
     Data safety (section 7), advertising ID and the financial/health/government declarations
     are the ones to expect. [S02]
- 4. Upload plax-1.5.2.aab to Internal testing (or the track the app is on); accept Play App
-    Signing; check the bundle's version (1.5.2, 10) and SHA-256 in Console.
+ 4. Upload plax-1.5.3.aab to Internal testing (or the track the app is on); accept Play App
+    Signing; check the bundle's version (1.5.3, 11) and SHA-256 in Console.
  5. Install from the test track on a phone; read the pre-launch report and fix real problems. [S30]
  6. Run the closed test and apply for production, if required (HOLD D).
  7. Prepare the production release with the same bundle; enter the release name and notes.
@@ -936,17 +950,18 @@ Do not treat a GitHub username or the app's brand as a verified legal identity.
 14. EVIDENCE AND OFFICIAL GOOGLE REFERENCES
 ==========================================
 Workspace evidence used (relative to the project root):
-  android\artifacts\plax-1.5.2.aab
+  android\artifacts\plax-1.5.3.aab
   android\artifacts\aab-verification.json
   android\app\build.gradle
   android\app\src\main\AndroidManifest.xml
   android\app\src\main\res\values\colors.xml and drawable\ic_launcher_foreground.xml (the icon)
+  src\lib\brand.ts (the one "P" outline, shared by the app and the website) and src\lib\brand.test.mjs
   android\app\src\main\java\com\plaxlabs\news\Contact.java and ContactSheet.java (Contact us)
   android\app\src\main\java\com\plaxlabs\news\AccountManager.java
   android\app\src\main\java\com\plaxlabs\news\AccountSheet.java
   android\app\src\main\java\com\plaxlabs\news\Supabase.java
   android\app\src\main\java\com\plaxlabs\news\MainActivity.java
-  android\README.md   ("Publishing to Google Play", "Verification performed for 1.5.0", "1.5.1" and "1.5.2")
+  android\README.md   ("Publishing to Google Play", "Verification performed for 1.5.0", "1.5.1", "1.5.2" and "1.5.3")
   src\app\contact\page.tsx, src\lib\legal.ts and src\components\SiteLinks.tsx (the contact page)
   src\app\api\account\delete\route.ts and src\lib\account-delete.ts
   src\app\privacy\page.tsx, src\app\delete-account\page.tsx and src\lib\legal.ts

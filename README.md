@@ -188,6 +188,8 @@ plax/
 │       ├── ai.ts                      # Gemini/Groq summarization & quiz gen
 │       ├── account-delete.ts          # Deleting a reader's own account (checks whose token it is first); unit-tested
 │       ├── app-redirect.ts            # Builds the redirect back into the Android app
+│       ├── brand.ts                   # The one "P" outline, its colours and proportions: the icons and share cards are drawn from it
+│       ├── brand-tile.tsx             # The "P" on the amber tile, for the share cards
 │       ├── cache.ts                   # In-memory server cache (Map-based)
 │       ├── cloud-sync.ts              # Supabase CRUD: prefs, bookmarks, engagements
 │       ├── database.types.ts          # Supabase generated types
@@ -210,6 +212,7 @@ plax/
 ├── assets/og/                         # Newsreader Bold (SIL OFL) for the share preview picture
 ├── android/                           # Native Android app (see android/README.md)
 │   └── plaxlabs_logo.png             # App logo
+├── scripts/                           # brand-icons.mjs draws the icons from brand.ts; also the local Supabase stack and account check
 ├── supabase-schema.sql               # Full database schema
 ├── package.json
 ├── next.config.js

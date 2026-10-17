@@ -293,7 +293,7 @@ News pools rotate and clients keep stories for days, so a link cannot be re-reso
 
 ### The preview picture
 
-`/s/<slug>/opengraph-image` draws a 1200×630 card: the Plax mark, the section, the headline set large in Newsreader Bold (`assets/og/`, SIL OFL, 30 KB), and the source. It is drawn, not copied from the publisher. Satori, which draws it, does **not** shape Devanagari correctly (vowel signs land on the wrong letter), so a card never draws Hindi: a Hindi headline gets a plain branded card (and a non-Latin source name is left off the line below it), and the Hindi headline reaches the preview through `og:title`, which the chat app sets itself. `₹` is written `Rs` (the font has no glyph for it). The image is cached immutably, except the stand-in drawn when the store cannot be asked.
+`/s/<slug>/opengraph-image` draws a 1200×630 card: the Plax mark (`PTile`, the shared "P" outline on the amber tile; see *The "P"* under UI Components), the section, the headline set large in Newsreader Bold (`assets/og/`, SIL OFL, 30 KB), and the source. It is drawn, not copied from the publisher. Satori, which draws it, does **not** shape Devanagari correctly (vowel signs land on the wrong letter), so a card never draws Hindi: a Hindi headline gets a plain branded card (and a non-Latin source name is left off the line below it), and the Hindi headline reaches the preview through `og:title`, which the chat app sets itself. `₹` is written `Rs` (the font has no glyph for it). The image is cached immutably, except the stand-in drawn when the store cannot be asked.
 
 ### Clients
 
@@ -838,10 +838,20 @@ Fixed at the bottom of the feed, as in the app: a wide **Read full story** butto
 
 - **Four places** — Feed, For you, Topics, Saved (`ui-store` `screen` + `feedFilter`). A bottom bar on phones (`BottomNav`), a side rail on desktop (`LeftRail`, which also holds search, language, theme (System / Light / Dark), the reader's topics and the account button)
 - **Mobile header (`NavBar`)** — the Plax mark, **English | हिन्दी**, "check for new stories", and a ⋮ menu (`HeaderMenu`, "More options") holding Search, Account, Your topics and Theme. This is the Android header, plus the website's search
-- **`BrandMark`** — the logo's P as a flat glyph (cut from the logo image with a CSS mask, so it follows the text colour in both themes) and the wordmark in the headline serif; used by the header, the rail, the story pages and the topic pages
+- **`BrandMark`** — the logo's P as a flat glyph (cut from the master logo image `public/plaxlabs_logo.png` with a CSS mask, so it follows the text colour in both themes) and the wordmark in the headline serif; used by the header, the rail, the story pages and the topic pages. Everything else that draws the P uses the traced outline in `lib/brand.ts` (see *The "P"* below)
 - The section chips (All, India, World, …) are soft filled pills. The Feed tab = news (default) or one topic; For you = a mix of the reader's chosen topics, with `ForYouEmpty` until some are chosen
 
 **Intentionally different from the app:** the website has Listen and Copy, a search palette (⌘K), the left and right panels on desktop (navigation, stats and shortcuts), and an inline Go deeper panel where the app opens an AI-brief sheet. Everything else (header, chips, card, action row, tabs, theme choice) is meant to be the same; if one drifts, the screenshots in the 1.4.0 verification show what it should look like.
+
+### The "P" — `lib/brand.ts`, `lib/brand-tile.tsx`
+
+Apart from `BrandMark`, which masks the master logo so it can take the text colour, the P is drawn from **one outline**. `src/lib/brand.ts` holds it: `P_BOWL` and `P_STEM` (absolute `M/L/C/Z` paths, traced once from the logo; they overlap it 99.1% at the same height, where the hand-drawn vector the Android app had before 1.5.3 overlapped 74%), its box `P_BOX`, the colours `BRAND` (tile `#F59E0B`, ink `#1A1203`) and the proportions `P_IN_TILE` (0.68 of the height, for a tile shown whole) and `P_IN_FULL_BLEED` (0.45, for the maskable install icons, so a circular mask cannot clip it).
+
+- **`PTile`** (`lib/brand-tile.tsx`) draws the P on the amber tile as an inline `<svg><path>`, which Satori (`next/og`) renders. The three share cards (`app/opengraph-image.tsx`, `app/topics/[topic]/opengraph-image.tsx`, `app/s/[slug]/opengraph-image.tsx`) use it; none types a letter.
+- **Icons**: `scripts/brand-icons.mjs` draws `app/icon.png` (the favicon: 512, rounded, clear corners), `app/apple-icon.png` (180, opaque), `public/icon-192.png` and `public/icon-512.png` (opaque, full-bleed) and the Play listing's icon (`android/artifacts/play/icon-512.png`, git-ignored, 32-bit) from `brand.ts` in a headless browser (`npm i --no-save playwright-core` first; set `BROWSER` if no Edge, Chrome or Chromium is found). `app/manifest.ts` lists the two public icons, the 512 one also as maskable.
+- **Android**: the drawables `ic_launcher_foreground`, `ic_plax`, `ic_splash` and `drawable-night/ic_splash` carry the same two paths.
+- **To change the logo**: retrace it, change `brand.ts` and the four drawables, run the script and rebuild the app. `lib/brand.test.mjs` (6 tests) and the Android `BrandTest` (4) fail if the website's outline, the drawables, the colours, the icon files' sizes and colour types or the manifest drift apart, or if a share card types a "P" again.
+- Chat apps cache link previews, so a link shared before a card changed can keep its old picture for a while.
 
 ### `TopicsScreen.tsx`, `TopicEditor.tsx`, `SavedScreen.tsx`, `AccountSheet.tsx`, `CaughtUp.tsx`
 

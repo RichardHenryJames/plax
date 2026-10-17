@@ -10,6 +10,44 @@ exists (see *Updates from inside the app*), except in the Google Play build, whi
 which need the two small routes and the one small file listed under *Backend changes*,
 the app works against the backend as it was before this version.
 
+## What is in 1.5.3 (versionCode 11): one "P" everywhere
+
+The Plax "P" was drawn three different ways, so the app icon, the website and the pictures chat apps show did not match. There is now
+**one outline** everywhere. Nothing else changed in how the app works; 1.5.3 also carries 1.5.1's Contact us and 1.5.2's amber icon.
+
+- **What did not match** (measured, not judged by eye). (1) The real logo, `public\plaxlabs_logo.png` (white on transparent,
+  2016 x 2112), which the website's header mark draws. (2) A hand-drawn Android vector, used by the launcher icon, the in-app header
+  and both splash screens: scaled to the same height it overlapped the logo only **74%** (aspect 0.83 against 0.74: wider, with a
+  different stem and bowl). (3) A letter "P" typed in a font on an amber tile in the three share-card pictures (home, topic, story),
+  white sans-serif on two and dark serif on the third.
+- **What it is now.** An outline of two shapes (the stem and the bowl), traced once from the logo with potrace (GPL; used as a tool on
+  the developer's machine, not shipped and not a dependency): blurred a little to remove the logo's jagged raster edge, then nearly
+  straight curves straightened, so 19 segments stand in for about 120 jittery ones. It overlaps the logo **99.1%** at the same height
+  (99.5% if allowed to stretch); its aspect is 0.745 against the logo's 0.743.
+- **Android**: the same two paths in `ic_launcher_foreground.xml` (launcher, dark `#1A1203`), `ic_plax.xml` (header), `ic_splash.xml`
+  and `drawable-night\ic_splash.xml`. Their transforms are unchanged, so the "P" is centred as before.
+- **Website**: `src\lib\brand.ts` holds the outline, its box, the colours and the proportions; `src\lib\brand-tile.tsx` (`PTile`) draws the
+  "P" on the amber tile for `next/og`, and the three share cards use it instead of a typed letter. The header mark (`BrandMark`) still
+  masks `plaxlabs_logo.png`, deliberately: that file is the master logo.
+- **Icons**, drawn from `brand.ts` by `scripts\brand-icons.mjs` (it needs a browser: `npm i --no-save playwright-core` first; it reproduced the
+  four committed icons byte for byte): `src\app\icon.png` (512, rounded amber tile, clear corners, "P" 68% of
+  the height), `src\app\apple-icon.png` (180, opaque), new `public\icon-192.png` and `public\icon-512.png` (opaque, full-bleed, "P" 45% so
+  it stays inside the circle a maskable icon may be cut to; at 68% its far corners would sit outside it) and the Play icon
+  `artifacts\play\icon-512.png` (512, 32-bit, opaque).
+- **Two defects found on the way.** The favicon was a white "P" on transparent, nearly invisible on a light browser tab, and about 5%
+  squashed (aspect 0.78). The web manifest declared the 2016 x 2112 logo as 512 x 512; it now lists real 192 and 512 icons, the 512 one
+  also as maskable.
+- **Guards.** `BrandTest` (4 JVM tests): the four drawables draw the same two paths; that outline equals the one in `src\lib\brand.ts`; the
+  icon colours equal the website's; the "P" is centred inside the launcher's 66-unit safe circle. `src\lib\brand.test.mjs` (6 tests): the
+  outline's structure and box; the logo's aspect; the Android drawables and colours match; the icon files have the sizes and colour types
+  the manifest claims; the share cards use `PTile` and none types a "P". Each was shown to bite: a stretched box, a drawable with the old
+  "P", one changed digit in the website's path and a larger scale each made the right test fail with a clear message, and each was put back.
+- **Not changed.** The accent `#F5B13A`, the splash backgrounds (cream and near-black), `BrandMark`, and the wordmark: it is a sans-serif on
+  the home and topic cards and a serif on the story card and in the app, which is a separate inconsistency. The domain root `plaxlabs.com`
+  is a different site and was not touched.
+- **Version.** 1.5.2 was already built, and a version code cannot be reused, so this is 1.5.3 (code 11). The Play answers sheet is now
+  [`PLAY-CONSOLE-ANSWERS-1.5.3.txt`](PLAY-CONSOLE-ANSWERS-1.5.3.txt).
+
 ## What is in 1.5.2 (versionCode 10): an amber app icon
 
 The launcher icon was a near-black tile with a white "P". It is now an **amber tile (`#F59E0B`) with a dark "P" (`#1A1203`)**. Nothing
@@ -23,7 +61,8 @@ else changed in how the app works; 1.5.2 also carries 1.5.1's Contact us.
 - **Where it shows.** The home screen and app drawer (the launcher crops the tile to its own shape; the colours stay), the Play Store
   icon (`artifacts\play\icon-512.png`, regenerated, 32-bit opaque; it has to be uploaded in the Console as well) and the feature
   graphic (`feature-1024x500.png`, the same amber). Android 13 and later can recolour the "P" with the wallpaper's colours when the
-  reader turns on themed icons, whatever it is drawn in. The website's favicon is a separate white-on-transparent file and was not touched.
+  reader turns on themed icons, whatever it is drawn in. The website's favicon is a separate white-on-transparent file and was not touched
+  in 1.5.2 (1.5.3 redrew it).
 - **Files**: `res\values\colors.xml` (`launcher_background`) and `res\drawable\ic_launcher_foreground.xml` (the "P"'s fill); the
   website APK, the debug build and the Play build all share them.
 - **Version.** 1.5.1 was already built (and may already be uploaded), and a version code cannot be reused, so this is 1.5.2 (code 10).
@@ -53,10 +92,10 @@ halves. How the app reads, saves and shares did not change.
 - No new permission, library, analytics or data: the store build still asks for `INTERNET` only.
 - **What the code cannot do**: the Console items. The store listing's contact details (email and website) and the news
   declaration's contact URL have to be changed by the owner, and the new bundle uploaded and sent for review; the steps are at the
-  top of [`PLAY-CONSOLE-ANSWERS-1.5.2.txt`](PLAY-CONSOLE-ANSWERS-1.5.2.txt). Nothing was changed in the Console, and the app stays
+  top of [`PLAY-CONSOLE-ANSWERS-1.5.3.txt`](PLAY-CONSOLE-ANSWERS-1.5.3.txt). Nothing was changed in the Console, and the app stays
   "not available" until Google approves the new release.
 - A published version is never altered: 1.5.0 (code 8) stays as it was, and `artifacts\plax-1.5.1.aab` is a new bundle (superseded
-  by 1.5.2, which only adds the amber icon).
+  by 1.5.2, which adds the amber icon, and then by 1.5.3, which makes the "P" the same everywhere).
 
 ## What is in 1.5.0 (versionCode 8): ready for Google Play
 
@@ -488,7 +527,7 @@ reports.
 
 **What only you can do in the Play Console**, and what to enter (nothing here is submitted for you). The complete,
 field-by-field version, with the copy-paste listing text, the Data safety answers, the declarations, the reviewer text and the
-release steps, each item marked READY, DRAFT, OWNER or HOLD, is [`PLAY-CONSOLE-ANSWERS-1.5.2.txt`](PLAY-CONSOLE-ANSWERS-1.5.2.txt)
+release steps, each item marked READY, DRAFT, OWNER or HOLD, is [`PLAY-CONSOLE-ANSWERS-1.5.3.txt`](PLAY-CONSOLE-ANSWERS-1.5.3.txt)
 next to this file (it begins with what to do about the 16 October notice); this table is only the summary:
 
 | Item | State |
@@ -532,7 +571,7 @@ $env:PLAX_LOCAL_SITE = 'http://127.0.0.1:3128/news'
 ..\scripts\auth-stack\down.ps1
 ```
 
-A normal `.\build.ps1` lists 157 JVM tests and skips 14 of them (the stack tests below); 143 run.
+A normal `.\build.ps1` lists 161 JVM tests and skips 14 of them (the stack tests below); 147 run.
 
 **Run the device suite on a quiet machine, on an emulator that has finished starting.** Its checks are made by UiAutomator against a
 software-rendered emulator, so they time out when the machine is busy. A first 1.4.0 run, with a Gradle daemon, the website's dev
@@ -547,7 +586,7 @@ clean app: if you have used it by hand on the emulator (a saved story is enough)
 `adb shell pm clear com.plaxlabs.news.preview`, or `appNeedsNoLoginAndSupportsTopicsSavedAndRotation` will not
 find the empty Saved tab.
 
-- **143 JVM unit tests**: strict JSON shape and limits, server errors, escaped URLs, cache
+- **147 JVM unit tests**: strict JSON shape and limits, server errors, escaped URLs, cache
   format, repeated-headline removal (including sentences that merely begin with the
   headline), read-time parsing, image width/sampling rules, cache-header rewriting,
   Markdown rendering rules, AI request/response validation, sections and request URLs;
@@ -571,7 +610,9 @@ find the empty Saved tab.
   survives the cache and saved files while older files still load); and the contact details
   (`ContactTest`, 4 tests: a real address, the website's contact page, the address, page and operator equal to the
   website's `legal.ts`, and the same placeholders in English and Hindi); and the launcher icon (`LauncherIconTest`, 3 tests: how
-  contrast is measured, the "P" at least 4.5 : 1 against the icon's background, and the adaptive icon's themed layer).
+  contrast is measured, the "P" at least 4.5 : 1 against the icon's background, and the adaptive icon's themed layer); and the one
+  "P" (`BrandTest`, 4 tests: the four drawables draw the same two paths, that outline equals the website's `src\lib\brand.ts`, the icon
+  colours equal the website's, and the "P" is centred inside the launcher's safe circle).
 - **14 opt-in tests against a real Supabase stack** (`AccountLocalStackTest`, skipped unless
   `PLAX_LOCAL_STACK` names the `.env` that `scripts\auth-stack\up.ps1` writes). The app's real
   `AccountManager` and `Supabase` client talk to a real GoTrue, PostgREST, Kong gateway and Postgres loaded with
@@ -682,6 +723,36 @@ project is back:
 - Not covered: Google's consent screen, the Authorized redirect URI in the Google console, the Redirect URLs list in
   Supabase, the Custom Tab path with a real code, and a real hosted project (its key formats, defaults and rate
   limits). Those are the one manual sign-in the runbook ends with.
+
+## Verification performed for 1.5.3 (17 October 2026)
+
+On the isolated Android 16 (API 36, x86_64) `Plax_News_Test` emulator and the development machine; no physical phone and no Play Console.
+
+- **The match.** The shapes were overlapped at the same height: the old Android vector **74%**, the traced outline **99.1%** (99.5% allowing for
+  stretch). Old, new and the logo were also looked at side by side, and the new "P" at 16 to 512 pixels on light and dark backgrounds
+  and inside circular masks (local images, not committed).
+- **Tests.** **161 JVM tests** listed, 0 failing, 14 opt-in skipped, 147 run (the 4 new ones are `BrandTest`); lint **0 errors**, 1 warning
+  (a newer Gradle exists) for debug and preview; **78 device tests** pass (197 s, clean app, settled emulator). The website: `tsc` clean,
+  **131 unit tests** (125 before; the 6 new ones are `brand.test.mjs`), and a production `next build` completes and generates the topic
+  share cards (one of them was looked at).
+- **The bundle** `artifacts\plax-1.5.3.aab` (3,058,301 bytes, SHA-256 `6961f2bfd3ac14d2c82cd26842ebac9377420020a0b32a5011b20bf34143ffbc`):
+  the 15 checks of `package-aab.ps1` pass: bundletool 1.18.3 validates it; one signer, the Plax upload key (SHA-256 `dade46fd…de1219`, not the
+  debug key); package `com.plaxlabs.news`, 1.5.3 (11), min SDK 26, target SDK 36, not debuggable, no cleartext, no backups, `INTERNET` as the
+  only permission besides the AndroidX receiver-protection one; about 3 MB against Play's 200 MB limit.
+- **Installed from that bundle with bundletool** (24 smoke checks, all passing; it opened in 1.9 s on that emulator). In the emulator's own
+  launcher (app drawer, searching "Plax") both entries, the store build and the preview build, show the amber icon with the two-piece "P";
+  the in-app header and the splash screen (caught mid-fade) were looked at.
+- **Play graphics.** `icon-512.png` is 512 x 512, 32-bit, every pixel opaque (corner `#F59E0B`). The six screenshots were retaken from the
+  installed bundle (1080 x 2160, 24-bit, a demo status bar with Wi-Fi and battery only) and each was looked at: none shows an identifiable
+  person, and 01 and 02 carry one publisher's picture each. The earlier set showed the header with the old "P".
+- **Live after the deploy** (commit `56f8048`): `/news/opengraph-image`, `/news/topics/science/opengraph-image` and a story's card are
+  1200 x 630 PNGs that show the tile; `/news/icon.png` (512, rounded, transparent corners), `/news/apple-icon.png` (180, opaque),
+  `/news/icon-192.png` and `/news/icon-512.png` return 200 at those sizes, and `/news/manifest.webmanifest` lists the last two (the 512 one
+  also as maskable). The cards and icons were looked at on light and dark backgrounds, down to 16 pixels.
+
+**Not verified**: the icon on a physical phone or in other launcher shapes; themed icons (how Android 13 and later recolours the "P"); the
+Play listing after upload; that Google accepts the release; and how a chat app that has already cached a Plax link's preview will show it
+(WhatsApp, Telegram and others keep previews for a while, so a link shared before today may keep its old picture until their cache expires).
 
 ## Verification performed for 1.5.2 (17 October 2026)
 
