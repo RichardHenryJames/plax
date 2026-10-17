@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { unstable_cache } from 'next/cache'
 import { SITE_URL } from '@/lib/seo'
+import { SiteLinks } from '@/components/SiteLinks'
 import { fetchGeneralNews } from '@/lib/sources'
 import { NEWS_SECTIONS } from '@/lib/types'
 import type { RawContent } from '@/lib/types'
@@ -164,6 +165,7 @@ export default async function NewsHubPage() {
           Plax summarizes headlines from reputable publishers and links to the original sources.
           For the full swipeable experience, <Link href="/?topic=news" className="text-[color:var(--signal)] hover:underline">open the news feed</Link>.
         </p>
+        <SiteLinks className="mt-4" />
       </footer>
     </main>
   )

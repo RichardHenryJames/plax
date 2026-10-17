@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { SITE, SITE_URL, TOPIC_SEO } from '@/lib/seo'
 import { TopicHubCard } from '@/components/TopicHubCard'
 import { BrandMark } from '@/components/BrandMark'
+import { SiteLinks } from '@/components/SiteLinks'
 
 export const metadata: Metadata = {
   title: 'Explore Topics — Personalized Knowledge Feeds',
@@ -148,6 +149,7 @@ export default function TopicsHubPage() {
           <BrandMark size="sm" href={null} className="!text-current" />
           <span className="text-sm font-medium">get smarter every day</span>
         </Link>
+        <SiteLinks />
         <p className="eyebrow eyebrow--bare text-dark-subtle">© {year} Plax Labs</p>
       </footer>
     </main>

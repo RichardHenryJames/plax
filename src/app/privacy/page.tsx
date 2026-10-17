@@ -154,7 +154,7 @@ export default function PrivacyPage() {
 
       <Section title="Contact" id="contact">
         <P>
-          {LEGAL.operator}, {mail}.
+          {LEGAL.operator}, {mail}. More ways to reach us are on the <Link href="/contact" className="text-[color:var(--signal-text)] underline">Contact us</Link> page.
         </P>
       </Section>
     </LegalPage>

@@ -8,7 +8,14 @@ export const LEGAL = {
   updatedIso: '2026-10-13',
   // How long an emailed deletion request may take. Deleting from the app or from the website is immediate.
   emailDeletionDays: 30,
+  // The contact page (/contact) has its own date: Google Play's news policy wants contact details that are up to date.
+  contactUpdated: '17 October 2026',
+  contactUpdatedIso: '2026-10-17',
+  // The address of that page in the Android app (FeedApi.CONTACT_URL), which shows the same email; ContactTest keeps them equal.
+  contactPath: '/contact',
 } as const
+
+export const CONTACT_MAILTO = `mailto:${LEGAL.contactEmail}?subject=${encodeURIComponent('Plax feedback')}`
 
 export const DELETION_MAILTO =
   `mailto:${LEGAL.contactEmail}` +

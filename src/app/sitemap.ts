@@ -41,6 +41,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
     // The policy pages Google Play requires; they change rarely, so they say when.
     {
+      url: `${SITE_URL}${LEGAL.contactPath}`,
+      lastModified: new Date(LEGAL.contactUpdatedIso),
+      changeFrequency: 'yearly',
+      priority: 0.4,
+    },
+    {
       url: `${SITE_URL}/privacy`,
       lastModified: new Date(LEGAL.updatedIso),
       changeFrequency: 'yearly',

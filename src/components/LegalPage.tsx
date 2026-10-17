@@ -23,6 +23,7 @@ export function LegalPage({ title, updated, children }: { title: string; updated
         </article>
 
         <nav aria-label="Plax policies" className="mt-12 pt-6 border-t border-white/[0.08] flex flex-wrap gap-x-6 gap-y-2 text-sm font-semibold">
+          <Link href="/contact" className="focus-ring text-[color:var(--signal-text)] hover:underline rounded">Contact us</Link>
           <Link href="/privacy" className="focus-ring text-[color:var(--signal-text)] hover:underline rounded">Privacy policy</Link>
           <Link href="/delete-account" className="focus-ring text-[color:var(--signal-text)] hover:underline rounded">Delete your account</Link>
           <Link href="/" className="focus-ring text-[color:var(--signal-text)] hover:underline rounded">Plax news</Link>

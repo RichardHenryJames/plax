@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { unstable_cache } from 'next/cache'
 import { SITE_URL } from '@/lib/seo'
+import { SiteLinks } from '@/components/SiteLinks'
 import { fetchGeneralNews } from '@/lib/sources'
 import { NEWS_SECTIONS } from '@/lib/types'
 import type { RawContent } from '@/lib/types'
@@ -165,6 +166,7 @@ export default async function NewsSectionPage({ params }: Params) {
 
       <footer className="mt-12 pt-8 border-t border-white/[0.06] text-sm text-dark-subtle">
         <Link href="/?topic=news" className="text-[color:var(--signal)] hover:underline">Open the live news feed →</Link>
+        <SiteLinks className="mt-4" />
       </footer>
     </main>
   )

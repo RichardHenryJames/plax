@@ -232,6 +232,10 @@ export function LeftRail() {
             {user && <span className="block text-xs text-dark-muted truncate">{user.email}</span>}
           </span>
         </button>
+        <div className={`mt-1 px-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold ${lang === 'hi' ? 'lang-hi' : ''}`}>
+          <Link href="/contact" className="focus-ring text-dark-muted hover:text-white underline rounded">{t('contactUs')}</Link>
+          <Link href="/privacy" className="focus-ring text-dark-muted hover:text-white underline rounded">{t('privacyPolicy')}</Link>
+        </div>
       </div>
     </aside>
   )

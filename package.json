@@ -1,6 +1,6 @@
 {
   "name": "plax",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "TikTok for readers - swipeable short-form content for smart people",
   "scripts": {
     "dev": "next dev",

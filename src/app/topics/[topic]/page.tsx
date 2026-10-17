@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { SITE_URL, TOPIC_SEO, getTopicSeo } from '@/lib/seo'
 import { BrandMark } from '@/components/BrandMark'
+import { SiteLinks } from '@/components/SiteLinks'
 
 // Statically pre-render one page per topic at build time.
 export function generateStaticParams() {
@@ -181,6 +182,7 @@ export default async function TopicPage({ params }: Params) {
             <BrandMark size="sm" href={null} className="!text-current" />
             <span className="text-sm font-medium">Explore all topics</span>
           </Link>
+          <SiteLinks />
           <p className="text-dark-subtle text-xs">© {new Date().getFullYear()} Plax Labs</p>
         </div>
       </footer>

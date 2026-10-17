@@ -122,6 +122,7 @@ export default function RootLayout({
           <a href={withBase('/')}>Home</a>
           <a href={withBase('/topics')}>Explore all topics</a>
           <a href={withBase('/privacy')}>Privacy policy</a>
+          <a href={withBase('/contact')}>Contact us</a>
           {TOPIC_SEO.map((t) => (
             <a key={t.id} href={withBase(`/topics/${t.id}`)}>{t.label}</a>
           ))}

@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { unstable_cache } from 'next/cache'
 import { SITE_URL } from '@/lib/seo'
+import { SiteLinks } from '@/components/SiteLinks'
 import { fetchHindiNews } from '@/lib/sources'
 import type { RawContent } from '@/lib/types'
 
@@ -110,6 +111,7 @@ export default async function SamacharPage() {
 
       <footer className="mt-12 pt-8 border-t border-white/[0.06] text-sm text-dark-subtle">
         <Link href="/?topic=news&lang=hi" className="text-[color:var(--signal)] hover:underline">लाइव समाचार फ़ीड खोलें →</Link>
+        <SiteLinks lang="hi" className="mt-4" />
       </footer>
     </main>
   )
