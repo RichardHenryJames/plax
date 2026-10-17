@@ -10,6 +10,35 @@ exists (see *Updates from inside the app*), except in the Google Play build, whi
 which need the two small routes and the one small file listed under *Backend changes*,
 the app works against the backend as it was before this version.
 
+## What is in 1.5.1 (versionCode 9): Contact us, after Google Play's policy notice
+
+On 16 October 2026 Google Play took the 1.5.0 listing down under its **News and Magazines policy**: the app "doesn't contain a
+dedicated website and in-app page that's easy to find and clearly shows relevant contact information" (an email address or a
+phone number; social media does not count). Plax is declared a news aggregator, and the contact URL in that declaration was the
+privacy policy, which has the address in it but is not a contact page; the app itself had no contact page. This version adds both
+halves. How the app reads, saves and shares did not change.
+
+- **In the app: Contact us.** The menu (three dots) has **Contact us**, after **About Plax**. It opens a sheet with the address in a
+  card (selectable text, so it is read on the screen and not only behind a button), **Plax Labs**, **Email us** (a new message
+  in the mail app, subject "Plax 1.5.1 feedback"; with no mail app the address is copied and the reader is told, so it is never
+  a dead end), **Copy address**, **Open the contact page** (a Custom Tab), the page's address in words
+  (`https://www.plaxlabs.com/news/contact`, as Google's declaration help asks that the URL "can also be found in-app"), and a line
+  crediting publishers. English and Hindi. **About Plax** shows the address too, on a line of its own. A third button on About
+  ("Contact us") was tried and dropped: Android stacked the three buttons and pushed Privacy policy off the screen.
+- **On the website: `/contact`.** A page of its own with the heading "Contact us", the address as plain text and a `mailto:` link,
+  who runs Plax, what to write about (problems, corrections, publishers and rights holders, privacy and deletion, feedback), how
+  replies work, where the stories come from, and `ContactPage` structured data. It is linked from the ⋮ menu, the desktop left
+  rail, the footer of every public page and the privacy policy, and it is in the sitemap (`TECH.md`, *GET /contact*).
+- **One address.** `ContactTest` fails if the app's address, contact page or operator name differ from the website's
+  `src/lib/legal.ts`, and checks that both languages carry the same placeholders. It was checked by changing the app's address:
+  the test names the mismatch.
+- No new permission, library, analytics or data: the store build still asks for `INTERNET` only.
+- **What the code cannot do**: the Console items. The store listing's contact details (email and website) and the news
+  declaration's contact URL have to be changed by the owner, and the new bundle uploaded and sent for review; the steps are at the
+  top of [`PLAY-CONSOLE-ANSWERS-1.5.1.txt`](PLAY-CONSOLE-ANSWERS-1.5.1.txt). Nothing was changed in the Console, and the app stays
+  "not available" until Google approves the new release.
+- A published version is never altered: 1.5.0 (code 8) stays as it was, and `artifacts\plax-1.5.1.aab` is a new bundle.
+
 ## What is in 1.5.0 (versionCode 8): ready for Google Play
 
 The first version built as a Google Play bundle (`com.plaxlabs.news`, the store build) as well as the website's preview
@@ -440,19 +469,20 @@ reports.
 
 **What only you can do in the Play Console**, and what to enter (nothing here is submitted for you). The complete,
 field-by-field version, with the copy-paste listing text, the Data safety answers, the declarations, the reviewer text and the
-release steps, each item marked READY, DRAFT, OWNER or HOLD, is [`PLAY-CONSOLE-ANSWERS-1.5.0.txt`](PLAY-CONSOLE-ANSWERS-1.5.0.txt)
-next to this file; this table is only the summary:
+release steps, each item marked READY, DRAFT, OWNER or HOLD, is [`PLAY-CONSOLE-ANSWERS-1.5.1.txt`](PLAY-CONSOLE-ANSWERS-1.5.1.txt)
+next to this file (it begins with what to do about the 16 October notice); this table is only the summary:
 
 | Item | State |
 |---|---|
 | Privacy policy URL | `https://www.plaxlabs.com/news/privacy` (live), also linked inside the app |
+| Contact (News policy) | A dedicated page, `https://www.plaxlabs.com/news/contact`, and **Menu > Contact us** in the app. Give that URL as the news declaration's contact URL (not the privacy policy: Google rejected that), and fill in the store listing's contact details (email, and the website `https://www.plaxlabs.com/news`) |
 | Account deletion | In the app: Account, then Delete account. Web resource for the Data safety form: `https://www.plaxlabs.com/news/delete-account` |
 | Data safety | Answer from what the code does (below), then check it against Google's definitions |
 | App access | Nothing is locked: every feature works without signing in, so no reviewer login is needed |
 | Ads | None |
 | Target audience | The policy says Plax is for people 13 and over, so choose 13+ (not children) to match it |
 | Content rating | The questionnaire is yours to answer; the feed shows publishers' headlines, which can be about crime or violence |
-| News apps | Plax is an aggregator, so the News and Magazine declaration applies (required since 27 August 2025). Every story is attributed to its source with a link out; the answers are in section 9 of the answers file, and the legal-entity facts are yours |
+| News apps | Plax is an aggregator, so the News and Magazine declaration applies (required since 27 August 2025). Every story is attributed to its source with a link out; the answers are in section 9 of the answers file, and the legal-entity facts are yours. The declaration's contact URL must be the contact page |
 | Testing | A personal developer account created after 13 November 2023 must first run a closed test with at least 12 testers for 14 days |
 | Listing | The copy-paste text (English, and a Hindi draft), its character counts and the alt text are in the answers file. The graphics (a 512 px icon, a 1024x500 feature graphic and six 1080x2160 phone screenshots of the store build, at most 2:1) are in `artifacts\play\` (local, not committed). Three screenshots show a publisher's photograph: see the note in section 4 of the answers file before uploading them |
 | Content licensing | Plax shows headlines, short summaries and pictures that belong to publishers, with attribution and a link to the full story. Whether that is acceptable for a store listing is a licensing question for you, not something a test can show |
@@ -483,7 +513,7 @@ $env:PLAX_LOCAL_SITE = 'http://127.0.0.1:3128/news'
 ..\scripts\auth-stack\down.ps1
 ```
 
-A normal `.\build.ps1` lists 150 JVM tests and skips 14 of them (the stack tests below); 136 run.
+A normal `.\build.ps1` lists 154 JVM tests and skips 14 of them (the stack tests below); 140 run.
 
 **Run the device suite on a quiet machine, on an emulator that has finished starting.** Its checks are made by UiAutomator against a
 software-rendered emulator, so they time out when the machine is busy. A first 1.4.0 run, with a Gradle daemon, the website's dev
@@ -498,7 +528,7 @@ clean app: if you have used it by hand on the emulator (a saved story is enough)
 `adb shell pm clear com.plaxlabs.news.preview`, or `appNeedsNoLoginAndSupportsTopicsSavedAndRotation` will not
 find the empty Saved tab.
 
-- **136 JVM unit tests**: strict JSON shape and limits, server errors, escaped URLs, cache
+- **140 JVM unit tests**: strict JSON shape and limits, server errors, escaped URLs, cache
   format, repeated-headline removal (including sentences that merely begin with the
   headline), read-time parsing, image width/sampling rules, cache-header rewriting,
   Markdown rendering rules, AI request/response validation, sections and request URLs;
@@ -519,7 +549,9 @@ find the empty Saved tab.
   exactly what the website verifies (a golden vector shared with its unit tests), which answers
   are trusted (only this story's page on the Plax site: wrong host, port, scheme, path, query or
   id are refused), the message the share sheet is given in each case, and that the signature
-  survives the cache and saved files while older files still load).
+  survives the cache and saved files while older files still load); and the contact details
+  (`ContactTest`, 4 tests: a real address, the website's contact page, the address, page and operator equal to the
+  website's `legal.ts`, and the same placeholders in English and Hindi).
 - **14 opt-in tests against a real Supabase stack** (`AccountLocalStackTest`, skipped unless
   `PLAX_LOCAL_STACK` names the `.env` that `scripts\auth-stack\up.ps1` writes). The app's real
   `AccountManager` and `Supabase` client talk to a real GoTrue, PostgREST, Kong gateway and Postgres loaded with
@@ -536,7 +568,7 @@ find the empty Saved tab.
   `PLAX_LOCAL_SITE`, runs the app's own deletion through the real website route into the real stack: the account, its profile,
   saved stories and reading activity are gone, the old refresh token is dead, the phone is signed out with its own topics intact,
   and a second reader's account and data are untouched.
-- **72 Android instrumentation tests** (76 with `-LiveFeed`): bookmarks, the on-disk feed
+- **78 Android instrumentation tests** (82 with `-LiveFeed`): bookmarks, the on-disk feed
   cache (round trip, per-language, damaged files), card rendering and actions, skeleton
   geometry, navigation and rotation, rendering of every screen and state in both
   languages, the AI sheet (loading, result, language switch without refetch, failure,
@@ -553,8 +585,12 @@ find the empty Saved tab.
   the exact APK address, nothing appearing over an open sheet until the app is next in front,
   surviving rotation, the real **Check for updates** menu item (through the system's
   accessibility tree, reading the toast it shows), a store build's menu and About text, and
-  the real preferences file. The test script precompiles the debug build so timing is not
-  class-verification time.
+  the real preferences file. Six more (`ContactDeviceTest`) cover Contact us on a real screen: it is in the menu and
+  shows the address, who makes Plax and the contact page in words; About carries the address on a line of its own and
+  keeps its two buttons; **Email us** opens a new message to that address (the outgoing intent is intercepted); the page
+  button opens `https://www.plaxlabs.com/news/contact`; **Copy address** puts the address on the clipboard; and with every
+  mail app switched off for the test (and back on after) the address is copied instead. The test script precompiles the
+  debug build so timing is not class-verification time.
 
 ## Data and limits
 
@@ -626,6 +662,44 @@ project is back:
 - Not covered: Google's consent screen, the Authorized redirect URI in the Google console, the Redirect URLs list in
   Supabase, the Custom Tab path with a real code, and a real hosted project (its key formats, defaults and rate
   limits). Those are the one manual sign-in the runbook ends with.
+
+## Verification performed for 1.5.1 (17 October 2026)
+
+On the isolated Android 16 (API 36, x86_64) `Plax_News_Test` emulator, the development machine and the live website; no physical phone,
+no real Google account and no Play Console. Nothing was changed in the Console.
+
+- **Website**: `tsc` clean; `npm test` **125** (122 before: `legal.test.mjs`, 3 tests); a production build with `/contact` prerendered.
+  In a real browser (Edge driven by Playwright, local dev server), **19 of 19 checks**: on a phone-sized screen the ⋮ menu lists
+  **Contact us** and opens `/news/contact`, which has the heading, the address as visible text inside the screen and a `mailto:`
+  link; on a desktop-sized screen the left rail links to it; the footer of `/headlines`, `/headlines/india`, `/samachar`, `/topics`,
+  `/topics/science`, `/privacy` and `/delete-account` shows the link without opening a menu; the privacy page has the address in its
+  opening paragraph and its Contact section points to the new page; no script errors. Light and dark were looked at.
+- **Android**: debug, preview and release build; lint **0 errors**, 1 warning (a newer Gradle exists) for debug and preview;
+  **154 JVM tests** listed, 0 failing, 14 opt-in skipped; **78 device tests** pass (220 s, clean app, settled emulator; the 72 earlier
+  ones and `ContactDeviceTest`'s 6). `ContactTest`'s cross-check was shown to bite: with the app's address changed it failed with
+  "the app and the website show different addresses", and the real address was put back.
+- **The bundle** `artifacts\plax-1.5.1.aab` (3,057,255 bytes, SHA-256 `fa68a8b37c9feb47b9dad9c3876b24934a222fd8570fd49749d4bdb5679da2ea`):
+  bundletool 1.18.3 validates it; one signer, the Plax upload key (SHA-256 `dade46fd…de1219`, SHA-1 `8C:D4:EC:82…03`, read again from the
+  file, not the debug key); package `com.plaxlabs.news`, 1.5.1 (9), min SDK 26, target SDK 36, not debuggable, no cleartext, no backups,
+  `INTERNET` as the only permission besides the AndroidX receiver-protection one, no native code.
+- **Installed from that bundle with bundletool** and checked on the screen (24 checks, all passing): the menu says **Open Google Play** and
+  not **Check for updates** and lists **Contact us** (after **About Plax**); the sheet shows the heading, the address as text, **Plax Labs**,
+  **Email us**, **Copy address**, **Open the contact page**, the page's address in words and the line crediting publishers, in light, dark
+  and Hindi; **About** shows the version (not "-preview") and the address on its own line and keeps **Privacy policy** and **Done**; no crash,
+  no ANR, no cleartext or StrictMode message.
+- **Production, after deployment** (Vercel build succeeded): `https://www.plaxlabs.com/news/contact` answers 200, `index, follow`, its own
+  canonical address, the heading and the address in the raw HTML (read as Googlebot, no scripts), the `mailto:` link and `ContactPage`
+  data; it is in `sitemap.xml`; the root `robots.txt` blocks only `/news/auth/` and `/news/api/`; `/news`, `/news/headlines`,
+  `/news/samachar`, `/news/topics`, `/news/topics/science`, `/news/privacy` and `/news/delete-account` all link to it. From the store
+  build on the emulator, **Open the contact page** opened the live page in a Chrome Custom Tab ("Contact us · Plax", the address on screen).
+
+**Found and fixed while verifying**: the first version of the change put a **Contact us** button on **About**; the three buttons stacked and
+the long dialog pushed **Privacy policy** off the screen, so it was removed (the address stays in About's text, on its own line). A
+device test that needed a phone without a mail app was skipped on an emulator that has Gmail, and `test.ps1` counts a skip as a failure, so
+it now switches the mail apps off for that test and back on after.
+
+**Not verified**: that Google accepts the fix (review is the Console's); anything in the Console; the Email us button with a real mail app
+sending a message (the intent is checked, not a delivery); a physical phone; real Google sign-in from a Play-installed build.
 
 ## Verification performed for 1.5.0 (13 October 2026)
 
