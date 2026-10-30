@@ -30,7 +30,9 @@ This is a debug-signed preview, not a published Play Store release.
 
 ## 🚀 Live
 
-**[plaxlabs.com](https://plaxlabs.com)**
+**[plax-rouge.vercel.app/news](https://plax-rouge.vercel.app/news)**
+
+The site moved here when its first domain, plaxlabs.com, expired. The address is one constant (`src/lib/site.ts`, mirrored in the Android app as `FeedApi.SITE`), and tests fail if either side, or a file the apps run from, names the old one.
 
 ## ✨ Features
 
@@ -59,7 +61,7 @@ This is a debug-signed preview, not a published Play Store release.
 - **Reading streaks** — Daily streak tracking with automatic reset logic
 - **Engagement analytics** — Per-card time tracking, completion rates, category preferences
 - **Profile page** — Stats, top interests, bookmarks, account management
-- **Privacy policy and deleting your account** — A [privacy policy](https://www.plaxlabs.com/news/privacy) and a [delete-account page](https://www.plaxlabs.com/news/delete-account) (sign in with Google and delete, with no app needed; email as a fallback), plus **Account → Delete account** in the Android app. Deleting removes the account and everything stored in it: its profile, saved stories and reading activity (see [TECH.md](TECH.md#post-apiaccountdelete)). Both pages are what Google Play asks for.
+- **Privacy policy and deleting your account** — A [privacy policy](https://plax-rouge.vercel.app/news/privacy) and a [delete-account page](https://plax-rouge.vercel.app/news/delete-account) (sign in with Google and delete, with no app needed; email as a fallback), plus **Account → Delete account** in the Android app. Deleting removes the account and everything stored in it: its profile, saved stories and reading activity (see [TECH.md](TECH.md#post-apiaccountdelete)). Both pages are what Google Play asks for.
 - **Status:** the Supabase project behind sign-in is currently unreachable (see [SUPABASE_SETUP.md](SUPABASE_SETUP.md)). The account sheet says "Sign-in is temporarily unavailable" and everything else keeps working; sign-in itself has been unit-tested but not verified end to end since this change
 
 ### AI Summarization & Translation
@@ -88,7 +90,7 @@ This is a debug-signed preview, not a published Play Store release.
 | **Auth & DB** | Supabase (Auth + Postgres + RLS) | 2.x |
 | **AI** | Groq (Qwen 3.8 27B, GPT-OSS) + Gemini 3.x Flash-Lite, staggered fallback | plain `fetch`, no SDK |
 | **Hosting** | Vercel | Auto-deploy on push |
-| **Domain** | plaxlabs.com | Vercel DNS |
+| **Domain** | plax-rouge.vercel.app | Vercel's own domain (the first one, plaxlabs.com, expired) |
 | **Language** | TypeScript | 5.x |
 
 ## 🏃‍♂️ Quick Start
@@ -230,7 +232,9 @@ plax/
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY`
-3. Custom domain: **Vercel → Settings → Domains** → add `plaxlabs.com`
+3. Domain: the site is served from the project's Vercel domain, `plax-rouge.vercel.app` (**Vercel → Settings → Domains**). The address
+   is built into the Android app (`FeedApi.SITE`) and the website (`src/lib/site.ts`), so adding a custom domain later means changing both
+   and shipping a new app; installed apps cannot be redirected from the server.
 
 ## 🗄️ Database
 

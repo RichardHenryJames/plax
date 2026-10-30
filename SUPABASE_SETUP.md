@@ -82,14 +82,19 @@ after step 4 do Option B's steps 3, 6 and 7 with that project's keys and redeplo
 
 ### 6. Supabase URL configuration (redirect allow-list)
 - Dashboard → **Authentication → URL Configuration**:
-  - **Site URL**: `https://www.plaxlabs.com`
+  - **Site URL**: `https://plax-rouge.vercel.app`
   - **Redirect URLs** (add all): 
-    - `https://www.plaxlabs.com/news/auth/callback`
-    - `https://plaxlabs.com/news/auth/callback`
-    - `https://www.plaxlabs.com/news/auth/app**` (the Android app's return page, see below)
+    - `https://plax-rouge.vercel.app/news/auth/callback`
+    - `https://plax-rouge.vercel.app/news/auth/app**` (the Android app's return page, see below)
     - `http://localhost:3000/news/auth/callback`
-  - The site now lives under the `/news` base path, so the older entries without it
-    (`…/auth/callback`) no longer match the website's callback.
+  - The site lives under the `/news` base path, so entries without it (`…/auth/callback`) do not match the
+    website's callback.
+  - **The website's address is part of this list.** Plax was first served at `plaxlabs.com`; that domain expired and
+    stopped answering, and the site and the apps moved to `plax-rouge.vercel.app` (`src/lib/site.ts`,
+    `FeedApi.SITE`). Remove the old `plaxlabs.com` entries and add the ones above, or Supabase sends readers back to
+    an address that does not exist and sign-in never finishes. `.\scripts\check-accounts.ps1` checks the list.
+  - Google's side needs no change for this: its Authorized redirect URI is the Supabase callback (step 5), which
+    does not depend on the website's address.
 
 ### 7. Set env vars
 - **Vercel** → Project → Settings → Environment Variables (Production + Preview):
@@ -116,7 +121,7 @@ other way round). How it connects, so a recovery needs no app update:
    `external.google` to be `true`, so a broken or half-configured project shows
    "Sign-in is temporarily unavailable" instead of an error page in the browser.
 3. It opens `<url>/auth/v1/authorize?provider=google&code_challenge=…&code_challenge_method=s256`
-   in a Chrome Custom Tab with `redirect_to=https://www.plaxlabs.com/news/auth/app?app=<scheme>`.
+   in a Chrome Custom Tab with `redirect_to=https://plax-rouge.vercel.app/news/auth/app?app=<scheme>`.
    The `…/news/auth/app**` entry in step 6 is what lets Supabase send the browser back to that page; without it
    Supabase falls back to the Site URL and the sign-in never reaches the app.
 4. `/news/auth/app` (`src/app/auth/app/route.ts`) answers with a redirect to
@@ -183,7 +188,7 @@ consent screen.
 2. Verify a profile row was auto-created: Supabase → **Table Editor → user_profiles** →
    your row should be there (email, display_name, avatar_url filled by the trigger).
 3. Bookmark a card → check **Table Editor → bookmarks** for the row.
-4. **Prod**: repeat on https://www.plaxlabs.com/news after the Vercel redeploy.
+4. **Prod**: repeat on https://plax-rouge.vercel.app/news after the Vercel redeploy.
 5. Merge check: before signing in, choose a topic and save a story as a signed-out reader;
    after signing in with a fresh account both should still be there, and both should now
    appear in `user_profiles.selected_topics` and `bookmarks`.
@@ -198,8 +203,10 @@ wired, so a second Google account is the fastest real-world test.
 
 ## Troubleshooting
 - **"Sign-in is temporarily unavailable" in the app** → the app shows this for any failure before it opens the browser:
-  the project address does not resolve, the service answers with an error, or Google sign-in is switched off in the
-  project. Run `.\scripts\check-accounts.ps1`; it says which.
+  the website cannot be reached (this is what an expired or wrong domain looks like: the app asks
+  `FeedApi.SITE + /api/auth-config` first, and the same installs also show an empty feed), the project address does not
+  resolve, the service answers with an error, or Google sign-in is switched off in the project. Run
+  `.\scripts\check-accounts.ps1`; it says which.
 - **`ERR_NAME_NOT_RESOLVED` / redirect to a dead `*.supabase.co`** → the project is paused or deleted, or the env vars
   still point at an old one. See the top of this file, then re-check step 7 and redeploy.
 - **"redirect_uri_mismatch"** → the Supabase callback URL isn't in the Google client's

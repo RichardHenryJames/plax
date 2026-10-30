@@ -2,13 +2,48 @@
 
 Standalone native Android news/reading app. This is not a WebView wrapper, and
 it does not depend on Vanishr or its signing keys, relay, account data or code.
-It reads the Plax public feed (`https://www.plaxlabs.com/news`) and, for the
+It reads the Plax public feed (`https://plax-rouge.vercel.app/news`) and, for the
 optional AI brief, the summarize endpoint. It works without an account; signing in
 with Google is optional and only syncs your topics and saved stories (see
 *Optional sign-in*), and can be deleted again from the app (see *What is in 1.5.0*). About once a day it also asks the website whether a newer build
 exists (see *Updates from inside the app*), except in the Google Play build, which Google Play updates (see *Publishing to Google Play*). Apart from sign-in and that update check,
 which need the two small routes and the one small file listed under *Backend changes*,
 the app works against the backend as it was before this version.
+
+## What is in 1.5.4 (versionCode 12): the new website address
+
+A reader reported that the Google Play build opened with **"No stories right now"** and that **Continue with Google** answered
+**"Sign-in is temporarily unavailable. Plax keeps working without it; try again later."** The cause was the domain: `plaxlabs.com`,
+which the app and the website were built around, had expired and no longer answers (a request from the development machine fails
+the TLS handshake). Neither screen names the domain, so it looked like a connection problem. Where older sections of this file name
+`www.plaxlabs.com`, they describe what was true when they were written.
+
+- **Reproduced first.** On the emulator, the 1.5.3 bundle built for Play showed "No stories right now. The feed returned an unreadable
+  response" and, on Continue with Google, "Sign-in is temporarily unavailable". The same screens with 1.5.4, installed over 1.5.3 the way
+  Play updates a phone, load real stories and open Google's sign-in page.
+- **The fix is one constant.** `FeedApi.SITE` is now `https://plax-rouge.vercel.app/news`, the project's own Vercel domain, and every address
+  the app uses is built from it: the feed, the AI brief, the update feed, the sign-in return page, the privacy and contact pages. The website
+  has the same address in `src\lib\site.ts` (`SITE_URL`): its canonical and Open Graph addresses, sitemap, robots.txt, policy pages, share
+  cards, the copied and shared text and the user agent it sends to the news sources all come from it. It is a constant and not an
+  environment variable, so that a stale setting cannot put an old address back. Nothing else is served at the domain root, so
+  `next.config.js` redirects `/` to `/news` and `/robots.txt` and `/sitemap.xml` to their copies under `/news`.
+- **Guards.** `SiteAddressTest` (4 JVM tests) and `src\lib\site.test.mjs` (4 website tests) fail if `FeedApi.SITE` differs from the website's
+  `SITE_URL`, if the address is not one https origin under `/news`, if an address the app builds does not come from it, if the update
+  feed names a file elsewhere, or if the expired domain appears in any file the site or the apps run from (the second was shown to fail
+  with the old domain planted in a source file, naming the file and line).
+- **The update feed.** `public\plax-1.5.4.apk` and `public\updates.json` were republished with `publish-update.ps1` (it checked the pinned signer,
+  the version and that nothing goes backwards); 1.4.1, which points at the expired domain, is no longer in `public\` and stays in Git history.
+- **`scripts\check-accounts.ps1`** now also checks that Supabase's Redirect URLs list allows the app's return page. It does this with a
+  read-only request that Supabase answers by redirecting to the requested address if the list allows it and to its Site URL if not, with
+  a made-up address as the control. Today it reports that readers would be sent to `https://www.plaxlabs.com/news`.
+- **What the code cannot fix.** (1) Supabase's **Site URL** and **Redirect URLs** still name the old domain, so after Google accepts an account the
+  reader is sent to an address that no longer exists: until `https://plax-rouge.vercel.app/news/auth/app**` (and `/news/auth/callback`) are added
+  there, signing in cannot finish (`SUPABASE_SETUP.md`, step 6). (2) The Play Console's links (website, privacy policy, account deletion, the
+  news declaration's contact URL) and the listing text still name the old address. (3) Copies already installed (1.5.0 to 1.5.3 from Google
+  Play, 1.4.1 and earlier from the website) only ever ask the old address, so they stay without stories until they are updated; for the website
+  copies that means installing `https://plax-rouge.vercel.app/news/plax-1.5.4.apk` once. The steps are in
+  [`PLAY-CONSOLE-ANSWERS-1.5.4.txt`](PLAY-CONSOLE-ANSWERS-1.5.4.txt).
+- **Version.** 1.5.3 was already built, and a version code cannot be reused, so this is 1.5.4 (code 12).
 
 ## What is in 1.5.3 (versionCode 11): one "P" everywhere
 
@@ -44,9 +79,9 @@ The Plax "P" was drawn three different ways, so the app icon, the website and th
   "P", one changed digit in the website's path and a larger scale each made the right test fail with a clear message, and each was put back.
 - **Not changed.** The accent `#F5B13A`, the splash backgrounds (cream and near-black), `BrandMark`, and the wordmark: it is a sans-serif on
   the home and topic cards and a serif on the story card and in the app, which is a separate inconsistency. The domain root `plaxlabs.com`
-  is a different site and was not touched.
+  was then a different site and was not touched (that domain has since expired: see 1.5.4).
 - **Version.** 1.5.2 was already built, and a version code cannot be reused, so this is 1.5.3 (code 11). The Play answers sheet is now
-  [`PLAY-CONSOLE-ANSWERS-1.5.3.txt`](PLAY-CONSOLE-ANSWERS-1.5.3.txt).
+  [`PLAY-CONSOLE-ANSWERS-1.5.4.txt`](PLAY-CONSOLE-ANSWERS-1.5.4.txt) (it is renamed with each version).
 
 ## What is in 1.5.2 (versionCode 10): an amber app icon
 
@@ -79,7 +114,7 @@ halves. How the app reads, saves and shares did not change.
   card (selectable text, so it is read on the screen and not only behind a button), **Plax Labs**, **Email us** (a new message
   in the mail app, subject "Plax 1.5.1 feedback"; with no mail app the address is copied and the reader is told, so it is never
   a dead end), **Copy address**, **Open the contact page** (a Custom Tab), the page's address in words
-  (`https://www.plaxlabs.com/news/contact`, as Google's declaration help asks that the URL "can also be found in-app"), and a line
+  (`https://plax-rouge.vercel.app/news/contact`, as Google's declaration help asks that the URL "can also be found in-app"), and a line
   crediting publishers. English and Hindi. **About Plax** shows the address too, on a line of its own. A third button on About
   ("Contact us") was tried and dropped: Android stacked the three buttons and pushed Privacy policy off the screen.
 - **On the website: `/contact`.** A page of its own with the heading "Contact us", the address as plain text and a `mailto:` link,
@@ -92,7 +127,7 @@ halves. How the app reads, saves and shares did not change.
 - No new permission, library, analytics or data: the store build still asks for `INTERNET` only.
 - **What the code cannot do**: the Console items. The store listing's contact details (email and website) and the news
   declaration's contact URL have to be changed by the owner, and the new bundle uploaded and sent for review; the steps are at the
-  top of [`PLAY-CONSOLE-ANSWERS-1.5.3.txt`](PLAY-CONSOLE-ANSWERS-1.5.3.txt). Nothing was changed in the Console, and the app stays
+  top of [`PLAY-CONSOLE-ANSWERS-1.5.4.txt`](PLAY-CONSOLE-ANSWERS-1.5.4.txt). Nothing was changed in the Console, and the app stays
   "not available" until Google approves the new release.
 - A published version is never altered: 1.5.0 (code 8) stays as it was, and `artifacts\plax-1.5.1.aab` is a new bundle (superseded
   by 1.5.2, which adds the amber icon, and then by 1.5.3, which makes the "P" the same everywhere).
@@ -111,8 +146,8 @@ did not change.
   profile, saved stories and reading activity go with it (`ON DELETE CASCADE`). If it cannot be done the reader stays signed in
   and is told "Nothing was changed"; if it is done the phone is signed out (without a pointless logout call), keeps its own topics
   and saved stories, and says so. While it runs the sheet shows only a spinner.
-- **Privacy policy in the app**: the menu, **About** and the sign-in screen open `https://www.plaxlabs.com/news/privacy`, the page
-  Google Play is told about. `https://www.plaxlabs.com/news/delete-account` is the web resource for people who no longer have the
+- **Privacy policy in the app**: the menu, **About** and the sign-in screen open `https://plax-rouge.vercel.app/news/privacy`, the page
+  Google Play is told about. `https://plax-rouge.vercel.app/news/delete-account` is the web resource for people who no longer have the
   app: sign in with Google and delete, or email.
 - **Dialog buttons are readable in the light theme.** Their text was the accent colour, 1.6:1 against the dialog (the guideline
   is 4.5:1); it is now the accent-text colour, 5.2:1. The dark theme is unchanged (8.8:1). This affects every dialog, including
@@ -148,7 +183,7 @@ A fix to 1.4.0's Share, found by testing the installed, OTA-updated 1.4.0 agains
 Share a story as a page on Plax, and the same look as the website.
 
 - **Share sends Plax's own page for the story**, not the publisher's article:
-  `https://www.plaxlabs.com/news/s/<slug>-<id>`. Pasted into WhatsApp (or anything else that makes link
+  `https://plax-rouge.vercel.app/news/s/<slug>-<id>`. Pasted into WhatsApp (or anything else that makes link
   previews) it shows a card with the story's headline and a picture Plax draws, and the page itself
   shows a short summary with its source, sends the reader to the publisher for the full report, and
   can be found through the site's sitemap. The message is the headline with the link on its own line.
@@ -212,7 +247,7 @@ Updates from inside the app
   Plax's own code, feed and signing key: nothing is shared with Vanishr.
 - About once a day while the app comes to the front, and whenever you choose **More
   options > Check for updates**, the app reads one small file,
-  `https://www.plaxlabs.com/news/updates.json`, and compares its `versionCode` with the
+  `https://plax-rouge.vercel.app/news/updates.json`, and compares its `versionCode` with the
   installed one. If the website has a newer build that this phone can run, **Update
   available** offers **Later** or **Download**. **Download** opens the APK in the
   browser, which saves it; opening the file makes Android ask you to confirm the install
@@ -239,12 +274,12 @@ Updates from inside the app
 - **The feed is treated as untrusted input.** It has exactly seven fields
   (`schemaVersion`, `versionCode`, `versionName`, `minSdk`, `apkUrl`, `sha256`, `size`) and at most 4,096 bytes;
   anything unknown, repeated, missing, mistyped or out of range is ignored. The APK address
-  must be exactly `https://www.plaxlabs.com/news/plax-<versionName>.apk` (so the file can
+  must be exactly `https://plax-rouge.vercel.app/news/plax-<versionName>.apk` (so the file can
   only live on the Plax website), the size is capped at 95 MiB and a build whose
   `minSdk` is above this phone's is not offered. The request is HTTPS only, follows no
   redirect, keeps no cookie or cache, is not retried and sends no identifier; like any
   HTTPS request it exposes your IP address and OkHttp's default User-Agent.
-- **What guards the installation**: the HTTPS connection to `plaxlabs.com` and Android's
+- **What guards the installation**: the HTTPS connection to `plax-rouge.vercel.app` and Android's
   rule that an update must carry the signature of the installed app. As in Vanishr, the
   checksum in the feed is **not** checked inside the app (the download happens in the
   browser); it is for people and for `verify-update.ps1`.
@@ -527,14 +562,14 @@ reports.
 
 **What only you can do in the Play Console**, and what to enter (nothing here is submitted for you). The complete,
 field-by-field version, with the copy-paste listing text, the Data safety answers, the declarations, the reviewer text and the
-release steps, each item marked READY, DRAFT, OWNER or HOLD, is [`PLAY-CONSOLE-ANSWERS-1.5.3.txt`](PLAY-CONSOLE-ANSWERS-1.5.3.txt)
-next to this file (it begins with what to do about the 16 October notice); this table is only the summary:
+release steps, each item marked READY, DRAFT, OWNER or HOLD, is [`PLAY-CONSOLE-ANSWERS-1.5.4.txt`](PLAY-CONSOLE-ANSWERS-1.5.4.txt)
+next to this file (it begins with what to do about the expired domain); this table is only the summary:
 
 | Item | State |
 |---|---|
-| Privacy policy URL | `https://www.plaxlabs.com/news/privacy` (live), also linked inside the app |
-| Contact (News policy) | A dedicated page, `https://www.plaxlabs.com/news/contact`, and **Menu > Contact us** in the app. Give that URL as the news declaration's contact URL (not the privacy policy: Google rejected that), and fill in the store listing's contact details (email, and the website `https://www.plaxlabs.com/news`) |
-| Account deletion | In the app: Account, then Delete account. Web resource for the Data safety form: `https://www.plaxlabs.com/news/delete-account` |
+| Privacy policy URL | `https://plax-rouge.vercel.app/news/privacy` (live), also linked inside the app |
+| Contact (News policy) | A dedicated page, `https://plax-rouge.vercel.app/news/contact`, and **Menu > Contact us** in the app. Give that URL as the news declaration's contact URL (not the privacy policy: Google rejected that), and fill in the store listing's contact details (email, and the website `https://plax-rouge.vercel.app/news`) |
+| Account deletion | In the app: Account, then Delete account. Web resource for the Data safety form: `https://plax-rouge.vercel.app/news/delete-account` |
 | Data safety | Answer from what the code does (below), then check it against Google's definitions |
 | App access | Nothing is locked: every feature works without signing in, so no reviewer login is needed |
 | Ads | None |
@@ -571,7 +606,7 @@ $env:PLAX_LOCAL_SITE = 'http://127.0.0.1:3128/news'
 ..\scripts\auth-stack\down.ps1
 ```
 
-A normal `.\build.ps1` lists 161 JVM tests and skips 14 of them (the stack tests below); 147 run.
+A normal `.\build.ps1` lists 165 JVM tests and skips 14 of them (the stack tests below); 151 run.
 
 **Run the device suite on a quiet machine, on an emulator that has finished starting.** Its checks are made by UiAutomator against a
 software-rendered emulator, so they time out when the machine is busy. A first 1.4.0 run, with a Gradle daemon, the website's dev
@@ -586,7 +621,7 @@ clean app: if you have used it by hand on the emulator (a saved story is enough)
 `adb shell pm clear com.plaxlabs.news.preview`, or `appNeedsNoLoginAndSupportsTopicsSavedAndRotation` will not
 find the empty Saved tab.
 
-- **147 JVM unit tests**: strict JSON shape and limits, server errors, escaped URLs, cache
+- **151 JVM unit tests**: strict JSON shape and limits, server errors, escaped URLs, cache
   format, repeated-headline removal (including sentences that merely begin with the
   headline), read-time parsing, image width/sampling rules, cache-header rewriting,
   Markdown rendering rules, AI request/response validation, sections and request URLs;
@@ -612,7 +647,9 @@ find the empty Saved tab.
   website's `legal.ts`, and the same placeholders in English and Hindi); and the launcher icon (`LauncherIconTest`, 3 tests: how
   contrast is measured, the "P" at least 4.5 : 1 against the icon's background, and the adaptive icon's themed layer); and the one
   "P" (`BrandTest`, 4 tests: the four drawables draw the same two paths, that outline equals the website's `src\lib\brand.ts`, the icon
-  colours equal the website's, and the "P" is centred inside the launcher's safe circle).
+  colours equal the website's, and the "P" is centred inside the launcher's safe circle); and the site address (`SiteAddressTest`, 4 tests:
+  `FeedApi.SITE` equals the website's `SITE_URL` in `src\lib\site.ts`, it is one https origin under `/news`, every address the app
+  builds (privacy, updates, sign-in return, contact, feed) comes from it, and no file under `src\main` names the expired domain).
 - **14 opt-in tests against a real Supabase stack** (`AccountLocalStackTest`, skipped unless
   `PLAX_LOCAL_STACK` names the `.env` that `scripts\auth-stack\up.ps1` writes). The app's real
   `AccountManager` and `Supabase` client talk to a real GoTrue, PostgREST, Kong gateway and Postgres loaded with
@@ -649,7 +686,7 @@ find the empty Saved tab.
   the real preferences file. Six more (`ContactDeviceTest`) cover Contact us on a real screen: it is in the menu and
   shows the address, who makes Plax and the contact page in words; About carries the address on a line of its own and
   keeps its two buttons; **Email us** opens a new message to that address (the outgoing intent is intercepted); the page
-  button opens `https://www.plaxlabs.com/news/contact`; **Copy address** puts the address on the clipboard; and with every
+  button opens `https://plax-rouge.vercel.app/news/contact`; **Copy address** puts the address on the clipboard; and with every
   mail app switched off for the test (and back on after) the address is copied instead. The test script precompiles the
   debug build so timing is not class-verification time.
 
@@ -723,6 +760,45 @@ project is back:
 - Not covered: Google's consent screen, the Authorized redirect URI in the Google console, the Redirect URLs list in
   Supabase, the Custom Tab path with a real code, and a real hosted project (its key formats, defaults and rate
   limits). Those are the one manual sign-in the runbook ends with.
+
+## Verification performed for 1.5.4 (30 October 2026)
+
+On the isolated Android 16 (API 36, x86_64) `Plax_News_Test` emulator and the development machine; no physical phone, no Play Console, no Supabase
+dashboard.
+
+- **The problem, reproduced.** The 1.5.3 bundle built for Play, installed on the emulator with no data: the feed said "No stories right now. The
+  feed returned an unreadable response. Please try again." and Continue with Google said "Sign-in is temporarily unavailable. Plax keeps
+  working without it; try again later." From the development machine the old domain fails the TLS handshake; the Vercel domain serves
+  `/news`, the account settings, the contact and privacy pages.
+- **Tests.** **165 JVM tests** listed, 0 failing, 14 opt-in skipped, 151 run (the 4 new ones are `SiteAddressTest`, which ran and did not skip,
+  so the comparison with the website's `site.ts` was made); lint **0 errors**, 1 warning (a newer Gradle exists) for debug and preview;
+  **78 device tests** pass before the push (205 s), and **82** with `-LiveFeed` after the deployment (192 s), the extra four being the app's own
+  code reading the real English and Hindi feeds and the update feed from the new address. The website: `tsc` clean, **135 unit tests** (131
+  before; the 4 new ones are `site.test.mjs`) and a production build. The first build failed: the topic share card had two children in one
+  element after the address became text from a constant, which the image renderer refuses; it is one string now, and the build completes.
+- **Served locally and then live.** `next start` and then Vercel: `/` answers 307 to `/news`, `/robots.txt` and `/sitemap.xml` 307 to their
+  copies, robots.txt and the sitemap name the new host, the canonical and `og:` addresses name it, and 13 addresses (the pages, the manifest,
+  robots, the sitemaps, the update feed and a story page) were searched for the old domain (none). The three share cards were looked at with
+  the new address printed on them.
+- **The bundle** `artifacts\plax-1.5.4.aab` (3,058,333 bytes, SHA-256 `a9ab824412296791188bccb532f6d9ad3b064d058ca0fc9c3ae2eb199ce622e2`): the
+  15 checks of `package-aab.ps1` pass (bundletool 1.18.3 validates it; one signer, the Plax upload key, SHA-256 `dade46fd…de1219`; package
+  `com.plaxlabs.news`, 1.5.4 (12), min SDK 26, target SDK 36, not debuggable, no cleartext, no backups, `INTERNET` as the only permission besides
+  the AndroidX receiver-protection one).
+- **Installed over 1.5.3 with bundletool, data kept** (as Play updates a phone; bundletool needs the JDK in `JAVA_HOME`, not the Java 8 on the
+  path): version code 11 became 12, the feed loaded real stories, and Continue with Google opened Google's sign-in page in a Chrome tab ("Sign in
+  to continue to the Supabase project"). **27 smoke checks** on that install pass: feed, no "No stories right now", menu, Contact us with the
+  new address in words, About with the version, dark theme, sign-in reaching Google, no crash, no ANR, no cleartext.
+- **The update feed.** `verify-update.ps1` against production: 19 checks pass and it reports "the site serves 1.5.4 (code 12) as a valid update"
+  (feed type, no-store, no redirect, size, SHA-256, package, version, minimum SDK, not debuggable, the pinned signer).
+- **The account service.** `scripts\check-accounts.ps1` against production: every check passes except one, which is the point: **Supabase's
+  Redirect URLs list allows the app's return page** fails with "readers would be sent to https://www.plaxlabs.com/news instead". The probe was
+  validated with a control: a made-up address, and the old domain's return page (allowed), behaved as expected. Until the owner adds the new
+  address in the Supabase dashboard, a reader can pick a Google account but Supabase then sends the browser to the old domain.
+
+**Not verified**: finishing a Google sign-in (blocked on that Supabase setting, and a real Google login on a Play build has never been done);
+the 14 opt-in tests that need the Docker stack (their expectations were updated to the new address, but they were not run); a physical phone;
+Google Play review and rollout; the Play Console, Google Cloud and Search Console settings, which were not touched; chat previews and links
+that were shared before today, which carry the old address.
 
 ## Verification performed for 1.5.3 (17 October 2026)
 

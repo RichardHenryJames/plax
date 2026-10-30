@@ -1,12 +1,63 @@
 PLAX - GOOGLE PLAY CONSOLE ANSWERS AND SUBMISSION CHECKLIST
-Prepared: 13 October 2026. Revised: 17 October 2026, after Google Play's News and Magazines policy notice (below),
-again the same day for the new amber app icon (version 1.5.2) and a third time for one consistent logo (1.5.3)
-Candidate examined: 1.5.3, version code 11, com.plaxlabs.news (the Google Play build)
+Prepared: 13 October 2026. Revised: 17 October 2026 (Google Play's News and Magazines policy notice, an amber icon in 1.5.2
+and one consistent logo in 1.5.3) and again on 30 October 2026, when the website's domain expired (version 1.5.4, first section)
+Candidate examined: 1.5.4, version code 12, com.plaxlabs.news (the Google Play build)
 Official Google guidance checked for this handoff; references are at the end.
 
 
-FIX FOR THE 16 OCTOBER 2026 POLICY NOTICE: DO THESE IN ORDER
-============================================================
+THE DOMAIN EXPIRED (30 OCTOBER 2026): DO THESE FIRST
+====================================================
+What happened: plaxlabs.com, the domain the website and the app were built around, expired and stopped answering. Plax from
+Google Play (1.5.x) reads its stories, its sign-in settings and its privacy page from that address, so every install showed
+"No stories right now" and, on Continue with Google, "Sign-in is temporarily unavailable. Plax keeps working without it; try
+again later." Both messages were reproduced on an emulator with the 1.5.3 bundle that was built for Play. The address is built into each
+copy of the app, so it cannot be repaired from the server: it needs a new release, and it needs your Console, Supabase and
+Google Cloud settings to name the new address.
+
+What was done: the website is served from the project's Vercel domain, https://plax-rouge.vercel.app/news, and version 1.5.4
+(code 12) has that address built in. Installed over 1.5.3 on an emulator, as Play would update a phone, the feed loads real
+stories again and Continue with Google opens Google's sign-in page. The app's tests, the Play bundle's checks and a 27-check
+run on the installed bundle pass (section 12).
+
+What only you can do, in this order (I cannot sign in to your Console, Supabase or Google Cloud, and I changed nothing in them):
+  1. SUPABASE (about two minutes; without it sign-in cannot finish). supabase.com > the Plax project (it is
+     dushouwvwnuxdfumnxzf) > Authentication > URL Configuration:
+        Site URL ........ https://plax-rouge.vercel.app
+        Redirect URLs ... add  https://plax-rouge.vercel.app/news/auth/app**
+                          add  https://plax-rouge.vercel.app/news/auth/callback
+     Save. (The old plaxlabs.com entries may stay or go.) Today Supabase still sends readers to https://www.plaxlabs.com/news
+     after Google, which no longer exists; this was measured with a read-only request on 30 October 2026, and the same request
+     for the new addresses was not accepted (Supabase fell back to the old Site URL). Afterwards run  .\scripts\check-accounts.ps1
+     from the project folder: the line "Supabase's Redirect URLs list allows the app's return page" must say ok.
+  2. UPLOAD THE NEW BUNDLE. android\artifacts\plax-1.5.4.aab (section 1; version code 12): Test and release > the track the
+     app is on > Create new release; the release notes are in section 3. Phones on 1.5.3 stay without stories until Google Play
+     updates them to 1.5.4, and review comes first; there is nothing to do on a phone except update. Do not uninstall or clear
+     data: that would delete the saved stories and topics kept on the phone.
+  3. THE LINKS IN YOUR CONSOLE THAT STILL NAME plaxlabs.com (they now lead to a dead page, and Google checks that a privacy
+     policy link works, whether or not a release is waiting, so do this at once, not after the review):
+        Store listing, contact details, website .......... https://plax-rouge.vercel.app/news
+        App content > Privacy policy ..................... https://plax-rouge.vercel.app/news/privacy
+        App content > Data safety > account deletion link  https://plax-rouge.vercel.app/news/delete-account
+        App content > News and magazine > contact URL .... https://plax-rouge.vercel.app/news/contact
+     The email address does not change: richardhenryjames64@gmail.com. Sections 2, 7 and 9 give each field with its value.
+     The listing text too: Main store listing > Full description, last paragraph (CONTACT), in English and in Hindi if you added
+     it, still ends with the old contact page address. Replace it with the CONTACT block in section 3 (it now ends
+     https://plax-rouge.vercel.app/news/contact).
+  4. GOOGLE CLOUD, if you set it up that way: the OAuth consent screen (Google Auth platform > Branding) may list plaxlabs.com as
+     the app home page or privacy policy. Change those links to the addresses above. I could not check this, and Google may
+     refuse a vercel.app address as an "authorized domain"; Google's own side of sign-in uses only the Supabase callback
+     (https://dushouwvwnuxdfumnxzf.supabase.co/auth/v1/callback), which did not change.
+  5. GOOGLE SEARCH CONSOLE (optional): the plaxlabs.com property no longer applies. Add https://plax-rouge.vercel.app/news/ as a
+     new URL-prefix property (verify by HTML tag or file, since DNS is not yours to edit on vercel.app) and submit its sitemap:
+     https://plax-rouge.vercel.app/news/sitemap.xml. Story links that people already shared carry the old address and are dead.
+
+What this cannot fix: a phone that does not update (the old app only ever asks the old address), links already shared, and
+anything Google decides in review. The website APK (com.plaxlabs.news.preview) cannot update itself for the same reason; its
+users have to install the new file once from https://plax-rouge.vercel.app/news/plax-1.5.4.apk, after which it updates itself.
+
+
+FIX FOR THE 16 OCTOBER 2026 POLICY NOTICE (kept for the record; you have since reported that Plax is on Google Play)
+====================================================================================================================
 What Google said (Policy status, "News and Magazines policy: Violation of News and Magazines policy",
 "App not available on Google Play", enforced 16 October 2026, found "In-app experience"):
 the app "doesn't contain a dedicated website and in-app page that's easy to find and clearly shows relevant
@@ -16,11 +67,11 @@ Why it happened: Plax is declared a news AGGREGATOR. The contact URL given in th
 policy page. It has the address in it, but it is not a dedicated contact page, and the app had no Contact page.
 
 What was fixed in the code (all verified, see the README of this folder):
-  Website: a dedicated page, https://www.plaxlabs.com/news/contact. H1 "Contact us", the address as plain text
+  Website: a dedicated page, https://plax-rouge.vercel.app/news/contact. H1 "Contact us", the address as plain text
            and a mail link, who runs Plax, what to write about, how replies work, where the stories come from.
            It is linked from the menu, the desktop side panel, the footer of every public page and the privacy
            policy, it is in the sitemap, and it is live (checked 17 October 2026).
-  App:     version 1.5.3 (code 11). Menu (three dots) > Contact us opens a page that shows the address in plain
+  App:     version 1.5.4 (code 12). Menu (three dots) > Contact us opens a page that shows the address in plain
            sight, who makes Plax, buttons to email or copy the address, the website contact page as a button
            and written out in full, and a line crediting publishers. About Plax also shows the address.
            English and Hindi. No new permission.
@@ -35,14 +86,12 @@ What was fixed in the code (all verified, see the README of this folder):
            icon) and 1.5.2 (code 10, amber icon, older hand-drawn "P") were built earlier the same day and are
            superseded.
 
-What only you can do, in this order (I cannot sign in to your Console, and I did not change anything in it):
-  1. UPLOAD THE NEW BUNDLE. android\artifacts\plax-1.5.3.aab (section 1). Google's notice is about the app, so
-     the fixed app has to be the one reviewed. Create a new release on the track the app is on (Production, or
-     the test track you used), enter the release notes in section 3, and send it for review. The version code must
-     be higher than any you have uploaded; this one is 11. If you already uploaded plax-1.5.1.aab (code 9) or
-     plax-1.5.2.aab (code 10) and it is in review, you may leave that review to finish: both have the same
-     Contact fix, only an older icon. Uploading 1.5.3 to the same track instead replaces it and starts the
-     review again.
+What only you can do, in this order (that was the list at the time; I cannot sign in to your Console, and I did not change anything in it):
+  1. UPLOAD THE NEW BUNDLE. Now android\artifacts\plax-1.5.4.aab (section 1; see the first section above). Google's notice is
+     about the app, so the fixed app has to be the one reviewed. Create a new release on the track the app is on (Production,
+     or the test track you used), enter the release notes in section 3, and send it for review. The version code must be
+     higher than any you have uploaded; this one is 12. Earlier bundles (1.5.1, code 9; 1.5.2, code 10; 1.5.3, code 11) have
+     the same Contact fix but the old website address, an older icon or both; they are superseded.
   2. UPLOAD THE NEW STORE GRAPHICS. Main store listing > Graphics (all in android\artifacts\play\):
        App icon ......... icon-512.png (512 x 512, amber, dark "P"; redrawn in 1.5.3 from the real logo).
        Feature graphic .. feature-1024x500.png (the same amber; unchanged since 1.5.2, so skip it if you
@@ -53,11 +102,11 @@ What only you can do, in this order (I cannot sign in to your Console, and I did
   3. STORE LISTING CONTACT DETAILS. Grow users > Store presence > Store settings (the labels may differ a little in
      your Console): "Store listing contact details".
         Email address ... richardhenryjames64@gmail.com
-        Website ......... https://www.plaxlabs.com/news
+        Website ......... https://plax-rouge.vercel.app/news
         Phone ........... optional; leave it empty unless you want a number shown. Do not invent one.
      The notice asks for exactly this: "Add a link to the News website ... in the Store listing contact details".
   4. NEWS DECLARATION. Policy and programs > App content > News and magazine. Change the contact information URL
-     to https://www.plaxlabs.com/news/contact (it was the privacy policy). Re-check the other answers against
+     to https://plax-rouge.vercel.app/news/contact (it was the privacy policy). Re-check the other answers against
      section 9, and press Save. The declaration says the URL "can also be found in-app": it can, in
      Menu > Contact us, which prints it.
   5. CHECK THE OTHER ITEMS IN GOOGLE'S "HOW TO FIX" LIST. Category is News & Magazines (section 1). Every story names
@@ -66,7 +115,7 @@ What only you can do, in this order (I cannot sign in to your Console, and I did
      the Philosophy topic name ZenQuotes but have no link; they are not news, and nothing was changed there.
   6. WAIT FOR REVIEW. The app stays "not available" until Google approves the new release. Use "Submit an appeal"
      (the notice says 5 to 8 days) only if the fixed release is rejected again; say what changed: a dedicated
-     website contact page, an in-app Contact us page, version 1.5.3.
+     website contact page, an in-app Contact us page, version 1.5.4.
 
 Do not uninstall, republish under another package or change the package name: the existing app, its users and its
 account data stay as they are.
@@ -74,8 +123,8 @@ account data stay as they are.
 
 READ THIS FIRST
 ===============
-This sheet is for plax-1.5.3.aab, the Google Play build. It is NOT for the website APK
-(plax-1.4.1.apk, package com.plaxlabs.news.preview): that is a different app and must never
+This sheet is for plax-1.5.4.aab, the Google Play build. It is NOT for the website APK
+(plax-1.5.4.apk, package com.plaxlabs.news.preview): that is a different app and must never
 be uploaded to Play.
 
 Your private Play Console was not inspected and nothing was submitted for you.
@@ -108,8 +157,8 @@ Target audience .......... 13-15, 16-17, 18 and over (not children)
 App access ............... Nothing is restricted: all features work without an account
 Ads / Advertising ID ..... No / No
 News and magazine ........ YES, in scope: declare it, as an AGGREGATOR (section 9)
-Contact URL (declaration)  https://www.plaxlabs.com/news/contact   (NOT the privacy policy)
-Store listing contact .... Email richardhenryjames64@gmail.com; Website https://www.plaxlabs.com/news;
+Contact URL (declaration)  https://plax-rouge.vercel.app/news/contact   (NOT the privacy policy)
+Store listing contact .... Email richardhenryjames64@gmail.com; Website https://plax-rouge.vercel.app/news;
                            phone optional (section 2)
 Data safety .............. Yes, but only with the optional Google sign-in: Name, Email address,
                            User IDs, Photos (the address of the Google profile picture) and
@@ -117,7 +166,7 @@ Data safety .............. Yes, but only with the optional Google sign-in: Name,
                            Nothing is shared. Encrypted in transit. Deletion: yes (section 7)
 Account creation method .. OAuth (Google). No username/password
 Account deletion ......... In the app: Menu > Account > Delete account.
-                           Web: https://www.plaxlabs.com/news/delete-account
+                           Web: https://plax-rouge.vercel.app/news/delete-account
 Permissions .............. INTERNET only. No sensitive-permission or foreground-service forms
 Financial / Health /
 Government / COVID ....... None of them
@@ -147,7 +196,7 @@ HOLD B - The news and magazine declaration is mandatory and its facts are yours
 Plax describes itself as news and is an aggregator, so it is in scope of Google's News and
 Magazines policy. The declaration needs your legal entity, entity type and a contact URL.
 Google rejected the first version of this item: the contact URL must be a dedicated contact
-page (now https://www.plaxlabs.com/news/contact), not the privacy policy.
+page (now https://plax-rouge.vercel.app/news/contact), not the privacy policy.
 See section 9. Do not submit entity facts you cannot back up. [S20, S21]
 
 HOLD C - The mailbox and the account service must really be there
@@ -178,13 +227,13 @@ request, labelled, can contain mistakes), the publishers as the source of storie
 and now the contact address (the same one in the app, on the website, in the store listing
 contact details and in the declaration). If you change what the app collects or shows, issue
 a NEW higher version code and update every one of them. Never re-upload a changed bundle under
-a version code you have already uploaded: 1.5.0 was code 8, 1.5.1 was 9, 1.5.2 was 10, this one is 11.
+a version code you have already uploaded: 1.5.0 was code 8, 1.5.1 was 9, 1.5.2 was 10, 1.5.3 was 11, this one is 12.
 
-HOLD G - The app is not available until Google approves the fix
-Since 16 October 2026 Policy status says "App not available on Google Play". Nothing in the
-code can change that by itself: steps 1 to 4 at the top have to be done in your Console and
-the new release has to pass review. Do not say in the listing or to anyone that Plax is live
-on Google Play until it is.
+HOLD G - Do not call Plax working until 1.5.4 and the settings at the top are live
+You have reported that Plax is on Google Play. Every 1.5.x copy asks the expired plaxlabs.com address for its stories and its
+sign-in settings, so it shows no stories until it is updated to 1.5.4, and sign-in cannot finish until Supabase lists the new
+address (first section, steps 1 to 3). Do not say in the listing or to anyone that the app works until a phone that Google
+Play has updated to 1.5.4 shows stories and can sign in.
 
 
 1. APP IDENTITY, STORE SETTINGS AND PRICE
@@ -206,7 +255,7 @@ Contains ads:                 No
 In-app purchases:             No
 Subscriptions:                No
 Package/application ID:       com.plaxlabs.news
-Version name / code:          1.5.3 / 11
+Version name / code:          1.5.4 / 12
 Minimum Android:              Android 8.0 / API 26
 Target Android:               Android 16 / API 36
 Languages in the app:         English and Hindi
@@ -223,10 +272,10 @@ needs a different package. [S17]
 API 36 meets the target requirement for new apps from 31 August 2026. [S13]
 
 Release artifact:
-  android\artifacts\plax-1.5.3.aab
-  3,058,301 bytes (about 2.9 MiB)
+  android\artifacts\plax-1.5.4.aab
+  3,058,333 bytes (about 2.9 MiB)
   SHA-256:
-  6961f2bfd3ac14d2c82cd26842ebac9377420020a0b32a5011b20bf34143ffbc
+  a9ab824412296791188bccb532f6d9ad3b064d058ca0fc9c3ae2eb199ce622e2
   Signed by the Plax upload key (certificate SHA-256, public):
   DA:DE:46:FD:37:D3:CB:9E:F3:B3:72:2D:3D:A8:A4:4D:D4:F7:43:3C:E9:24:8D:F7:C2:54:3F:0A:56:DE:12:19
   Certificate SHA-1, public:
@@ -234,7 +283,8 @@ Release artifact:
   Check the SHA-256 in Console's app bundle details after upload.
   (Earlier bundles are superseded and are not this release: plax-1.5.0.aab, code 8, has no Contact
   us page; plax-1.5.1.aab, code 9, has it but still the old black icon; plax-1.5.2.aab, code 10, has
-  the amber icon but the older hand-drawn "P".)
+  the amber icon but the older hand-drawn "P"; plax-1.5.3.aab, code 11, has the one "P" but reads its
+  stories and sign-in settings from the expired plaxlabs.com address and so shows no stories.)
 
 Declarations Console asks when you create the app (OWNER confirms): the Developer Program
 Policies and US export laws. Read them; do not tick them on someone's behalf.
@@ -244,7 +294,7 @@ Policies and US export laws. Read them; do not tick them on someone's behalf.
 ================================
 STORE LISTING CONTACT DETAILS (Store settings; the notice asks for these to be filled in)
   Email address:  richardhenryjames64@gmail.com
-  Website:        https://www.plaxlabs.com/news
+  Website:        https://plax-rouge.vercel.app/news
   Phone:          optional; none is published anywhere (the website and the app show the email only).
                   Add one only if it is a real number you answer.
 Support email (shown publicly on the listing):
@@ -255,27 +305,27 @@ at the same time (a test fails if they differ), and here. OWNER must confirm the
 and monitored. Google asks that the address be "related to your app or the developer".
 
 Website (the news website):
-https://www.plaxlabs.com/news
+https://plax-rouge.vercel.app/news
 Its menu (three dots) and the footer of its public pages link to the contact page.
 
 CONTACT PAGE (the dedicated page Google asked for; also the news declaration's contact URL):
-https://www.plaxlabs.com/news/contact
+https://plax-rouge.vercel.app/news/contact
 It is a page of its own with the heading "Contact us", the address as plain text and a mail link,
 who runs Plax, what to write about (problems, corrections, publishers and rights holders, privacy
 and deletion, feedback) and where the stories come from. In the app: Menu (three dots) > Contact us
 shows the address and prints this URL, and the same page opens from a button there.
 
 Privacy policy (also opened from inside the app):
-https://www.plaxlabs.com/news/privacy
+https://plax-rouge.vercel.app/news/privacy
 
 Account-deletion URL (Data safety > data deletion):
-https://www.plaxlabs.com/news/delete-account
+https://plax-rouge.vercel.app/news/delete-account
 
 News-declaration contact URL (section 9):
-https://www.plaxlabs.com/news/contact
+https://plax-rouge.vercel.app/news/contact
 Do NOT use the privacy policy for this: Google rejected that on 16 October 2026 as not being a
 dedicated contact page. The privacy policy still has the address in its first paragraph and in
-its Contact section (https://www.plaxlabs.com/news/privacy#contact), which links to the contact page.
+its Contact section (https://plax-rouge.vercel.app/news/privacy#contact), which links to the contact page.
 
 Terms of use: Plax has none and Play does not require one.
 Public telephone: OWNER - optional; leave blank if you do not want one on the listing.
@@ -320,17 +370,16 @@ ABOUT THE STORIES
 Stories, headlines and pictures belong to their publishers and are shown with their source and a link to the original. Plax is not affiliated with the publishers.
 
 CONTACT
-Questions, corrections or publisher requests: richardhenryjames64@gmail.com. More at https://www.plaxlabs.com/news/contact
+Questions, corrections or publisher requests: richardhenryjames64@gmail.com. More at https://plax-rouge.vercel.app/news/contact
 END_FULL_DESCRIPTION
 
 Release name (internal Console label):
-1.5.3 (11)
+1.5.4 (12)
 
 BEGIN_RELEASE_NOTES
 <en-IN>
-New: Contact us in the menu, with our email address and a link to the contact page on the website.
-The address is also shown in About.
-New app icon: amber with a dark P, the same P as on plaxlabs.com.
+Fixed: stories and Google sign-in did not load because Plax's old website address stopped working.
+Plax now uses its new address, so the news feed and sign-in work again.
 </en-IN>
 END_RELEASE_NOTES
 
@@ -375,14 +424,13 @@ Plax ख़बरों से जुड़े रहने का तेज़ 
 ख़बरें, हेडलाइन और तस्वीरें उनके प्रकाशकों की हैं और स्रोत व मूल ख़बर के लिंक के साथ दिखाई जाती हैं। Plax प्रकाशकों से संबद्ध नहीं है।
 
 संपर्क
-सवाल, सुधार या प्रकाशकों के अनुरोध: richardhenryjames64@gmail.com। और जानकारी: https://www.plaxlabs.com/news/contact
+सवाल, सुधार या प्रकाशकों के अनुरोध: richardhenryjames64@gmail.com। और जानकारी: https://plax-rouge.vercel.app/news/contact
 END_HI_FULL_DESCRIPTION
 
 BEGIN_HI_RELEASE_NOTES
 <hi-IN>
-नया: मेनू में "हमसे संपर्क करें", जिसमें हमारा ईमेल पता और वेबसाइट के संपर्क पेज का लिंक है।
-यह पता "Plax के बारे में" में भी दिखता है।
-नया ऐप आइकन: एम्बर रंग का, गहरे रंग के P के साथ, वही P जो plaxlabs.com पर है।
+ठीक किया गया: Plax का पुराना वेबसाइट पता बंद हो जाने से ख़बरें और Google साइन-इन नहीं खुल रहे थे।
+अब Plax नए पते का उपयोग करता है, इसलिए ख़बरें और साइन-इन फिर से काम करते हैं।
 </hi-IN>
 END_HI_RELEASE_NOTES
 
@@ -476,7 +524,7 @@ this note in any optional instructions box (about 870 characters):
 BEGIN_REVIEW_INSTRUCTIONS
 No login is needed. Install and open Plax: today's news loads straight away. Everything works without an account: switch English / Hindi, open a section or a topic, tap the bookmark to save a story, tap the sparkle button for an AI brief, and use Share.
 
-News policy: every story names its publisher and links to the original. Contact information is in Menu (three dots) > Contact us, which shows the email address and the website contact page (https://www.plaxlabs.com/news/contact). The address is also in Menu > About Plax.
+News policy: every story names its publisher and links to the original. Contact information is in Menu (three dots) > Contact us, which shows the email address and the website contact page (https://plax-rouge.vercel.app/news/contact). The address is also in Menu > About Plax.
 
 Optional account: Menu (three dots) > Account > Continue with Google (any Google account) syncs topics and saved stories. To test deletion: Menu > Account > Delete account > Delete permanently. The account and its data are deleted at once. The privacy policy is in Menu > Privacy policy and in About. No reviewer credentials are required.
 END_REVIEW_INSTRUCTIONS
@@ -574,7 +622,7 @@ Which account-creation methods does the app support?
 
 Can users request that their account and data be deleted?
   YES. In the app: Menu > Account > Delete account > Delete permanently (it deletes at once).
-  Web: https://www.plaxlabs.com/news/delete-account (sign in with Google and delete, no app
+  Web: https://plax-rouge.vercel.app/news/delete-account (sign in with Google and delete, no app
   needed; email is the fallback).
   Deletion is real: it removes the sign-in account and, through the database's cascade, the
   profile, saved stories and reading activity. It was run against a real local account
@@ -691,7 +739,7 @@ H. Sharing a story and the AI brief: nothing declared                      CHECK
 7.4 Supporting explanation text (use only where a free-text box exists)
 -----------------------------------------------------------------------
 BEGIN_DATA_HANDLING_EXPLANATION
-Plax works without an account. If the reader signs in with Google, the account stores their email address, name, a random account id, the address of their Google profile picture, the topics they chose and the stories they saved, so these follow them to another phone. Nothing else is uploaded. Without an account, topics, saved stories and the list of stories already seen stay on the phone. To load stories, the app sends the language, topics and ids of stories already seen, without any name, email or device identifier, and Plax does not keep them. Data is sent over HTTPS only. The reader can delete the account and everything stored in it from the app (Account, then Delete account) or at plaxlabs.com/news/delete-account. Story text that a reader asks to be briefed by AI, or shares, is public publisher content sent without any name, email or account. There are no ads and no analytics or tracking SDKs.
+Plax works without an account. If the reader signs in with Google, the account stores their email address, name, a random account id, the address of their Google profile picture, the topics they chose and the stories they saved, so these follow them to another phone. Nothing else is uploaded. Without an account, topics, saved stories and the list of stories already seen stay on the phone. To load stories, the app sends the language, topics and ids of stories already seen, without any name, email or device identifier, and Plax does not keep them. Data is sent over HTTPS only. The reader can delete the account and everything stored in it from the app (Account, then Delete account) or at plax-rouge.vercel.app/news/delete-account. Story text that a reader asks to be briefed by AI, or shares, is public publisher content sent without any name, email or account. There are no ads and no analytics or tracking SDKs.
 END_DATA_HANDLING_EXPLANATION
 
 Do not paste the explanation as a replacement for the per-type answers. The final form must
@@ -753,9 +801,10 @@ Is this declaration for the same legal entity as your developer account?
   Console developer account is that same legal entity. If you are publishing for another
   company, name that company instead.
 
-Contact URL (must also be findable in the app):                            CHANGED 17 OCT
-  https://www.plaxlabs.com/news/contact
-  This replaces https://www.plaxlabs.com/news/privacy, which Google rejected on 16 October 2026:
+Contact URL (must also be findable in the app):                            CHANGED 30 OCT
+  https://plax-rouge.vercel.app/news/contact
+  This replaces https://www.plaxlabs.com/news/contact, this page's first address (that domain expired), and before
+  that the privacy policy, which Google rejected on 16 October 2026:
   a privacy policy is not a dedicated contact page. The page has the heading "Contact us", the
   address as plain text and a mail link. In the app: Menu (three dots) > Contact us shows the
   address and prints this same URL (and has a button that opens it); About Plax shows the address
@@ -793,7 +842,7 @@ policy violation.
 10. ACCOUNT DELETION AND OPERATIONS
 ==================================
 Account deletion URL to paste:
-https://www.plaxlabs.com/news/delete-account
+https://plax-rouge.vercel.app/news/delete-account
 
 In the app (the Data safety "in-app" path):
   Menu (three dots) > Account > Delete account > Delete permanently.
@@ -843,7 +892,8 @@ register a new one. Back the key folder up somewhere private now. [S12]
 Sign-in and the signing certificate:
 - Plax uses no Google Sign-In SDK, no Credential Manager and no Firebase. The app opens
   Supabase's Google sign-in page in the system browser, Google returns to
-  https://www.plaxlabs.com/news/auth/app, and that page hands a one-time code back to the
+  https://plax-rouge.vercel.app/news/auth/app (Supabase's Redirect URLs list must name it: first section, step 1),
+  and that page hands a one-time code back to the
   app through com.plaxlabs.news://auth-callback. The Google client is a web client held in
   Supabase. Nothing is registered against the app's package or SHA-1, so the certificate
   Google Play uses does not matter. The website's /auth/app route already accepts the
@@ -854,7 +904,7 @@ Update behavior of the provided AAB:
 - It never checks a website for updates. The menu entry is "Open Google Play" and About says
   nothing about update checks. Google Play delivers updates.
 - Version codes must keep rising for this package (the next upload must be higher than any
-  you have uploaded; 1.5.3 is 11, so use 12 or more after it). The website APK is a different
+  you have uploaded; 1.5.4 is 12, so use 13 or more after it). The website APK is a different
   package with its own numbers.
 - Plax from Google Play is a separate app from the website APK. Saved stories and topics held
   only in the website app do not move; signing in with Google restores what was synced.
@@ -893,7 +943,8 @@ Production-access questions and how to answer them:
                                                      and the test is done.
 
 Technical evidence gathered locally (NOT a substitute for Play testing):
-- 161 JVM unit tests (14 opt-in skipped) and 78 device tests pass; lint has 0 errors.
+- 165 JVM unit tests (14 opt-in skipped) and 78 device tests pass; lint has 0 errors. The website's 135 unit tests pass and its
+  production build succeeds. The 14 skipped need the Docker test stack and were not run for 1.5.4.
 - The account flows, including deleting an account, were run against a real local Supabase
   stack, and the deletion route was checked with a second user left untouched.
 - The bundle was validated with Google's bundletool, signed only by the upload key, and
@@ -906,6 +957,14 @@ Technical evidence gathered locally (NOT a substitute for Play testing):
   bundle installed on the emulator, and the six screenshots were retaken from it. A test on each
   side (BrandTest in the app, brand.test.mjs on the website) fails if a drawable, the website's
   outline, the colours, the icon sizes or the manifest drift apart, or a share card types a "P" again.
+- The new address (1.5.4): the 1.5.3 bundle built for Play, run on the emulator on 30 October 2026, showed "No stories right
+  now" and, on Continue with Google, "Sign-in is temporarily unavailable". The 1.5.4 bundle, installed over it the way Play
+  updates a phone, loaded real stories (The Hindu) and Continue with Google opened Google's sign-in page in the browser.
+  27 checks on the installed bundle pass (feed, menu, Contact us, About, dark theme, sign-in, no crash, no ANR, no cleartext).
+  SiteAddressTest (app) and site.test.mjs (website) fail if the app's address differs from the website's or the old domain
+  returns anywhere the apps or the site run from; the second was shown to fail with the old domain planted in a source file.
+- NOT done and not possible from here: finishing a Google sign-in. Supabase's Redirect URLs list still names the old domain
+  (first section, step 1), so after Google the reader would be sent to the old address. scripts\check-accounts.ps1 reports it.
 - The contact, privacy and delete-account pages were checked in a real browser, and live after
   deploy; the contact page is in the sitemap and every public page links to it.
 - No full real-Google-account login on a Play build and no Play review has been done.
@@ -918,8 +977,8 @@ Rollout steps (for a new app; for the 16 October notice only steps 4, 7 and 8 an
     app access, content rating, target audience, News declaration (with the contact page URL),
     Data safety (section 7), advertising ID and the financial/health/government declarations
     are the ones to expect. [S02]
- 4. Upload plax-1.5.3.aab to Internal testing (or the track the app is on); accept Play App
-    Signing; check the bundle's version (1.5.3, 11) and SHA-256 in Console.
+ 4. Upload plax-1.5.4.aab to Internal testing (or the track the app is on); accept Play App
+    Signing; check the bundle's version (1.5.4, 12) and SHA-256 in Console.
  5. Install from the test track on a phone; read the pre-launch report and fix real problems. [S30]
  6. Run the closed test and apply for production, if required (HOLD D).
  7. Prepare the production release with the same bundle; enter the release name and notes.
@@ -950,7 +1009,7 @@ Do not treat a GitHub username or the app's brand as a verified legal identity.
 14. EVIDENCE AND OFFICIAL GOOGLE REFERENCES
 ==========================================
 Workspace evidence used (relative to the project root):
-  android\artifacts\plax-1.5.3.aab
+  android\artifacts\plax-1.5.4.aab
   android\artifacts\aab-verification.json
   android\app\build.gradle
   android\app\src\main\AndroidManifest.xml
@@ -961,7 +1020,7 @@ Workspace evidence used (relative to the project root):
   android\app\src\main\java\com\plaxlabs\news\AccountSheet.java
   android\app\src\main\java\com\plaxlabs\news\Supabase.java
   android\app\src\main\java\com\plaxlabs\news\MainActivity.java
-  android\README.md   ("Publishing to Google Play", "Verification performed for 1.5.0", "1.5.1", "1.5.2" and "1.5.3")
+  android\README.md   ("Publishing to Google Play", "Verification performed for 1.5.0", "1.5.1", "1.5.2", "1.5.3" and "1.5.4")
   src\app\contact\page.tsx, src\lib\legal.ts and src\components\SiteLinks.tsx (the contact page)
   src\app\api\account\delete\route.ts and src\lib\account-delete.ts
   src\app\privacy\page.tsx, src\app\delete-account\page.tsx and src\lib\legal.ts
