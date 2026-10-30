@@ -777,23 +777,13 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
     [visibleCards.length, currentIndex, trackEngagement, incrementCardsRead, isFetching, fetchMore]
   )
 
-  // Touch navigation — lets long article content scroll natively, and only
-  // navigates on a decisive swipe when the content is at its scroll boundary.
-  const touchStartRef = useRef<{ y: number; x: number; t: number; atTop: boolean; atBottom: boolean; onInteractive: boolean } | null>(null)
+  // Touch navigation — a card does not scroll, so a decisive swipe anywhere on it moves to the next or the previous story,
+  // however long its text. Only what scrolls by itself (a sheet, a text box) keeps its own swipes.
+  const touchStartRef = useRef<{ y: number; x: number; t: number; onInteractive: boolean } | null>(null)
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    const scroller = (e.currentTarget as HTMLElement).querySelector<HTMLElement>('[data-card-scroll]')
-    let atTop = true
-    let atBottom = true
-    if (scroller) {
-      atTop = scroller.scrollTop <= 1
-      atBottom = Math.ceil(scroller.scrollTop + scroller.clientHeight) >= scroller.scrollHeight - 1
-    }
-    // If the gesture starts on an interactive element (buttons, links, the quiz,
-    // dropdowns) don't treat it as a feed swipe — prevents accidental next-card
-    // when tapping "Go deeper"/"Test yourself"/topic chip/actions.
     const target = e.target as HTMLElement | null
-    const onInteractive = !!target?.closest('button, a, input, textarea, [data-no-feed-scroll]')
-    touchStartRef.current = { y: e.touches[0].clientY, x: e.touches[0].clientX, t: Date.now(), atTop, atBottom, onInteractive }
+    const onInteractive = !!target?.closest('input, textarea, select, [data-no-feed-scroll]')
+    touchStartRef.current = { y: e.touches[0].clientY, x: e.touches[0].clientX, t: Date.now(), onInteractive }
   }, [])
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     const start = touchStartRef.current
@@ -810,8 +800,8 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
     if (Math.abs(dy) < Math.abs(dx) * 1.4) return // too diagonal → not a feed swipe
     const isDeliberate = dt < 700 || Math.abs(dy) > 120
     if (!isDeliberate) return
-    if (dy < 0 && start.atBottom) goToCard(currentIndex + 1, 1) // swipe up → next
-    else if (dy > 0 && start.atTop) goToCard(currentIndex - 1, -1) // swipe down → prev
+    if (dy < 0) goToCard(currentIndex + 1, 1) // swipe up → next
+    else goToCard(currentIndex - 1, -1) // swipe down → prev
   }, [currentIndex, goToCard])
 
   // Keyboard navigation
@@ -834,18 +824,15 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
     return () => window.removeEventListener('keydown', handleKey)
   }, [currentIndex, goToCard])
 
-  // Scroll wheel navigation — scroll long article content first, only advance
-  // to the next/prev card once the content reaches its scroll boundary AND the
-  // user makes a decisive push past the edge. Trackpad/mouse momentum fires a long
-  // tail of events, so after each navigation we LOCK until the wheel goes fully
-  // idle (drains the momentum) — guaranteeing at most ONE card per gesture. This
-  // matches the mobile "one decisive swipe = one card" feel (desktop was skipping
-  // multiple articles on a single flick / accidental scroll).
+  // Scroll wheel navigation — a card does not scroll, so a push of the wheel moves through the stories: one story per
+  // gesture. Trackpad/mouse momentum fires a long tail of events, so after each navigation we LOCK until the wheel goes
+  // fully idle (drains the momentum) — guaranteeing at most ONE card per gesture. This matches the mobile "one decisive
+  // swipe = one card" feel (desktop was skipping multiple articles on a single flick / accidental scroll).
   const overscroll = useRef(0)
   const navLocked = useRef(false)
   const wheelIdleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
-    const OVERSCROLL_THRESHOLD = 160 // px past the edge before navigating
+    const WHEEL_THRESHOLD = 50 // px of push before navigating: a notch of a mouse wheel, or a short trackpad swipe
     const IDLE_MS = 220 // no wheel for this long = gesture over → unlock + reset
     const handleWheel = (e: WheelEvent) => {
       const ui = useUIStore.getState()
@@ -857,47 +844,37 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
       if (target && typeof target.closest === 'function' && target.closest('aside, [data-no-feed-scroll]')) return
 
       // Reset the idle detector: when the wheel stops for IDLE_MS, the gesture is
-      // over — unlock navigation and clear any accumulated overscroll.
+      // over — unlock navigation and clear any accumulated push.
       if (wheelIdleTimer.current) clearTimeout(wheelIdleTimer.current)
       wheelIdleTimer.current = setTimeout(() => {
         navLocked.current = false
         overscroll.current = 0
       }, IDLE_MS)
 
-      // Let the active card's content scroll while it still can in this direction.
-      const scroller = document.querySelector<HTMLElement>('[data-card-scroll]')
-      if (scroller) {
-        const { scrollTop, scrollHeight, clientHeight } = scroller
-        const canScrollDown = Math.ceil(scrollTop + clientHeight) < scrollHeight - 1
-        const canScrollUp = scrollTop > 1
-        if ((e.deltaY > 0 && canScrollDown) || (e.deltaY < 0 && canScrollUp)) {
-          overscroll.current = 0 // scrolling content, not overscrolling
-          return // native scroll handles it; don't navigate
-        }
-      }
-
-      // At a boundary. If we already navigated this gesture, swallow the momentum
-      // tail until the wheel goes idle (prevents multi-card skips).
+      // If we already navigated this gesture, swallow the momentum tail until the
+      // wheel goes idle (prevents multi-card skips).
       e.preventDefault()
       if (navLocked.current) return
 
       overscroll.current += e.deltaY
-      if (overscroll.current > OVERSCROLL_THRESHOLD) {
+      if (overscroll.current > WHEEL_THRESHOLD) {
         navLocked.current = true
         overscroll.current = 0
         goToCard(currentIndex + 1, 1)
-      } else if (overscroll.current < -OVERSCROLL_THRESHOLD) {
+      } else if (overscroll.current < -WHEEL_THRESHOLD) {
         navLocked.current = true
         overscroll.current = 0
         goToCard(currentIndex - 1, -1)
       }
     }
     window.addEventListener('wheel', handleWheel, { passive: false })
-    return () => {
-      window.removeEventListener('wheel', handleWheel)
-      if (wheelIdleTimer.current) clearTimeout(wheelIdleTimer.current)
-    }
+    // Not the idle timer: it is what unlocks navigation after a move, and a move changes currentIndex, which runs this
+    // cleanup. Clearing it here left the next push of the wheel swallowed.
+    return () => window.removeEventListener('wheel', handleWheel)
   }, [currentIndex, goToCard])
+  useEffect(() => () => {
+    if (wheelIdleTimer.current) clearTimeout(wheelIdleTimer.current)
+  }, [])
 
   const currentCard = visibleCards[currentIndex]
   const prevCard = currentIndex > 0 ? visibleCards[currentIndex - 1] : null
@@ -1170,13 +1147,13 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
         </motion.div>
       )}
 
-      {/* Swipe hint on first card */}
+      {/* Swipe hint on first card — at the right edge, clear of the row of buttons pinned under the summary */}
       {currentIndex === 0 && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 2 }}
-          className="absolute bottom-[6.25rem] lg:bottom-28 left-1/2 -translate-x-1/2 z-30 text-dark-subtle text-xs flex flex-col items-center gap-1.5 pointer-events-none"
+          className="absolute bottom-[6.25rem] lg:bottom-28 right-5 sm:right-10 z-30 text-dark-subtle text-xs flex flex-col items-end gap-1.5 pointer-events-none"
         >
           <motion.div
             animate={{ y: [0, -8, 0] }}

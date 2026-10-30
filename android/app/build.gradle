@@ -22,8 +22,8 @@ android {
         applicationId 'com.plaxlabs.news'
         minSdk 26
         targetSdk 36
-        versionCode 12
-        versionName '1.5.4'
+        versionCode 13
+        versionName '1.5.5'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         // The browser returns to the app on this scheme after Google sign-in; each build type has its own.
         manifestPlaceholders = [authScheme: 'com.plaxlabs.news']

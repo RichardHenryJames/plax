@@ -32,12 +32,14 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     }
 
     private static final int STORY = 0, CAUGHT_UP = 1;
+    /** The emoji on the poster of a story with no picture; the page shrinks it to fit a small picture. */
+    private static final float POSTER_SP = 64;
 
     private final Ui ui;
     private final ImageLoader images;
     private final Actions actions;
-    private final boolean compact;
-    private final int heroHeight, tallHeroHeight, sidePadding;
+    private final int sidePadding;
+    private final float titleSp, bodySp;
     private List<Story> stories = List.of();
     private Set<String> saved = Set.of();
     private boolean saving, storageReady;
@@ -45,16 +47,13 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     StoryAdapter(Ui ui, ImageLoader images, Actions actions, int widthDp, int heightDp) {
         this.ui = ui; this.images = images; this.actions = actions;
-        compact = heightDp < 700;
+        // On a short screen the type is a little smaller, so that more of the story fits in the one view it gets.
+        boolean compact = heightDp < 700;
+        titleSp = compact ? 21 : 24;
+        bodySp = compact ? 15 : 16;
         // Keep a comfortable reading width on tablets and in landscape.
         int cardWidth = Math.min(widthDp, 640);
         sidePadding = ui.dp(Math.max(16, (widthDp - cardWidth) / 2f));
-        float hero = Math.max(112, Math.min((cardWidth - 32) * 9 / 16f, heightDp * .30f));
-        // Large text needs the room more than the picture does.
-        if (ui.fontScale() > 1.15f) hero = Math.max(104, hero * .8f);
-        heroHeight = ui.dp(hero);
-        // A headline with no body text has room to spare, so the picture takes it.
-        tallHeroHeight = ui.dp(Math.max(hero, Math.min(hero * 1.5f, heightDp * .42f)));
     }
 
     void submit(List<Story> updated, Set<String> savedIds, boolean saving, boolean ready, int earlierCount) {
@@ -127,15 +126,6 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     private Holder story(ViewGroup parent) {
         Context context = parent.getContext();
-        LinearLayout root = ui.column();
-        root.setLayoutParams(new ViewGroup.LayoutParams(-1, -1));
-        root.setPadding(sidePadding, ui.dp(4), sidePadding, ui.dp(8));
-        root.setBackgroundColor(ui.bg);
-
-        ScrollView scroll = new StoryScrollView(context);
-        scroll.setFillViewport(true); scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
-        scroll.setVerticalScrollBarEnabled(false);
-        LinearLayout body = ui.column();
 
         FrameLayout hero = new FrameLayout(context);
         hero.setClipToOutline(true);
@@ -151,11 +141,10 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         ImageView placeholder = ui.icon(R.drawable.ic_image, ui.text2, 40);
         placeholder.setAlpha(.45f);
         hero.addView(placeholder, new FrameLayout.LayoutParams(ui.dp(40), ui.dp(40), Gravity.CENTER));
-        TextView poster = ui.text("", 64, ui.text, false);
+        TextView poster = ui.text("", POSTER_SP, ui.text, false);
         poster.setGravity(Gravity.CENTER);
         poster.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         hero.addView(poster, new FrameLayout.LayoutParams(-1, -1));
-        body.addView(hero, new LinearLayout.LayoutParams(-1, heroHeight));
 
         LinearLayout meta = ui.row();
         meta.setPadding(0, ui.dp(16), 0, 0);
@@ -168,18 +157,13 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         credit.setMaxLines(2); credit.setEllipsize(TextUtils.TruncateAt.END);
         credit.setPadding(ui.dp(10), 0, 0, 0);
         meta.addView(credit, new LinearLayout.LayoutParams(0, -2, 1));
-        body.addView(meta);
 
-        TextView title = ui.text("", compact ? 21 : 24, ui.text, "serif");
+        TextView title = ui.text("", titleSp, ui.text, "serif");
         title.setTypeface(Typeface.create("serif", Typeface.BOLD));
         title.setLineSpacing(0, 1.18f); title.setPadding(0, ui.dp(12), 0, 0);
         ViewCompat.setAccessibilityHeading(title, true);
-        body.addView(title);
-        TextView content = ui.text("", 16, ui.text, false);
-        content.setAlpha(.88f); content.setLineSpacing(0, 1.38f); content.setPadding(0, ui.dp(14), 0, ui.dp(20));
-        body.addView(content);
-        scroll.addView(body);
-        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+        TextView content = ui.text("", bodySp, ui.text, false);
+        content.setAlpha(.88f); content.setLineSpacing(0, 1.38f); content.setPadding(0, ui.dp(14), 0, 0);
 
         LinearLayout actionRow = ui.row();
         actionRow.setPadding(0, ui.dp(8), 0, 0);
@@ -202,15 +186,17 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ui.dp(48), ui.dp(48));
             params.setMarginStart(ui.dp(8)); actionRow.addView(button, params);
         }
-        root.addView(actionRow);
-        return new Holder(root, scroll, hero, image, placeholder, poster, imageBackground, posterBackground, category, credit,
+
+        // Nothing on the page scrolls: it shares its height out so that all of it is in view, and a swipe changes story.
+        StoryPage page = new StoryPage(context, ui, hero, poster, meta, title, content, actionRow, titleSp, POSTER_SP);
+        page.setLayoutParams(new ViewGroup.LayoutParams(-1, -1));
+        return new Holder(page, hero, image, placeholder, poster, imageBackground, posterBackground, category, credit,
                 title, content, cta, ctaHost, brief, save, share);
     }
 
     private void bindStory(Holder holder, int index) {
         Story story = stories.get(index);
         Context context = holder.itemView.getContext();
-        if (!story.id().equals(holder.storyId)) holder.scroll.scrollTo(0, 0);
         holder.storyId = story.id();
 
         boolean hasImage = story.hasImage();
@@ -239,9 +225,6 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         String text = story.body();
         holder.content.setText(text);
         holder.content.setVisibility(text.isEmpty() ? View.GONE : View.VISIBLE);
-        int wanted = text.isEmpty() ? tallHeroHeight : heroHeight;
-        ViewGroup.LayoutParams heroParams = holder.hero.getLayoutParams();
-        if (heroParams.height != wanted) { heroParams.height = wanted; holder.hero.setLayoutParams(heroParams); }
 
         holder.cta.setEnabled(story.hasSource()); holder.cta.setAlpha(story.hasSource() ? 1f : .5f);
         holder.ctaHost.setText(story.hasSource() ? story.sourceHost() : context.getString(R.string.source_unavailable));
@@ -330,16 +313,16 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     }
 
     static final class Holder extends RecyclerView.ViewHolder {
-        final ScrollView scroll; final FrameLayout hero; final ImageView image, placeholder;
+        final StoryPage page; final FrameLayout hero; final ImageView image, placeholder;
         final TextView poster, category, credit, title, content, ctaHost; final LinearLayout cta;
         final android.graphics.drawable.Drawable imageBackground, posterBackground;
         final ImageButton brief, save, share;
         String storyId = "";
-        Holder(View root, ScrollView scroll, FrameLayout hero, ImageView image, ImageView placeholder, TextView poster,
+        Holder(StoryPage page, FrameLayout hero, ImageView image, ImageView placeholder, TextView poster,
                android.graphics.drawable.Drawable imageBackground, android.graphics.drawable.Drawable posterBackground,
                TextView category, TextView credit, TextView title, TextView content, LinearLayout cta, TextView ctaHost,
                ImageButton brief, ImageButton save, ImageButton share) {
-            super(root); this.scroll = scroll; this.hero = hero; this.image = image; this.placeholder = placeholder;
+            super(page); this.page = page; this.hero = hero; this.image = image; this.placeholder = placeholder;
             this.poster = poster; this.imageBackground = imageBackground; this.posterBackground = posterBackground;
             this.category = category; this.credit = credit; this.title = title; this.content = content;
             this.cta = cta; this.ctaHost = ctaHost; this.brief = brief; this.save = save; this.share = share;

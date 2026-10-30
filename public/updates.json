@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "versionCode": 12,
-  "versionName": "1.5.4",
+  "versionCode": 13,
+  "versionName": "1.5.5",
   "minSdk": 26,
-  "apkUrl": "https://plax-rouge.vercel.app/news/plax-1.5.4.apk",
-  "sha256": "33247203a38fb9d100a655a1dff65f9df1b9099302034ff2a1d28d1c75f0f2dd",
-  "size": 1879249
+  "apkUrl": "https://plax-rouge.vercel.app/news/plax-1.5.5.apk",
+  "sha256": "d2775c371cc67838ce4fff276e5a2a9e0abefedca3203c690597b6d2b7f9da4a",
+  "size": 1881057
 }

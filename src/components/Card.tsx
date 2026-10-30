@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { Fragment, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CardData } from '@/lib/sample-data'
 import { TOPICS, usePlaxStore } from '@/lib/store'
@@ -9,11 +9,23 @@ import { useT } from '@/lib/i18n'
 import { withBase } from '@/lib/base-path'
 import { bodyWithoutHeadline } from '@/lib/story-body'
 import { NEWS_SECTIONS } from '@/lib/types'
+import { useCardFit } from './useCardFit'
 
 interface CardProps {
   card: CardData
   isActive: boolean
   translating?: boolean
+}
+
+// The panels a card can open under its summary: only one shows at a time.
+type Panel = 'deeper' | 'quiz' | 'author'
+
+// What stands in for the picture of a story that has none, as in the app (StoryAdapter.emoji): the section's own sign,
+// else the topic's emoji.
+const POSTER_EMOJI: Record<string, string> = { india: '🇮🇳', world: '🌍', tech: '💻', business: '💼', science: '🔬' }
+function posterEmoji(card: CardData): string {
+  const key = card.section || card.category
+  return POSTER_EMOJI[key] ?? TOPICS.find((t) => t.id === key)?.emoji ?? '✨'
 }
 
 // Compact relative time ("just now", "2h ago", "3d ago") for news cards. Returns
@@ -57,48 +69,68 @@ export function Card({ card, isActive, translating = false }: CardProps) {
   // "Breaking" for very fresh news (published within the last 30 minutes).
   const isBreaking = !!card.publishedAt && Date.now() - card.publishedAt < 30 * 60 * 1000 && Date.now() - card.publishedAt >= 0
 
+  const boxRef = useRef<HTMLDivElement>(null)
+  // A picture that fails to load gives way to the poster (news) or is left out, and the card is fitted again without it.
+  const [imageFailed, setImageFailed] = useState(false)
+  const [panel, setPanel] = useState<Panel | null>(null)
+  const hasPoster = isNews && !translating && (!card.image || imageFailed)
+  const hasHero = hasPoster || (!!card.image && !translating && !imageFailed)
+  const hasDeeper = card.type !== 'quote' && (card.content?.length ?? 0) > 120
+  const hasQuiz = card.type !== 'quote' && card.category !== 'news' && (card.content?.length ?? 0) > 160
+  const hasBooks = card.category === 'books' && !!card.author
+  // Author / source credibility. A news card already names its source under the picture.
+  const hasCredit = !!card.author || (!!card.source && !isNews)
+  const hasActions = hasDeeper || hasQuiz || hasBooks || hasCredit
+  // Nothing on a card scrolls, so that one swipe always moves to the next story: the picture, the headline and the summary
+  // share the card's height instead (see useCardFit), and the row under them is pinned to the bottom.
+  useCardFit(boxRef, [card.id, card.title, card.content, card.image, translating, isHindi, hasHero, hasActions])
+
   return (
-    <div className={`relative flex flex-col overflow-hidden select-none h-full w-full lg:max-w-3xl lg:mx-auto ${isHindi ? 'lang-hi' : ''}`}>
-      {/* Main content area — plain-block scroll container + an inner `min-h-full`
-          flex wrapper. Short cards center vertically; long cards top-align and
-          ALWAYS scroll from the top so the title is never clipped (a flex scroll
-          container with margin:auto/justify-center clips the overflowing top in
-          Chrome). Padding clears the navbar (top) + floating action pill (bottom). */}
-      <div data-card-scroll className="flex-1 relative z-10 overflow-y-auto hide-scrollbar overscroll-contain">
-        <div className={`min-h-full flex flex-col px-5 sm:px-10 lg:px-14 pb-28 ${
-          isNews
-            ? 'justify-start pt-[7.25rem] lg:pt-16'
-            : isLong
-            ? 'justify-start pt-20 lg:pt-10'
-            : 'justify-center pt-20 lg:pt-16'
-        }`}>
-          <div className="max-w-xl lg:max-w-2xl mx-auto w-full">
-            {/* Hero image — a news card carries the publisher's picture, and it leads the card as in the app.
-                Hidden if it fails to load. */}
-            {card.image && !translating && (
+    <div className={`relative flex flex-col overflow-hidden select-none h-full w-full lg:max-w-3xl lg:mx-auto px-5 sm:px-10 lg:px-14 pb-28 ${
+      isNews ? 'pt-[7.25rem] lg:pt-16' : isLong ? 'pt-20 lg:pt-10' : 'pt-20 lg:pt-16'
+    } ${isHindi ? 'lang-hi' : ''}`}>
+      {/* The padding clears the navbar (top) and the floating action dock (bottom). Short cards that are not news centre
+          vertically; a news card and a long one start at the top. */}
+      <div
+        ref={boxRef}
+        className={`card-fit relative z-10 flex-1 min-h-0 flex flex-col w-full max-w-xl lg:max-w-2xl mx-auto ${
+          isNews || isLong ? 'justify-start' : 'justify-center'
+        }`}
+      >
+            {/* Hero image — a news card carries the publisher's picture, and it leads the card as in the app. Its height is
+                what is left once the text is placed (useCardFit). A story with no picture, or whose picture fails to load,
+                gets a poster instead, as in the app, so that every news card keeps the same rhythm. */}
+            {hasHero && (
               <motion.div
+                data-fit="hero"
                 initial={{ opacity: 0, y: 8 }}
                 animate={isActive ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.3 }}
-                className="mb-4 overflow-hidden rounded-3xl bg-[var(--wash-1)]"
+                className={`overflow-hidden rounded-3xl ${hasPoster ? 'poster-tile flex items-center justify-center' : 'bg-[var(--wash-1)]'}`}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={card.image}
-                  alt={card.title || 'News image'}
-                  loading="lazy"
-                  className="w-full aspect-[16/10] sm:aspect-[16/9] object-cover"
-                  onError={(e) => { (e.currentTarget.closest('div') as HTMLElement).style.display = 'none' }}
-                />
+                {hasPoster ? (
+                  <span aria-hidden="true" className="poster-emoji select-none leading-none">
+                    {posterEmoji(card)}
+                  </span>
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={card.image}
+                    alt={card.title || 'News image'}
+                    className="w-full h-full object-cover"
+                    onError={() => setImageFailed(true)}
+                  />
+                )}
               </motion.div>
             )}
 
             {/* Tag and origin. A news card reads "INDIA  The Hindu · 20m ago · 20s" under its picture, as in the app. */}
             <motion.div
+              data-fit="meta"
               initial={{ opacity: 0, y: 6 }}
               animate={isActive ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.2 }}
-              className="flex items-center flex-wrap gap-x-3 gap-y-2 mb-3.5"
+              className="flex items-center flex-wrap gap-x-3 gap-y-2"
             >
               {isNews ? (
                 <span className="px-2.5 py-1 rounded-full bg-[color:var(--signal)]/15 text-[color:var(--signal-text)] text-[11px] font-bold uppercase tracking-wider">
@@ -143,7 +175,8 @@ export function Card({ card, isActive, translating = false }: CardProps) {
               initial={{ opacity: 0, y: 10 }}
               animate={isActive ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-              className="headline text-[28px] sm:text-[34px] lg:text-[38px] text-white mb-4"
+              data-fit="title"
+              className="headline text-[28px] sm:text-[34px] lg:text-[38px] text-white"
             >
               {card.sourceUrl ? (
                 <a
@@ -161,113 +194,139 @@ export function Card({ card, isActive, translating = false }: CardProps) {
             </motion.h1>
           )}
 
-          {/* Content */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={isActive ? { opacity: 1, y: 0 } : {}}
-            transition={{ delay: 0.08, duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-          >
-            {card.type === 'quote' ? (
-              <blockquote className="relative py-6">
+          {/* Content — the summary, cut to whole lines with an ellipsis when there is not room for all of it. A quote has
+              its mark and bar around it, so the text inside is what is fitted. Paragraphs are set apart by a blank line,
+              so that the lines of the whole summary can be counted and cut as one. */}
+          {card.type === 'quote' ? (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={isActive ? { opacity: 1, y: 0 } : {}}
+              transition={{ delay: 0.08, duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <blockquote className="relative py-3">
                 <span className="absolute -left-1 -top-4 text-6xl leading-none text-[color:var(--signal)]/30 font-serif select-none">&ldquo;</span>
                 <div className="absolute -left-2 top-2 bottom-2 w-[3px] bg-[color:var(--signal)]" />
-                <p className="text-[26px] sm:text-[32px] font-serif italic text-white/95 leading-[1.4] pl-6">
+                <p data-fit="body" className="text-[26px] sm:text-[32px] font-serif italic text-white/95 leading-[1.4] pl-6">
                   {card.content}
                 </p>
               </blockquote>
-            ) : card.type === 'code' ? (
-              <div className="space-y-4">
-                {card.content.split('\n\n').map((paragraph, i) => {
-                  if (paragraph.startsWith('```')) {
-                    const code = paragraph.replace(/```\w*\n?/g, '').trim()
-                    return (
-                      <div key={i} className="bg-black/40 border border-dark-border rounded-xl p-4 overflow-x-auto">
-                        <pre className="code-text text-dark-text/90">{code}</pre>
-                      </div>
-                    )
-                  }
+            </motion.div>
+          ) : card.type === 'code' ? (
+            <motion.div
+              data-fit="body"
+              initial={{ opacity: 0, y: 10 }}
+              animate={isActive ? { opacity: 1, y: 0 } : {}}
+              transition={{ delay: 0.08, duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              className="space-y-4"
+            >
+              {card.content.split('\n\n').map((paragraph, i) => {
+                if (paragraph.startsWith('```')) {
+                  const code = paragraph.replace(/```\w*\n?/g, '').trim()
                   return (
-                    <p key={i} className="reading-text">
-                      {formatText(paragraph)}
-                    </p>
+                    <div key={i} className="bg-black/40 border border-dark-border rounded-xl p-4 overflow-x-auto">
+                      <pre className="code-text text-dark-text/90">{code}</pre>
+                    </div>
                   )
-                })}
-              </div>
-            ) : body !== '' ? (
-              <div className="space-y-4">
-                {body.split('\n\n').map((paragraph, i) => (
+                }
+                return (
                   <p key={i} className="reading-text">
                     {formatText(paragraph)}
                   </p>
-                ))}
-              </div>
-            ) : null}
-          </motion.div>
+                )
+              })}
+            </motion.div>
+          ) : body !== '' ? (
+            <motion.div
+              data-fit="body"
+              initial={{ opacity: 0, y: 10 }}
+              animate={isActive ? { opacity: 1, y: 0 } : {}}
+              transition={{ delay: 0.08, duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              className="reading-text"
+            >
+              {body.split('\n\n').map((paragraph, i) => (
+                <Fragment key={i}>
+                  {i > 0 && (
+                    <>
+                      <br />
+                      <br />
+                    </>
+                  )}
+                  {formatText(paragraph)}
+                </Fragment>
+              ))}
+            </motion.div>
+          ) : null}
           </>
           )}
 
-          {/* Actions row — the trigger buttons sit horizontally (wrapping as needed)
-              so they take less vertical space, especially on desktop; the expanded
-              panels (Go deeper insights / Test yourself quiz) use `basis-full` to
-              break onto their own full-width line below the button row. "Read full
-              story", Save and Share live in the bar fixed at the bottom (CardActions). */}
-          <div className="mt-6 flex flex-wrap items-start gap-2.5">
-            {/* Go deeper — AI-generated bonus insights on tap */}
-            {card.type !== 'quote' && (card.content?.length ?? 0) > 120 && (
-              <DeeperSection card={card} isHindi={isHindi} />
-            )}
-
-            {/* Test yourself — AI-generated one-question quiz for active recall.
-                Skipped for news (a quiz on a breaking headline adds no value). */}
-            {card.type !== 'quote' && card.category !== 'news' && (card.content?.length ?? 0) > 160 && (
-              <QuizSection card={card} isHindi={isHindi} />
-            )}
-
-            {/* More by this author — book cards let a reader discover the author's
-                other works with one tap (Open Library). */}
-            {card.category === 'books' && card.author && (
-              <MoreByAuthor author={card.author} title={card.title || ''} url={card.sourceUrl || ''} isHindi={isHindi} />
-            )}
-          </div>
-
-          {/* Author / source credibility. A news card already names its source under the picture. */}
-          {(card.author || (card.source && !isNews)) && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={isActive ? { opacity: 1 } : {}}
-              transition={{ delay: 0.35 }}
-              className="mt-5 pt-4 border-t border-dark-border/50 flex items-center gap-2.5"
-            >
-              <div className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-xs shrink-0">
-                {card.emoji || '📄'}
-              </div>
-              <div className="min-w-0">
-                {card.author && (
-                  <p className="text-dark-text/90 text-xs font-medium truncate">{card.author}</p>
+          {/* The row pinned under the summary: Go deeper, and on other cards Test yourself, more by the author and a credit.
+              What these open floats over the summary, above the row, instead of pushing it: nothing on a card scrolls.
+              "Read full story", Save and Share live in the bar fixed at the bottom (CardActions). */}
+          {hasActions && (
+            <div data-fit="actions" className={`relative ${isNews || isLong ? 'mt-auto' : 'mt-2'}`}>
+              <div className="flex flex-wrap items-start gap-2.5">
+                {/* Go deeper — AI-generated bonus insights on tap */}
+                {hasDeeper && (
+                  <DeeperSection card={card} isHindi={isHindi} open={panel === 'deeper'} setOpen={(open) => setPanel(open ? 'deeper' : null)} />
                 )}
-                {card.source && (
-                  card.sourceUrl ? (
-                    <a
-                      href={card.sourceUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="text-dark-subtle text-xs hover:text-[color:var(--signal)] transition-colors inline-flex items-center gap-1"
-                    >
-                      {card.source}
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
-                    </a>
-                  ) : (
-                    <p className="text-dark-subtle text-xs">{card.source}</p>
-                  )
+
+                {/* Test yourself — AI-generated one-question quiz for active recall.
+                    Skipped for news (a quiz on a breaking headline adds no value). */}
+                {hasQuiz && (
+                  <QuizSection card={card} isHindi={isHindi} open={panel === 'quiz'} setOpen={(open) => setPanel(open ? 'quiz' : null)} />
+                )}
+
+                {/* More by this author — book cards let a reader discover the author's
+                    other works with one tap (Open Library). */}
+                {card.category === 'books' && card.author && (
+                  <MoreByAuthor
+                    author={card.author}
+                    title={card.title || ''}
+                    url={card.sourceUrl || ''}
+                    isHindi={isHindi}
+                    open={panel === 'author'}
+                    setOpen={(open) => setPanel(open ? 'author' : null)}
+                  />
                 )}
               </div>
-            </motion.div>
+
+              {hasCredit && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={isActive ? { opacity: 1 } : {}}
+                  transition={{ delay: 0.35 }}
+                  className="mt-4 pt-3 border-t border-dark-border/50 flex items-center gap-2.5"
+                >
+                  <div className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-xs shrink-0">
+                    {card.emoji || '📄'}
+                  </div>
+                  <div className="min-w-0">
+                    {card.author && (
+                      <p className="text-dark-text/90 text-xs font-medium truncate">{card.author}</p>
+                    )}
+                    {card.source && (
+                      card.sourceUrl ? (
+                        <a
+                          href={card.sourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-dark-subtle text-xs hover:text-[color:var(--signal)] transition-colors inline-flex items-center gap-1"
+                        >
+                          {card.source}
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                        </a>
+                      ) : (
+                        <p className="text-dark-subtle text-xs">{card.source}</p>
+                      )
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </div>
           )}
-          </div>
-        </div>
       </div>
     </div>
   )
@@ -375,7 +434,8 @@ function CategoryChip({
               exit={{ opacity: 0, y: -6, scale: 0.96 }}
               transition={{ duration: 0.15 }}
               onClick={(e) => e.stopPropagation()}
-              className={`absolute top-full left-0 mt-2 z-50 w-64 rounded-xl bg-dark-card border border-dark-border shadow-2xl shadow-black/60 p-2 normal-case ${isHindi ? 'lang-hi' : ''}`}
+              data-no-feed-scroll
+              className={`absolute top-full left-0 mt-2 z-50 w-64 max-h-[min(24rem,calc(100dvh_-_16rem))] overflow-y-auto overscroll-contain thin-scrollbar rounded-xl bg-dark-card border border-dark-border shadow-2xl shadow-black/60 p-2 normal-case ${isHindi ? 'lang-hi' : ''}`}
             >
               {/* When the card's own topic isn't followed yet → offer to add it. */}
               {isTopic && !isFollowed ? (
@@ -490,15 +550,60 @@ function CategoryChip({
   )
 }
 
+// What a panel opens into: a sheet that floats over the summary, above the row that opened it. Nothing on the card itself
+// scrolls, so a sheet with more than its room has a scroll of its own (and a swipe that starts on it stays on it).
+function Sheet({
+  title,
+  icon,
+  onClose,
+  isHindi,
+  children,
+}: {
+  title: string
+  icon: React.ReactNode
+  onClose: () => void
+  isHindi: boolean
+  children: React.ReactNode
+}) {
+  const { t } = useT()
+  return (
+    <motion.div
+      data-no-feed-scroll
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 8 }}
+      transition={{ duration: 0.18 }}
+      onClick={(e) => e.stopPropagation()}
+      className={`absolute inset-x-0 bottom-full mb-3 z-30 max-h-[min(52dvh,26rem,calc(100dvh_-_19rem))] overflow-y-auto overscroll-contain thin-scrollbar rounded-2xl bg-dark-card border border-[color:var(--hair-strong)] shadow-2xl shadow-black/50 p-3 ${isHindi ? 'lang-hi' : ''}`}
+    >
+      <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[color:var(--signal)] mb-2">
+        {icon}
+        <span className="flex-1">{title}</span>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onClose() }}
+          aria-label={t('close')}
+          className="focus-ring -mr-1 p-1.5 rounded-md text-dark-subtle hover:text-white hover:bg-white/5 transition"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+      </div>
+      {children}
+    </motion.div>
+  )
+}
+
 // "Go deeper" — a tap loads 3 AI-generated bonus insights that build on the card,
 // so a curious reader can learn more without leaving the feed.
-function DeeperSection({ card, isHindi }: { card: CardData; isHindi: boolean }) {
+function DeeperSection({ card, isHindi, open, setOpen }: { card: CardData; isHindi: boolean; open: boolean; setOpen: (open: boolean) => void }) {
   const { t, lang } = useT()
   const [state, setState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
   const [insights, setInsights] = useState<string[]>([])
 
   const load = async () => {
-    if (state === 'loading' || state === 'done') return
+    if (state === 'loading') return
+    // Once loaded, the button opens and closes the sheet.
+    if (state === 'done') { setOpen(!open); return }
     setState('loading')
     try {
       const res = await fetch(withBase('/api/deeper'), {
@@ -510,6 +615,7 @@ function DeeperSection({ card, isHindi }: { card: CardData; isHindi: boolean }) 
       if (data?.insights?.length) {
         setInsights(data.insights)
         setState('done')
+        setOpen(true)
       } else {
         setState('error')
       }
@@ -520,38 +626,36 @@ function DeeperSection({ card, isHindi }: { card: CardData; isHindi: boolean }) 
 
   return (
     <>
-      {state !== 'done' && (
-        <button
-          onClick={load}
-          disabled={state === 'loading'}
-          className="focus-ring group inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-[color:var(--signal)]/15 text-[color:var(--signal-text)] text-sm font-semibold hover:bg-[color:var(--signal)]/25 transition disabled:opacity-60"
-        >
-          {state === 'loading' ? (
-            <span className="w-4 h-4 border-[1.5px] border-[color:var(--signal-text)] border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <svg className="w-[18px] h-[18px]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3zM18.5 15l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9.9-2.1z" />
-            </svg>
-          )}
-          {state === 'loading' ? t('deeperLoading') : t('goDeeper')}
-        </button>
-      )}
-
-      {state === 'error' && (
-        <p className="order-last basis-full w-full text-xs text-dark-subtle">{t('deeperError')}</p>
-      )}
+      <button
+        onClick={load}
+        disabled={state === 'loading'}
+        aria-expanded={state === 'done' ? open : undefined}
+        className="focus-ring group inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-[color:var(--signal)]/15 text-[color:var(--signal-text)] text-sm font-semibold hover:bg-[color:var(--signal)]/25 transition disabled:opacity-60"
+      >
+        {state === 'loading' ? (
+          <span className="w-4 h-4 border-[1.5px] border-[color:var(--signal-text)] border-t-transparent rounded-full animate-spin" />
+        ) : (
+          <svg className="w-[18px] h-[18px]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3zM18.5 15l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9.9-2.1z" />
+          </svg>
+        )}
+        {state === 'loading' ? t('deeperLoading') : t('goDeeper')}
+      </button>
 
       <AnimatePresence>
-        {state === 'done' && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`order-last basis-full w-full space-y-2.5 ${isHindi ? 'lang-hi' : ''}`}
+        {state === 'error' && (
+          <Sheet title={t('goDeeper')} icon={null} onClose={() => setState('idle')} isHindi={isHindi}>
+            <p className="text-xs text-dark-subtle">{t('deeperError')}</p>
+          </Sheet>
+        )}
+        {state === 'done' && open && (
+          <Sheet
+            title={t('goDeeper')}
+            icon={<svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>}
+            onClose={() => setOpen(false)}
+            isHindi={isHindi}
           >
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[color:var(--signal)] mb-1">
-              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-              {t('goDeeper')}
-            </div>
+            <div className="space-y-2.5">
             {insights.map((ins, i) => (
               <motion.div
                 key={i}
@@ -566,7 +670,8 @@ function DeeperSection({ card, isHindi }: { card: CardData; isHindi: boolean }) 
                 <p className="text-sm text-dark-text/90 leading-relaxed">{ins}</p>
               </motion.div>
             ))}
-          </motion.div>
+            </div>
+          </Sheet>
         )}
       </AnimatePresence>
     </>
@@ -575,13 +680,29 @@ function DeeperSection({ card, isHindi }: { card: CardData; isHindi: boolean }) 
 
 // "More by this author" — book cards let a reader tap to discover the author's
 // other works from Open Library, turning a single book into a reading trail.
-function MoreByAuthor({ author, title, url, isHindi }: { author: string; title: string; url: string; isHindi: boolean }) {
+function MoreByAuthor({
+  author,
+  title,
+  url,
+  isHindi,
+  open,
+  setOpen,
+}: {
+  author: string
+  title: string
+  url: string
+  isHindi: boolean
+  open: boolean
+  setOpen: (open: boolean) => void
+}) {
   const { t } = useT()
   const [state, setState] = useState<'idle' | 'loading' | 'done' | 'empty'>('idle')
   const [works, setWorks] = useState<{ title: string; url: string }[]>([])
 
   const load = async () => {
-    if (state === 'loading' || state === 'done') return
+    if (state === 'loading') return
+    // Once loaded, the button opens and closes the sheet.
+    if (state === 'done') { setOpen(!open); return }
     setState('loading')
     try {
       const res = await fetch(withBase('/api/author-books'), {
@@ -593,6 +714,7 @@ function MoreByAuthor({ author, title, url, isHindi }: { author: string; title: 
       if (data?.works?.length) {
         setWorks(data.works)
         setState('done')
+        setOpen(true)
       } else {
         setState('empty')
       }
@@ -605,12 +727,12 @@ function MoreByAuthor({ author, title, url, isHindi }: { author: string; title: 
 
   return (
     <>
-      {state !== 'done' && (
-        <button
-          onClick={load}
-          disabled={state === 'loading'}
-          className="focus-ring group inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.03] border border-[color:var(--hair-strong)] text-dark-text text-sm font-medium hover:border-[color:var(--signal)] hover:bg-white/[0.05] transition disabled:opacity-60"
-        >
+      <button
+        onClick={load}
+        disabled={state === 'loading'}
+        aria-expanded={state === 'done' ? open : undefined}
+        className="focus-ring group inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.03] border border-[color:var(--hair-strong)] text-dark-text text-sm font-medium hover:border-[color:var(--signal)] hover:bg-white/[0.05] transition disabled:opacity-60"
+      >
           {state === 'loading' ? (
             <span className="w-4 h-4 border-[1.5px] border-[color:var(--signal)] border-t-transparent rounded-full animate-spin" />
           ) : (
@@ -620,19 +742,16 @@ function MoreByAuthor({ author, title, url, isHindi }: { author: string; title: 
           )}
           {state === 'loading' ? t('moreByAuthorLoading') : t('moreByAuthor')}
         </button>
-      )}
 
       <AnimatePresence>
-        {state === 'done' && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`order-last basis-full w-full space-y-2 ${isHindi ? 'lang-hi' : ''}`}
+        {state === 'done' && open && (
+          <Sheet
+            title={t('moreByAuthor')}
+            icon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>}
+            onClose={() => setOpen(false)}
+            isHindi={isHindi}
           >
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[color:var(--signal)] mb-1">
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-              {t('moreByAuthor')}
-            </div>
+            <div className="space-y-2">
             {works.map((w, i) => (
               <motion.a
                 key={w.url}
@@ -652,7 +771,8 @@ function MoreByAuthor({ author, title, url, isHindi }: { author: string; title: 
                 <svg className="w-3.5 h-3.5 text-dark-subtle group-hover:text-[color:var(--signal)] transition-colors shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
               </motion.a>
             ))}
-          </motion.div>
+            </div>
+          </Sheet>
         )}
       </AnimatePresence>
     </>
@@ -663,7 +783,7 @@ function MoreByAuthor({ author, title, url, isHindi }: { author: string; title: 
 // the reader actively recalls the key idea instead of passively scrolling past it.
 type Quiz = { question: string; options: string[]; correct: number; explanation: string }
 
-function QuizSection({ card, isHindi }: { card: CardData; isHindi: boolean }) {
+function QuizSection({ card, isHindi, open, setOpen }: { card: CardData; isHindi: boolean; open: boolean; setOpen: (open: boolean) => void }) {
   const { t, lang } = useT()
   const recordQuizAnswer = usePlaxStore((s) => s.recordQuizAnswer)
   const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
@@ -671,7 +791,9 @@ function QuizSection({ card, isHindi }: { card: CardData; isHindi: boolean }) {
   const [picked, setPicked] = useState<number | null>(null)
 
   const load = async () => {
-    if (state === 'loading' || state === 'ready') return
+    if (state === 'loading') return
+    // Once built, the button opens and closes the sheet.
+    if (state === 'ready') { setOpen(!open); return }
     setState('loading')
     try {
       const res = await fetch(withBase('/api/quiz'), {
@@ -683,6 +805,7 @@ function QuizSection({ card, isHindi }: { card: CardData; isHindi: boolean }) {
       if (data?.quiz?.options?.length === 4) {
         setQuiz(data.quiz)
         setState('ready')
+        setOpen(true)
       } else {
         setState('error')
       }
@@ -700,12 +823,12 @@ function QuizSection({ card, isHindi }: { card: CardData; isHindi: boolean }) {
 
   return (
     <>
-      {state !== 'ready' && (
-        <button
-          onClick={load}
-          disabled={state === 'loading'}
-          className="focus-ring group inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.03] border border-[color:var(--hair-strong)] text-dark-text text-sm font-medium hover:border-[color:var(--signal)] hover:bg-white/[0.05] transition disabled:opacity-60"
-        >
+      <button
+        onClick={load}
+        disabled={state === 'loading'}
+        aria-expanded={state === 'ready' ? open : undefined}
+        className="focus-ring group inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.03] border border-[color:var(--hair-strong)] text-dark-text text-sm font-medium hover:border-[color:var(--signal)] hover:bg-white/[0.05] transition disabled:opacity-60"
+      >
           {state === 'loading' ? (
             <span className="w-4 h-4 border-[1.5px] border-[color:var(--signal)] border-t-transparent rounded-full animate-spin" />
           ) : (
@@ -715,23 +838,20 @@ function QuizSection({ card, isHindi }: { card: CardData; isHindi: boolean }) {
           )}
           {state === 'loading' ? t('quizLoading') : t('testYourself')}
         </button>
-      )}
-
-      {state === 'error' && (
-        <p className="order-last basis-full w-full text-xs text-dark-subtle">{t('quizError')}</p>
-      )}
 
       <AnimatePresence>
-        {state === 'ready' && quiz && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`order-last basis-full w-full rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4 ${isHindi ? 'lang-hi' : ''}`}
+        {state === 'error' && (
+          <Sheet title={t('testYourself')} icon={null} onClose={() => setState('idle')} isHindi={isHindi}>
+            <p className="text-xs text-dark-subtle">{t('quizError')}</p>
+          </Sheet>
+        )}
+        {state === 'ready' && quiz && open && (
+          <Sheet
+            title={t('testYourself')}
+            icon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+            onClose={() => setOpen(false)}
+            isHindi={isHindi}
           >
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[color:var(--signal)] mb-3">
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-              {t('testYourself')}
-            </div>
             <p className="text-sm font-medium text-dark-text mb-3 leading-relaxed">{quiz.question}</p>
             <div className="space-y-2">
               {quiz.options.map((opt, i) => {
@@ -776,7 +896,7 @@ function QuizSection({ card, isHindi }: { card: CardData; isHindi: boolean }) {
                 </motion.div>
               )}
             </AnimatePresence>
-          </motion.div>
+          </Sheet>
         )}
       </AnimatePresence>
     </>

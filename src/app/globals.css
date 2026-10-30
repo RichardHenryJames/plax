@@ -121,6 +121,41 @@ body {
   justify-content: center;
 }
 
+/* ── Story card fit ──
+   A card has nothing that scrolls, so one swipe always moves to the next story. useCardFit shares the box's height out
+   between the picture, the headline and the summary (the same arithmetic as the Android app's page). Each part carries
+   the space above it as padding, which is what the fit counts, and none of them shrinks by itself: the fit decides what
+   is cut, at a whole line. */
+.card-fit {
+  overflow: hidden;
+}
+.card-fit > * {
+  flex-shrink: 0;
+}
+.card-fit [data-fit='meta'] {
+  padding-top: 14px;
+}
+.card-fit > [data-fit='meta']:first-child {
+  padding-top: 0;
+}
+.card-fit [data-fit='title'] {
+  padding-top: 10px;
+  text-wrap: balance;
+}
+.card-fit [data-fit='body'] {
+  padding-top: 12px;
+}
+.card-fit [data-fit='actions'] {
+  padding-top: 14px;
+}
+/* The poster of a story with no picture, as in the app: its sign on a soft wash. The hook sets --hero-h to the tile's height. */
+.poster-tile {
+  background-image: linear-gradient(135deg, color-mix(in srgb, var(--signal) 18%, transparent), var(--wash-1));
+}
+.poster-emoji {
+  font-size: min(4rem, calc(var(--hero-h, 8rem) * 0.5));
+}
+
 /* ── Reading Typography ──
    One type system on the site and in the Android app: a bold serif for headlines and the wordmark, a plain sans for the
    text people read. */
