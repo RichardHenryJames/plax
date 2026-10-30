@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { SITE_DISPLAY } from '@/lib/site'
 
 // Node runtime (NOT edge): Open Library's Cloudflare 403s Vercel's edge-function
 // IPs, but the nodejs runtime IPs pass — this is the same reason the feed route
 // (which fetches Open Library) runs on nodejs.
 export const runtime = 'nodejs'
 
-const OL_HEADERS = { Accept: 'application/json', 'User-Agent': 'PlaxReader/1.0 (plaxlabs.com)' }
+const OL_HEADERS = { Accept: 'application/json', 'User-Agent': `PlaxReader/1.0 (${SITE_DISPLAY})` }
 
 type Doc = { title: string; key: string; editions: number; authors: string[] }
 

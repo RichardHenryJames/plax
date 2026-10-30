@@ -11,9 +11,10 @@ It asks the website where the accounts live, exactly as the Android app does, an
   - the reading-streak function cannot be used on other readers (the 2026-10-10 schema fix is applied)
   - the website's daily keep-alive can reach the database (this is what stops a free project pausing)
 
-Not checked, because they need a browser and your Google account: the Google consent screen itself, the Authorized
-redirect URI in the Google Cloud console and the Redirect URLs list in Supabase (SUPABASE_SETUP.md, steps 5 and 6).
-The script prints the callback address Google must have been given, to compare.
+Not checked, because they need a browser and your Google account: the Google consent screen itself and the Authorized
+redirect URI in the Google Cloud console. The script prints the callback address Google must have been given, to compare.
+It does check that Supabase's Redirect URLs list allows the app's return page (SUPABASE_SETUP.md, step 6): when the list
+does not name the website's current address, Supabase sends readers back to its Site URL instead, and sign-in cannot finish.
 
   .\scripts\check-accounts.ps1
   .\scripts\check-accounts.ps1 -Site http://localhost:3000/news
@@ -24,7 +25,7 @@ It sends only GET requests, plus one POST that a protected project refuses and t
 unused sign-in record in the project. Exit code 0 means every check passed.
 #>
 param(
-    [string]$Site = 'https://www.plaxlabs.com/news',
+    [string]$Site = 'https://plax-rouge.vercel.app/news',
     [string]$Url = '',
     [string]$AnonKey = '',
     [switch]$SkipSite
@@ -96,7 +97,9 @@ $settings = Json $settingsResponse.Text
 # 3. Google sign-in
 Check 'Google sign-in is switched on' ($settings -and $settings.external.google -eq $true) '' "Dashboard > Authentication > Providers > Google > enable, with the Google client id and secret ($runbook, steps 4 and 5)."
 Check 'new readers may sign up' ($settings -and $settings.disable_signup -ne $true) '' "Dashboard > Authentication > Sign In / Providers: turn on 'Allow new users to sign up'. Otherwise only people who already have an account can sign in."
-$redirect = [uri]::EscapeDataString('https://www.plaxlabs.com/news/auth/app?app=com.plaxlabs.news.preview')
+# The page Supabase must return the reader to: the one the installed app asks for (FeedApi.SITE + /auth/app), whatever -Site is.
+$returnPage = 'https://plax-rouge.vercel.app/news/auth/app?app=com.plaxlabs.news.preview'
+$redirect = [uri]::EscapeDataString($returnPage)
 $authorize = Send 'GET' "$Url/auth/v1/authorize?provider=google&redirect_to=$redirect&code_challenge=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ&code_challenge_method=s256"
 $toGoogle = $authorize.Status -eq 302 -and $authorize.Location -match '^https://accounts\.google\.com/'
 Check 'the sign-in address the app opens leads to Google' $toGoogle "(HTTP $($authorize.Status) $($authorize.Error))" "Enable the Google provider and give it a client id and secret ($runbook, steps 4 and 5)."
@@ -106,6 +109,11 @@ if ($toGoogle) {
     Check 'Google is given a client id' (-not [string]::IsNullOrWhiteSpace($query['client_id'])) '' 'Paste the OAuth client id and secret into the Supabase Google provider.'
     Write-Output "        Google must list this callback as an Authorized redirect URI: $($query['redirect_uri'])"
 }
+# Whether Supabase's Redirect URLs list allows the app's return page. /auth/v1/verify with a token that cannot be valid changes
+# nothing, and redirects to the requested address if the list allows it and to the project's Site URL if it does not.
+$probe = Send 'GET' "$Url/auth/v1/verify?token=plax-check-not-a-real-token&type=signup&redirect_to=$redirect"
+$sentBackTo = if ($probe.Location) { ($probe.Location -split '#')[0] } else { "(HTTP $($probe.Status) $($probe.Error))" }
+Check "Supabase's Redirect URLs list allows the app's return page" ($sentBackTo -eq $returnPage) "(readers would be sent to $sentBackTo instead)" "Dashboard > Authentication > URL Configuration: set Site URL to https://plax-rouge.vercel.app and add https://plax-rouge.vercel.app/news/auth/app** and https://plax-rouge.vercel.app/news/auth/callback to Redirect URLs ($runbook, step 6). Until then Google accepts the account and Supabase sends the reader to the old address, so sign-in never reaches the app."
 
 # 4. Tables and row-level security: anyone with only the public key must see nothing.
 foreach ($table in 'user_profiles', 'bookmarks', 'engagements', 'ai_cache') {

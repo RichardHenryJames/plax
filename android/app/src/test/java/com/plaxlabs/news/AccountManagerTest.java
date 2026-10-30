@@ -143,7 +143,7 @@ public class AccountManagerTest {
         okhttp3.HttpUrl url = okhttp3.HttpUrl.get(opened.get(0));
         assertEquals("abcdefghij.supabase.co", url.host()); assertEquals("/auth/v1/authorize", url.encodedPath());
         assertEquals("google", url.queryParameter("provider"));
-        assertEquals("https://www.plaxlabs.com/news/auth/app?app=" + SCHEME, url.queryParameter("redirect_to"));
+        assertEquals("https://plax-rouge.vercel.app/news/auth/app?app=" + SCHEME, url.queryParameter("redirect_to"));
         assertEquals("s256", url.queryParameter("code_challenge_method"));
         String verifier = com.google.gson.JsonParser.parseString(store.text).getAsJsonObject().get("v").getAsString();
         assertEquals("The browser is given only the challenge; the verifier stays sealed in the store",

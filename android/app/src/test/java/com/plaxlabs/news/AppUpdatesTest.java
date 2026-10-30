@@ -55,12 +55,12 @@ public class AppUpdatesTest {
     }
 
     @Test public void onlyTheExactVersionedHttpsDownloadFromThisSiteIsAccepted() {
-        for (String url : List.of("http://www.plaxlabs.com/news/plax-1.4.0.apk", "https://example.org/news/plax-1.4.0.apk",
-                "https://www.plaxlabs.com.example.org/news/plax-1.4.0.apk", AppUpdates.ORIGIN + "/plax-1.3.9.apk",
+        for (String url : List.of("http://plax-rouge.vercel.app/news/plax-1.4.0.apk", "https://example.org/news/plax-1.4.0.apk",
+                "https://plax-rouge.vercel.app.example.org/news/plax-1.4.0.apk", AppUpdates.ORIGIN + "/plax-1.3.9.apk",
                 AppUpdates.ORIGIN + "/plax-1.4.0.apk?token=anything", AppUpdates.ORIGIN + "/plax-1.4.0.apk#fragment",
-                "https://user@www.plaxlabs.com/news/plax-1.4.0.apk", "https://www.plaxlabs.com:444/news/plax-1.4.0.apk",
-                AppUpdates.ORIGIN + "/other/../plax-1.4.0.apk", "https://www.plaxlabs.com/plax-1.4.0.apk",
-                "https://plaxlabs.com/news/plax-1.4.0.apk", AppUpdates.ORIGIN + "/plax-1.4.0.APK", AppUpdates.ORIGIN + "/vanishr-1.4.0.apk",
+                "https://user@plax-rouge.vercel.app/news/plax-1.4.0.apk", "https://plax-rouge.vercel.app:444/news/plax-1.4.0.apk",
+                AppUpdates.ORIGIN + "/other/../plax-1.4.0.apk", "https://plax-rouge.vercel.app/plax-1.4.0.apk",
+                "https://www.plax-rouge.vercel.app/news/plax-1.4.0.apk", AppUpdates.ORIGIN + "/plax-1.4.0.APK", AppUpdates.ORIGIN + "/vanishr-1.4.0.apk",
                 AppUpdates.ORIGIN + "/plax-1.4.0.apk ", " " + APK, "", "javascript:alert(1)", "file:///data/local/tmp/app.apk")) {
             JsonObject json = manifest(); json.addProperty("apkUrl", url);
             assertThrows(url, IOException.class, () -> AppUpdates.parse(bytes(json), 9, 36));
@@ -111,7 +111,7 @@ public class AppUpdatesTest {
         AtomicInteger requests = new AtomicInteger();
         OkHttpClient transport = new OkHttpClient.Builder().addInterceptor(chain -> {
             requests.incrementAndGet();
-            assertEquals("https://www.plaxlabs.com/news/updates.json", chain.request().url().toString());
+            assertEquals(FeedApi.SITE + "/updates.json", chain.request().url().toString());
             assertEquals("GET", chain.request().method());
             assertNull(chain.request().header("Authorization"));
             assertNull(chain.request().header("Cookie"));

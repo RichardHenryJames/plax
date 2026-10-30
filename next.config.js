@@ -1,15 +1,24 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // Served at plaxlabs.com/news, behind the website-builder app that owns the
-  // domain root. This prefixes every route and the /_next assets, so the
-  // parent zone only needs to forward /news and /news/*.
+  // Served under /news of its own domain (see src/lib/site.ts). This prefixes every route and the /_next assets.
+  // It once sat behind another app that owned the domain root, which is why the prefix exists.
   // Keep in step with BASE_PATH in src/lib/base-path.ts.
   basePath: '/news',
   // Pin the workspace root so Turbopack resolves modules from this project's
   // node_modules (avoids picking up a stray lockfile in a parent directory).
   turbopack: {
     root: __dirname,
+  },
+
+  // Nothing else is served at the root of the domain, so the bare address, and the two files that crawlers look for
+  // at the root of a host, are sent to where they really are. (Not permanent: the prefix may change one day.)
+  async redirects() {
+    return [
+      { source: '/', destination: '/news', basePath: false, permanent: false },
+      { source: '/robots.txt', destination: '/news/robots.txt', basePath: false, permanent: false },
+      { source: '/sitemap.xml', destination: '/news/sitemap.xml', basePath: false, permanent: false },
+    ]
   },
 
   // The Android app's update feed and the APK it points to are static files in public/ (see

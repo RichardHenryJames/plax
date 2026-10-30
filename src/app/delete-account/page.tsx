@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { LegalPage, Section, P, List } from '@/components/LegalPage'
 import { DeleteAccountPanel } from '@/components/DeleteAccountPanel'
 import { DELETION_MAILTO, LEGAL } from '@/lib/legal'
+import { SITE_DISPLAY } from '@/lib/site'
 
 export const metadata: Metadata = {
   title: 'Delete your Plax account',
@@ -14,7 +15,7 @@ export default function DeleteAccountPage() {
   return (
     <LegalPage title="Delete your Plax account">
       <P>
-        This page is for the Plax app for Android and the Plax website (plaxlabs.com/news), made by {LEGAL.operator}. You can delete your
+        This page is for the Plax app for Android and the Plax website ({SITE_DISPLAY}), made by {LEGAL.operator}. You can delete your
         Plax account and the data stored in it without installing the app again.
       </P>
 

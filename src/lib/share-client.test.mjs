@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { shareBody, signedFields, storyAddress, createShareLink, knownShareLink, resetShareLinks, SHARE_WAIT_MS } from './share-client.ts'
 import { signCard, signingKey } from './share-sign.ts'
 import { shareId, sharePath, readShareCard } from './share.ts'
+import { SITE_URL } from './site.ts'
 
 const KEY = signingKey({ SHARE_SECRET: 'a-test-secret-of-sufficient-length' })
 
@@ -52,11 +53,11 @@ test('a saved copy keeps what is needed to share it later', () => {
 test('only the story address of this very card is accepted from the server', () => {
   const body = shareBody(signed())
   const id = shareId(body.sig)
-  const good = `https://www.plaxlabs.com/news/s/regional-parties-join-protests-in-kashmir-${id}`
+  const good = `${SITE_URL}/s/regional-parties-join-protests-in-kashmir-${id}`
   assert.equal(storyAddress(good, id, body), good)
   assert.equal(storyAddress(good, 'ffffffffffffffff', body), null, 'another story id')
-  assert.equal(storyAddress(`https://www.plaxlabs.com/news/s/x-ffffffffffffffff`, id, body), null, 'address of another story')
-  assert.equal(storyAddress(`https://www.plaxlabs.com/news/x/y-${id}`, id, body), null, 'not a story path')
+  assert.equal(storyAddress(`${SITE_URL}/s/x-ffffffffffffffff`, id, body), null, 'address of another story')
+  assert.equal(storyAddress(`${SITE_URL}/x/y-${id}`, id, body), null, 'not a story path')
   assert.equal(storyAddress(`javascript:alert(1)//s/x-${id}`, id, body), null, 'not a web address')
   assert.equal(storyAddress(`ftp://example.com/s/x-${id}`, id, body), null)
   assert.equal(storyAddress(42, id, body), null)
@@ -69,7 +70,7 @@ test('the link is made once per card and remembered for the session', async () =
   resetShareLinks()
   const body = shareBody(signed())
   const id = shareId(body.sig)
-  const url = `https://www.plaxlabs.com/news${sharePath(body.title, body.sig)}`
+  const url = `${SITE_URL}${sharePath(body.title, body.sig)}`
   let calls = 0
   let sent
   const fetcher = async (endpoint, init) => { calls += 1; sent = { endpoint, init }; return answer(200, { url, id })() }
@@ -87,14 +88,14 @@ test('the link is made once per card and remembered for the session', async () =
 test('every way the server can fail yields no link, never an exception', async () => {
   const body = shareBody(signed())
   const id = shareId(body.sig)
-  const url = `https://www.plaxlabs.com/news${sharePath(body.title, body.sig)}`
+  const url = `${SITE_URL}${sharePath(body.title, body.sig)}`
   const cases = {
     'unavailable': answer(503, { error: 'unavailable' }),
     'unverified': answer(403, { error: 'unverified' }),
     'rate limited': answer(429, { error: 'slow_down' }),
     'not json': async () => ({ ok: true, status: 200, json: async () => { throw new Error('bad json') } }),
     'another story answered': answer(200, { url, id: 'ffffffffffffffff' }),
-    'an address for a different story': answer(200, { url: 'https://www.plaxlabs.com/news/s/x-ffffffffffffffff', id }),
+    'an address for a different story': answer(200, { url: `${SITE_URL}/s/x-ffffffffffffffff`, id }),
     'empty answer': answer(200, null),
     'network error': async () => { throw new TypeError('Failed to fetch') },
   }

@@ -1,6 +1,7 @@
 import { ImageResponse } from 'next/og'
 import { getTopicSeo, TOPIC_SEO } from '@/lib/seo'
 import { PTile } from '@/lib/brand-tile'
+import { SITE_DISPLAY } from '@/lib/site'
 
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
@@ -54,7 +55,7 @@ export default async function TopicOgImage({ params }: { params: Promise<{ topic
           </div>
         </div>
 
-        <div style={{ fontSize: 26, color: 'rgba(255,255,255,0.55)' }}>plaxlabs.com · get smarter every day</div>
+        <div style={{ fontSize: 26, color: 'rgba(255,255,255,0.55)' }}>{`${SITE_DISPLAY} · get smarter every day`}</div>
       </div>
     ),
     { ...size }

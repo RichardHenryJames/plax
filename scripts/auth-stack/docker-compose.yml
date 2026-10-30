@@ -39,7 +39,7 @@ services:
       GOTRUE_DB_DRIVER: postgres
       GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${DB_PASSWORD}@db:5432/postgres
       # What the Plax website's Supabase settings say (SUPABASE_SETUP.md, step 6).
-      GOTRUE_SITE_URL: https://www.plaxlabs.com
+      GOTRUE_SITE_URL: https://plax-rouge.vercel.app
       GOTRUE_URI_ALLOW_LIST: ${URI_ALLOW_LIST}
       GOTRUE_DISABLE_SIGNUP: ${DISABLE_SIGNUP:-false}
       GOTRUE_JWT_ADMIN_ROLES: service_role

@@ -112,7 +112,7 @@ public class ContactDeviceTest {
         page.addCategory(Intent.CATEGORY_DEFAULT);
         page.addCategory(Intent.CATEGORY_BROWSABLE);
         page.addDataScheme("https");
-        page.addDataAuthority("www.plaxlabs.com", null);
+        page.addDataAuthority("plax-rouge.vercel.app", null);
         page.addDataPath("/news/contact", PatternMatcher.PATTERN_LITERAL);
         Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
         Instrumentation.ActivityMonitor monitor = instrumentation.addMonitor(page, new Instrumentation.ActivityResult(Activity.RESULT_OK, new Intent()), true);

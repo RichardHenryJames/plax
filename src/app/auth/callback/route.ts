@@ -4,10 +4,9 @@ import { cookies } from 'next/headers'
 import { BASE_PATH } from '@/lib/base-path'
 
 /**
- * This app is proxied at plaxlabs.com/news, so the request lands on its own
- * deployment and `request.url` reports the internal *.vercel.app origin rather
- * than the host the user is actually browsing. Vercel sets x-forwarded-host to
- * the public one; it is platform-controlled and cannot be spoofed by a client.
+ * This app may sit behind a proxy, so `request.url` can report an internal origin (the deployment's own *.vercel.app
+ * address) rather than the host the user is actually browsing. Vercel sets x-forwarded-host to the public one; it is
+ * platform-controlled and cannot be spoofed by a client.
  */
 function publicOrigin(request: Request, fallback: string): string {
   const host = request.headers.get('x-forwarded-host')

@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { LegalPage, Section, P, List } from '@/components/LegalPage'
 import { LEGAL } from '@/lib/legal'
+import { SITE_DISPLAY } from '@/lib/site'
 
 export const metadata: Metadata = {
   title: 'Privacy Policy',
@@ -15,7 +16,7 @@ export default function PrivacyPage() {
   return (
     <LegalPage title="Privacy Policy" updated={LEGAL.updated}>
       <P>
-        This policy covers the Plax app for Android and the Plax website at plaxlabs.com/news, both made by {LEGAL.operator}. Plax
+        This policy covers the Plax app for Android and the Plax website at {SITE_DISPLAY}, both made by {LEGAL.operator}. Plax
         shows short summaries of news stories from publishers, in English and Hindi, with a link to the full story. Questions about
         this policy, the app or your data: {mail}.
       </P>
@@ -68,7 +69,7 @@ export default function PrivacyPage() {
           The stories belong to their publishers.
         </P>
         <P>
-          The Android version downloaded from plaxlabs.com (not Google Play) also asks plaxlabs.com once a day whether a newer version
+          The Android version downloaded from {SITE_DISPLAY} (not Google Play) also asks {SITE_DISPLAY} once a day whether a newer version
           exists. Nothing about you is sent. Versions from Google Play are updated by Google Play.
         </P>
       </Section>

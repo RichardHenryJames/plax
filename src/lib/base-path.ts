@@ -1,11 +1,11 @@
 /**
- * The news app is served at plaxlabs.com/news as a Next.js multi-zone, behind
- * the website-builder app that owns the domain root.
+ * The news app is served under /news of its own domain (see site.ts). It was first a Next.js multi-zone behind
+ * another app that owned the domain root, which is why everything sits under a prefix.
  *
  * `basePath` in next.config.js prefixes routes, <Link>, router.push and the
  * /_next assets automatically. It does NOT touch fetch() — a bare
- * fetch('/api/feed') would leave this zone and hit the builder app, which has
- * no such route. Anything hand-written therefore goes through here.
+ * fetch('/api/feed') would not be found, because the routes only exist under
+ * the prefix. Anything hand-written therefore goes through here.
  */
 export const BASE_PATH = '/news'
 

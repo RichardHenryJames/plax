@@ -4,21 +4,13 @@
 // (sitemap, topic pages) stay lightweight.
 // ────────────────────────────────────────────────────────────────────────────
 
-import { BASE_PATH } from './base-path'
+import { SITE_HOST, SITE_URL } from './site'
 
-// The canonical host. Set NEXT_PUBLIC_SITE_URL in the environment to override.
-// Default is the www host because the live site + Google Search Console property
-// are www (the apex 307-redirects to www). The sitemap URLs, canonical tags,
-// robots directives and OG URLs must all match this exact host so Google can
-// fetch the sitemap and index the correct URLs (no cross-host / redirect issues).
-export const SITE_HOST = (
-  process.env.NEXT_PUBLIC_SITE_URL || 'https://www.plaxlabs.com'
-).replace(/\/$/, '')
-
-// Everything this app serves now lives under /news, so the base for absolute
-// URLs is host + base path. Callers keep writing `${SITE_URL}/topics` and get
-// https://www.plaxlabs.com/news/topics.
-export const SITE_URL = `${SITE_HOST}${BASE_PATH}`
+// The canonical host and the base for absolute URLs live in ./site (one constant, also built into the Android app).
+// The sitemap URLs, canonical tags, robots directives and OG URLs must all match this exact host so that Google can
+// fetch the sitemap and index the right URLs (no cross-host or redirect issues). Everything this app serves lives
+// under /news, so callers write `${SITE_URL}/topics` and get https://plax-rouge.vercel.app/news/topics.
+export { SITE_HOST, SITE_URL }
 
 export const SITE = {
   name: 'Plax',

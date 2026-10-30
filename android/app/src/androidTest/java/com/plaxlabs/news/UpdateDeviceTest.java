@@ -159,7 +159,7 @@ public class UpdateDeviceTest {
         IntentFilter file = new IntentFilter(Intent.ACTION_VIEW);
         file.addCategory(Intent.CATEGORY_BROWSABLE);
         file.addDataScheme("https");
-        file.addDataAuthority("www.plaxlabs.com", null);
+        file.addDataAuthority("plax-rouge.vercel.app", null);
         file.addDataPath("/news/plax-9.9.9.apk", PatternMatcher.PATTERN_LITERAL);
         // The browser is not really started: the monitor answers for it, so nothing is downloaded by the test.
         Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();

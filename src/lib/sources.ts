@@ -1,6 +1,11 @@
 import { RawContent, CATEGORY_MAP, TOPIC_SUBREDDITS, TOPIC_WIKI_QUERIES, TOPIC_WIKI_QUERIES_HI, TOPIC_NEWS_KEYWORD, TOPIC_GUARDIAN_SECTION, TOPIC_RSS_FEEDS, HINDI_RSS_FEEDS, GENERAL_NEWS_FEEDS } from './types'
 import { within, Remembered, SOURCE_DEADLINE_MS } from './deadline'
 import { isDisambiguationPage } from './wikipedia-quality'
+import { SITE_DISPLAY, SITE_URL } from './site'
+
+// How this server introduces itself to the sources it reads; Wikimedia, Open Library, arXiv and others ask for a way
+// to reach the operator, so it carries the website's address.
+const USER_AGENT = `PlaxReader/1.0 (${SITE_DISPLAY})`
 
 // What each source last returned (30 minutes at most), so a source that is slow or fails does not leave a
 // hole in the next pool: Art, for one, depends on a Wikipedia search that is often slower than the deadline.
@@ -50,7 +55,7 @@ export async function fetchWikipediaContent(count: number = 12, lang: string = '
       '&prop=extracts|info|description&exintro=1&explaintext=1&inprop=url&origin=*'
     const r = await fetch(url, {
       cache: 'no-store',
-      headers: { Accept: 'application/json', 'User-Agent': 'PlaxReader/1.0 (plaxlabs.com)' },
+      headers: { Accept: 'application/json', 'User-Agent': USER_AGENT },
     })
     if (r.ok) {
       const data = await r.json()
@@ -287,7 +292,7 @@ async function fetchWikiSearch(
   try {
     const r = await fetch(url, {
       cache: 'no-store',
-      headers: { Accept: 'application/json', 'User-Agent': 'PlaxReader/1.0 (plaxlabs.com)' },
+      headers: { Accept: 'application/json', 'User-Agent': USER_AGENT },
     })
     if (!r.ok) return []
     const data = await r.json()
@@ -481,7 +486,7 @@ export async function fetchArxiv(categories: string[]): Promise<RawContent[]> {
     `&sortBy=submittedDate&sortOrder=descending&max_results=12`
 
   try {
-    const r = await fetch(url, { cache: 'no-store', headers: { 'User-Agent': 'PlaxReader/1.0 (plaxlabs.com)' } })
+    const r = await fetch(url, { cache: 'no-store', headers: { 'User-Agent': USER_AGENT } })
     if (!r.ok) return []
     const xml = await r.text()
     const out: RawContent[] = []
@@ -703,7 +708,7 @@ export async function fetchOpenLibraryBooks(count = 6): Promise<RawContent[]> {
         const url = `https://openlibrary.org/subjects/${subject}.json?limit=${perSubject}`
         const r = await fetch(url, {
           cache: 'no-store',
-          headers: { Accept: 'application/json', 'User-Agent': 'PlaxReader/1.0 (plaxlabs.com)' },
+          headers: { Accept: 'application/json', 'User-Agent': USER_AGENT },
         })
         if (!r.ok) return [] as any[]
         const data = await r.json()
@@ -733,7 +738,7 @@ export async function fetchOpenLibraryBooks(count = 6): Promise<RawContent[]> {
         try {
           const wr = await fetch(`https://openlibrary.org${w.key}.json`, {
             cache: 'no-store',
-            headers: { Accept: 'application/json', 'User-Agent': 'PlaxReader/1.0 (plaxlabs.com)' },
+            headers: { Accept: 'application/json', 'User-Agent': USER_AGENT },
           })
           if (!wr.ok) return null
           const wd = await wr.json()
@@ -801,7 +806,7 @@ export async function fetchIndianAuthorBooks(count = 6): Promise<RawContent[]> {
           `&sort=readinglog&limit=6&fields=title,key,first_publish_year,edition_count,author_name`
         const r = await fetch(url, {
           cache: 'no-store',
-          headers: { Accept: 'application/json', 'User-Agent': 'PlaxReader/1.0 (plaxlabs.com)' },
+          headers: { Accept: 'application/json', 'User-Agent': USER_AGENT },
         })
         if (!r.ok) return [] as any[]
         const data = await r.json()
@@ -833,7 +838,7 @@ export async function fetchIndianAuthorBooks(count = 6): Promise<RawContent[]> {
         try {
           const wr = await fetch(`https://openlibrary.org${w.key}.json`, {
             cache: 'no-store',
-            headers: { Accept: 'application/json', 'User-Agent': 'PlaxReader/1.0 (plaxlabs.com)' },
+            headers: { Accept: 'application/json', 'User-Agent': USER_AGENT },
           })
           if (wr.ok) {
             const wd = await wr.json()
@@ -1203,7 +1208,7 @@ async function fetchOneFeed(
     const r = await fetch(url, {
       cache: 'no-store',
       signal: ctrl.signal,
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; PlaxReader/1.0; +plaxlabs.com)', Accept: 'application/rss+xml, application/xml, text/xml, */*' },
+      headers: { 'User-Agent': `Mozilla/5.0 (compatible; PlaxReader/1.0; +${SITE_URL})`, Accept: 'application/rss+xml, application/xml, text/xml, */*' },
     })
     clearTimeout(timer)
     if (!r.ok) return []

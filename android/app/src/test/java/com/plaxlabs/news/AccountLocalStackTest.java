@@ -161,7 +161,7 @@ public class AccountLocalStackTest {
         try (Response response = raw.newCall(new Request.Builder().url(link).build()).execute()) {
             assertEquals("the link answers with a redirect back to the website", 303, response.code());
             HttpUrl back = HttpUrl.get(response.header("Location"));
-            assertEquals("www.plaxlabs.com", back.host());
+            assertEquals("plax-rouge.vercel.app", back.host());
             assertEquals("/news/auth/app", back.encodedPath());
             assertEquals(SCHEME, back.queryParameter("app"));
             String code = back.queryParameter("code");

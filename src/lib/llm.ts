@@ -20,6 +20,7 @@
 // The older GEMINI_MODELS / GROQ_MODEL / GROQ_MODEL_2 / OPENROUTER_MODELS
 // variables are no longer read.
 import { raceStaggered, type Step } from './staggered'
+import { SITE_HOST } from './site'
 
 export type ChainName = 'default' | 'translate'
 
@@ -217,7 +218,7 @@ async function callOpenRouter(
     OPENROUTER_URL,
     {
       Authorization: `Bearer ${apiKey('openrouter')}`,
-      'HTTP-Referer': 'https://www.plaxlabs.com',
+      'HTTP-Referer': SITE_HOST,
       'X-Title': 'Plax',
     },
     {

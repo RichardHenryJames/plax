@@ -29,7 +29,7 @@ if (-not (Test-Path .env)) {
     $anon = Jwt $secret @{ role = 'anon'; iss = 'plax-local'; iat = $iat; exp = $exp }
     $service = Jwt $secret @{ role = 'service_role'; iss = 'plax-local'; iat = $iat; exp = $exp }
     # The redirect allow-list is exactly what SUPABASE_SETUP.md, step 6, tells the owner to enter.
-    $allow = 'https://www.plaxlabs.com/news/auth/callback,https://plaxlabs.com/news/auth/callback,https://www.plaxlabs.com/news/auth/app**,http://localhost:3000/news/auth/callback'
+    $allow = 'https://plax-rouge.vercel.app/news/auth/callback,https://plax-rouge.vercel.app/news/auth/app**,http://localhost:3000/news/auth/callback'
     @("JWT_SECRET=$secret", "DB_PASSWORD=$password", "ANON_KEY=$anon", "SERVICE_KEY=$service", "URI_ALLOW_LIST=$allow") | Set-Content .env -Encoding utf8
 }
 $config = @{}; Get-Content .env | ForEach-Object { $k, $v = $_ -split '=', 2; $config[$k] = $v }

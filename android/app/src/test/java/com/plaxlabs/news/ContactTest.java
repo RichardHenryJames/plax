@@ -31,7 +31,7 @@ public class ContactTest {
     }
 
     @Test public void theContactPageIsOnThePlaxWebsite() {
-        assertEquals("https://www.plaxlabs.com/news/contact", Contact.PAGE_URL);
+        assertEquals("https://plax-rouge.vercel.app/news/contact", Contact.PAGE_URL);
         assertTrue(Story.isWebLink(Contact.PAGE_URL));
         assertTrue(Contact.PAGE_URL.startsWith(FeedApi.SITE + "/"));
     }

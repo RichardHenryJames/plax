@@ -6,7 +6,7 @@ in public/ and the signer pinned in update-signer.sha256. Run it when a deployme
 It writes its findings to artifacts\update-verification.json (not tracked by Git).
 
   .\verify-update.ps1
-  .\verify-update.ps1 -Origin https://www.plaxlabs.com/news
+  .\verify-update.ps1 -Origin https://plax-rouge.vercel.app/news
 
 -Fetch rehearses against a copy of the site (for example `next start`): requests go there, while the feed must still name
 the real origin, as it will in production.
@@ -14,7 +14,7 @@ the real origin, as it will in production.
 It only ever sends plain GETs. Never test the production APK with a Range request: the shared cache in front of the site
 once stored the answer to "Range: bytes=0-1" as the whole file and served those 2 bytes to every download for an hour.
 #>
-param([string]$Origin = 'https://www.plaxlabs.com/news', [string]$Fetch = '')
+param([string]$Origin = 'https://plax-rouge.vercel.app/news', [string]$Fetch = '')
 $ErrorActionPreference = 'Stop'
 if (-not $Fetch) { $Fetch = $Origin }
 $repository = Split-Path $PSScriptRoot -Parent

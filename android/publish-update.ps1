@@ -15,7 +15,7 @@ $repository = Split-Path $PSScriptRoot -Parent
 $website = Join-Path $repository 'public'
 $pin = Join-Path $PSScriptRoot 'update-signer.sha256'
 $package = 'com.plaxlabs.news.preview'      # the one build distributed from the website
-$origin = 'https://www.plaxlabs.com/news'   # keep in step with AppUpdates.ORIGIN
+$origin = 'https://plax-rouge.vercel.app/news'   # keep in step with AppUpdates.ORIGIN
 $minimumSdk = 26                            # keep in step with minSdk in app/build.gradle
 $sizeLimit = 95MB                           # the app refuses anything larger
 

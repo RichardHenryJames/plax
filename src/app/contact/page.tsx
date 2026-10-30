@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { LegalPage, Section, P, List } from '@/components/LegalPage'
 import { CONTACT_MAILTO, LEGAL } from '@/lib/legal'
 import { SITE, SITE_URL } from '@/lib/seo'
+import { SITE_DISPLAY } from '@/lib/site'
 
 export const metadata: Metadata = {
   title: 'Contact us',
@@ -46,7 +47,7 @@ export default function ContactPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
 
       <P>
-        Plax is made by {LEGAL.operator}. Write to us about the Plax app for Android or the Plax website at plaxlabs.com/news, in
+        Plax is made by {LEGAL.operator}. Write to us about the Plax app for Android or the Plax website at {SITE_DISPLAY}, in
         English or Hindi, and we will answer by email.
       </P>
 

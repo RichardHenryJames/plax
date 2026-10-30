@@ -5,6 +5,7 @@ import { excerpt, latinCardText, parseShareSegment } from '@/lib/share'
 import { loadShare } from '@/lib/share-store'
 import { getTopicSeo } from '@/lib/seo'
 import { PTile } from '@/lib/brand-tile'
+import { SITE_DISPLAY } from '@/lib/site'
 import { NEWS_SECTIONS } from '@/lib/types'
 
 // The picture a chat app shows when a Plax story link is pasted: the headline set large on the brand colours. It is
@@ -102,7 +103,7 @@ export default async function Image({ params }: Params) {
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 28, color: 'rgba(255,255,255,0.62)' }}>
           <div style={{ display: 'flex' }}>{source ? `via ${source}` : 'Read it on Plax'}</div>
-          <div style={{ display: 'flex', color: '#f5b13a' }}>plaxlabs.com/news</div>
+          <div style={{ display: 'flex', color: '#f5b13a' }}>{SITE_DISPLAY}</div>
         </div>
       </div>
     ),

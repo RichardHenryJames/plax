@@ -8,6 +8,7 @@ import { useAuth } from '@/components/AuthProvider'
 import { addBookmarkToCloud, removeBookmarkFromCloud } from '@/lib/cloud-sync'
 import { useT } from '@/lib/i18n'
 import { withBase } from '@/lib/base-path'
+import { SITE_DISPLAY, SITE_URL } from '@/lib/site'
 import { createShareLink, knownShareLink, shareBody, signedFields } from '@/lib/share-client'
 
 /**
@@ -209,12 +210,12 @@ export function CardActions({ card }: { card: CardData | null }) {
                 .replace(/\s+/g, ' ')
                 .trim()
               const excerpt = plain.slice(0, 200).trim()
-              const link = (await plaxLink('copy')) || card.sourceUrl || 'https://plaxlabs.com'
+              const link = (await plaxLink('copy')) || card.sourceUrl || SITE_URL
               const text = [
                 card.title ? `“${card.title}”` : '',
                 `${excerpt}${excerpt.length >= 200 ? '…' : ''}`,
                 `${card.source ? `Source: ${card.source} · ` : ''}${link}`,
-                `via Plax — plaxlabs.com`,
+                `via Plax — ${SITE_DISPLAY}`,
               ].filter(Boolean).join('\n\n')
               navigator.clipboard.writeText(text).then(() => flashToast(t('copied'))).catch(() => {})
             }}

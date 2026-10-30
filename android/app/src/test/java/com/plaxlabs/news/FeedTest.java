@@ -91,7 +91,7 @@ public class FeedTest {
 
     @Test public void nativeFeedRequestsUseTheNewsBasePathLanguageAndEncodedExclusions() {
         var url = FeedApi.url("news", "en", List.of("id with space", "b&c"), false);
-        assertEquals("www.plaxlabs.com", url.host());
+        assertEquals("plax-rouge.vercel.app", url.host());
         assertEquals("/news/api/feed", url.encodedPath()); assertTrue(url.isHttps());
         assertEquals("news", url.queryParameter("categories")); assertEquals("30", url.queryParameter("limit"));
         assertEquals("en", url.queryParameter("lang")); assertNull(url.queryParameter("refresh"));

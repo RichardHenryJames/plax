@@ -24,7 +24,7 @@ public class SupabaseTest {
         Object[] next = script.pollFirst();
         return new Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code((int) next[0]).message("canned")
                 .body(ResponseBody.create((String) next[1], MediaType.get("application/json"))).build();
-    }).build(), "https://www.plaxlabs.com/news", () -> 1_000_000L);
+    }).build(), "https://plax-rouge.vercel.app/news", () -> 1_000_000L);
 
     private final AuthConfig config = new AuthConfig(PROJECT, "anon-key-0123456789abcdef");
     private final AuthApi.Tokens tokens = new AuthApi.Tokens("access-secret", "refresh-secret", 0, USER, "a@example.com", "A");
@@ -44,7 +44,7 @@ public class SupabaseTest {
     @Test public void theProjectAddressIsReadFromThePlaxWebsite() throws Exception {
         reply(200, "{\"url\":\"" + PROJECT + "\",\"anonKey\":\"anon-key-0123456789abcdef\"}");
         AuthConfig found = supabase.config();
-        assertEquals("https://www.plaxlabs.com/news/api/auth-config", sent.get(0).url().toString());
+        assertEquals("https://plax-rouge.vercel.app/news/api/auth-config", sent.get(0).url().toString());
         assertEquals(PROJECT, found.url());
     }
 
@@ -122,7 +122,7 @@ public class SupabaseTest {
         supabase.deleteAccount("access-secret");
         Sent request = sent.get(0);
         assertEquals("POST", request.method());
-        assertEquals("https://www.plaxlabs.com/news/api/account/delete", request.url().toString());
+        assertEquals("https://plax-rouge.vercel.app/news/api/account/delete", request.url().toString());
         assertEquals("Bearer access-secret", request.headers().get("Authorization"));
         assertNull("Neither the project key nor any account id is sent: the website learns who from the token",
                 request.headers().get("apikey"));

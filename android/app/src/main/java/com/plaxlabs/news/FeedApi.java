@@ -8,7 +8,13 @@ import java.util.concurrent.Executors;
 import okhttp3.*;
 
 final class FeedApi implements FeedSource {
-    static final String SITE = "https://www.plaxlabs.com/news";
+    /**
+     * The website the app reads stories from, signs in through and checks for updates at. The website's own constant is
+     * SITE_URL in src/lib/site.ts, and SiteAddressTest fails if the two differ. It is the Vercel domain because the
+     * domain the app was first built around expired, which left installed apps with no stories and no sign-in: the
+     * address is fixed in each build, so it can only be repaired by shipping a new app.
+     */
+    static final String SITE = "https://plax-rouge.vercel.app/news";
     /** The privacy policy, which Google Play also links to; the app opens it from the menu, About and the account sheet. */
     static final String PRIVACY_URL = SITE + "/privacy";
     private static final ExecutorService STARTER = Executors.newSingleThreadExecutor(task -> {
