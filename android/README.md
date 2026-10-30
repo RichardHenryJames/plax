@@ -10,6 +10,42 @@ exists (see *Updates from inside the app*), except in the Google Play build, whi
 which need the two small routes and the one small file listed under *Backend changes*,
 the app works against the backend as it was before this version.
 
+## What is in 1.5.5 (versionCode 13): one swipe, one story, all of it in one view
+
+A reader asked for a feed "like Inshorts": a story used to scroll inside its card first, and only a second scroll moved to the next
+one. Now nothing on a story scrolls, so one swipe always moves to the next story, and each story fits one screen. The website works
+the same way (see `TECH.md`, "One view per story"). Nothing else changed: no new permission, no new data, no backend change.
+
+- **What it was, measured first.** Every page was a `ScrollView` (`StoryScrollView`) that let a long summary scroll and handed a swipe
+  to the pager only at its edge. With the published 1.5.4 build on the emulator and live stories, 5 of 8 stories needed more than one
+  swipe (the first needed 5), and a five-line headline pushed the summary down so that its third line was cut in half behind the
+  buttons.
+- **What it is now.** `StoryPage`, a `ViewGroup`, replaces the `ScrollView` (`StoryScrollView` is deleted). The picture, the tag and
+  source line, the headline, the summary and the Read full story row share the page's height. `CardFit` is the arithmetic, in
+  pixels and testable without a screen: the row and the headline are always shown; the picture takes what is left, up to 30% of the
+  page, and shrinks to keep three lines of summary before it is dropped (under 96 dp); the headline is set smaller (90%, then 80%)
+  before it is ever cut, and keeps two lines while the summary is worth showing; the summary is cut at a **whole line with an
+  ellipsis**. Hindi lines are taller than Latin ones, so the summary's lines are counted on its real layout, not estimated. A page too
+  short for the source line, one line of the headline and the row gives up the source line (the publisher stays on the Read full story
+  row); on a phone on its side the picture stands beside the text.
+- **A text that fits is not limited at all.** A layout told "at most N lines" with an ellipsis can break its lines differently from the
+  same text without the limit, and then ends in an ellipsis though everything would have fitted. `FitDeviceTest` found it on a Hindi
+  headline (the real layout broke at 42 characters where the unlimited one broke at 57); a view is now limited only when it really is cut.
+- **Tests.** `CardFitTest` (10 JVM tests, including a sweep of over 10,000 combinations that asserts nothing is ever planned beyond the
+  page; shown to fail when the planner is made to give the summary a line too many). `FitDeviceTest` (5 device tests; `test.ps1` now
+  runs it) lays out 11 stories, English and Hindi, long and short, with no picture and with no summary, on six page sizes at three text
+  sizes, and asserts no overlap, nothing outside the page, text no taller than its room, an ellipsis exactly when text is cut, and
+  nothing that scrolls; two more drive the real activity with a stand-in feed of three stories, one long swipe each way, and one that
+  starts on the summary.
+- **How a swipe is judged in tests.** A pager turns a page on a drag of more than half a page or on a quick flick. On this software-rendered
+  emulator a swipe of 56% of a page succeeded 6 times in 12, a swipe of 91% 12 in 12, because the emulator draws only a few frames a second
+  and `input swipe` waits for the app between events. The swipe tests therefore drag about 85% of a page; the page's own cost was measured
+  and is small (making a page 3 to 12 ms, binding 1 to 4 ms, measuring 2 to 10 ms on a story of ordinary length).
+- **Lint.** Two warnings that the new view caused (an allocation in `onMeasure` and a missing constructor "used by tools") are suppressed with
+  the reason: a measure happens when a page is made or resized, not every frame, and the view is built in code and never inflated.
+- **Version.** 1.5.4 was already built, and a version code cannot be reused, so this is 1.5.5 (code 13). `public\plax-1.5.5.apk` and
+  `public\updates.json` were republished with `publish-update.ps1`.
+
 ## What is in 1.5.4 (versionCode 12): the new website address
 
 A reader reported that the Google Play build opened with **"No stories right now"** and that **Continue with Google** answered
@@ -42,7 +78,7 @@ the TLS handshake). Neither screen names the domain, so it looked like a connect
   news declaration's contact URL) and the listing text still name the old address. (3) Copies already installed (1.5.0 to 1.5.3 from Google
   Play, 1.4.1 and earlier from the website) only ever ask the old address, so they stay without stories until they are updated; for the website
   copies that means installing `https://plax-rouge.vercel.app/news/plax-1.5.4.apk` once. The steps are in
-  [`PLAY-CONSOLE-ANSWERS-1.5.4.txt`](PLAY-CONSOLE-ANSWERS-1.5.4.txt).
+  [`PLAY-CONSOLE-ANSWERS-1.5.5.txt`](PLAY-CONSOLE-ANSWERS-1.5.5.txt).
 - **Version.** 1.5.3 was already built, and a version code cannot be reused, so this is 1.5.4 (code 12).
 
 ## What is in 1.5.3 (versionCode 11): one "P" everywhere
@@ -81,7 +117,7 @@ The Plax "P" was drawn three different ways, so the app icon, the website and th
   the home and topic cards and a serif on the story card and in the app, which is a separate inconsistency. The domain root `plaxlabs.com`
   was then a different site and was not touched (that domain has since expired: see 1.5.4).
 - **Version.** 1.5.2 was already built, and a version code cannot be reused, so this is 1.5.3 (code 11). The Play answers sheet is now
-  [`PLAY-CONSOLE-ANSWERS-1.5.4.txt`](PLAY-CONSOLE-ANSWERS-1.5.4.txt) (it is renamed with each version).
+  [`PLAY-CONSOLE-ANSWERS-1.5.5.txt`](PLAY-CONSOLE-ANSWERS-1.5.5.txt) (it is renamed with each version).
 
 ## What is in 1.5.2 (versionCode 10): an amber app icon
 
@@ -127,7 +163,7 @@ halves. How the app reads, saves and shares did not change.
 - No new permission, library, analytics or data: the store build still asks for `INTERNET` only.
 - **What the code cannot do**: the Console items. The store listing's contact details (email and website) and the news
   declaration's contact URL have to be changed by the owner, and the new bundle uploaded and sent for review; the steps are at the
-  top of [`PLAY-CONSOLE-ANSWERS-1.5.4.txt`](PLAY-CONSOLE-ANSWERS-1.5.4.txt). Nothing was changed in the Console, and the app stays
+  top of [`PLAY-CONSOLE-ANSWERS-1.5.5.txt`](PLAY-CONSOLE-ANSWERS-1.5.5.txt). Nothing was changed in the Console, and the app stays
   "not available" until Google approves the new release.
 - A published version is never altered: 1.5.0 (code 8) stays as it was, and `artifacts\plax-1.5.1.aab` is a new bundle (superseded
   by 1.5.2, which adds the amber icon, and then by 1.5.3, which makes the "P" the same everywhere).
@@ -562,8 +598,8 @@ reports.
 
 **What only you can do in the Play Console**, and what to enter (nothing here is submitted for you). The complete,
 field-by-field version, with the copy-paste listing text, the Data safety answers, the declarations, the reviewer text and the
-release steps, each item marked READY, DRAFT, OWNER or HOLD, is [`PLAY-CONSOLE-ANSWERS-1.5.4.txt`](PLAY-CONSOLE-ANSWERS-1.5.4.txt)
-next to this file (it begins with what to do about the expired domain); this table is only the summary:
+release steps, each item marked READY, DRAFT, OWNER or HOLD, is [`PLAY-CONSOLE-ANSWERS-1.5.5.txt`](PLAY-CONSOLE-ANSWERS-1.5.5.txt)
+next to this file (it begins with what changed in 1.5.5, then what to do about the expired domain); this table is only the summary:
 
 | Item | State |
 |---|---|
@@ -760,6 +796,55 @@ project is back:
 - Not covered: Google's consent screen, the Authorized redirect URI in the Google console, the Redirect URLs list in
   Supabase, the Custom Tab path with a real code, and a real hosted project (its key formats, defaults and rate
   limits). Those are the one manual sign-in the runbook ends with.
+
+## Verification performed for 1.5.5 (30 October 2026)
+
+On the isolated Android 16 (API 36, x86_64) `Plax_News_Test` emulator, the development machine, a real browser (Microsoft Edge, headless,
+driven by Playwright) and the deployed site; no physical phone, no Play Console, no Supabase dashboard.
+
+- **The problem, measured first.** The published 1.5.4 preview build on the emulator with live stories: 5 of 8 stories needed more than one
+  swipe, the first needed 5, and a five-line headline cut the third line of the summary in half behind the buttons.
+  On the website, 1.5.4's card had an inner scroll container, a swipe that began on a link did nothing, and the wheel needed a 160 px push
+  past the edge.
+- **Tests.** **175 JVM tests** listed (10 new: `CardFitTest`), 0 failing, 14 opt-in skipped, 161 run; lint **0 errors** and 1 warning (a newer
+  Android Gradle plugin exists) for debug and preview (the two warnings the new view caused are suppressed with reasons); **83 device tests**
+  pass (78 + 5 new, 247 s). The website: `tsc` clean, **146 unit tests** (135 + 11: `card-fit.test.mjs`) and a production build.
+  Along the way the new tests found real problems: no-summary pages that overflowed (fixed in `CardFit`), a Hindi headline cut with an ellipsis
+  though it fitted (see 1.5.5 above), and views that read as "scrolling" because of a zero-height summary (a test-helper bug).
+- **Mutation checks.** Making the planner give the summary one line too many fails 7 of the 10 `CardFitTest` tests, the sweep included; taking
+  the half-pixel tolerance out of the website's planner fails its new test with exactly the failure seen in the browser.
+- **On the emulator, the debug build against live stories.** After the change 9 of 10 stories moved on with a single swipe (the first, right after
+  a cold start, needed two); there is no `ScrollView` on any page. Looked at: a typical story, a four-line headline, a story with no picture
+  (poster), a long summary cut at a whole line with an ellipsis, Hindi, **text at 200%** (the picture is dropped; the headline and summary
+  end in ellipses at whole lines; the row stays whole), and a **phone on its side** (the picture beside the text). The settings were put back.
+- **Why swipes are long in the tests.** A pager turns a page on a drag of more than half a page or on a flick, and this emulator (software
+  rendering, a few frames a second) delivers a gesture sparsely. With app logging added for the test and then removed: a swipe of 56% of the
+  page worked 6 times in 12 and one of 91% worked 12 in 12; a page costs 3 to 12 ms to make, 1 to 4 ms to bind and 2 to 10 ms to measure on
+  stories of ordinary length. It is not a defect of the page, and it was not tried on a phone.
+- **The website, in Edge, on a production build and then on the live site.** A phone (390x844), a small phone (360x640), a tablet (768x1024),
+  a desktop (1440x900), a short laptop window (1280x680) and a phone on its side (851x393), over 12 live stories each locally and 8 on the live
+  site: no card overflowed, nothing scrolled, and **one touch swipe or one wheel push moved every story**. Also: Hindi (6 of 6 cards), a picture
+  that fails to load (the poster), the Go deeper sheet (it floats above its row, a swipe that starts on it stays on the story, the close button
+  works, reopening does not ask again, a failure is told inside it), a swipe that starts on the headline, and a topic feed with its chip
+  menu and the quiz in a sheet: **22 interaction checks pass** locally, and the same set on the live site. Three real bugs were found by this
+  and fixed: the wheel lock's timer was cleared when the handler was registered again after a move, so the next push of the wheel was swallowed
+  (an old bug, hidden while a gesture needed a 160 px push); `scrollHeight` counted the few pixels of the entrance animation's slide as overflow
+  and cut a line from a card that fitted; and room for exactly two lines came out as 1.9999999999999998 of one and cost a line.
+- **The bundle** `artifacts\plax-1.5.5.aab` (3,061,690 bytes, SHA-256 `1879e2cf661b5415d1b40419ae3ee677d4c3ebc3600876c609dc2c55e13372f9`): the
+  15 checks of `package-aab.ps1` pass (bundletool 1.18.3 validates it; one signer, the Plax upload key, SHA-256 `dade46fd…de1219`; package
+  `com.plaxlabs.news`, 1.5.5 (13), min SDK 26, target SDK 36, not debuggable, no cleartext, no backups, `INTERNET` as the only permission besides
+  the AndroidX receiver-protection one).
+- **Installed over 1.5.4 with bundletool, data kept** (as Play updates a phone; version code 12 became 13). **33 smoke checks** pass: the feed
+  loads real stories, no "No stories right now", no page has a scroll view, six of six stories moved on (five with a single swipe), the menu,
+  Contact us, About with the version, Continue with Google reaching Google's sign-in page (it takes 15 to 20 s to load on the emulator; the check
+  polls for it), no crash, no ANR, no cleartext. The six Play screenshots were retaken from this install.
+- **The update feed.** `verify-update.ps1` against production, after the deployment: 19 checks pass and it reports "the site serves 1.5.5 (code 13)
+  as a valid update" (feed type, no-store, no redirect, size, SHA-256, package, version, minimum SDK, not debuggable, the pinned signer).
+
+**Not verified**: a physical phone (nothing is claimed about any device); a browser other than Edge (the line clamps are `-webkit-line-clamp`,
+which Chrome, Safari and Firefox support, but they were not run); text-size changes of the browser itself; finishing a Google sign-in (Supabase's
+Redirect URLs list still named the old domain when last checked); the 14 opt-in tests that need the Docker stack; Google Play review and rollout;
+the Play Console, Google Cloud and Search Console settings, which were not touched.
 
 ## Verification performed for 1.5.4 (30 October 2026)
 

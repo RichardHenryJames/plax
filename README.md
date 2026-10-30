@@ -37,7 +37,7 @@ The site moved here when its first domain, plaxlabs.com, expired. The address is
 ## ✨ Features
 
 ### Core Experience
-- **📱 TikTok-style swipe** — Vertical full-screen cards with spring animations (drag, keyboard, scroll wheel)
+- **📱 TikTok-style swipe** — Vertical full-screen cards with spring animations (drag, keyboard, scroll wheel). **One swipe is one story**: a card never scrolls. Its picture, headline and summary share the height of the screen, and the summary ends in an ellipsis at a whole line, so everything is in one view, in the app and on the website (see [TECH.md](TECH.md#one-view-per-story))
 - **🌍 Public first** — Opening Plax shows today's news straight away: no sign-up wall and no topic quiz. Choose topics for a **For you** feed, or sign in, only when you want to
 - **🧭 Four places** — **Feed** (news, or one topic), **For you** (a mix of the topics you chose), **Topics** and **Saved**: a bottom bar on phones, a side rail on desktop, and the same layout as the Android app
 - **✅ No repeats** — A story you have already looked at does not come back when you reload or return later, and one event reported by several outlets appears once. When everything new has been seen, a "You're all caught up" card offers to check again or to read the earlier stories
@@ -171,7 +171,7 @@ plax/
 │   │   ├── AuthProviderWrapper.tsx    # Conditionally wraps app with auth
 │   │   ├── BottomNav.tsx              # Feed / For you / Topics / Saved on phones
 │   │   ├── BrandMark.tsx              # The Plax mark: logo glyph + serif wordmark
-│   │   ├── Card.tsx                   # Content card (picture, tag line, serif headline, text, extras)
+│   │   ├── Card.tsx                   # Content card, fitted to one view (picture or poster, tag line, serif headline, text, extras in sheets)
 │   │   ├── CardActions.tsx            # Action bar: Read full story, Listen, Copy, Save, Share
 │   │   ├── CaughtUp.tsx               # "You're all caught up" end-of-list card
 │   │   ├── CloudSync.tsx              # Invisible bridge: Zustand ↔ Supabase (merges, never replaces)
@@ -185,7 +185,8 @@ plax/
 │   │   ├── NavBar.tsx                 # Mobile header (mark, English | हिन्दी, refresh, menu)
 │   │   ├── SavedScreen.tsx            # Saved stories
 │   │   ├── TopicEditor.tsx            # Topic picker sheet
-│   │   └── TopicsScreen.tsx           # Topics grid
+│   │   ├── TopicsScreen.tsx           # Topics grid
+│   │   └── useCardFit.ts              # Measures a card and applies the plan from lib/card-fit.ts (picture height, headline and summary lines)
 │   └── lib/
 │       ├── ai.ts                      # Gemini/Groq summarization & quiz gen
 │       ├── account-delete.ts          # Deleting a reader's own account (checks whose token it is first); unit-tested
@@ -193,6 +194,7 @@ plax/
 │       ├── brand.ts                   # The one "P" outline, its colours and proportions: the icons and share cards are drawn from it
 │       ├── brand-tile.tsx             # The "P" on the amber tile, for the share cards
 │       ├── cache.ts                   # In-memory server cache (Map-based)
+│       ├── card-fit.ts                # How a card spends its height, as the app's CardFit.java does; unit-tested
 │       ├── cloud-sync.ts              # Supabase CRUD: prefs, bookmarks, engagements
 │       ├── database.types.ts          # Supabase generated types
 │       ├── deadline.ts                # Per-source time limit for the feed fetchers

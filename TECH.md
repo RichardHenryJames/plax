@@ -526,10 +526,12 @@ Feed({ categories })   categories = ['news'] (Feed tab), one topic, or the reade
 4. Coming back: away ≥ 2 min → quietly check for newer stories;
    away ≥ 30 min → new session, start again from the newest
 
-5. Card navigation:
-   - Drag (y-axis, threshold 80px)
+5. Card navigation (a card never scrolls, so one gesture moves exactly one story):
+   - Touch: a decisive swipe anywhere on the card (≥ 72 px, mostly vertical, quick or long); only an
+     input or a sheet that scrolls by itself (`data-no-feed-scroll`) keeps its own swipes
    - Keyboard (↓, Space, j = next; ↑, k = prev)
-   - Scroll wheel (debounced 600ms)
+   - Scroll wheel: one push of ≥ 50 px moves one story, and navigation then stays locked until the
+     wheel has been idle for 220 ms, so a trackpad's momentum cannot skip stories
 
 6. Languages: the feed is always fetched in English and each card is AI-translated in
    place, so switching language never changes which stories are shown (a card keeps its
@@ -806,9 +808,9 @@ in Hindi; results are cached (memory + Supabase `ai_cache`).
 
 | Feature | Implementation |
 |---------|---------------|
-| Drag to swipe | Framer Motion `drag="y"` with `dragElastic={0.15}` |
+| Swipe | A decisive touch swipe anywhere on the card moves one story: ≥ 72 px, mostly vertical, quick or long. A card never scrolls, so there is no "scroll the text first" |
 | Keyboard nav | `ArrowDown`/`Space`/`j` = next, `ArrowUp`/`k` = prev |
-| Scroll wheel | Debounced (600ms), threshold: `deltaY > 30` |
+| Scroll wheel | One push of ≥ 50 px moves one story; locked until the wheel has been idle for 220 ms (the lock's timer is not cleared when the handler is re-registered after a move, which would swallow the next push) |
 | Infinite scroll | Auto-fetch when ≤ 10 cards remaining (see [Feed Pipeline](#feed-pipeline)) |
 | No repeats | Seen tracking, same-event merging, "New stories" button and the caught-up card (see [No-repeat Engine](#no-repeat-engine)) |
 | Empty state | Loading spinner during initial load; "Try again" when the first page cannot be fetched and nothing is cached |
@@ -821,14 +823,28 @@ The card follows the Android app's layout, so the website and the app read the s
 
 | Feature | Implementation |
 |---------|---------------|
-| Layout | The picture leads (rounded; 16:10 on a phone, 16:9 wider), then the tag and origin line, the headline, the text and the extras (see below). On desktop the same column sits between the two side panels |
+| Layout | The picture leads (rounded; its height is what the text leaves, up to 16:9; a story with no picture gets a **poster**: its section's sign on a soft wash, as in the app), then the tag and origin line, the headline, the summary and the extras row (see [One view per story](#one-view-per-story)). On desktop the same column sits between the two side panels |
 | Tag and origin | News: a soft marigold tag with the section ("INDIA") and `Source · 2h ago · 20s`; "Breaking" within 30 minutes. Other topics keep the topic chip (its dropdown manages topics) |
 | Typography | One system with the app: **Newsreader Bold** serif for headlines and the wordmark (`.headline`, `.wordmark`), **Inter** for the text people read (`.reading-text`), JetBrains Mono for code. Hindi headlines use Noto Serif Devanagari Bold, Hindi text Noto Sans Devanagari |
 | Content types | Quote (blockquote + left bar), code (monospace block), standard (paragraphs) |
 | Body text | Without the headline said twice (`lib/story-body.ts`, the same rule as the Android app); nothing is drawn when the body only repeats the headline |
-| Extras | **Go deeper** (AI insights, a soft pill with a sparkle) and the quiz open inline below the text |
-| Text formatting | `**bold**`, `` `code` ``, `→ arrows`, `• bullets` |
+| Extras | **Go deeper** (AI insights, a soft pill with a sparkle), and on other topics **Test yourself** and **More by this author**. They sit in one row pinned under the summary; what they open is a **sheet** that floats over the summary (with its own scroll and a close button), so the card itself never has to grow |
+| Text formatting | `**bold**`, `` `code` ``, `→ arrows`, `• bullets`. Paragraphs are set apart by a blank line so that the summary can be counted and cut as one text |
 | Cloud sync | Bookmark add/remove syncs to Supabase if signed in |
+
+### One view per story
+
+A story must be seen in one view, and one swipe must always move to the next story: the card has nothing that scrolls. (Before 1.5.5 a long summary scrolled first, and only a swipe at its edge moved on: up to five swipes for one story, and a swipe that began on the headline did nothing.) The picture, the tag and source line, the headline, the summary and the row under it therefore share the height of the screen, in the app and on the website, by the same rules:
+
+- **The row and the headline are always shown; the picture takes what is left** up to 16:9 (the app: 30% of the page; the website: half the box), then three lines of summary are kept before the picture shrinks. Too little room and the picture goes first, then lines of the headline (never below two while the summary is worth showing), and the headline is set smaller (to 90% and 80%) before it is ever cut. A card with no summary lets the picture grow taller.
+- **The summary is cut at a whole line, with an ellipsis,** never through the middle of one. A headline or summary that fits is left uncut: a text view limited to a number of lines may break its lines differently, and would then end in an ellipsis though the text would have fitted.
+- **Last resorts.** A page too short for the source line, one line of the headline and the row gives up the row on the website (Read full story, Save and Share are in the bar fixed at the bottom of the page) and then the source line; the app drops the source line (the publisher stays on the Read full story row). In the app a phone on its side puts the picture beside the text.
+- **The arithmetic is shared.** `CardFit.java` (app) and `src/lib/card-fit.ts` (website) are the same pure function of pixels, with the same test cases (`CardFitTest.java`, `card-fit.test.mjs`, both including a sweep of over 10,000 combinations that asserts nothing is ever planned beyond the page). The website's version counts half a pixel of room as enough, because line heights there are fractions of a pixel (room for exactly two lines once came out as 1.9999999999999998 of one, and cost the summary a line and the headline another).
+- **The app** (`StoryPage.java`, replacing a `ScrollView` per page): a `ViewGroup` that measures the real text layouts (Devanagari lines are taller than Latin ones) and applies the plan; nothing is flipped between measures, so no layout is requested again and again. `FitDeviceTest` lays out 11 stories (English, Hindi, long and short, no picture, no summary) on six page sizes at three text sizes and asserts no overlap, nothing outside the page, text no taller than its room, an ellipsis exactly when text is cut, and nothing that scrolls.
+- **The website** (`useCardFit.ts`, used by `Card.tsx`): each part of the card carries a `data-fit` attribute (`hero`, `meta`, `title`, `body`, `actions`) and the space above it as padding; the hook measures them, runs `planFit`, and applies the result with inline styles only (line clamps and the picture's height), again when the box changes size or the web fonts arrive. A safety loop gives up a line at a time if anything still reaches past the box; it judges that from where the parts are laid out, not from `scrollHeight`, which also counts the few pixels of the entrance animation's slide and once cut a line from a card that fitted.
+- **One swipe.** Touch: a swipe anywhere on the card, whatever it starts on (the headline link included), moves one story; a sheet or a text box keeps its own swipes (`data-no-feed-scroll`). Wheel: one push of the wheel moves one story.
+
+Checked in a real browser (Edge, a production build) on a phone, a small phone, a tablet, a desktop, a short laptop window and a phone on its side, over twelve live stories each: nothing overflows, nothing scrolls, and one touch swipe or one wheel push moved all twelve; plus Hindi, a failed picture, a sheet that opens and closes, and a topic feed with its chip menu and quiz. See the READMEs for what was and was not verified.
 
 ### `CardActions.tsx` — the action bar
 
