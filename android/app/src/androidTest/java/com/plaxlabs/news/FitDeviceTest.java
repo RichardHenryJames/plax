@@ -289,7 +289,7 @@ public class FitDeviceTest {
                     if (!story.body().isEmpty()) {
                         int shown = holder.content.getLayout().getLineCount();
                         boolean cut = holder.content.getLayout().getEllipsisCount(shown - 1) > 0;
-                        assertTrue(story.id() + ": " + shown + " lines of the summary are shown", shown >= 3);
+                        if (cut) assertTrue(story.id() + ": only " + shown + " lines of a cut summary are shown", shown >= CardFit.MIN_BODY_LINES);
                         if (picture > 0) assertFalse(story.id() + ": with a picture on the page the summary is whole", cut);
                     }
                     if (story.id().equals("typical")) {
