@@ -9,7 +9,7 @@ import { useT } from '@/lib/i18n'
 import { BrandMark } from '@/components/BrandMark'
 
 /**
- * LeftRail — persistent desktop navigation (hidden on mobile, where NavBar is used).
+ * LeftRail — persistent desktop navigation (hidden on a phone or a tablet, where MenuDrawer holds the same).
  * Logo · search · nav · topic filters · auth.
  */
 export function LeftRail() {

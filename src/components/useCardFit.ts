@@ -10,16 +10,27 @@ import { planFit } from '@/lib/card-fit'
 // The box holds up to five parts, found by their data-fit attribute: hero (the picture), meta (tag and source line), title
 // (the headline), body (the summary) and actions (the row pinned under the summary). Each part carries the space above it
 // as padding, so the plan can count it. Only inline styles are set, so React's own rendering is left alone.
+//
+// The box's data-hero says whether a picture is drawn ("on") or not ("off"). The menu button floats over the picture; with
+// none, the source line is the first thing on the card and makes room at its start for the button (see globals.css), so the
+// line is measured both ways. --sheet-room is how much room the sheets of Go deeper and the like have above their row.
 
 /** A headline needing more lines than this at its usual size is set smaller; at the smallest size it may take one more. */
 const HEADLINE_LINES = 4
 const LONG_HEADLINE_LINES = 5
 const HEADLINE_SCALES = [1, 0.9, 0.8]
-/** The picture's share of the box when there is room, and when there is nothing to read under the headline. */
-const HERO_SHARE = 0.5
-const HERO_TALL_SHARE = 0.55
-/** The smallest picture worth showing, in px. */
-const HERO_MINIMUM = 96
+/** A summary that would otherwise be cut is first set a little smaller. */
+const BODY_SCALES = [1, 0.94, 0.88]
+/** The picture takes what the text leaves: at most 4:3 and half of the box, at least 30% of the width and a quarter of the box. */
+const HERO_MAX_WIDTH = 0.75
+const HERO_MAX_HEIGHT = 0.5
+/** With nothing to read under the headline it may grow taller. */
+const HERO_TALL_WIDTH = 0.85
+const HERO_TALL_HEIGHT = 0.55
+const HERO_MIN_WIDTH = 0.3
+const HERO_MIN_HEIGHT = 0.25
+/** A picture shorter than this, in px, is never worth showing. */
+const HERO_FLOOR = 96
 
 const px = (value: string) => {
   const number = parseFloat(value)
@@ -79,7 +90,8 @@ export function fitCard(box: HTMLElement) {
   release(meta, 'display')
   release(actions, 'display')
   release(title, 'font-size', ...CUT)
-  release(body, ...CUT)
+  release(body, 'font-size', ...CUT)
+  box.dataset.hero = hero ? 'on' : 'off'
   const height = box.clientHeight
   const width = box.clientWidth
   if (height <= 0 || width <= 0) return
@@ -101,55 +113,65 @@ export function fitCard(box: HTMLElement) {
     titleMax = titleNatural <= HEADLINE_LINES ? titleNatural : LONG_HEADLINE_LINES
   }
 
-  let bodyNatural = 0
-  let bodyLine = 0
-  let bodyTop = 0
-  if (body) {
-    bodyTop = px(getComputedStyle(body).paddingTop)
-    bodyLine = lineHeightOf(body.querySelector<HTMLElement>('p, blockquote') ?? body)
-    bodyNatural = Math.max(1, Math.round((body.offsetHeight - bodyTop) / bodyLine))
+  // The summary is measured at each size it may be set at, below: see the loop that asks the plan.
+  const bodyBase = body ? px(getComputedStyle(body).fontSize) : 0
+
+  // The source line, measured with a picture above it and without one: with none it is the first thing on the card, and the
+  // menu button stands at its start.
+  let metaWith = 0
+  let metaBare = 0
+  if (meta) {
+    box.dataset.hero = 'off'
+    metaBare = meta.offsetHeight
+    box.dataset.hero = hero ? 'on' : 'off'
+    metaWith = hero ? meta.offsetHeight : metaBare
   }
-
-  const heroPreferred = hero ? Math.min((width * 9) / 16, height * HERO_SHARE) : 0
-  const heroTall = hero ? Math.max(heroPreferred, Math.min(heroPreferred * 1.5, height * HERO_TALL_SHARE)) : 0
-
-  let metaHeight = meta ? meta.offsetHeight : 0
   let actionsHeight = actions ? actions.offsetHeight : 0
   // A box too short for the source line, one line of the headline and the row under the summary gives up that row, then
-  // the source line, rather than let them run into each other. (Read full story, Save and Share are in the bar at the
-  // bottom of the page, which is always there.)
+  // (where there is no menu button to make room for) the source line, rather than let them run into each other. (Read full
+  // story, Save and Share are in the bar at the bottom of the page, which is always there.)
   if (title) {
     const least = titleTop + titleLine
-    if (actions && metaHeight + actionsHeight + least > height) {
+    if (actions && metaBare + actionsHeight + least > height) {
       actions.style.display = 'none'
       actionsHeight = 0
     }
-    if (meta && metaHeight + actionsHeight + least > height) {
+    const menu = box.querySelector<HTMLElement>('.menu-fab')
+    const hasMenu = !!menu && getComputedStyle(menu).display !== 'none'
+    if (meta && !hasMenu && metaBare + actionsHeight + least > height) {
       meta.style.display = 'none'
-      metaHeight = 0
+      metaBare = 0
+      metaWith = 0
     }
   }
 
-  const plan = planFit({
-    height,
-    meta: metaHeight,
-    actions: actionsHeight,
-    titleTop,
-    titleLine,
-    titleNatural,
-    titleMax,
-    bodyTop,
-    bodyLine,
-    bodyNatural,
-    heroPreferred,
-    heroMinimum: HERO_MINIMUM,
-    heroTall,
-  })
+  const heroMaximum = hero ? Math.min(width * HERO_MAX_WIDTH, height * HERO_MAX_HEIGHT) : 0
+  const heroTall = hero ? Math.max(heroMaximum, Math.min(width * HERO_TALL_WIDTH, height * HERO_TALL_HEIGHT)) : 0
+  const heroMinimum = Math.max(HERO_FLOOR, Math.min(width * HERO_MIN_WIDTH, height * HERO_MIN_HEIGHT))
+
+  // The whole summary comes first. Only a summary that would still be cut is set a little smaller, and then smaller again.
+  let bodyNatural = 0
+  let bodyLine = 0
+  let bodyTop = 0
+  const planNow = () =>
+    planFit({ height, meta: metaWith, metaBare, actions: actionsHeight, titleTop, titleLine, titleNatural, titleMax, bodyTop, bodyLine, bodyNatural, heroMaximum, heroMinimum, heroTall })
+  let plan = planNow()
+  if (body) {
+    for (const scale of BODY_SCALES) {
+      body.style.fontSize = `${bodyBase * scale}px`
+      bodyTop = px(getComputedStyle(body).paddingTop)
+      bodyLine = lineHeightOf(body.querySelector<HTMLElement>('p, blockquote') ?? body)
+      bodyNatural = Math.max(1, Math.round((body.offsetHeight - bodyTop) / bodyLine))
+      plan = planNow()
+      if (plan.bodyLines >= bodyNatural) break
+    }
+  }
 
   let heroHeight = plan.hero
   let titleLines = plan.titleLines
   let bodyLines = plan.bodyLines
   const apply = () => {
+    box.dataset.hero = heroHeight > 0 ? 'on' : 'off'
     if (hero) {
       if (heroHeight > 0) {
         hero.style.height = `${heroHeight}px`
@@ -165,15 +187,22 @@ export function fitCard(box: HTMLElement) {
   }
   apply()
 
-  // Margins, rounding or a font the arithmetic did not know about: give up a line at a time until everything is inside.
-  for (let attempt = 0; attempt < 8 && contentBottom(box) > box.clientHeight + 1; attempt++) {
-    if (body && bodyLines > 0) bodyLines--
+  // Margins, rounding or a font the arithmetic did not know about: take back what is over, the picture first (it is the
+  // part that can give without losing a word), then a line at a time of the summary and of the headline.
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const over = contentBottom(box) - box.clientHeight
+    if (over <= 1) break
+    if (hero && heroHeight > 0) heroHeight = heroHeight - over >= heroMinimum ? heroHeight - over : 0
+    else if (body && bodyLines > 0) bodyLines--
     else if (title && titleLines > 1) titleLines--
-    else if (hero && heroHeight > 0) heroHeight = 0
     else break
     release(hero, 'height', 'display', '--hero-h')
     apply()
   }
+
+  // How much room a sheet (Go deeper and the like) has above the row it opens from, so that it never reaches past the card.
+  const rowShown = !!actions && actions.style.display !== 'none'
+  box.style.setProperty('--sheet-room', `${Math.max(0, rowShown ? actions.offsetTop : box.clientHeight)}px`)
 }
 
 /**

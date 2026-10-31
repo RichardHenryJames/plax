@@ -8,6 +8,10 @@
     <string name="refresh">Refresh stories</string>
     <string name="refreshing">Refreshing stories</string>
     <string name="more">More options</string>
+    <string name="menu">Menu</string>
+    <string name="close_menu">Close menu</string>
+    <string name="sections">Sections</string>
+    <string name="feed_language">Feed language</string>
     <string name="about">About Plax</string>
     <string name="about_text">Bite-sized news and ideas from Plax Labs.\n\nStories come from the Plax feed in English or Hindi. Publisher links open in your browser and images load from publisher hosts. The optional AI brief sends the story text you choose to Plax Labs, which uses AI services to write it.\n\nStories you have looked at are remembered on this phone only, so they do not come back. Your topics and saved stories stay on this phone unless you choose to sign in with Google; then they sync to your Plax account. There is no ad or analytics SDK.\n\nQuestions, corrections or publisher requests:\n%2$s\n\nVersion %1$s. Not affiliated with Inshorts. Content belongs to its respective publishers.</string>
     <string name="contact_us">Contact us</string>

@@ -6,6 +6,7 @@ import { Card } from './Card'
 import { CardActions } from './CardActions'
 import { CardSkeleton } from './Skeleton'
 import { CaughtUp } from './CaughtUp'
+import { MenuButton } from './MenuButton'
 import { CardData } from '@/lib/sample-data'
 import { usePlaxStore } from '@/lib/store'
 import { useUIStore } from '@/lib/ui-store'
@@ -808,7 +809,7 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       const ui = useUIStore.getState()
-      if (ui.commandOpen || ui.topicsOpen) return
+      if (ui.commandOpen || ui.topicsOpen || ui.menuOpen) return
       const target = e.target as HTMLElement | null
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return
       if (e.key === 'ArrowDown' || e.key === ' ' || e.key === 'j') {
@@ -836,7 +837,7 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
     const IDLE_MS = 220 // no wheel for this long = gesture over → unlock + reset
     const handleWheel = (e: WheelEvent) => {
       const ui = useUIStore.getState()
-      if (ui.commandOpen || ui.topicsOpen) return
+      if (ui.commandOpen || ui.topicsOpen || ui.menuOpen) return
 
       // Ignore wheel events over the desktop rails / any other scrollable chrome
       // so they scroll natively instead of navigating the feed.
@@ -963,6 +964,7 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
       return (
         <div className="feed-container">
           <CardSkeleton />
+          <MenuButton corner />
           <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-2 text-dark-subtle text-xs">
             <span className="w-3.5 h-3.5 border-2 border-[color:var(--signal)] border-t-transparent rounded-full animate-spin" />
             {translate(language, 'findingNext')}
@@ -972,6 +974,7 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
     }
     return (
       <div className="feed-container flex items-center justify-center">
+        <MenuButton corner />
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1024,7 +1027,7 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
-            className="absolute top-[calc(5rem+env(safe-area-inset-top))] right-4 z-40 lg:top-4"
+            className="absolute top-[calc(0.75rem+env(safe-area-inset-top))] right-4 z-40 lg:top-4"
           >
             <div className="flex items-center gap-2 text-dark-subtle text-xs glass px-3 py-1.5 rounded-full">
               <motion.span
@@ -1041,9 +1044,10 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
       {/* News sub-section filter bar (India / World / Tech / …) — shown whenever
           the reader is on a NEWS card (news-only feed, or a news card in a mixed
           feed), or a section filter is already active. News cards reserve top
-          space for these pills so they never overlap content. */}
+          space for these pills so they never overlap content. Desktop only: on a phone or a tablet the sections are in the
+          menu, so that a story has the whole screen. */}
       {(currentCard?.category === 'news' || !!newsSection) && (
-        <div className="absolute top-[calc(4.75rem+env(safe-area-inset-top))] left-0 right-0 z-30 lg:top-5 pointer-events-none">
+        <div className="hidden lg:block absolute lg:top-5 left-0 right-0 z-30 pointer-events-none">
           <div className="flex gap-2 overflow-x-auto hide-scrollbar px-4 justify-start lg:justify-center pointer-events-auto">
             <button
               onClick={() => setNewsSection(null)}
@@ -1082,6 +1086,7 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
           onTouchEnd={handleTouchEnd}
         >
           <CaughtUp earlier={earlierCount} checking={checking} onCheck={() => void checkNew()} onEarlier={revealEarlier} />
+          <MenuButton corner />
         </div>
       ) : (
         <AnimatePresence initial={false} custom={direction} mode="popLayout">
@@ -1109,7 +1114,7 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
       {hasPending && (
         <button
           onClick={applyPending}
-          className="btn-primary focus-ring absolute top-[calc(4.75rem+env(safe-area-inset-top))] lg:top-5 left-1/2 -translate-x-1/2 z-40 rounded-full px-4 py-2 text-xs shadow-lg"
+          className="btn-primary focus-ring absolute top-[calc(0.75rem+env(safe-area-inset-top))] lg:top-5 left-1/2 -translate-x-1/2 z-40 rounded-full px-4 py-2 text-xs shadow-lg"
           aria-live="polite"
         >
           ↑ {translate(language, 'newStories')}

@@ -146,17 +146,17 @@ public class PlaxDeviceTest {
         assertEquals(0, context.getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_ALLOW_BACKUP);
         try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
             scenario.onActivity(activity -> {
-                clickLabel(activity, "Topics");
+                clickInMenu(activity, "Topics");
                 assertNotNull(find(activity.getWindow().getDecorView(), "Follow your curiosity."));
                 assertNotNull(find(activity.getWindow().getDecorView(), "Science"));
-                clickLabel(activity, "Saved");
+                clickInMenu(activity, "Saved");
                 assertNotNull(find(activity.getWindow().getDecorView(), "Keep the good reads."));
             });
             scenario.recreate();
             scenario.onActivity(activity -> {
                 assertNotNull("The chosen screen survives rotation", find(activity.getWindow().getDecorView(), "Keep the good reads."));
                 assertNull(find(activity.getWindow().getDecorView(), "Sign in"));
-                clickLabel(activity, "Feed");
+                clickInMenu(activity, "Feed");
             });
         }
     }
@@ -310,14 +310,14 @@ public class PlaxDeviceTest {
         Set<String> original = Interests.read(context);
         Interests.write(context, List.of());
         try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
-            scenario.onActivity(activity -> clickLabel(activity, "For you"));
+            scenario.onActivity(activity -> clickInMenu(activity, "For you"));
             scenario.onActivity(activity -> {
                 View root = activity.getWindow().getDecorView();
                 assertNotNull(find(root, "Make Plax yours"));
                 assertNotNull(find(root, "Choose topics"));
                 assertNotNull("An existing account holder can sign in here", find(root, "I have a Plax account"));
                 assertNull("Nothing blocks reading", find(root, "Sign in to continue"));
-                clickLabel(activity, "Feed");
+                clickInMenu(activity, "Feed");
             });
         } finally { Interests.write(context, original); Prefs.forYou(context, false); }
     }
@@ -423,7 +423,7 @@ public class PlaxDeviceTest {
                 R.string.for_you_title, R.string.for_you_detail, R.string.choose_interests, R.string.interests_detail,
                 R.string.account_intro, R.string.account_upload_note, R.string.sign_in_google, R.string.account_unavailable,
                 R.string.contact_us, R.string.contact_intro, R.string.contact_send, R.string.contact_copy, R.string.contact_page,
-                R.string.contact_no_mail};
+                R.string.contact_no_mail, R.string.menu, R.string.close_menu, R.string.sections, R.string.feed_language};
         for (int id : translated) {
             String name = context.getResources().getResourceEntryName(id);
             assertNotEquals("Missing Hindi translation for " + name, context.getString(id), localized.getString(id));
@@ -471,12 +471,36 @@ public class PlaxDeviceTest {
         return null;
     }
 
-    private static void clickLabel(MainActivity activity, String text) {
-        View found = find(activity.getWindow().getDecorView(), text);
-        assertNotNull("Missing native control: " + text, found);
-        View target = found;
-        while (target != null && !target.isClickable()) target = target.getParent() instanceof View parent ? parent : null;
-        assertNotNull("Nothing clickable around: " + text, target);
-        assertTrue(target.performClick());
+    /** A view with this content description that is on the screen (the menu button, on a story or in the corner). */
+    private static View findDescription(View view, String description) {
+        if (view.isShown() && description.contentEquals(view.getContentDescription() == null ? "" : view.getContentDescription())) return view;
+        if (view instanceof ViewGroup group) for (int index = 0; index < group.getChildCount(); index++) {
+            View found = findDescription(group.getChildAt(index), description); if (found != null) return found;
+        }
+        return null;
+    }
+
+    /**
+     * The header and the bottom bar are gone, so the places (Feed, For you, Topics, Saved) are in the menu: this presses the menu
+     * button, then the entry, which is in the menu's own window.
+     */
+    private static void clickInMenu(MainActivity activity, String text) {
+        View button = findDescription(activity.getWindow().getDecorView(), "Menu");
+        assertNotNull("Missing the menu button", button);
+        assertTrue(button.performClick());
+        try {
+            java.lang.reflect.Field field = MainActivity.class.getDeclaredField("menuSheet");
+            field.setAccessible(true);
+            MenuSheet menu = (MenuSheet) field.get(activity);
+            assertNotNull("The menu opens", menu);
+            assertTrue(menu.isShowing());
+            View found = find(menu.dialog.getWindow().getDecorView(), text);
+            assertNotNull("Missing entry in the menu: " + text, found);
+            View target = found;
+            while (target != null && !target.isClickable()) target = target.getParent() instanceof View parent ? parent : null;
+            assertNotNull("Nothing clickable around: " + text, target);
+            assertTrue(target.performClick());
+            assertFalse("Choosing an entry closes the menu", menu.isShowing());
+        } catch (ReflectiveOperationException failure) { throw new AssertionError(failure); }
     }
 }

@@ -22,6 +22,9 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.uiautomator.By;
 import androidx.test.uiautomator.UiDevice;
+import androidx.test.uiautomator.UiObjectNotFoundException;
+import androidx.test.uiautomator.UiScrollable;
+import androidx.test.uiautomator.UiSelector;
 import androidx.test.uiautomator.Until;
 import java.io.IOException;
 import java.lang.reflect.Method;
@@ -110,8 +113,12 @@ public class UpdateDeviceTest {
     }
 
     private void openMenu(String item) {
-        assertTrue("the screen is up", device.wait(Until.hasObject(By.desc("More options")), 10_000));
-        device.findObject(By.desc("More options")).click();
+        assertTrue("the screen is up", device.wait(Until.hasObject(By.desc("Menu")), 10_000));
+        device.findObject(By.desc("Menu")).click();
+        assertTrue("the menu is open", device.wait(Until.hasObject(By.text("Privacy policy")), 5_000));
+        // The menu is a list that scrolls: the entry is brought into view.
+        try { new UiScrollable(new UiSelector().className("android.widget.ScrollView").scrollable(true)).scrollIntoView(new UiSelector().text(item)); }
+        catch (UiObjectNotFoundException none) { /* the check below says so */ }
         assertTrue("the menu lists " + item, device.wait(Until.hasObject(By.text(item)), 5_000));
     }
 

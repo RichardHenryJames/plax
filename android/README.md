@@ -155,7 +155,7 @@ halves. How the app reads, saves and shares did not change.
   ("Contact us") was tried and dropped: Android stacked the three buttons and pushed Privacy policy off the screen.
 - **On the website: `/contact`.** A page of its own with the heading "Contact us", the address as plain text and a `mailto:` link,
   who runs Plax, what to write about (problems, corrections, publishers and rights holders, privacy and deletion, feedback), how
-  replies work, where the stories come from, and `ContactPage` structured data. It is linked from the ⋮ menu, the desktop left
+  replies work, where the stories come from, and `ContactPage` structured data. It is linked from the menu (☰), the desktop left
   rail, the footer of every public page and the privacy policy, and it is in the sitemap (`TECH.md`, *GET /contact*).
 - **One address.** `ContactTest` fails if the app's address, contact page or operator name differ from the website's
   `src/lib/legal.ts`, and checks that both languages carry the same placeholders. It was checked by changing the app's address:
@@ -352,13 +352,13 @@ No repeats
   for 30 minutes, it starts again from the newest.
 
 For you
-- Four tabs: **Feed**, **For you**, **Topics**, **Saved**. For you mixes the topics
-  you choose (a card on that tab, or More options > Your topics). Nothing has to be
+- Four places: **Feed**, **For you**, **Topics**, **Saved**, all in the ☰ menu (a story has the whole screen; there is no
+  bottom bar). For you mixes the topics you choose (a card on that screen, or ☰ > Your topics). Nothing has to be
   chosen first: the app opens on public news. The wording and layout match the
   website.
 
 Optional sign-in
-- More options > **Account** > **Continue with Google**. The system browser (a
+- ☰ > **Account** > **Continue with Google**. The system browser (a
   Chrome Custom Tab) signs in with Google through the Plax account service using
   PKCE, returns through the website's `/news/auth/app` page into the app
   (`com.plaxlabs.news.preview://auth-callback`; the release package uses
@@ -413,9 +413,9 @@ Speed
 Experience
 - Redesigned cards (picture or poster, category, source and age, serif headline,
   body without the repeated headline, one-tap **Read full story**, AI brief, bookmark,
-  share), skeleton loading, bottom navigation with icons, topic tiles, light/dark/
+  share), skeleton loading, a menu (☰) instead of a header and a bottom bar, topic tiles, light/dark/
   system theme, large-text and tablet-width handling, and light haptics.
-- **English and Hindi** (`EN | हिन्दी` in the header): the native Hindi feed plus a
+- **English and Hindi** (the language switch is at the top of the ☰ menu): the native Hindi feed plus a
   fully translated interface (the interface follows the Android per-app language).
 - **AI brief** (sparkle button): a bottom sheet with an AI-written brief of the story
   and an English/Hindi switch, with a loading state, retry and a "can contain
@@ -747,7 +747,7 @@ history (`seen-stories.json`); clearing the app's storage forgets it, after whic
 story may be shown once more. The account session, when signed in, is sealed by the
 Keystore and kept out of backups. The feed cache and image cache live in the
 system-clearable cache directory and hold only public stories and pictures. Backups
-and device transfer are disabled. **More options > Clear saved stories** removes the
+and device transfer are disabled. **☰ > Clear saved stories** removes the
 bookmarks; clearing storage or uninstalling removes everything.
 
 Limits: each feed response 1 MiB, each image 4 MiB before sampled decoding, the image

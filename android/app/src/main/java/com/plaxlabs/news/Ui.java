@@ -99,6 +99,26 @@ final class Ui {
         return view;
     }
 
+    /**
+     * The menu button that floats over a story, where the header and the bottom bar used to be: a small circle of dark glass with a
+     * white glyph, readable over any picture and on either theme. A 48 dp touch target with a 40 dp circle drawn in it.
+     */
+    ImageButton menuButton(Runnable click) {
+        ImageButton view = new ImageButton(context);
+        view.setImageResource(R.drawable.ic_menu); view.setColorFilter(Color.WHITE);
+        GradientDrawable glass = new GradientDrawable();
+        glass.setShape(GradientDrawable.OVAL); glass.setColor(0x8C0C0C10); glass.setStroke(dp(1), 0x29FFFFFF);
+        GradientDrawable mask = new GradientDrawable();
+        mask.setShape(GradientDrawable.OVAL); mask.setColor(Color.WHITE);
+        int gap = dp(4);
+        view.setBackground(new RippleDrawable(ColorStateList.valueOf(0x33FFFFFF), new InsetDrawable(glass, gap), new InsetDrawable(mask, gap)));
+        view.setContentDescription(context.getString(R.string.menu));
+        ViewCompat.setTooltipText(view, context.getString(R.string.menu));
+        view.setPadding(dp(13), dp(13), dp(13), dp(13));
+        view.setOnClickListener(button -> click.run());
+        return view;
+    }
+
     /** A selectable rounded label, 48 dp tall to touch but drawn 36 dp. */
     TextView chip(CharSequence label, Runnable click) {
         TextView view = text(label, 13, text2, true);

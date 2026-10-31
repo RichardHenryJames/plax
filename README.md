@@ -37,9 +37,9 @@ The site moved here when its first domain, plaxlabs.com, expired. The address is
 ## ✨ Features
 
 ### Core Experience
-- **📱 TikTok-style swipe** — Vertical full-screen cards with spring animations (drag, keyboard, scroll wheel). **One swipe is one story**: a card never scrolls. Its picture, headline and summary share the height of the screen, and the summary ends in an ellipsis at a whole line, so everything is in one view, in the app and on the website (see [TECH.md](TECH.md#one-view-per-story))
+- **📱 TikTok-style swipe** — Vertical full-screen cards with spring animations (drag, keyboard, scroll wheel). **One swipe is one story**: a card never scrolls. Its picture, headline and **whole summary** share the height of the screen (the picture takes what the text leaves, and a summary is cut, at a whole line with an ellipsis, only as a last resort), so everything is in one view, in the app and on the website (see [TECH.md](TECH.md#one-view-per-story))
 - **🌍 Public first** — Opening Plax shows today's news straight away: no sign-up wall and no topic quiz. Choose topics for a **For you** feed, or sign in, only when you want to
-- **🧭 Four places** — **Feed** (news, or one topic), **For you** (a mix of the topics you chose), **Topics** and **Saved**: a bottom bar on phones, a side rail on desktop, and the same layout as the Android app
+- **🧭 Four places, one menu** — **Feed** (news, or one topic), **For you** (a mix of the topics you chose), **Topics** and **Saved**. On a phone there is no header and no bottom bar: a story has the whole screen, and a round ☰ button on it opens a menu with the places, the language, the news sections, the account and the theme. Desktop keeps a side rail. The Android app works the same way
 - **✅ No repeats** — A story you have already looked at does not come back when you reload or return later, and one event reported by several outlets appears once. When everything new has been seen, a "You're all caught up" card offers to check again or to read the earlier stories
 - **🧠 Personalized feed** — Learns your interests from engagement (time spent, bookmarks, completion rate)
 - **🎯 16 topic categories** — Science, Technology, Philosophy, Psychology, History, Finance, Space, Programming, Books, Health, Math, Nature, Art, Physics, Business, Language
@@ -169,7 +169,6 @@ plax/
 │   │   ├── AccountSheet.tsx           # Optional Google sign-in, with an honest "unavailable" state
 │   │   ├── AuthProvider.tsx           # Supabase auth context (user, session)
 │   │   ├── AuthProviderWrapper.tsx    # Conditionally wraps app with auth
-│   │   ├── BottomNav.tsx              # Feed / For you / Topics / Saved on phones
 │   │   ├── BrandMark.tsx              # The Plax mark: logo glyph + serif wordmark
 │   │   ├── Card.tsx                   # Content card, fitted to one view (picture or poster, tag line, serif headline, text, extras in sheets)
 │   │   ├── CardActions.tsx            # Action bar: Read full story, Listen, Copy, Save, Share
@@ -179,10 +178,10 @@ plax/
 │   │   ├── LegalPage.tsx              # Frame and type of the privacy and delete-account pages
 │   │   ├── Feed.tsx                   # Swipeable feed (drag, keyboard, scroll) + no-repeat engine wiring
 │   │   ├── ForYouEmpty.tsx            # For you before any topic is chosen
-│   │   ├── HeaderMenu.tsx             # The ⋮ menu: search, account, topics, theme
 │   │   ├── HomeApp.tsx                # The app itself: public News first, then Feed / For you / Topics / Saved
 │   │   ├── LeftRail.tsx               # Desktop navigation rail
-│   │   ├── NavBar.tsx                 # Mobile header (mark, English | हिन्दी, refresh, menu)
+│   │   ├── MenuButton.tsx             # The round ☰ button over a story (or in the corner of the other screens)
+│   │   ├── MenuDrawer.tsx             # The menu: language, places, sections, account, theme, links (replaces the header, ⋮ menu and bottom bar)
 │   │   ├── SavedScreen.tsx            # Saved stories
 │   │   ├── TopicEditor.tsx            # Topic picker sheet
 │   │   ├── TopicsScreen.tsx           # Topics grid
@@ -191,6 +190,7 @@ plax/
 │       ├── ai.ts                      # Gemini/Groq summarization & quiz gen
 │       ├── account-delete.ts          # Deleting a reader's own account (checks whose token it is first); unit-tested
 │       ├── app-redirect.ts            # Builds the redirect back into the Android app
+│       ├── blurb.ts                   # A missing summary, taken from the article's own description (server side); unit-tested
 │       ├── brand.ts                   # The one "P" outline, its colours and proportions: the icons and share cards are drawn from it
 │       ├── brand-tile.tsx             # The "P" on the amber tile, for the share cards
 │       ├── cache.ts                   # In-memory server cache (Map-based)

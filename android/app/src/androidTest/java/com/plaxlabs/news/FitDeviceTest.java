@@ -160,7 +160,7 @@ public class FitDeviceTest {
     }
 
     /** What is wrong with one laid-out page, as sentences; none when it is right. */
-    private static List<String> problems(String name, StoryPage page, int width, int height) {
+    private static List<String> problems(String name, StoryPage page, int width, int height, boolean roomy) {
         List<String> found = new ArrayList<>();
         View[] parts = {page.hero, page.meta, page.title, page.body, page.actions};
         String[] names = {"picture", "source line", "headline", "summary", "action row"};
@@ -175,6 +175,31 @@ public class FitDeviceTest {
                 if (Rect.intersects(box, second)) found.add(name + ": the " + names[index] + " " + box + " overlaps the " + names[other] + " " + second);
             }
         }
+        // The menu button floats over the picture's corner, or stands at the start of the first line; it touches no text.
+        View menu = page.menu;
+        Rect button = new Rect(menu.getLeft(), menu.getTop(), menu.getRight(), menu.getBottom());
+        int circle = (button.width() - (int) (button.width() * StoryPage.MENU_DP / (float) StoryPage.MENU_TOUCH_DP)) / 2;
+        Rect drawn = new Rect(button.left + circle, button.top + circle, button.right - circle, button.bottom - circle);
+        if (drawn.left < 0 || drawn.top < 0 || drawn.right > width || drawn.bottom > height) found.add(name + ": the menu button leaves the page " + drawn);
+        for (int index = 1; index < parts.length; index++) {
+            if (!shown(parts[index])) continue;
+            Rect box = new Rect(parts[index].getLeft(), parts[index].getTop(), parts[index].getRight(), parts[index].getBottom());
+            if (parts[index] instanceof TextView text && text.getLayout() != null && text.length() > 0) {
+                // The text, not the box it is in: the line may be shorter than its box.
+                Layout layout = text.getLayout();
+                for (int line = 0; line < layout.getLineCount(); line++) {
+                    Rect words = new Rect(box.left + (int) layout.getLineLeft(line), box.top + text.getTotalPaddingTop() + layout.getLineTop(line),
+                            box.left + (int) layout.getLineRight(line), box.top + text.getTotalPaddingTop() + layout.getLineBottom(line));
+                    if (Rect.intersects(drawn, words)) found.add(name + ": the menu button " + drawn + " covers a line of the " + names[index] + " " + words);
+                }
+            } else if (parts[index] != page.meta && Rect.intersects(drawn, box)) {
+                found.add(name + ": the menu button " + drawn + " overlaps the " + names[index] + " " + box);
+            }
+        }
+        if (page.pictureAbove() || page.sideBySide()) {
+            Rect picture = new Rect(page.hero.getLeft(), page.hero.getTop(), page.hero.getRight(), page.hero.getBottom());
+            if (!picture.contains(drawn)) found.add(name + ": the menu button " + drawn + " is not inside the picture " + picture);
+        }
         if (page.actions.getHeight() == 0) found.add(name + ": the action row has no height");
         for (TextView text : new TextView[]{page.title, page.body}) {
             if (!shown(text) || text.getLayout() == null) continue;
@@ -188,13 +213,25 @@ public class FitDeviceTest {
             if (natural > lines && !ellipsized) found.add(name + ": the " + which + " is cut to " + lines + " of " + natural + " lines with no ellipsis");
             if (natural <= lines && ellipsized) found.add(name + ": the " + which + " ends in an ellipsis though all " + natural + " lines are shown");
         }
+        // The summary comes first and whole: with a picture on the page it is never cut, and it keeps three lines when it has them
+        // (on a page with some room: a page too short for much, at twice the text size, cannot hold all of it).
+        if (roomy && shown(page.body) && page.body.getLayout() != null) {
+            int lines = page.body.getLayout().getLineCount(), natural = naturalLines(page.body);
+            boolean cut = page.body.getLayout().getEllipsisCount(lines - 1) > 0;
+            if (page.hero.getHeight() > 0 && !page.sideBySide() && cut) found.add(name + ": the summary is cut though a picture is on the page");
+            if (!page.sideBySide() && lines < Math.min(natural, CardFit.MIN_BODY_LINES) && page.title.getLayout() != null
+                    && page.title.getLayout().getLineCount() > CardFit.MIN_TITLE_LINES)
+                found.add(name + ": the summary is down to " + lines + " lines while the headline has " + page.title.getLayout().getLineCount());
+        }
+        if (roomy && !page.sideBySide() && page.hasBody() && !shown(page.body)) found.add(name + ": the page has a summary and none is shown");
         if (scrolls(page)) found.add(name + ": something on the page scrolls");
         return found;
     }
 
     @Test public void everyStoryFitsItsPageWhateverThePageTheTextSizeAndTheLanguage() {
-        // Pages are the part of the screen under the header: a small phone, an ordinary one, a tall one, a tablet, and a phone on its side.
-        int[][] pages = {{360, 456}, {392, 608}, {412, 700}, {600, 820}, {851, 192}, {360, 300}};
+        // Pages are the whole screen between the system bars, with no header and no bottom bar: a small phone, an ordinary one, a
+        // tall one, a tablet, a phone on its side, and a page too short for much.
+        int[][] pages = {{360, 600}, {392, 780}, {412, 850}, {600, 1000}, {851, 340}, {360, 300}};
         float[] scales = {1f, 1.3f, 2f};
         List<String> problems = new ArrayList<>();
         AtomicInteger laidOut = new AtomicInteger();
@@ -206,7 +243,7 @@ public class FitDeviceTest {
                     ImageLoader images = new ImageLoader(themed, 1080);
                     try {
                         for (int[] size : pages) {
-                            StoryAdapter adapter = new StoryAdapter(ui, images, noActions(), size[0], size[1] + 180);
+                            StoryAdapter adapter = new StoryAdapter(ui, images, noActions(), size[0], size[1] + 60);
                             for (Story story : inHindi ? hindi() : english()) {
                                 adapter.submit(List.of(story), Set.of(), false, true, 0);
                                 var holder = (StoryAdapter.Holder) adapter.onCreateViewHolder(new FrameLayout(themed), adapter.getItemViewType(0));
@@ -216,7 +253,7 @@ public class FitDeviceTest {
                                         View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY));
                                 holder.page.layout(0, 0, width, height);
                                 String name = story.id() + " on " + size[0] + "x" + size[1] + " at " + scale + "x" + (inHindi ? " in Hindi" : "");
-                                problems.addAll(problems(name, holder.page, width, height));
+                                problems.addAll(problems(name, holder.page, width, height, size[1] >= 450 && scale <= 1.3f));
                                 laidOut.incrementAndGet();
                             }
                         }
@@ -229,14 +266,14 @@ public class FitDeviceTest {
                 problems.isEmpty());
     }
 
-    @Test public void anOrdinaryPhoneShowsThePictureAndSeveralLinesOfEvenALongSummary() {
+    @Test public void anOrdinaryPhoneShowsThePictureAndTheWholeSummaryOfAStoryThatFits() {
         InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
             Context themed = themed(1f, Locale.US);
             Ui ui = new Ui(themed);
             ImageLoader images = new ImageLoader(themed, 1080);
             try {
                 StoryAdapter adapter = new StoryAdapter(ui, images, noActions(), 392, 851);
-                int width = ui.dp(392), height = ui.dp(608);
+                int width = ui.dp(392), height = ui.dp(780);
                 for (Story story : english()) {
                     adapter.submit(List.of(story), Set.of(), false, true, 0);
                     var holder = (StoryAdapter.Holder) adapter.onCreateViewHolder(new FrameLayout(themed), adapter.getItemViewType(0));
@@ -245,19 +282,29 @@ public class FitDeviceTest {
                             View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY));
                     holder.page.layout(0, 0, width, height);
                     assertFalse(story.id(), holder.page.sideBySide());
-                    assertTrue(story.id() + ": the picture is shown", holder.hero.getHeight() >= ui.dp(96));
-                    assertTrue(story.id() + ": the picture does not take over the page", holder.hero.getHeight() <= height * .43f);
-                    if (!story.body().isEmpty() && story.body().length() > 400) {
+                    int picture = holder.hero.getHeight();
+                    assertTrue(story.id() + ": a picture is either absent or worth showing", picture == 0 || picture >= ui.dp(96));
+                    assertTrue(story.id() + ": the picture does not take over the page", picture <= height * .5f);
+                    if (!story.body().isEmpty()) {
                         int shown = holder.content.getLayout().getLineCount();
-                        assertTrue(story.id() + ": " + shown + " lines of the summary are shown", shown >= 5);
-                        assertTrue(story.id() + ": a long summary ends in an ellipsis", holder.content.getLayout().getEllipsisCount(shown - 1) > 0);
+                        boolean cut = holder.content.getLayout().getEllipsisCount(shown - 1) > 0;
+                        assertTrue(story.id() + ": " + shown + " lines of the summary are shown", shown >= 3);
+                        if (picture > 0) assertFalse(story.id() + ": with a picture on the page the summary is whole", cut);
+                    }
+                    if (story.id().equals("typical")) {
+                        assertTrue("an ordinary story has its picture", picture >= ui.dp(96));
+                        assertEquals("and its summary, whole", story.body(), holder.content.getText().toString());
+                    }
+                    if (story.id().equals("long-body")) {
+                        assertEquals("a summary too long for the page loses the picture, not words: no picture", 0, picture);
+                        assertTrue("and ends at a whole line, with an ellipsis", holder.content.getLayout().getEllipsisCount(holder.content.getLayout().getLineCount() - 1) > 0);
                     }
                     if (story.body().length() > 0 && story.body().length() < 150) {
                         int last = holder.content.getLayout().getLineCount() - 1;
                         assertEquals(story.id() + ": a short summary is shown whole", 0, holder.content.getLayout().getEllipsisCount(last));
                         assertEquals(story.body(), holder.content.getText().toString());
                     }
-                    if (story.body().isEmpty()) assertTrue(story.id() + ": with nothing to read the picture grows", holder.hero.getHeight() > height * .31f);
+                    if (story.body().isEmpty()) assertTrue(story.id() + ": with nothing to read the picture grows", picture > height * .31f);
                 }
             } finally { images.close(); }
         });
@@ -270,7 +317,7 @@ public class FitDeviceTest {
             ImageLoader images = new ImageLoader(themed, 1080);
             try {
                 StoryAdapter adapter = new StoryAdapter(ui, images, noActions(), 851, 392);
-                int width = ui.dp(851), height = ui.dp(200);
+                int width = ui.dp(851), height = ui.dp(340);
                 adapter.submit(List.of(english().get(0)), Set.of(), false, true, 0);
                 var holder = (StoryAdapter.Holder) adapter.onCreateViewHolder(new FrameLayout(themed), adapter.getItemViewType(0));
                 adapter.onBindViewHolder(holder, 0);

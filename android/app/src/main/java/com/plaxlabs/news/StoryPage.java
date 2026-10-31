@@ -16,9 +16,13 @@ import android.widget.TextView;
 /**
  * One story, laid out so that all of it is in view at once. The page has nothing that scrolls, so a single swipe always
  * moves to the next story; to make that possible the picture, the tag and source line, the headline, the summary and the
- * Read full story row are measured together and share the page's height ({@link CardFit}): the summary is cut to whole lines
- * with an ellipsis, a long headline is set a little smaller, and a short page gives up the picture before the text and, as a
- * last resort, the source line (the publisher is still named on the Read full story row).
+ * Read full story row are measured together and share the page's height ({@link CardFit}). The headline and the summary come
+ * first and whole: the summary is set a little smaller before any of it is cut, the picture takes what they leave (or goes,
+ * when that is too little), a long headline is set a little smaller, and only as a last resort is the summary cut to whole lines
+ * with an ellipsis, or the source line given up (the publisher is still named on the Read full story row).
+ *
+ * <p>There is no header and no bottom bar: the page has the whole screen. The menu button that holds what they held floats over
+ * the picture's top-left corner; with no picture it stands at the start of the source line, which makes room for it.
  * On a page that is much wider than it is tall (a phone on its side) the picture stands beside the text instead of above it.
  * Built in code by {@link StoryAdapter}, never inflated, so it has no constructor for tools.
  */
@@ -27,30 +31,53 @@ final class StoryPage extends ViewGroup {
     /** A headline needing more lines than this at its usual size is set smaller; at the smallest size it may take one more. */
     private static final int HEADLINE_LINES = 4, LONG_HEADLINE_LINES = 5;
     private static final float[] HEADLINE_SCALES = {1f, .9f, .8f};
-    private static final int TOP_DP = 4, BOTTOM_DP = 8, SIDE_DP = 16, GUTTER_DP = 16, TEXT_WIDTH_DP = 640, WIDE_WIDTH_DP = 840;
-    private static final int HERO_MINIMUM_DP = 96, WIDE_AT_DP = 480;
+    /** A summary that would otherwise be cut is first set a little smaller. */
+    private static final float[] BODY_SCALES = {1f, .94f, .88f};
+    private static final int TOP_DP = 8, BOTTOM_DP = 8, SIDE_DP = 16, GUTTER_DP = 16, TEXT_WIDTH_DP = 640, WIDE_WIDTH_DP = 840;
+    private static final int HERO_FLOOR_DP = 96, WIDE_AT_DP = 480;
+    /** The picture takes what the text leaves: at most 4:3 and half the page, at least 30% of the width and a quarter of the page. */
+    private static final float HERO_MAX_WIDTH = .75f, HERO_MAX_HEIGHT = .5f, HERO_MIN_WIDTH = .3f, HERO_MIN_HEIGHT = .25f;
+    /** With nothing to read under the headline it may grow taller. */
+    private static final float HERO_TALL_WIDTH = .85f, HERO_TALL_HEIGHT = .55f;
+    /** The space above the source line when a picture is above it. */
+    private static final int META_TOP_DP = 16;
+    /** The menu button: the circle drawn, the gap after it, and how far inside the picture's corner it stands. */
+    static final int MENU_DP = 40, MENU_GAP_DP = 8, MENU_INSET_DP = 8;
+    /** The button is a bigger touch target than the circle drawn on it. */
+    static final int MENU_TOUCH_DP = 48;
 
     private final Ui ui;
     final FrameLayout hero;
     final TextView poster, title, body;
-    final View meta, actions;
-    private final float titleSp, posterSp;
-    private final Rect heroBox = new Rect(), metaBox = new Rect(), titleBox = new Rect(), bodyBox = new Rect(), actionsBox = new Rect();
-    private boolean wide;
+    final View meta, actions, menu;
+    private final float titleSp, bodySp, posterSp;
+    private final Rect heroBox = new Rect(), metaBox = new Rect(), titleBox = new Rect(), bodyBox = new Rect(),
+            actionsBox = new Rect(), menuBox = new Rect();
+    private boolean wide, pictureAbove;
 
     StoryPage(Context context, Ui ui, FrameLayout hero, TextView poster, View meta, TextView title, TextView body, View actions,
-              float titleSp, float posterSp) {
+              View menu, float titleSp, float bodySp, float posterSp) {
         super(context);
         this.ui = ui; this.hero = hero; this.poster = poster; this.meta = meta; this.title = title; this.body = body;
-        this.actions = actions; this.titleSp = titleSp; this.posterSp = posterSp;
+        this.actions = actions; this.menu = menu; this.titleSp = titleSp; this.bodySp = bodySp; this.posterSp = posterSp;
         setBackgroundColor(ui.bg);
         title.setEllipsize(TextUtils.TruncateAt.END);
         body.setEllipsize(TextUtils.TruncateAt.END);
-        for (View child : new View[]{hero, meta, title, body, actions}) addView(child);
+        // The button is first, for the screen reader (it is the first thing on every page), and above the rest, for the eye and
+        // the finger: a view with a height of its own is drawn, and touched, over its siblings.
+        menu.setTranslationZ(1f);
+        menu.setOutlineProvider(null);
+        for (View child : new View[]{menu, hero, meta, title, body, actions}) addView(child);
     }
 
     /** Whether the picture is beside the text rather than above it. */
     boolean sideBySide() { return wide; }
+
+    /** Whether a picture is drawn above the source line (not the one beside the text of a page on its side). */
+    boolean pictureAbove() { return pictureAbove; }
+
+    /** Whether the story has a summary to show. */
+    boolean hasBody() { return body.getVisibility() != GONE && body.length() > 0; }
 
     // A measure happens when a page is made or resized, not every frame, and the plan is a few numbers.
     @SuppressLint("DrawAllocation")
@@ -68,7 +95,12 @@ final class StoryPage extends ViewGroup {
         int columnLeft = wide ? left + sideWidth + ui.dp(GUTTER_DP) : left;
         int columnWidth = wide ? boxWidth - sideWidth - ui.dp(GUTTER_DP) : boxWidth;
 
-        int actionsHeight = natural(actions, columnWidth), metaHeight = natural(meta, columnWidth);
+        int circle = ui.dp(MENU_DP), indent = circle + ui.dp(MENU_GAP_DP), metaTop = wide ? 0 : ui.dp(META_TOP_DP);
+        int actionsHeight = natural(actions, columnWidth);
+        int metaNatural = natural(meta, columnWidth);
+        int metaWith = metaTop + metaNatural;
+        // With no picture above it the line is the first thing on the page, and starts after the menu button.
+        int metaBare = wide ? metaNatural : Math.max(circle, natural(meta, columnWidth - indent));
         boolean hasTitle = title.getVisibility() != GONE && title.length() > 0;
         boolean hasBody = body.getVisibility() != GONE && body.length() > 0;
 
@@ -88,33 +120,53 @@ final class StoryPage extends ViewGroup {
             titleMax = titleNatural <= HEADLINE_LINES ? titleNatural : LONG_HEADLINE_LINES;
             titleLine = Math.max(1, ceilDiv(uncutHeight - title.getPaddingTop() - title.getPaddingBottom(), titleNatural));
         }
-        // The summary is measured uncut, once, so that its real lines (Devanagari lines are taller than Latin ones) decide.
-        Layout uncut = null;
+
+        // A page too short for the source line, one line of the headline and the action row gives up the source line rather
+        // than let the text run into the buttons; the publisher is still named on the Read full story row. The menu button keeps
+        // its row.
+        boolean metaShown = true;
+        if (hasTitle && metaBare + actionsHeight + title.getPaddingTop() + titleLine > boxHeight) {
+            metaShown = false; metaWith = 0; metaBare = wide ? 0 : circle;
+        }
+
+        int heroMaximum = wide ? 0 : Math.min((int) (columnWidth * HERO_MAX_WIDTH), (int) (boxHeight * HERO_MAX_HEIGHT));
+        int heroTall = wide ? 0 : Math.max(heroMaximum, Math.min((int) (columnWidth * HERO_TALL_WIDTH), (int) (boxHeight * HERO_TALL_HEIGHT)));
+        int heroMinimum = Math.max(ui.dp(HERO_FLOOR_DP), Math.min((int) (columnWidth * HERO_MIN_WIDTH), (int) (boxHeight * HERO_MIN_HEIGHT)));
+
+        // The whole summary comes first. Only a summary that would still be cut is set a little smaller, and then smaller again;
+        // its lines are counted on a copy of its paint at each size (Devanagari lines are taller than Latin ones).
+        float bodyPx = sp(bodySp);
         int bodyNatural = 0, bodyLine = 0;
+        CardFit.Plan plan = null;
+        for (float scale : BODY_SCALES) {
+            bodyPx = sp(bodySp) * scale;
+            if (hasBody) {
+                Layout at = layout(body, bodyPx, columnWidth);
+                bodyNatural = at == null ? 0 : at.getLineCount();
+                if (bodyNatural > 0) {
+                    int sample = Math.min(bodyNatural, CardFit.MIN_BODY_LINES);
+                    bodyLine = Math.max(1, ceilDiv(at.getLineBottom(sample - 1), sample));
+                }
+            }
+            plan = CardFit.plan(new CardFit.Input(boxHeight, metaWith, metaBare, actionsHeight,
+                    hasTitle ? title.getPaddingTop() : 0, titleLine, titleNatural, titleMax,
+                    hasBody ? body.getPaddingTop() : 0, bodyLine, bodyNatural, heroMaximum, heroMinimum, heroTall));
+            if (!hasBody || plan.bodyLines() >= bodyNatural) break;
+        }
+        // The summary at its chosen size, measured uncut, once, so that its real lines decide what is cut.
+        Layout uncut = null;
         if (hasBody) {
+            setTextPx(body, bodyPx);
             setLines(body, Integer.MAX_VALUE);
             natural(body, columnWidth);
             uncut = body.getLayout();
             bodyNatural = uncut == null ? 0 : uncut.getLineCount();
-            if (bodyNatural > 0) {
-                int sample = Math.min(bodyNatural, CardFit.MIN_BODY_LINES);
-                bodyLine = Math.max(1, ceilDiv(uncut.getLineBottom(sample - 1), sample));
-            }
         }
-
-        // A page too short for the source line, one line of the headline and the action row gives up the source line rather
-        // than let the text run into the buttons; the publisher is still named on the Read full story row.
-        if (hasTitle && metaHeight + actionsHeight + title.getPaddingTop() + titleLine > boxHeight) metaHeight = 0;
-
-        int heroPreferred = wide ? 0 : Math.min((int) (columnWidth * 9 / 16f), (int) (boxHeight * .30f));
-        int heroTall = wide ? 0 : Math.max(heroPreferred, Math.min((int) (heroPreferred * 1.5f), (int) (boxHeight * .42f)));
-        CardFit.Plan plan = CardFit.plan(new CardFit.Input(boxHeight, metaHeight, actionsHeight,
-                hasTitle ? title.getPaddingTop() : 0, titleLine, titleNatural, titleMax,
-                hasBody ? body.getPaddingTop() : 0, bodyLine, bodyNatural, heroPreferred, ui.dp(HERO_MINIMUM_DP), heroTall));
 
         // What the headline really takes decides what is left for the summary.
         int heroHeight = wide ? boxHeight : plan.hero();
-        int fixed = metaHeight + actionsHeight + (wide ? 0 : heroHeight);
+        pictureAbove = !wide && heroHeight > 0;
+        int fixed = (pictureAbove ? metaWith : metaBare) + actionsHeight + (wide ? 0 : heroHeight);
         int titleHeight = 0;
         if (hasTitle) {
             int titleLines = plan.titleLines();
@@ -148,16 +200,38 @@ final class StoryPage extends ViewGroup {
         setTextPx(poster, Math.max(sp(8), Math.min(sp(posterSp), (wide ? Math.min(heroWidth, heroHeight) : heroHeight) * .5f)));
         hero.measure(exactly(heroWidth), exactly(heroHeight));
         int y = top;
-        if (wide) heroBox.set(left, top, left + heroWidth, top + heroHeight);
-        else { heroBox.set(left, y, left + heroWidth, y + heroHeight); y += heroHeight; }
-        metaBox.set(columnLeft, y, columnLeft + columnWidth, y + metaHeight); y += metaHeight;
+        if (wide) {
+            heroBox.set(left, top, left + heroWidth, top + heroHeight);
+            metaBox.set(columnLeft, y, columnLeft + columnWidth, y + metaBare);
+            y += metaBare;
+        } else {
+            heroBox.set(left, y, left + heroWidth, y + heroHeight);
+            y += heroHeight;
+            if (pictureAbove) {
+                metaBox.set(columnLeft, y + metaTop, columnLeft + columnWidth, y + metaWith);
+                y += metaWith;
+            } else {
+                metaBox.set(columnLeft + indent, y, columnLeft + columnWidth, y + metaBare);
+                y += metaBare;
+            }
+        }
+        if (!metaShown) metaBox.set(metaBox.left, metaBox.top, metaBox.left, metaBox.top);
+        meta.measure(exactly(metaBox.width()), exactly(metaBox.height()));
         titleBox.set(columnLeft, y, columnLeft + columnWidth, y + titleHeight); y += titleHeight;
         bodyBox.set(columnLeft, y, columnLeft + columnWidth, y + bodyHeight);
         actionsBox.set(columnLeft, top + boxHeight - actionsHeight, columnLeft + columnWidth, top + boxHeight);
+
+        // The button stands inside the picture's corner, or, with no picture, where the page begins.
+        int touch = ui.dp(MENU_TOUCH_DP), pad = (touch - circle) / 2, inset = ui.dp(MENU_INSET_DP);
+        int menuLeft = pictureAbove || wide ? heroBox.left + inset - pad : columnLeft - pad;
+        int menuTop = pictureAbove || wide ? heroBox.top + inset - pad : top - pad;
+        menuBox.set(menuLeft, menuTop, menuLeft + touch, menuTop + touch);
+        menu.measure(exactly(touch), exactly(touch));
     }
 
     @Override protected void onLayout(boolean changed, int l, int t, int r, int b) {
         place(hero, heroBox); place(meta, metaBox); place(title, titleBox); place(body, bodyBox); place(actions, actionsBox);
+        place(menu, menuBox);
     }
 
     private static void place(View view, Rect box) {
@@ -179,11 +253,11 @@ final class StoryPage extends ViewGroup {
         return view.getMeasuredHeight();
     }
 
-    /** How many lines this text takes at this size and width, uncut. The view itself is not touched. */
-    private static int lines(TextView view, float textPx, int width) {
+    /** The layout this text would have at this size and width, uncut. The view itself is not touched. */
+    private static Layout layout(TextView view, float textPx, int width) {
         CharSequence text = view.getText();
         int inner = width - view.getCompoundPaddingLeft() - view.getCompoundPaddingRight();
-        if (text.length() == 0 || inner <= 0) return 0;
+        if (text.length() == 0 || inner <= 0) return null;
         TextPaint paint = new TextPaint(view.getPaint());
         paint.setTextSize(textPx);
         return StaticLayout.Builder.obtain(text, 0, text.length(), paint, inner)
@@ -191,7 +265,13 @@ final class StoryPage extends ViewGroup {
                 .setIncludePad(view.getIncludeFontPadding())
                 .setBreakStrategy(view.getBreakStrategy())
                 .setHyphenationFrequency(view.getHyphenationFrequency())
-                .build().getLineCount();
+                .build();
+    }
+
+    /** How many lines this text takes at this size and width, uncut. */
+    private static int lines(TextView view, float textPx, int width) {
+        Layout at = layout(view, textPx, width);
+        return at == null ? 0 : at.getLineCount();
     }
 
     /** Sets only what differs: each of these asks for a new layout, which must not happen over and over while measuring. */

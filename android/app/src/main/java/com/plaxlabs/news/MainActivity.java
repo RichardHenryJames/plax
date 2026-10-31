@@ -8,9 +8,7 @@ import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Typeface;
-import android.graphics.drawable.ColorDrawable;
-import android.graphics.drawable.InsetDrawable;
-import android.graphics.drawable.StateListDrawable;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -57,15 +55,15 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
     private ImageLoader images;
     private StoryAdapter adapter;
     private ViewPager2 pager;
-    private LinearLayout root, sectionRow, empty, navBar, interestsCard;
+    private LinearLayout root, empty, interestsCard;
     private FrameLayout content;
-    private HorizontalScrollView sectionScroll;
     private ScrollView topicScroll;
-    private TextView bannerMessage, emptyTitle, emptyDetail, freshPill, english, hindi;
+    private TextView bannerMessage, emptyTitle, emptyDetail, freshPill;
     private TextView interestsCardTitle, interestsCardDetail, interestsCardAction, emptyLink;
     private ImageView emptyIcon;
-    private ImageButton refresh;
-    private ProgressBar spinner;
+    /** The menu button for the screens that are not a story (a story has its own): in the top-left corner of the content. */
+    private ImageButton cornerMenu;
+    private FrameLayout spinner;
     private TextView retry;
     private View skeleton;
     private ObjectAnimator skeletonPulse;
@@ -73,6 +71,7 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
     private InterestsSheet interestsSheet;
     private AccountSheet accountSheet;
     private ContactSheet contactSheet;
+    private MenuSheet menuSheet;
     private AccountManager accountManager;
     private AccountManager.Phase lastPhase;
     private final AccountManager.Listener accountListener = status -> runOnUiThread(() -> accountChanged(status));
@@ -80,12 +79,9 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
     /** The simple dialog on screen (theme, about, clear, update), so nothing else is drawn over it. */
     AlertDialog openDialog;
     private FeedViewModel.State shown;
-    private final Map<FeedViewModel.Screen, NavItem> tabs = new EnumMap<>(FeedViewModel.Screen.class);
-    private final Map<String, TextView> sections = new LinkedHashMap<>();
     private final Map<Topic, TopicTile> tiles = new EnumMap<>(Topic.class);
     private boolean rendering, reportedDrawn;
 
-    private record NavItem(View view, FrameLayout pill, ImageView icon, TextView label) { }
     private record TopicTile(View view, TextView current) { }
 
     @Override protected void onCreate(Bundle saved) {
@@ -107,11 +103,11 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
         images = new ImageLoader(this, Math.min(metrics.widthPixels, 1080));
         root = ui.column(); root.setBackgroundColor(ui.bg);
         setContentView(root);
-        header(); sections(); body(); navigation();
+        // No header and no bottom bar: a story has the whole screen, between the system bars; the menu button holds the rest.
+        body();
         ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
             Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
-            view.setPadding(bars.left, bars.top, bars.right, 0);
-            navBar.setPadding(ui.dp(8), ui.dp(4), ui.dp(8), ui.dp(4) + bars.bottom);
+            view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
             return insets;
         });
 
@@ -125,74 +121,6 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
             }
         });
         if (saved == null) deepLink(getIntent());
-    }
-
-    private void header() {
-        LinearLayout header = ui.row();
-        header.setPadding(ui.dp(16), 0, ui.dp(4), 0);
-        header.setMinimumHeight(ui.dp(56));
-        header.addView(ui.icon(R.drawable.ic_plax, ui.text, 28));
-        TextView name = ui.text(getString(R.string.app_name), 22, ui.text, "serif");
-        name.setTypeface(Typeface.create("serif", Typeface.BOLD));
-        name.setPadding(ui.dp(8), 0, 0, 0);
-        header.addView(name, new LinearLayout.LayoutParams(0, -2, 1));
-
-        LinearLayout switcher = ui.row();
-        switcher.setBackground(new InsetDrawable(ui.outline(ui.surfaceAlt, ui.border, 18), 0, ui.dp(6), 0, ui.dp(6)));
-        switcher.setPadding(ui.dp(2), 0, ui.dp(2), 0);
-        english = segment(getString(R.string.language_english), getString(R.string.read_in_english), Language.ENGLISH);
-        hindi = segment(getString(R.string.language_hindi), getString(R.string.read_in_hindi), Language.HINDI);
-        switcher.addView(english); switcher.addView(hindi);
-        header.addView(switcher);
-
-        FrameLayout refreshHolder = new FrameLayout(this);
-        refresh = ui.iconButton(R.drawable.ic_refresh, R.string.refresh, Color.TRANSPARENT, ui.text, () -> model.refresh());
-        refreshHolder.addView(refresh, new FrameLayout.LayoutParams(ui.dp(48), ui.dp(48)));
-        spinner = new ProgressBar(this);
-        spinner.setIndeterminateTintList(android.content.res.ColorStateList.valueOf(ui.accentText));
-        spinner.setContentDescription(getString(R.string.refreshing));
-        spinner.setVisibility(View.GONE);
-        refreshHolder.addView(spinner, new FrameLayout.LayoutParams(ui.dp(24), ui.dp(24), Gravity.CENTER));
-        header.addView(refreshHolder, new LinearLayout.LayoutParams(ui.dp(48), ui.dp(48)));
-
-        ImageButton more = ui.iconButton(R.drawable.ic_more, R.string.more, Color.TRANSPARENT, ui.text, () -> { });
-        more.setOnClickListener(view -> menu(view));
-        header.addView(more);
-        root.addView(header);
-    }
-
-    private TextView segment(String label, String description, String language) {
-        TextView view = ui.text(label, 12, ui.text2, true);
-        view.setGravity(Gravity.CENTER);
-        view.setMinWidth(ui.dp(52)); view.setMinHeight(ui.dp(48));
-        StateListDrawable background = new StateListDrawable();
-        background.addState(new int[]{android.R.attr.state_selected}, new InsetDrawable(ui.round(ui.accent, 16), 0, ui.dp(8), 0, ui.dp(8)));
-        background.addState(new int[]{}, new ColorDrawable(Color.TRANSPARENT));
-        view.setBackground(background);
-        view.setPadding(ui.dp(8), 0, ui.dp(8), 0);
-        view.setTextColor(new android.content.res.ColorStateList(
-                new int[][]{{android.R.attr.state_selected}, {}}, new int[]{ui.onAccent, ui.text2}));
-        view.setContentDescription(description);
-        view.setOnClickListener(item -> { if (!Language.current().equals(language)) Language.apply(language); });
-        return view;
-    }
-
-    private void sections() {
-        sectionScroll = new HorizontalScrollView(this);
-        sectionScroll.setHorizontalScrollBarEnabled(false);
-        sectionRow = ui.row();
-        sectionRow.setPadding(ui.dp(12), 0, ui.dp(12), 0);
-        String[] ids = {"", "india", "world", "tech", "business", "science"};
-        int[] labels = {R.string.all, R.string.section_india, R.string.section_world, R.string.section_tech,
-                R.string.section_business, R.string.section_science};
-        for (int index = 0; index < ids.length; index++) {
-            String id = ids[index];
-            TextView chip = ui.chip(getString(labels[index]), () -> model.section(id));
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-2, -2);
-            params.setMarginEnd(ui.dp(2)); sectionRow.addView(chip, params); sections.put(id, chip);
-        }
-        sectionScroll.addView(sectionRow);
-        root.addView(sectionScroll);
     }
 
     private void body() {
@@ -266,7 +194,8 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
         topicScroll = new ScrollView(this);
         topicScroll.setVerticalScrollBarEnabled(false);
         LinearLayout topicContent = ui.column();
-        topicContent.setPadding(ui.dp(20), ui.dp(16), ui.dp(20), ui.dp(24));
+        // The top clears the menu button in the corner.
+        topicContent.setPadding(ui.dp(20), ui.dp(64), ui.dp(20), ui.dp(24));
         TextView heading = ui.text(getString(R.string.choose_topic), 28, ui.text, "serif");
         heading.setTypeface(Typeface.create("serif", Typeface.BOLD));
         heading.setLineSpacing(0, 1.1f);
@@ -319,11 +248,32 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
         freshPill.setVisibility(View.GONE);
         freshPill.setOnClickListener(view -> { model.applyFresh(); pager.setCurrentItem(0, false); });
         FrameLayout.LayoutParams pillParams = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.CENTER_HORIZONTAL);
-        pillParams.topMargin = ui.dp(8);
+        pillParams.topMargin = ui.dp(12);
         content.addView(freshPill, pillParams);
         var arrow = androidx.core.content.ContextCompat.getDrawable(this, R.drawable.ic_arrow_up).mutate();
         arrow.setTint(ui.onAccent); arrow.setBounds(0, 0, ui.dp(16), ui.dp(16));
         freshPill.setCompoundDrawablesRelative(arrow, null, null, null);
+
+        // The menu button of the screens that are not a story (a story has its own, over its picture): in the corner.
+        cornerMenu = ui.menuButton(this::openMenu);
+        FrameLayout.LayoutParams cornerParams = new FrameLayout.LayoutParams(ui.dp(StoryPage.MENU_TOUCH_DP), ui.dp(StoryPage.MENU_TOUCH_DP),
+                Gravity.TOP | Gravity.START);
+        cornerParams.setMargins(ui.dp(12), ui.dp(4), 0, 0);
+        content.addView(cornerMenu, cornerParams);
+
+        // The sign that stories are being looked for, where the refresh button of the old header was: top right, small, dark glass.
+        spinner = new FrameLayout(this);
+        GradientDrawable glass = new GradientDrawable();
+        glass.setShape(GradientDrawable.OVAL); glass.setColor(0x8C0C0C10);
+        spinner.setBackground(glass);
+        spinner.setContentDescription(getString(R.string.refreshing));
+        spinner.setVisibility(View.GONE);
+        ProgressBar wheel = new ProgressBar(this);
+        wheel.setIndeterminateTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
+        spinner.addView(wheel, new FrameLayout.LayoutParams(ui.dp(22), ui.dp(22), Gravity.CENTER));
+        FrameLayout.LayoutParams spinnerParams = new FrameLayout.LayoutParams(ui.dp(40), ui.dp(40), Gravity.TOP | Gravity.END);
+        spinnerParams.setMargins(0, ui.dp(12), ui.dp(16), 0);
+        content.addView(spinner, spinnerParams);
     }
 
     private View tile(Topic topic) {
@@ -348,38 +298,6 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
         return tile;
     }
 
-    private void navigation() {
-        navBar = ui.row();
-        navBar.setBackgroundColor(ui.surface);
-        FeedViewModel.Screen[] screens = FeedViewModel.Screen.values();
-        int[] icons = {R.drawable.ic_feed, R.drawable.ic_star, R.drawable.ic_grid, R.drawable.ic_bookmark};
-        int[] labels = {R.string.feed, R.string.for_you, R.string.topics, R.string.saved};
-        for (int index = 0; index < screens.length; index++) {
-            FeedViewModel.Screen screen = screens[index];
-            LinearLayout item = ui.column();
-            item.setGravity(Gravity.CENTER_HORIZONTAL);
-            item.setPadding(0, ui.dp(8), 0, ui.dp(2));
-            item.setBackground(ui.touch(new ColorDrawable(Color.TRANSPARENT), 12));
-            item.setClickable(true); item.setFocusable(true);
-            item.setContentDescription(getString(labels[index]));
-            FrameLayout pill = new FrameLayout(this);
-            StateListDrawable background = new StateListDrawable();
-            background.addState(new int[]{android.R.attr.state_selected}, ui.round(ui.accentSoft, 16));
-            background.addState(new int[]{}, new ColorDrawable(Color.TRANSPARENT));
-            pill.setBackground(background);
-            ImageView icon = ui.icon(icons[index], ui.text2, 24);
-            pill.addView(icon, new FrameLayout.LayoutParams(ui.dp(24), ui.dp(24), Gravity.CENTER));
-            item.addView(pill, new LinearLayout.LayoutParams(ui.dp(64), ui.dp(32)));
-            TextView label = ui.text(getString(labels[index]), 11, ui.text2, true);
-            label.setPadding(0, ui.dp(4), 0, ui.dp(4));
-            item.addView(label, new LinearLayout.LayoutParams(-2, -2));
-            item.setOnClickListener(view -> model.screen(screen));
-            navBar.addView(item, new LinearLayout.LayoutParams(0, -2, 1));
-            tabs.put(screen, new NavItem(item, pill, icon, label));
-        }
-        root.addView(navBar);
-    }
-
     private void render(FeedViewModel.State state) {
         rendering = true;
         shown = state;
@@ -387,18 +305,6 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
             boolean topics = state.screen() == FeedViewModel.Screen.TOPICS, saved = state.screen() == FeedViewModel.Screen.SAVED;
             boolean feed = state.screen() == FeedViewModel.Screen.FEED, noStories = state.stories().isEmpty();
             boolean browsing = feed || state.screen() == FeedViewModel.Screen.FOR_YOU;
-            english.setSelected(Language.ENGLISH.equals(state.lang())); hindi.setSelected(Language.HINDI.equals(state.lang()));
-            // Hindi cards carry no section tag, so the section filters only apply to English headlines.
-            sectionScroll.setVisibility(feed && state.topic() == Topic.NEWS && Language.ENGLISH.equals(state.lang())
-                    ? View.VISIBLE : View.GONE);
-            for (var entry : sections.entrySet()) entry.getValue().setSelected(entry.getKey().equals(state.section()));
-            for (var entry : tabs.entrySet()) {
-                boolean selected = entry.getKey() == state.screen();
-                NavItem item = entry.getValue();
-                item.pill().setSelected(selected); item.view().setSelected(selected);
-                item.icon().setColorFilter(selected ? ui.accentText : ui.text2);
-                item.label().setTextColor(selected ? ui.text : ui.text2);
-            }
             for (var entry : tiles.entrySet()) {
                 boolean current = entry.getKey() == state.topic();
                 entry.getValue().view().setBackground(ui.touch(current ? ui.outline(ui.accentSoft, ui.accent, 20)
@@ -423,8 +329,9 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
             boolean showEmpty = !topics && noStories && !showSkeleton;
             empty.setVisibility(showEmpty ? View.VISIBLE : View.GONE);
             if (showEmpty) emptyState(state, saved);
+            // A story has its own menu button; the screens without a story have this one, in the corner.
+            cornerMenu.setVisibility(topics || showEmpty || showSkeleton ? View.VISIBLE : View.GONE);
 
-            refresh.setAlpha(state.refreshing() ? 0f : 1f); refresh.setEnabled(!state.refreshing());
             spinner.setVisibility(state.refreshing() ? View.VISIBLE : View.GONE);
             freshPill.setVisibility(state.fresh() ? View.VISIBLE : View.GONE);
             banner(state, pager.getCurrentItem());
@@ -491,26 +398,34 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
             images.prefetch(stories.get(next).image());
     }
 
-    private void menu(View anchor) {
-        PopupMenu menu = new PopupMenu(this, anchor);
-        menu.getMenu().add(R.string.account).setOnMenuItemClickListener(item -> { account(); return true; });
-        menu.getMenu().add(R.string.interests_title).setOnMenuItemClickListener(item -> { chooseInterests(); return true; });
-        menu.getMenu().add(R.string.theme).setOnMenuItemClickListener(item -> { chooseTheme(); return true; });
-        menu.getMenu().add(R.string.about).setOnMenuItemClickListener(item -> { about(); return true; });
-        menu.getMenu().add(R.string.contact_us).setOnMenuItemClickListener(item -> { contact(); return true; });
-        menu.getMenu().add(R.string.privacy_policy).setOnMenuItemClickListener(item -> { open(FeedApi.PRIVACY_URL); return true; });
-        menu.getMenu().add(updates.storeBuild() ? R.string.update_play : R.string.update_check)
-                .setOnMenuItemClickListener(item -> { updates.check(true); return true; });
-        menu.getMenu().add(R.string.open_site).setOnMenuItemClickListener(item -> { open(FeedApi.SITE); return true; });
-        menu.getMenu().add(R.string.clear_saved).setOnMenuItemClickListener(item -> {
-            openDialog = new MaterialAlertDialogBuilder(this).setTitle(R.string.clear_saved)
-                    .setMessage(signedIn() ? R.string.clear_confirm_account : R.string.clear_confirm)
-                    .setNegativeButton(R.string.cancel, null)
-                    .setPositiveButton(R.string.clear, (dialog, which) -> model.clearSaved()).show();
-            return true;
+    /** The menu button: opens everything the header and the bottom bar used to hold. */
+    private void openMenu() {
+        if (menuSheet != null && menuSheet.isShowing()) return;
+        menuSheet = MenuSheet.show(this, ui, model.current(), updates.storeBuild(), new MenuSheet.Actions() {
+            @Override public void screen(FeedViewModel.Screen screen) { model.screen(screen); }
+            @Override public void language(String language) { Language.apply(language); }
+            @Override public void section(String id) { model.section(id); }
+            @Override public void refresh() { model.refresh(); }
+            @Override public void interests() { chooseInterests(); }
+            @Override public void account() { MainActivity.this.account(); }
+            @Override public void theme() { chooseTheme(); }
+            @Override public void about() { MainActivity.this.about(); }
+            @Override public void contact() { MainActivity.this.contact(); }
+            @Override public void privacy() { open(FeedApi.PRIVACY_URL); }
+            @Override public void update() { updates.check(true); }
+            @Override public void website() { open(FeedApi.SITE); }
+            @Override public void clearSaved() { confirmClearSaved(); }
         });
-        menu.show();
     }
+
+    private void confirmClearSaved() {
+        openDialog = new MaterialAlertDialogBuilder(this).setTitle(R.string.clear_saved)
+                .setMessage(signedIn() ? R.string.clear_confirm_account : R.string.clear_confirm)
+                .setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.clear, (dialog, which) -> model.clearSaved()).show();
+    }
+
+    @Override public void menu() { openMenu(); }
 
     /** Opens the choice of topics. The first choice also opens For you, so the effect is seen at once. */
     private void chooseInterests() {
@@ -670,7 +585,7 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
         return !isFinishing() && !isDestroyed()
                 && !(sheet != null && sheet.isShowing()) && !(interestsSheet != null && interestsSheet.isShowing())
                 && !(accountSheet != null && accountSheet.isShowing()) && !(openDialog != null && openDialog.isShowing())
-                && !(contactSheet != null && contactSheet.isShowing())
+                && !(contactSheet != null && contactSheet.isShowing()) && !(menuSheet != null && menuSheet.isShowing())
                 && account.phase() != AccountManager.Phase.WAITING && !account.busy();
     }
 
@@ -756,6 +671,7 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
         if (interestsSheet != null) interestsSheet.dismiss();
         if (accountSheet != null) accountSheet.dismiss();
         if (contactSheet != null) contactSheet.dismiss();
+        if (menuSheet != null) menuSheet.dismiss();
         if (openDialog != null) openDialog.dismiss();
         if (skeletonPulse != null) skeletonPulse.cancel();
         if (images != null) images.close();

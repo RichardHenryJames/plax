@@ -148,12 +148,12 @@ export function CardActions({ card }: { card: CardData | null }) {
 
   return (
     <div className="absolute inset-x-0 bottom-0 z-40 pointer-events-none">
-      {/* Fade, so text scrolling under the bar stays readable */}
-      <div className="absolute inset-x-0 bottom-0 h-28 gradient-bottom" />
+      {/* Fade, so the last line of a story never meets the bar's edge */}
+      <div className="absolute inset-x-0 bottom-0 h-24 lg:h-28 gradient-bottom" />
 
       {/* Action bar — the same row as the app's: Read full story, then round buttons. Listen and Copy are the website's own. */}
-      <div className="relative mx-auto w-full lg:max-w-3xl px-5 sm:px-10 lg:px-14 pb-3 lg:pb-7 pt-4 pointer-events-none">
-        <div className="pointer-events-auto max-w-xl lg:max-w-2xl mx-auto flex items-center gap-2">
+      <div className="relative mx-auto w-full lg:max-w-3xl px-5 sm:px-10 lg:px-14 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:pb-7 pt-4 pointer-events-none">
+        <div className="story-column pointer-events-auto max-w-xl lg:max-w-2xl mx-auto flex items-center gap-2">
           {card.sourceUrl && card.type !== 'quote' && (
             <a
               href={card.sourceUrl}

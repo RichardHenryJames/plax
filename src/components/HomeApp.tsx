@@ -1,8 +1,8 @@
 'use client'
 
 import { Feed } from '@/components/Feed'
-import { NavBar } from '@/components/NavBar'
-import { BottomNav } from '@/components/BottomNav'
+import { MenuButton } from '@/components/MenuButton'
+import { MenuDrawer } from '@/components/MenuDrawer'
 import { LeftRail } from '@/components/LeftRail'
 import { RightRail } from '@/components/RightRail'
 import { CommandPalette } from '@/components/CommandPalette'
@@ -69,28 +69,35 @@ export function HomeApp({ seed }: { seed?: Record<string, string>[] }) {
 
   return (
     <main className="h-[100dvh] bg-dark-bg overflow-hidden">
-      {/* Desktop = 3-pane workspace (rails hidden below lg/xl); mobile = swipe feed with the four tabs below */}
+      {/* Desktop = 3-pane workspace (rails hidden below lg/xl). A phone has no header and no bottom bar: a story gets the whole
+          screen, and the menu button over it opens everything else (MenuDrawer). */}
       <div className="flex h-full">
         <LeftRail />
-        <div className="relative flex-1 min-w-0 h-full flex flex-col">
-          <div className="relative flex-1 min-h-0">
-            <NavBar />
-            <FeedErrorBoundary>
-              {screen === 'topics' ? (
+        <div className="relative flex-1 min-w-0 h-full">
+          <FeedErrorBoundary>
+            {screen === 'topics' ? (
+              <>
                 <TopicsScreen />
-              ) : screen === 'saved' ? (
+                <MenuButton corner />
+              </>
+            ) : screen === 'saved' ? (
+              <>
                 <SavedScreen />
-              ) : forYouEmpty ? (
+                <MenuButton corner />
+              </>
+            ) : forYouEmpty ? (
+              <>
                 <ForYouEmpty />
-              ) : (
-                <Feed categories={categories} seed={seed} />
-              )}
-            </FeedErrorBoundary>
-          </div>
-          <BottomNav />
+                <MenuButton corner />
+              </>
+            ) : (
+              <Feed categories={categories} seed={seed} />
+            )}
+          </FeedErrorBoundary>
         </div>
         <RightRail />
       </div>
+      <MenuDrawer />
       <CommandPalette />
       <TopicEditor />
       <AccountSheet />

@@ -33,7 +33,7 @@ interface UIState {
   pinnedCardId: string | null
   pinCard: (id: string | null) => void
 
-  // Bumped by the header refresh button; the feed looks for newer stories when it changes.
+  // Bumped by the menu's "Check for new stories"; the feed looks for newer stories when it changes.
   refreshTick: number
   requestRefresh: () => void
 
@@ -46,9 +46,13 @@ interface UIState {
   setCommandOpen: (open: boolean) => void
   toggleCommand: () => void
 
-  // Topic / interests editor sheet (reachable from mobile header + desktop rail)
+  // Topic / interests editor sheet (reachable from the menu + desktop rail)
   topicsOpen: boolean
   setTopicsOpen: (open: boolean) => void
+
+  // The menu of a phone or tablet: everything the header and the bottom bar used to hold, so a story can have the whole screen.
+  menuOpen: boolean
+  setMenuOpen: (open: boolean) => void
 
   // The card currently in view — lets the right rail show "Now reading"
   currentCard: CardData | null
@@ -87,6 +91,9 @@ export const useUIStore = create<UIState>((set) => ({
 
   topicsOpen: false,
   setTopicsOpen: (open) => set({ topicsOpen: open }),
+
+  menuOpen: false,
+  setMenuOpen: (open) => set({ menuOpen: open }),
 
   currentCard: null,
   setCurrentCard: (card) => set({ currentCard: card }),

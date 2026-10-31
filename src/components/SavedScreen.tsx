@@ -32,7 +32,7 @@ export function SavedScreen() {
 
   return (
     <div className={`feed-container overflow-y-auto thin-scrollbar overscroll-contain ${lang === 'hi' ? 'lang-hi' : ''}`} data-no-feed-scroll>
-      <div className="mx-auto w-full max-w-2xl px-5 pt-[calc(4.75rem+env(safe-area-inset-top))] lg:pt-10 pb-10">
+      <div className="mx-auto w-full max-w-2xl px-5 pt-[calc(4rem+env(safe-area-inset-top))] lg:pt-10 pb-10">
         {saved.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 12 }}

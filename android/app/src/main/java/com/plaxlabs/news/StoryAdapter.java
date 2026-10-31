@@ -29,6 +29,8 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         void check();
         /** The caught-up card: go back over stories already seen. */
         void earlier();
+        /** The menu button over a story: everything the header and the bottom bar used to hold. */
+        default void menu() { }
     }
 
     private static final int STORY = 0, CAUGHT_UP = 1;
@@ -115,7 +117,15 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         LinearLayout.LayoutParams reviewSize = new LinearLayout.LayoutParams(-2, -2);
         reviewSize.topMargin = ui.dp(12);
         root.addView(review, reviewSize);
-        return new Caught(root, review);
+        // The menu button stands in the corner, as it does on a story.
+        FrameLayout page = new FrameLayout(context);
+        page.setLayoutParams(new ViewGroup.LayoutParams(-1, -1));
+        page.setBackgroundColor(ui.bg);
+        page.addView(root, new FrameLayout.LayoutParams(-1, -1));
+        FrameLayout.LayoutParams corner = new FrameLayout.LayoutParams(ui.dp(StoryPage.MENU_TOUCH_DP), ui.dp(StoryPage.MENU_TOUCH_DP), Gravity.TOP | Gravity.START);
+        corner.setMargins(ui.dp(12), ui.dp(4), 0, 0);
+        page.addView(ui.menuButton(() -> actions.menu()), corner);
+        return new Caught(page, review);
     }
 
     private void bindCaughtUp(Caught holder) {
@@ -147,7 +157,7 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         hero.addView(poster, new FrameLayout.LayoutParams(-1, -1));
 
         LinearLayout meta = ui.row();
-        meta.setPadding(0, ui.dp(16), 0, 0);
+        // The page puts the space above the source line itself: it is there when a picture is above it, and not when it is first.
         TextView category = ui.text("", 11, ui.accentText, true);
         category.setLetterSpacing(.06f); category.setSingleLine();
         category.setPadding(ui.dp(10), ui.dp(5), ui.dp(10), ui.dp(5));
@@ -188,7 +198,8 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
 
         // Nothing on the page scrolls: it shares its height out so that all of it is in view, and a swipe changes story.
-        StoryPage page = new StoryPage(context, ui, hero, poster, meta, title, content, actionRow, titleSp, POSTER_SP);
+        StoryPage page = new StoryPage(context, ui, hero, poster, meta, title, content, actionRow, ui.menuButton(() -> actions.menu()),
+                titleSp, bodySp, POSTER_SP);
         page.setLayoutParams(new ViewGroup.LayoutParams(-1, -1));
         return new Holder(page, hero, image, placeholder, poster, imageBackground, posterBackground, category, credit,
                 title, content, cta, ctaHost, brief, save, share);

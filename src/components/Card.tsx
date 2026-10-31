@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CardData } from '@/lib/sample-data'
 import { TOPICS, usePlaxStore } from '@/lib/store'
@@ -10,6 +10,7 @@ import { withBase } from '@/lib/base-path'
 import { bodyWithoutHeadline } from '@/lib/story-body'
 import { NEWS_SECTIONS } from '@/lib/types'
 import { useCardFit } from './useCardFit'
+import { MenuButton } from './MenuButton'
 
 interface CardProps {
   card: CardData
@@ -86,15 +87,16 @@ export function Card({ card, isActive, translating = false }: CardProps) {
   useCardFit(boxRef, [card.id, card.title, card.content, card.image, translating, isHindi, hasHero, hasActions])
 
   return (
-    <div className={`relative flex flex-col overflow-hidden select-none h-full w-full lg:max-w-3xl lg:mx-auto px-5 sm:px-10 lg:px-14 pb-28 ${
-      isNews ? 'pt-[7.25rem] lg:pt-16' : isLong ? 'pt-20 lg:pt-10' : 'pt-20 lg:pt-16'
+    <div className={`relative flex flex-col overflow-hidden select-none h-full w-full lg:max-w-3xl lg:mx-auto px-5 sm:px-10 lg:px-14 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:pb-28 ${
+      isNews ? 'lg:pt-16' : isLong ? 'lg:pt-10' : 'lg:pt-16'
     } ${isHindi ? 'lang-hi' : ''}`}>
-      {/* The padding clears the navbar (top) and the floating action dock (bottom). Short cards that are not news centre
-          vertically; a news card and a long one start at the top. */}
+      {/* A phone has no header and no bottom bar, so the padding only clears the status bar (top) and the fixed action bar
+          (bottom). Short cards that are not news centre vertically on a desktop; a news card and a long one start at the top,
+          and so does every card on a phone, where the menu button stands at the start of the first line. */}
       <div
         ref={boxRef}
-        className={`card-fit relative z-10 flex-1 min-h-0 flex flex-col w-full max-w-xl lg:max-w-2xl mx-auto ${
-          isNews || isLong ? 'justify-start' : 'justify-center'
+        className={`card-fit story-column relative z-10 flex-1 min-h-0 flex flex-col w-full max-w-xl lg:max-w-2xl mx-auto ${
+          isNews || isLong ? 'justify-start' : 'justify-start lg:justify-center'
         }`}
       >
             {/* Hero image — a news card carries the publisher's picture, and it leads the card as in the app. Its height is
@@ -203,7 +205,7 @@ export function Card({ card, isActive, translating = false }: CardProps) {
               animate={isActive ? { opacity: 1, y: 0 } : {}}
               transition={{ delay: 0.08, duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
             >
-              <blockquote className="relative py-3">
+              <blockquote className="relative py-3 mt-3 lg:mt-0">
                 <span className="absolute -left-1 -top-4 text-6xl leading-none text-[color:var(--signal)]/30 font-serif select-none">&ldquo;</span>
                 <div className="absolute -left-2 top-2 bottom-2 w-[3px] bg-[color:var(--signal)]" />
                 <p data-fit="body" className="text-[26px] sm:text-[32px] font-serif italic text-white/95 leading-[1.4] pl-6">
@@ -327,6 +329,9 @@ export function Card({ card, isActive, translating = false }: CardProps) {
               )}
             </div>
           )}
+
+          {/* The menu button: over the picture, or at the start of the first line when there is none (see globals.css). */}
+          <MenuButton />
       </div>
     </div>
   )
@@ -552,6 +557,10 @@ function CategoryChip({
 
 // What a panel opens into: a sheet that floats over the summary, above the row that opened it. Nothing on the card itself
 // scrolls, so a sheet with more than its room has a scroll of its own (and a swipe that starts on it stays on it).
+//
+// The sheet is never taller than the room above its row inside the card (--sheet-room, set by useCardFit), so no part of it
+// is ever cut off by the card's edge, and its title bar with the close button is a row of its own above the part that
+// scrolls: the cross is always there to press, however long the text, and Escape closes the sheet too.
 function Sheet({
   title,
   icon,
@@ -566,29 +575,41 @@ function Sheet({
   children: React.ReactNode
 }) {
   const { t } = useT()
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
   return (
     <motion.div
       data-no-feed-scroll
+      role="dialog"
+      aria-label={title}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 8 }}
       transition={{ duration: 0.18 }}
       onClick={(e) => e.stopPropagation()}
-      className={`absolute inset-x-0 bottom-full mb-3 z-30 max-h-[min(52dvh,26rem,calc(100dvh_-_19rem))] overflow-y-auto overscroll-contain thin-scrollbar rounded-2xl bg-dark-card border border-[color:var(--hair-strong)] shadow-2xl shadow-black/50 p-3 ${isHindi ? 'lang-hi' : ''}`}
+      style={{ maxHeight: 'min(26rem, calc(var(--sheet-room, 20rem) - 0.75rem))' }}
+      className={`absolute inset-x-0 bottom-full mb-3 z-30 flex flex-col rounded-2xl bg-dark-card border border-[color:var(--hair-strong)] shadow-2xl shadow-black/50 ${isHindi ? 'lang-hi' : ''}`}
     >
-      <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[color:var(--signal)] mb-2">
+      <div className="flex shrink-0 items-center gap-1.5 pl-3 pr-1.5 pt-1.5 text-[11px] font-semibold uppercase tracking-wider text-[color:var(--signal)]">
         {icon}
         <span className="flex-1">{title}</span>
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onClose() }}
           aria-label={t('close')}
-          className="focus-ring -mr-1 p-1.5 rounded-md text-dark-subtle hover:text-white hover:bg-white/5 transition"
+          className="focus-ring flex h-9 w-9 items-center justify-center rounded-full text-dark-subtle hover:text-white hover:bg-white/5 transition"
         >
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
       </div>
-      {children}
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain thin-scrollbar px-3 pb-3 pt-1">
+        {children}
+      </div>
     </motion.div>
   )
 }

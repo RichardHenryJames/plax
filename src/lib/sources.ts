@@ -1,5 +1,6 @@
 import { RawContent, CATEGORY_MAP, TOPIC_SUBREDDITS, TOPIC_WIKI_QUERIES, TOPIC_WIKI_QUERIES_HI, TOPIC_NEWS_KEYWORD, TOPIC_GUARDIAN_SECTION, TOPIC_RSS_FEEDS, HINDI_RSS_FEEDS, GENERAL_NEWS_FEEDS } from './types'
 import { within, Remembered, SOURCE_DEADLINE_MS } from './deadline'
+import { fillMissingSummaries } from './blurb'
 import { isDisambiguationPage } from './wikipedia-quality'
 import { SITE_DISPLAY, SITE_URL } from './site'
 
@@ -1243,6 +1244,7 @@ async function fetchOneFeed(
 // is set (the dedicated "News" topic), every card is filed under that category so
 // it surfaces as a distinct, latest-news feed rather than blended into topics.
 export async function fetchRssNews(categories: string[], perFeed = 3, tagAs?: string): Promise<RawContent[]> {
+  const startedAt = Date.now()
   const topics = [...new Set(categories)].filter((c) => TOPIC_RSS_FEEDS[c])
   if (topics.length === 0) return []
   // Cap total feeds fetched to stay fast (≤ ~6 feeds/request).
@@ -1260,19 +1262,33 @@ export async function fetchRssNews(categories: string[], perFeed = 3, tagAs?: st
   results.forEach((res) => {
     if (res.status === 'fulfilled') out.push(...res.value)
   })
-  return out
+  return withSummaries(out, startedAt)
+}
+
+// A feed that repeats the headline as the description leaves a story with nothing under its headline. For those the
+// article's own description is read (see lib/blurb.ts), within what is left of the source's deadline, so the pool is
+// never held up by it; a story it cannot help is left as it was.
+async function withSummaries(items: RawContent[], startedAt: number): Promise<RawContent[]> {
+  try {
+    const left = SOURCE_DEADLINE_MS - (Date.now() - startedAt) - 1500
+    await fillMissingSummaries(items, { budgetMs: Math.min(2500, left), userAgent: `Mozilla/5.0 (compatible; PlaxReader/1.0; +${SITE_URL})` })
+  } catch {
+    /* the stories stay as the feed gave them */
+  }
+  return items
 }
 
 // Hindi news via RSS (Devanagari) — used only in Hindi mode so the feed carries
 // current Indian news natively in Hindi.
 export async function fetchHindiNews(perFeed = 4): Promise<RawContent[]> {
+  const startedAt = Date.now()
   const jobs = HINDI_RSS_FEEDS.map(([name, url]) => fetchOneFeed(name, url, 'news', perFeed))
   const results = await Promise.allSettled(jobs)
   const out: RawContent[] = []
   results.forEach((res) => {
     if (res.status === 'fulfilled') out.push(...res.value)
   })
-  return out
+  return withSummaries(out, startedAt)
 }
 
 // Dedicated "News" topic — a broad latest-headlines stream from reputable
@@ -1280,13 +1296,14 @@ export async function fetchHindiNews(perFeed = 4): Promise<RawContent[]> {
 // the standalone News feed (the Inshorts experience). We pull DEEP (many items
 // per feed) so the pool is large enough that a reader can scroll a long way.
 export async function fetchGeneralNews(perFeed = 15): Promise<RawContent[]> {
+  const startedAt = Date.now()
   const jobs = GENERAL_NEWS_FEEDS.map(([name, url, section]) => fetchOneFeed(name, url, 'news', perFeed, section))
   const results = await Promise.allSettled(jobs)
   const out: RawContent[] = []
   results.forEach((res) => {
     if (res.status === 'fulfilled') out.push(...res.value)
   })
-  return out
+  return withSummaries(out, startedAt)
 }
 
 

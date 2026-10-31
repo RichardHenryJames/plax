@@ -181,9 +181,9 @@ consent screen.
 ---
 
 ## How to test the Google login flow
-1. **Local**: `npm run dev` → open http://localhost:3000/news → **Account** (the person icon in
-   the header on a phone, or **Account** at the bottom of the left rail) → **Continue with
-   Google** → pick a Google account → should redirect back signed-in (the account button
+1. **Local**: `npm run dev` → open http://localhost:3000/news → **Account** (in the ☰ menu on a
+   phone, or **Account** at the bottom of the left rail) → **Continue with
+   Google** → pick a Google account → should redirect back signed-in (the Account row
    shows your avatar).
 2. Verify a profile row was auto-created: Supabase → **Table Editor → user_profiles** →
    your row should be there (email, display_name, avatar_url filled by the trigger).

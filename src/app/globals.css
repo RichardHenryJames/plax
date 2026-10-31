@@ -148,6 +148,61 @@ body {
 .card-fit [data-fit='actions'] {
   padding-top: 14px;
 }
+/* A short window (a phone on its side): the column of a story, and the bar under it, are as wide as the window allows, so that the
+   headline and the summary take fewer lines. Unlayered, so it wins over the width utilities on the same elements. */
+@media (max-height: 520px) and (orientation: landscape) {
+  .story-column {
+    max-width: 48rem;
+  }
+}
+/* The menu button (phones and tablets; a desktop has the side rail): a small glass circle that stands over the picture's
+   top-left corner, so the story has the whole screen. With no picture (useCardFit sets data-hero="off") the source line is the
+   first thing on the card, and starts after the button in a row as tall as it. `corner` is for the screens that are not a
+   story (loading, caught up, Topics, Saved): the top-left corner of the screen. */
+.menu-fab {
+  position: absolute;
+  z-index: 20;
+  top: 8px;
+  left: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  color: #ffffff;
+  background: rgba(12, 12, 16, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  transition: background-color 0.15s;
+}
+.menu-fab:hover {
+  background: rgba(12, 12, 16, 0.72);
+}
+.menu-fab--corner {
+  top: calc(env(safe-area-inset-top) + 12px);
+  left: 12px;
+  z-index: 35;
+}
+.card-fit[data-hero='off'] > .menu-fab {
+  top: 0;
+  left: 0;
+}
+.card-fit[data-hero='off'] > [data-fit='meta'] {
+  padding-top: 0;
+  padding-left: 48px;
+  min-height: 40px;
+}
+@media (min-width: 1024px) {
+  .menu-fab {
+    display: none;
+  }
+  .card-fit[data-hero='off'] > [data-fit='meta'] {
+    padding-left: 0;
+    min-height: 0;
+  }
+}
 /* The poster of a story with no picture, as in the app: its sign on a soft wash. The hook sets --hero-h to the tile's height. */
 .poster-tile {
   background-image: linear-gradient(135deg, color-mix(in srgb, var(--signal) 18%, transparent), var(--wash-1));
