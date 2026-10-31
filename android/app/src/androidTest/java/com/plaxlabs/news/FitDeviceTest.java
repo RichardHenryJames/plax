@@ -274,6 +274,7 @@ public class FitDeviceTest {
             try {
                 StoryAdapter adapter = new StoryAdapter(ui, images, noActions(), 392, 851);
                 int width = ui.dp(392), height = ui.dp(780);
+                float typicalSize = 0;
                 for (Story story : english()) {
                     adapter.submit(List.of(story), Set.of(), false, true, 0);
                     var holder = (StoryAdapter.Holder) adapter.onCreateViewHolder(new FrameLayout(themed), adapter.getItemViewType(0));
@@ -292,12 +293,13 @@ public class FitDeviceTest {
                         if (picture > 0) assertFalse(story.id() + ": with a picture on the page the summary is whole", cut);
                     }
                     if (story.id().equals("typical")) {
+                        typicalSize = holder.content.getTextSize();
                         assertTrue("an ordinary story has its picture", picture >= ui.dp(96));
                         assertEquals("and its summary, whole", story.body(), holder.content.getText().toString());
                     }
                     if (story.id().equals("long-body")) {
-                        assertEquals("a summary too long for the page loses the picture, not words: no picture", 0, picture);
-                        assertTrue("and ends at a whole line, with an ellipsis", holder.content.getLayout().getEllipsisCount(holder.content.getLayout().getLineCount() - 1) > 0);
+                        assertEquals("a summary too long to share the page with a picture loses the picture, not words", 0, picture);
+                        assertTrue("and is set a little smaller before any of it is cut", holder.content.getTextSize() < typicalSize);
                     }
                     if (story.body().length() > 0 && story.body().length() < 150) {
                         int last = holder.content.getLayout().getLineCount() - 1;
@@ -392,9 +394,12 @@ public class FitDeviceTest {
             assertTrue(titleShown("A story whose summary is long", 15_000));
             var summary = device.findObject(By.textStartsWith("Officials said the review"));
             assertNotNull("the summary is on the page", summary);
-            android.graphics.Point middle = summary.getVisibleCenter();
+            // From its last line: the whole summary fills most of the page, and a drag from its middle would be too short to turn the
+            // page on a slow emulator that draws few frames.
+            android.graphics.Rect text = summary.getVisibleBounds();
+            int from = text.bottom - 40;
             device.waitForIdle();
-            device.swipe(middle.x, middle.y, middle.x, Math.max(130, middle.y - (int) (device.getDisplayHeight() * .55)), 80);
+            device.swipe(text.centerX(), from, text.centerX(), Math.max(130, from - (int) (device.getDisplayHeight() * .8)), 80);
             assertTrue("a swipe that begins on the text moves on at once", titleShown("The story after it", 5_000));
         }
     }

@@ -240,7 +240,8 @@ Share a story as a page on Plax, and the same look as the website.
 - **No new permission, library, tracker or account requirement.**
 - **The website now matches the app**, which is the reference: the same header, section chips, card,
   action row, typography (serif headlines, sans text) and theme choice (System by default). The
-  differences are deliberate and listed in [TECH.md](../TECH.md#navigation--bottomnavtsx-leftrailtsx-navbartsx-headermenutsx-brandmarktsx).
+  differences are deliberate and listed in [TECH.md](../TECH.md#navigation--menubuttontsx-menudrawertsx-leftrailtsx-brandmarktsx)
+  (since the full-screen change, header and bottom bar are replaced by a menu in both).
 
 Needs on the website side: `POST /api/share` and the story pages, deployed with the same push as this
 version; an app that cannot reach them falls back as above.

@@ -3,6 +3,7 @@ package com.plaxlabs.news;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Rect;
+import android.os.Build;
 import android.text.Layout;
 import android.text.StaticLayout;
 import android.text.TextPaint;
@@ -143,10 +144,9 @@ final class StoryPage extends ViewGroup {
             if (hasBody) {
                 Layout at = layout(body, bodyPx, columnWidth);
                 bodyNatural = at == null ? 0 : at.getLineCount();
-                if (bodyNatural > 0) {
-                    int sample = Math.min(bodyNatural, CardFit.MIN_BODY_LINES);
-                    bodyLine = Math.max(1, ceilDiv(at.getLineBottom(sample - 1), sample));
-                }
+                // The average of all its lines, so that the whole summary is counted at its real height even where its lines
+                // differ (a Devanagari line with a vowel sign above or below is taller than one without).
+                if (bodyNatural > 0) bodyLine = Math.max(1, ceilDiv(at.getLineBottom(bodyNatural - 1), bodyNatural));
             }
             plan = CardFit.plan(new CardFit.Input(boxHeight, metaWith, metaBare, actionsHeight,
                     hasTitle ? title.getPaddingTop() : 0, titleLine, titleNatural, titleMax,
@@ -253,19 +253,22 @@ final class StoryPage extends ViewGroup {
         return view.getMeasuredHeight();
     }
 
-    /** The layout this text would have at this size and width, uncut. The view itself is not touched. */
+    /** The layout this text would have at this size and width, uncut, built as the view builds its own. The view is not touched. */
     private static Layout layout(TextView view, float textPx, int width) {
         CharSequence text = view.getText();
         int inner = width - view.getCompoundPaddingLeft() - view.getCompoundPaddingRight();
         if (text.length() == 0 || inner <= 0) return null;
         TextPaint paint = new TextPaint(view.getPaint());
         paint.setTextSize(textPx);
-        return StaticLayout.Builder.obtain(text, 0, text.length(), paint, inner)
+        StaticLayout.Builder builder = StaticLayout.Builder.obtain(text, 0, text.length(), paint, inner)
                 .setLineSpacing(view.getLineSpacingExtra(), view.getLineSpacingMultiplier())
                 .setIncludePad(view.getIncludeFontPadding())
                 .setBreakStrategy(view.getBreakStrategy())
-                .setHyphenationFrequency(view.getHyphenationFrequency())
-                .build();
+                .setHyphenationFrequency(view.getHyphenationFrequency());
+        // A text view takes the height of a line from the fallback fonts too, and Devanagari is set in one: without this the lines
+        // here come out shorter than the real ones and the summary is thought to fit when it does not.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) builder.setUseLineSpacingFromFallbacks(true);
+        return builder.build();
     }
 
     /** How many lines this text takes at this size and width, uncut. */
