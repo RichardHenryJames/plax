@@ -10,6 +10,11 @@ export interface RawContent {
   publishedAt?: number // epoch ms — set for time-sensitive sources (news/RSS)
   image?: string // hero image URL (news/RSS thumbnails)
   section?: string // news sub-section (india/world/tech/business/science)
+  /** What the feed itself said, kept when `content` is replaced by the opening of the article (lib/lead.ts): a story's id is made
+   * from it, so that finding more of the text later does not make the story a new one. */
+  idText?: string
+  /** `content` is the opening of the article itself, so it is shown as it is (the website does not rewrite it). */
+  lead?: boolean
 }
 
 export interface ProcessedCard {
@@ -28,6 +33,8 @@ export interface ProcessedCard {
   publishedAt?: number // epoch ms — original publish time for news cards (relative timestamp)
   image?: string // hero image URL (news cards)
   section?: string // news sub-section (india/world/tech/business/science)
+  /** `content` is the opening of the article itself (see RawContent.lead). */
+  lead?: boolean
   /** The server's signature over the card (lib/share.ts). Lets a shared story be trusted; absent when signing is off. */
   sig?: string
 }

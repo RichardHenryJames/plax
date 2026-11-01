@@ -4,7 +4,7 @@ import { planFit, MIN_BODY_LINES, MIN_TITLE_LINES } from './card-fit.ts'
 
 // The cases mirror CardFitTest.java in the Android app: the same numbers give the same plan on both. They are the pixels of a
 // phone page of 744 high: a 40 source line, a 58 action row, headline lines of 32 under 10 of space, summary lines of 28 under
-// 12 of space, a picture of between 117 and 262 (297 when there is nothing to read under the headline).
+// 12 of space, a picture of between 117 and 297 (262 is the usual most, 297 the most when there is little to read).
 
 const page = (height, titleNatural, bodyNatural) => ({
   height, meta: 40, metaBare: 40, actions: 58, titleTop: 10, titleLine: 32, titleNatural, titleMax: 4,
@@ -16,12 +16,22 @@ const used = (input, plan) =>
   (plan.titleLines === 0 ? 0 : input.titleTop + plan.titleLines * input.titleLine) +
   (plan.bodyLines === 0 ? 0 : input.bodyTop + plan.bodyLines * input.bodyLine)
 
-test('a roomy page shows the whole summary and gives the picture the rest, up to its full size', () => {
+test('a roomy page shows the whole summary and lets the picture grow, up to the tallest it may be', () => {
   const input = page(744, 3, 7)
   const plan = planFit(input)
-  assert.equal(plan.hero, 262, 'the picture is as big as it is meant to be')
+  assert.equal(plan.hero, 297, 'the picture takes the room the text leaves, up to its most')
   assert.equal(plan.titleLines, 3)
   assert.equal(plan.bodyLines, 7, 'every line of the summary')
+  assert.ok(used(input, plan) <= 744)
+})
+
+test('a little to read gives the picture more than a square, so that the card is full', () => {
+  const input = page(744, 2, 2)
+  const plan = planFit(input)
+  assert.ok(plan.hero > input.heroMaximum, 'past the usual most')
+  assert.equal(plan.hero, input.heroTall)
+  assert.equal(plan.bodyLines, 2)
+  // Room that is left after that is the little that cannot be filled, and the page is not over-full.
   assert.ok(used(input, plan) <= 744)
 })
 
@@ -29,37 +39,54 @@ test('a long summary is shown whole and the picture shrinks to what is left', ()
   const input = page(744, 4, 12)
   const plan = planFit(input)
   assert.equal(plan.titleLines, 4)
-  assert.equal(plan.bodyLines, 12, 'the whole summary comes first')
+  assert.equal(plan.bodyLines, 12, 'the whole summary when it fits beside the least picture')
   assert.equal(plan.hero, 744 - 58 - 40 - (10 + 4 * 32) - (12 + 12 * 28), 'and the picture takes what remains')
-  assert.ok(plan.hero >= 117 && plan.hero < 262)
+  assert.ok(plan.hero >= 117 && plan.hero < 297)
   assert.ok(used(input, plan) <= 744)
 })
 
-test('a picture too small to be worth showing is dropped before any of the text is cut', () => {
+test('a summary a line too long for the least picture is cut at a whole line, and the picture stays', () => {
   const input = page(744, 4, 14)
+  const plan = planFit(input)
+  assert.equal(plan.titleLines, 4, 'the headline keeps its lines')
+  assert.equal(plan.bodyLines, 13, 'the summary is cut by the line that did not fit')
+  assert.equal(plan.hero, 744 - 58 - 40 - (10 + 4 * 32) - (12 + 13 * 28), 'and the picture takes what the lines leave')
+  assert.ok(plan.hero >= 117 && plan.hero < 117 + 28, 'which is its least and less than a line more')
+  assert.ok(used(input, plan) <= 744)
+})
+
+test('a poster only stands in for a picture, so it is dropped before any of the summary is cut', () => {
+  const input = { ...page(744, 4, 14), heroKept: false }
   const plan = planFit(input)
   assert.equal(plan.hero, 0)
   assert.equal(plan.titleLines, 4, 'the headline keeps its lines')
   assert.equal(plan.bodyLines, 14, 'and the summary all of its own')
   assert.ok(used(input, plan) <= 744)
+  // With room for all of the summary beside it, a poster is shown like a photograph.
+  const roomy = planFit({ ...page(744, 3, 7), heroKept: false })
+  assert.equal(roomy.hero, 297)
+  assert.equal(roomy.bodyLines, 7)
+  // And a photograph is kept.
+  assert.equal(planFit({ ...page(744, 4, 14), heroKept: true }).hero, 132)
 })
 
-test('a summary that does not fit even without a picture is cut at a whole line', () => {
-  const input = page(744, 4, 25)
-  const plan = planFit(input)
-  assert.equal(plan.hero, 0)
-  assert.equal(plan.titleLines, 4)
-  assert.equal(plan.bodyLines, Math.floor((744 - 58 - 40 - (10 + 4 * 32) - 12) / 28))
-  assert.equal(plan.bodyLines, 17)
-  assert.ok(used(input, plan) <= 744)
+test('a long summary is cut to what fits beside the least picture, however long it is', () => {
+  for (const natural of [25, 40, 200]) {
+    const input = page(744, 4, natural)
+    const plan = planFit(input)
+    assert.equal(plan.titleLines, 4)
+    assert.equal(plan.bodyLines, 13)
+    assert.equal(plan.hero, 132)
+    assert.ok(used(input, plan) <= 744)
+  }
 })
 
-test('a long headline keeps all its lines up to the most it may take, and the summary gives way', () => {
+test('a long headline keeps all its lines up to the most it may take, and the summary gives way to what is left', () => {
   const input = { ...page(500, 6, 12), titleMax: 5 }
   const plan = planFit(input)
   assert.equal(plan.titleLines, 5, 'the headline is cut at the most it may take, not shorter')
-  assert.equal(plan.hero, 0)
-  assert.ok(plan.bodyLines >= MIN_BODY_LINES && plan.bodyLines < 12)
+  assert.equal(plan.bodyLines, MIN_BODY_LINES, 'three lines of the summary beside the least picture')
+  assert.equal(plan.hero, 500 - 58 - 40 - (10 + 5 * 32) - (12 + 3 * 28))
   assert.ok(used(input, plan) <= 500)
 })
 
@@ -128,7 +155,7 @@ test('a headline too tall for the page loses lines even with no summary to prote
 test('a story with no headline is just the summary', () => {
   const plan = planFit(page(744, 0, 8))
   assert.equal(plan.titleLines, 0)
-  assert.equal(plan.hero, 262)
+  assert.equal(plan.hero, 297)
   assert.equal(plan.bodyLines, 8)
 })
 
@@ -173,12 +200,16 @@ test('whatever the page holds, nothing is planned beyond it, and the summary is 
             // The headline keeps two lines whenever the page can hold them, and one line whatever the page.
             const kept = Math.min(title, MIN_TITLE_LINES)
             if (title > 0) assert.ok(plan.titleLines >= (height >= bare + 58 + 10 + kept * 32 ? kept : 1), where)
-            // With a picture on the page, the whole summary is on it too.
-            if (plan.hero > 0 && body > 0) assert.equal(plan.bodyLines, body, where)
-            // And a summary that fits is never cut, picture or none.
+            // With a picture on the page, the summary has at least its three lines, and is whole or the picture is at its least
+            // (the lines left over go to the picture, so it is less than a line more than its least).
+            if (plan.hero > 0 && body > 0) {
+              assert.ok(plan.bodyLines >= Math.min(body, MIN_BODY_LINES), where)
+              if (plan.bodyLines < body) assert.ok(plan.hero < input.heroMinimum + input.bodyLine, where)
+            }
+            // And a summary that fits beside the least picture (or, with no picture to be had, on the page) is never cut.
             if (body > 0 && title > 0 && plan.titleLines === Math.min(title, input.titleMax)) {
-              const fitsWhole = 58 + bare + 10 + plan.titleLines * 32 + 12 + body * 28 <= height
-              if (fitsWhole) assert.equal(plan.bodyLines, body, where)
+              const needs = 58 + (maximum > 0 ? 40 + input.heroMinimum : bare) + 10 + plan.titleLines * 32 + 12 + body * 28
+              if (needs <= height) assert.equal(plan.bodyLines, body, where)
             }
             checked++
           }

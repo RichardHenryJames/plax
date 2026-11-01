@@ -1,7 +1,7 @@
 'use client'
 
 import { useLayoutEffect, type RefObject } from 'react'
-import { planFit } from '@/lib/card-fit'
+import { planFit, MIN_BODY_LINES } from '@/lib/card-fit'
 
 // Fits one story card into its box, as the Android app's StoryPage does: nothing on a card scrolls, so a single swipe
 // always moves to the next story, and for that the picture, the tag and source line, the headline, the summary and the
@@ -19,16 +19,21 @@ import { planFit } from '@/lib/card-fit'
 const HEADLINE_LINES = 4
 const LONG_HEADLINE_LINES = 5
 const HEADLINE_SCALES = [1, 0.9, 0.8]
-/** A summary that would otherwise be cut is first set a little smaller. */
-const BODY_SCALES = [1, 0.94, 0.88]
-/** The picture takes what the text leaves: at most a square and 55% of the box, at least 30% of the width and a quarter of the box. */
+/** The summary is always set at its own size, so that stories look alike; a longer one is cut at a whole line instead. */
+const BODY_SCALES = [1]
+/** The picture takes what the text leaves: at most a square and 55% of the box in the usual case, and up to 1.2 times its width and
+ * 62% of the box when there is little to read, so that the card is full. */
 const HERO_MAX_WIDTH = 1
 const HERO_MAX_HEIGHT = 0.55
-/** With nothing to read under the headline it may grow taller. */
 const HERO_TALL_WIDTH = 1.2
 const HERO_TALL_HEIGHT = 0.62
-const HERO_MIN_WIDTH = 0.3
-const HERO_MIN_HEIGHT = 0.25
+/** A photograph is given at least 60% of the width and 30% of the box before the summary is cut instead (as in Inshorts, a story
+ * with a picture has one, and not a stamp of one); a poster, which only stands in for a picture, a third of that, and is dropped
+ * when the text needs the room. */
+const PHOTO_MIN_WIDTH = 0.6
+const PHOTO_MIN_HEIGHT = 0.3
+const POSTER_MIN_WIDTH = 0.3
+const POSTER_MIN_HEIGHT = 0.25
 /** A picture shorter than this, in px, is never worth showing. */
 const HERO_FLOOR = 96
 
@@ -139,14 +144,18 @@ export function fitCard(box: HTMLElement) {
 
   const heroMaximum = hero ? Math.min(width * HERO_MAX_WIDTH, height * HERO_MAX_HEIGHT) : 0
   const heroTall = hero ? Math.max(heroMaximum, Math.min(width * HERO_TALL_WIDTH, height * HERO_TALL_HEIGHT)) : 0
-  const heroMinimum = Math.max(HERO_FLOOR, Math.min(width * HERO_MIN_WIDTH, height * HERO_MIN_HEIGHT))
+  const poster = !!hero && hero.classList.contains('poster-tile')
+  const heroMinimum = Math.max(
+    HERO_FLOOR,
+    poster ? Math.min(width * POSTER_MIN_WIDTH, height * POSTER_MIN_HEIGHT) : Math.min(width * PHOTO_MIN_WIDTH, height * PHOTO_MIN_HEIGHT),
+  )
 
-  // The whole summary comes first. Only a summary that would still be cut is set a little smaller, and then smaller again.
+  // The summary is measured at its own size; the plan cuts it to the lines that fit beside the picture's minimum.
   let bodyNatural = 0
   let bodyLine = 0
   let bodyTop = 0
   const planNow = () =>
-    planFit({ height, meta: metaWith, metaBare, actions: actionsHeight, titleTop, titleLine, titleNatural, titleMax, bodyTop, bodyLine, bodyNatural, heroMaximum, heroMinimum, heroTall })
+    planFit({ height, meta: metaWith, metaBare, actions: actionsHeight, titleTop, titleLine, titleNatural, titleMax, bodyTop, bodyLine, bodyNatural, heroMaximum, heroMinimum, heroTall, heroKept: !poster })
   let plan = planNow()
   if (body) {
     for (const scale of BODY_SCALES) {
@@ -179,12 +188,16 @@ export function fitCard(box: HTMLElement) {
   }
   apply()
 
-  // Margins, rounding or a font the arithmetic did not know about: take back what is over, the picture first (it is the
-  // part that can give without losing a word), then a line at a time of the summary and of the headline.
+  // Margins, rounding or a font the arithmetic did not know about: take back what is over. The picture gives first, down to its
+  // minimum; then the summary, a line at a time down to three lines; only then does the picture go, and then the rest of the
+  // summary and the headline's lines.
   for (let attempt = 0; attempt < 8; attempt++) {
     const over = contentBottom(box) - box.clientHeight
     if (over <= 1) break
-    if (hero && heroHeight > 0) heroHeight = heroHeight - over >= heroMinimum ? heroHeight - over : 0
+    if (hero && heroHeight > heroMinimum) heroHeight = Math.max(heroMinimum, heroHeight - over)
+    else if (hero && poster && heroHeight > 0) heroHeight = 0 // a poster only stands in for a picture: it goes before any text is cut
+    else if (body && bodyLines > Math.min(bodyNatural, MIN_BODY_LINES)) bodyLines--
+    else if (hero && heroHeight > 0) heroHeight = 0
     else if (body && bodyLines > 0) bodyLines--
     else if (title && titleLines > 1) titleLines--
     else break

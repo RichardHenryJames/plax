@@ -21,15 +21,22 @@ backend change. The website got the same design (see `TECH.md`, "One view per st
   top-left corner (with no picture it stands at the start of the source line, which makes room for it; on Topics, Saved, For you with
   nothing chosen, loading and "all caught up" it is in the corner of the screen) and opens `MenuSheet`, a panel that slides in from
   the left, behind the system bars: the feed language, Feed / For you / Topics / Saved, the news sections (English headlines only,
-  as before), check for new stories, your topics, the account, the theme, About, Contact us, the privacy policy, the update check,
-  the website and Clear saved stories. The ✕, the back button, a tap beside the panel and a swipe to the left close it. A small spinner
+  as before), the account, the theme, About, Contact us, the privacy policy, the update check and Clear saved stories (what is a tap
+  away elsewhere is not repeated: new stories are looked for by themselves and on the caught-up card, and topics are chosen from the
+  Topics screen and the account sheet). The ✕, the back button, a tap beside the panel and a swipe to the left close it. A small spinner
   in the top-right corner shows a refresh in progress, as the header's did. `MainActivity` lost `header()`, `navigation()`,
   `sections()` and the ⋮ `PopupMenu`; the menu's actions are the old ones.
-- **The summary comes first, whole.** `CardFit` (and `src/lib/card-fit.ts`, with the same test cases) now spends the height in this
-  order: the source line, the headline and the action row; then the whole summary; and the picture takes what is left, at most 4:3
-  and half the page, and is dropped when less than 30% of the width, a quarter of the page and 96 dp is left. A summary that would
-  still not fit is set 6%, then 12% smaller before any of it is cut, and then cut at a whole line with an ellipsis. In 1.5.5 the picture
-  kept its minimum and the summary got the remainder, so on a short page the summary was the first thing to go.
+- **The picture keeps its minimum, and the summary is cut where its room ends (after the reader saw a large empty space
+  under a two-line summary).** `CardFit` (and `src/lib/card-fit.ts`, with the same test cases) spends the height in this order: the
+  source line, the headline and the action row; a photograph gets at least 60% of the width and 30% of the page (never under 96 dp);
+  the summary gets what remains, whole when it fits and otherwise cut at a whole line with an ellipsis ("abruptly", as in Inshorts);
+  and the picture takes whatever the lines leave. A short summary lets the picture grow, up to 1.2 times its width and 62% of the
+  page, so the page is always full. The summary is no longer set smaller before it is cut, so stories look alike. A poster (the emoji
+  tile of a story with no photograph) keeps the earlier rule: it is shown only when the whole summary fits beside it. The 1.5.5
+  follow-up ("whole summary first, the picture takes what is left") had dropped the picture of any story with a longer text.
+- **More text for the app's stories too.** The feed now gives a news story that came with one line the opening of its article (up to
+  about 600 characters), so a card has something to fill the page with; the app needs no change to receive it (`content` is longer).
+  See `TECH.md`, "More text for a short story". `PLAX_ARTICLE_LEADS=off` on the server turns it off.
 - **A bug the new device test found.** `StoryPage` counted a Hindi summary's lines on a copy of its paint, without the fallback-font line
   spacing a `TextView` uses, so Devanagari lines came out shorter than they are, and a summary was thought to fit beside a picture when
   it did not (5 cases in `FitDeviceTest`'s sweep, all in Hindi). The layout used for counting is now built as the view builds its own, and a

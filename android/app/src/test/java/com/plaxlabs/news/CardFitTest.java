@@ -6,8 +6,8 @@ import static org.junit.Assert.*;
 /**
  * How a story page shares out its height. The cases mirror card-fit.test.mjs on the website: the same numbers give the same
  * plan on both. They are the pixels of a phone page of 744 high: a 40 source line, a 58 action row, headline lines of 32 under
- * 10 of space, summary lines of 28 under 12 of space, a picture of between 117 and 262 (297 when there is nothing to read
- * under the headline).
+ * 10 of space, summary lines of 28 under 12 of space, a picture of between 117 and 297 (262 is the usual most, 297 the most
+ * when there is little to read).
  */
 public class CardFitTest {
     private static CardFit.Input page(int height, int titleNatural, int bodyNatural) {
@@ -20,12 +20,21 @@ public class CardFitTest {
                 + (plan.bodyLines() == 0 ? 0 : in.bodyTop() + plan.bodyLines() * in.bodyLine());
     }
 
-    @Test public void aRoomyPageShowsTheWholeSummaryAndGivesThePictureTheRestUpToItsFullSize() {
+    @Test public void aRoomyPageShowsTheWholeSummaryAndLetsThePictureGrowUpToTheTallestItMayBe() {
         CardFit.Input input = page(744, 3, 7);
         CardFit.Plan plan = CardFit.plan(input);
-        assertEquals("the picture is as big as it is meant to be", 262, plan.hero());
+        assertEquals("the picture takes the room the text leaves, up to its most", 297, plan.hero());
         assertEquals(3, plan.titleLines());
         assertEquals("every line of the summary", 7, plan.bodyLines());
+        assertTrue(used(input, plan) <= 744);
+    }
+
+    @Test public void aLittleToReadGivesThePictureMoreThanASquareSoThatThePageIsFull() {
+        CardFit.Input input = page(744, 2, 2);
+        CardFit.Plan plan = CardFit.plan(input);
+        assertTrue("past the usual most", plan.hero() > input.heroMaximum());
+        assertEquals(input.heroTall(), plan.hero());
+        assertEquals(2, plan.bodyLines());
         assertTrue(used(input, plan) <= 744);
     }
 
@@ -33,37 +42,59 @@ public class CardFitTest {
         CardFit.Input input = page(744, 4, 12);
         CardFit.Plan plan = CardFit.plan(input);
         assertEquals(4, plan.titleLines());
-        assertEquals("the whole summary comes first", 12, plan.bodyLines());
+        assertEquals("the whole summary when it fits beside the least picture", 12, plan.bodyLines());
         assertEquals("and the picture takes what remains", 744 - 58 - 40 - (10 + 4 * 32) - (12 + 12 * 28), plan.hero());
-        assertTrue(plan.hero() >= 117 && plan.hero() < 262);
+        assertTrue(plan.hero() >= 117 && plan.hero() < 297);
         assertTrue(used(input, plan) <= 744);
     }
 
-    @Test public void aPictureTooSmallToBeWorthShowingIsDroppedBeforeAnyOfTheTextIsCut() {
+    @Test public void aSummaryALineTooLongForTheLeastPictureIsCutAtAWholeLineAndThePictureStays() {
         CardFit.Input input = page(744, 4, 14);
+        CardFit.Plan plan = CardFit.plan(input);
+        assertEquals("the headline keeps its lines", 4, plan.titleLines());
+        assertEquals("the summary is cut by the line that did not fit", 13, plan.bodyLines());
+        assertEquals("and the picture takes what the lines leave", 744 - 58 - 40 - (10 + 4 * 32) - (12 + 13 * 28), plan.hero());
+        assertTrue("which is its least and less than a line more", plan.hero() >= 117 && plan.hero() < 117 + 28);
+        assertTrue(used(input, plan) <= 744);
+    }
+
+    @Test public void aPosterOnlyStandsInForAPictureSoItIsDroppedBeforeAnyOfTheSummaryIsCut() {
+        CardFit.Input input = withPoster(page(744, 4, 14));
         CardFit.Plan plan = CardFit.plan(input);
         assertEquals(0, plan.hero());
         assertEquals("the headline keeps its lines", 4, plan.titleLines());
         assertEquals("and the summary all of its own", 14, plan.bodyLines());
         assertTrue(used(input, plan) <= 744);
+        // With room for all of the summary beside it, a poster is shown like a photograph.
+        CardFit.Plan roomy = CardFit.plan(withPoster(page(744, 3, 7)));
+        assertEquals(297, roomy.hero());
+        assertEquals(7, roomy.bodyLines());
+        // And a photograph is kept.
+        assertEquals(132, CardFit.plan(page(744, 4, 14)).hero());
     }
 
-    @Test public void aSummaryThatDoesNotFitEvenWithoutAPictureIsCutAtAWholeLine() {
-        CardFit.Input input = page(744, 4, 25);
-        CardFit.Plan plan = CardFit.plan(input);
-        assertEquals(0, plan.hero());
-        assertEquals(4, plan.titleLines());
-        assertEquals((744 - 58 - 40 - (10 + 4 * 32) - 12) / 28, plan.bodyLines());
-        assertEquals(17, plan.bodyLines());
-        assertTrue(used(input, plan) <= 744);
+    private static CardFit.Input withPoster(CardFit.Input in) {
+        return new CardFit.Input(in.height(), in.meta(), in.metaBare(), in.actions(), in.titleTop(), in.titleLine(), in.titleNatural(),
+                in.titleMax(), in.bodyTop(), in.bodyLine(), in.bodyNatural(), in.heroMaximum(), in.heroMinimum(), in.heroTall(), false);
     }
 
-    @Test public void aLongHeadlineKeepsAllItsLinesUpToTheMostItMayTakeAndTheSummaryGivesWay() {
+    @Test public void aLongSummaryIsCutToWhatFitsBesideTheLeastPictureHoweverLongItIs() {
+        for (int natural : new int[]{25, 40, 200}) {
+            CardFit.Input input = page(744, 4, natural);
+            CardFit.Plan plan = CardFit.plan(input);
+            assertEquals(4, plan.titleLines());
+            assertEquals(13, plan.bodyLines());
+            assertEquals(132, plan.hero());
+            assertTrue(used(input, plan) <= 744);
+        }
+    }
+
+    @Test public void aLongHeadlineKeepsAllItsLinesUpToTheMostItMayTakeAndTheSummaryGivesWayToWhatIsLeft() {
         CardFit.Input input = new CardFit.Input(500, 40, 40, 58, 10, 32, 6, 5, 12, 28, 12, 262, 117, 297);
         CardFit.Plan plan = CardFit.plan(input);
         assertEquals("the headline is cut at the most it may take, not shorter", 5, plan.titleLines());
-        assertEquals(0, plan.hero());
-        assertTrue(plan.bodyLines() >= CardFit.MIN_BODY_LINES && plan.bodyLines() < 12);
+        assertEquals("three lines of the summary beside the least picture", CardFit.MIN_BODY_LINES, plan.bodyLines());
+        assertEquals(500 - 58 - 40 - (10 + 5 * 32) - (12 + 3 * 28), plan.hero());
         assertTrue(used(input, plan) <= 500);
     }
 
@@ -133,7 +164,7 @@ public class CardFitTest {
     @Test public void aStoryWithNoHeadlineIsJustTheSummary() {
         CardFit.Plan plan = CardFit.plan(page(744, 0, 8));
         assertEquals(0, plan.titleLines());
-        assertEquals(262, plan.hero());
+        assertEquals(297, plan.hero());
         assertEquals(8, plan.bodyLines());
     }
 
@@ -161,12 +192,16 @@ public class CardFitTest {
                             // The headline keeps two lines whenever the page can hold them, and one line whatever the page.
                             int kept = Math.min(title, CardFit.MIN_TITLE_LINES);
                             if (title > 0) assertTrue(where, plan.titleLines() >= (height >= bare + 58 + 10 + kept * 32 ? kept : 1));
-                            // With a picture on the page, the whole summary is on it too.
-                            if (plan.hero() > 0 && body > 0) assertEquals(where, body, plan.bodyLines());
-                            // And a summary that fits is never cut, picture or none.
+                            // With a picture on the page, the summary has at least its three lines, and is whole or the picture is at
+                            // its least (the lines left over go to the picture, so it is less than a line more than its least).
+                            if (plan.hero() > 0 && body > 0) {
+                                assertTrue(where, plan.bodyLines() >= Math.min(body, CardFit.MIN_BODY_LINES));
+                                if (plan.bodyLines() < body) assertTrue(where, plan.hero() < input.heroMinimum() + input.bodyLine());
+                            }
+                            // And a summary that fits beside the least picture (or, with no picture to be had, on the page) is never cut.
                             if (body > 0 && title > 0 && plan.titleLines() == Math.min(title, input.titleMax())) {
-                                boolean fitsWhole = 58 + bare + 10 + plan.titleLines() * 32 + 12 + body * 28 <= height;
-                                if (fitsWhole) assertEquals(where, body, plan.bodyLines());
+                                int needs = 58 + (maximum > 0 ? 40 + input.heroMinimum() : bare) + 10 + plan.titleLines() * 32 + 12 + body * 28;
+                                if (needs <= height) assertEquals(where, body, plan.bodyLines());
                             }
                             checked++;
                         }
