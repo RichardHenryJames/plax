@@ -115,7 +115,9 @@ public class UpdateDeviceTest {
     private void openMenu(String item) {
         assertTrue("the screen is up", device.wait(Until.hasObject(By.desc("Menu")), 10_000));
         device.findObject(By.desc("Menu")).click();
-        assertTrue("the menu is open", device.wait(Until.hasObject(By.text("Privacy policy")), 5_000));
+        // The close button is at the top of the panel, so it is on screen however long the list below it is (a row further down,
+        // such as Privacy policy, is below the fold on a screen of this height).
+        assertTrue("the menu is open", device.wait(Until.hasObject(By.desc("Close menu")), 5_000));
         // The menu is a list that scrolls: the entry is brought into view.
         try { new UiScrollable(new UiSelector().className("android.widget.ScrollView").scrollable(true)).scrollIntoView(new UiSelector().text(item)); }
         catch (UiObjectNotFoundException none) { /* the check below says so */ }
