@@ -9,6 +9,7 @@ import { useT } from '@/lib/i18n'
 import { withBase } from '@/lib/base-path'
 import { bodyWithoutHeadline } from '@/lib/story-body'
 import { NEWS_SECTIONS } from '@/lib/types'
+import { posterEmoji, wantsPoster } from '@/lib/poster'
 import { useCardFit } from './useCardFit'
 import { CardActions } from './CardActions'
 import { MenuButton } from './MenuButton'
@@ -21,14 +22,6 @@ interface CardProps {
 
 // The panels a card can open under its summary: only one shows at a time.
 type Panel = 'deeper' | 'quiz' | 'author'
-
-// What stands in for the picture of a story that has none, as in the app (StoryAdapter.emoji): the section's own sign,
-// else the topic's emoji.
-const POSTER_EMOJI: Record<string, string> = { india: '🇮🇳', world: '🌍', tech: '💻', business: '💼', science: '🔬' }
-function posterEmoji(card: CardData): string {
-  const key = card.section || card.category
-  return POSTER_EMOJI[key] ?? TOPICS.find((t) => t.id === key)?.emoji ?? '✨'
-}
 
 // Compact relative time ("just now", "2h ago", "3d ago") for news cards. Returns
 // '' when there's no publish time or it's older than a week (not worth showing).
@@ -80,10 +73,12 @@ export function Card({ card, isActive, translating = false }: CardProps) {
   const isBreaking = !!card.publishedAt && Date.now() - card.publishedAt < 30 * 60 * 1000 && Date.now() - card.publishedAt >= 0
 
   const boxRef = useRef<HTMLDivElement>(null)
-  // A picture that fails to load gives way to the poster (news) or is left out, and the card is fitted again without it.
+  // A picture that fails to load gives way to the poster, and the card is fitted again.
   const [imageFailed, setImageFailed] = useState(false)
   const [panel, setPanel] = useState<Panel | null>(null)
-  const hasPoster = isNews && !translating && (!card.image || imageFailed)
+  // Every story without a picture gets the poster (its section's or topic's sign), as in the app, so that news and topics keep
+  // the same rhythm and a card never has an empty top; a quote is its own picture.
+  const hasPoster = wantsPoster(card, { translating, imageFailed })
   const hasHero = hasPoster || (!!card.image && !translating && !imageFailed)
   const hasDeeper = card.type !== 'quote' && (card.content?.length ?? 0) > 120
   const hasQuiz = card.type !== 'quote' && card.category !== 'news' && (card.content?.length ?? 0) > 160
@@ -110,7 +105,7 @@ export function Card({ card, isActive, translating = false }: CardProps) {
       >
             {/* Hero image — a news card carries the publisher's picture, and it leads the card as in the app. Its height is
                 what is left once the text is placed (useCardFit). A story with no picture, or whose picture fails to load,
-                gets a poster instead, as in the app, so that every news card keeps the same rhythm. */}
+                gets a poster instead, as in the app, so that every card keeps the same rhythm. */}
             {hasHero && (
               <motion.div
                 data-fit="hero"
@@ -121,7 +116,7 @@ export function Card({ card, isActive, translating = false }: CardProps) {
               >
                 {hasPoster ? (
                   <span aria-hidden="true" className="poster-emoji select-none leading-none">
-                    {posterEmoji(card)}
+                    {posterEmoji(card.section || card.category, TOPICS.find((t) => t.id === (card.section || card.category))?.emoji)}
                   </span>
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element

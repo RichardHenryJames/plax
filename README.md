@@ -199,7 +199,9 @@ plax/
 │       ├── database.types.ts          # Supabase generated types
 │       ├── deadline.ts                # Per-source time limit for the feed fetchers
 │       ├── legal.ts                   # Contact address and dates stated by the privacy and delete-account pages
+│       ├── poster.ts                  # The poster of a story with no picture: when it is wanted and which sign it carries (the app's signs); unit-tested
 │       ├── sample-data.ts             # CardData type + personalization helpers
+│       ├── script-mix.ts              # Finds a Hindi word with another script's letters inside it (a model glitch); unit-tested
 │       ├── seen-storage.ts            # Reads and writes the seen history in localStorage
 │       ├── share.ts                   # Story-link rules: canonical form, address, validation (shared with the app's tests)
 │       ├── share-client.ts            # Browser side of sharing: make the link, check it
@@ -209,6 +211,7 @@ plax/
 │       ├── store.ts                   # Zustand store (topics, bookmarks, engagements, theme)
 │       ├── story-body.ts              # Body text without the headline repeated (as in the app)
 │       ├── story-engine.ts            # No-repeat engine: same-event matching, seen history, merging
+│       ├── summary-prompt.ts          # What /api/summarize asks the model for, per topic, and the short news brief a card asks for; unit-tested
 │       ├── supabase.ts                # Supabase client (browser + server)
 │       ├── theme.ts                   # System / Light / Dark rules and the before-paint script
 │       ├── types.ts                   # RawContent, ProcessedCard, category maps

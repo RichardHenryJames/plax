@@ -565,7 +565,7 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
       const res = await fetch(withBase('/api/summarize'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: baseContent, title: baseTitle, type: 'microessay', lang, category: card.category }),
+        body: JSON.stringify({ content: baseContent, title: baseTitle, type: 'microessay', lang, category: card.category, card: true }),
       })
       if (!res.ok) return // transient (5xx / network) → will retry next view
       const data = await res.json()
@@ -629,7 +629,7 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
       await fetch(withBase('/api/summarize'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: baseContent, title: baseTitle, type: 'microessay', lang: other, category: card.category }),
+        body: JSON.stringify({ content: baseContent, title: baseTitle, type: 'microessay', lang: other, category: card.category, card: true }),
       })
     } catch {
       // Best-effort warm-up; allow a retry later by clearing the dedup mark.

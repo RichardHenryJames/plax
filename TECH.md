@@ -212,9 +212,14 @@ AI-powered content summarization. Runtime: `edge`.
 ```json
 {
   "content": "Long article text to summarize...",
-  "type": "microessay"
+  "type": "microessay",
+  "lang": "en",
+  "category": "news",
+  "card": true
 }
 ```
+
+`card: true` is sent by the website for the text of a card (`Feed.tsx`, both the card shown and the warm-up of the other language, so that they share one cache entry). For `category: "news"` it asks for a **short brief** of 35–60 words, so that the story fits one screen together with its picture (`lib/summary-prompt.ts`; in Hindi the 70–110 word brief came to 600–800 characters, 14 to 17 lines on a phone, and left no room for the picture). Without the flag, which is how the Android app's on-demand **AI brief** calls it, and for every other category, the prompts are exactly the earlier ones (checked once, byte for byte, against the original route for 15 categories, both languages and several sources; `summary-prompt.test.mjs` keeps the ranges and the scope of the flag under test). The short brief has its own cache version (`v2-brief`), so a long brief cached for the same story is never served in its place.
 
 **Response:**
 
@@ -798,7 +803,12 @@ Generates a multiple-choice quiz from card content.
 Edge runtime API endpoint. Uses the staggered provider chain in `lib/llm.ts`
 (Qwen 3.8 27B → Gemini 3.5 Flash-Lite → GPT-OSS …) and translates with
 `lib/translate.ts` (LLM → Azure → MyMemory). Hindi sources are summarised directly
-in Hindi; results are cached (memory + Supabase `ai_cache`).
+in Hindi; results are cached (memory + Supabase `ai_cache`). The prompts (the voice and
+length for each topic, and the short news brief the website asks for) live in
+`lib/summary-prompt.ts`. A Hindi answer in which a word has letters of another script
+inside it (a model once wrote "पाльше" for "पाले में") is refused, and the next provider's
+answer is used (`lib/script-mix.ts`; checked against 126 texts of the native Hindi feed, none
+flagged; a word of another script standing on its own, such as a name, is left alone).
 
 ---
 
@@ -823,7 +833,7 @@ The card follows the Android app's layout, so the website and the app read the s
 
 | Feature | Implementation |
 |---------|---------------|
-| Layout | The picture leads (rounded; its height is what the text leaves, up to 4:3; a story with no picture gets a **poster**: its section's sign on a soft wash, as in the app), then the tag and origin line, the headline, the summary and the extras row (see [One view per story](#one-view-per-story)). The ☰ menu button floats over the picture's top-left corner. On desktop the same column sits between the two side panels |
+| Layout | The picture leads (rounded; its height is what the text leaves, up to 4:3; a story with no picture, news or topic, gets a **poster**: its section's or topic's sign on a soft wash, as in the app; a quote is its own picture and has none), then the tag and origin line, the headline, the summary and the extras row (see [One view per story](#one-view-per-story)). The poster follows the same rule as a picture, so a long summary that needs the room leaves it out (`lib/poster.ts` holds the rule and the signs; `poster.test.mjs` checks that the five section signs are the app's). The ☰ menu button floats over the picture's top-left corner. On desktop the same column sits between the two side panels |
 | Tag and origin | News: a soft marigold tag with the section ("INDIA") and `Source · 2h ago · 20s`; "Breaking" within 30 minutes. Other topics keep the topic chip (its dropdown manages topics) |
 | Typography | One system with the app: **Newsreader Bold** serif for headlines and the wordmark (`.headline`, `.wordmark`), **Inter** for the text people read (`.reading-text`), JetBrains Mono for code. Hindi headlines use Noto Serif Devanagari Bold, Hindi text Noto Sans Devanagari |
 | Content types | Quote (blockquote + left bar), code (monospace block), standard (paragraphs) |

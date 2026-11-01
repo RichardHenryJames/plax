@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { generateJSON } from '@/lib/llm'
 import { translateBatch } from '@/lib/translate'
 import { cacheKey, getCachedAI, setCachedAI } from '@/lib/ai-cache'
+import { buildPrompt, wantsShortBrief } from '@/lib/summary-prompt'
+import { hasMixedScriptWord } from '@/lib/script-mix'
 
 export const runtime = 'edge'
 
@@ -39,125 +41,25 @@ function sanitizeText(s: string): string {
     .trim()
 }
 
-// Topic-specific voice + structure. A breaking-news brief, a science explainer,
-// a book note, and a philosophy idea should each READ differently.
-function topicGuidance(category: string): { role: string; angle: string; words: string } {
-  switch (category) {
-    case 'news':
-      return {
-        role: 'a sharp newsroom editor writing a crisp news brief',
-        angle:
-          '- Lead with the single most important fact (who/what/where/when).\n' +
-          '- Give essential context and why it matters, neutrally — no hype, no opinion.\n' +
-          '- Prefer concrete specifics (numbers, places, names) straight from the source.',
-        words: '70–110 words, 2–3 tight paragraphs',
-      }
-    case 'science':
-    case 'physics':
-    case 'space':
-    case 'health':
-    case 'nature':
-      return {
-        role: 'a gifted science communicator (think a great science magazine)',
-        angle:
-          '- Open on the surprising finding or the question it answers.\n' +
-          '- Explain the mechanism in plain language; gloss any term a layperson would not know.\n' +
-          '- Note why it matters or what it changes.',
-        words: '110–170 words, 3–4 short paragraphs',
-      }
-    case 'books':
-      return {
-        role: 'a thoughtful literary critic recommending a book',
-        angle:
-          '- Capture the essence, theme, or why the work endures — not a plot dump.\n' +
-          '- Convey its distinctive voice or idea and who would love it.\n' +
-          '- Be evocative but faithful to what the source says.',
-        words: '100–160 words, 3 short paragraphs',
-      }
-    case 'philosophy':
-    case 'psychology':
-      return {
-        role: 'a lucid thinker who makes big ideas click',
-        angle:
-          '- Frame the core idea or question and why it unsettles or illuminates.\n' +
-          '- Use a concrete example or thought experiment to make it tangible.\n' +
-          '- Land on what it means for how we think or live.',
-        words: '110–170 words, 3–4 short paragraphs',
-      }
-    case 'finance':
-    case 'business':
-      return {
-        role: 'a savvy business explainer (think a sharp finance newsletter)',
-        angle:
-          '- Lead with the core insight, number, or move that matters.\n' +
-          '- Explain the mechanism and the stakes plainly; gloss jargon.\n' +
-          '- Note the practical takeaway for a reader.',
-        words: '90–150 words, 3 short paragraphs',
-      }
-    case 'history':
-      return {
-        role: 'a vivid history storyteller',
-        angle:
-          '- Set the scene and the stakes; make a distant moment feel immediate.\n' +
-          '- Center the pivotal person, event, or turning point.\n' +
-          '- Close on its lasting significance.',
-        words: '110–170 words, 3–4 short paragraphs',
-      }
-    default:
-      return {
-        role: 'a brilliant, friendly explainer who makes anyone feel smarter in under a minute',
-        angle:
-          '- Open with something surprising, vivid, or a sharp question.\n' +
-          '- Explain the core idea in plain language; gloss any jargon.\n' +
-          '- Include the single most surprising or useful detail.',
-        words: '110–170 words, 3–4 short paragraphs',
-      }
-  }
-}
-
-// Build the full summarize prompt for a given topic. CRITICAL: the essay must
-// READ like a finished piece — it should HAVE a hook and a takeaway, but must
-// NEVER print the words "Hook"/"Takeaway" or any section labels (that looks like
-// a template, not journalism).
-function buildPrompt(category: string, content: string, type: string, outputLanguage?: string): string {
-  const g = topicGuidance(category)
-  const languageRule = outputLanguage
-    ? `- Write the TITLE and the text entirely in ${outputLanguage}, in natural wording a native editor would use (the source is already in that language).\n`
-    : ''
-  return `You are ${g.role}. Rewrite the source below into a polished, publication-quality micro-read.
-
-SOURCE:
-${content.slice(0, 2200)}
-
-Requirements:
-- A compelling TITLE (max 8 words) — specific and intriguing, never clickbait.
-- ${g.words}.
-${g.angle}
-${languageRule}- Write flowing prose. Do NOT use section labels or headers — NEVER write the words "Hook", "Takeaway", "Summary", "Intro", or similar. It must read like a finished article, not a template.
-- End on a resonant closing line, but do not announce it.
-- **Bold** 2–4 key phrases (never whole sentences).
-- Use ONLY markdown for emphasis (**bold**). NEVER output HTML tags (no <p>, <strong>, <em>, <br>) — plain text + markdown only.
-- NEVER output LaTeX or math markup (no $...$, \\commands, ^, _, {}). Express any math in plain words or simple Unicode a normal reader understands.
-- STAY FAITHFUL to the source — never invent facts, numbers, names, or dates. If the source is thin, be concise rather than padding.
-
-Respond with JSON only:
-{"title": "...", "content": "...", "type": "${type}"}`
-}
-
 export async function POST(request: NextRequest) {
   try {
-    const { content, title = '', type = 'microessay', lang = 'en', category = '' } = await request.json()
+    const { content, title = '', type = 'microessay', lang = 'en', category = '', card = false } = await request.json()
 
     if (!content) {
       return NextResponse.json({ error: 'Content required' }, { status: 400 })
     }
 
+    // The website asks for a card's text (`card: true`) and a news card has to leave room for its picture, so it gets a short brief;
+    // the app's on-demand AI brief and every other topic keep their longer forms (see summary-prompt.ts).
+    const shortBrief = wantsShortBrief(category, card)
+
     // Cache: AI enhancement/translation is deterministic per (content, lang), so a
     // repeat view (or another user seeing the same card) is instant + free.
     // Cache key includes a prompt VERSION + category so a prompt change (e.g. the
     // topic-aware rewrite that removed Hook/Takeaway labels) invalidates stale
-    // entries instead of serving pre-fix summaries forever.
-    const ck = await cacheKey('summarize', 'v2', category || '', lang, title, (content as string).slice(0, 2200))
+    // entries instead of serving pre-fix summaries forever. The short news brief has a version of its own,
+    // so long briefs cached for the same story are never served in its place (and the app's briefs stay as they were).
+    const ck = await cacheKey('summarize', shortBrief ? 'v2-brief' : 'v2', category || '', lang, title, (content as string).slice(0, 2200))
     const cached = await getCachedAI<{ title: string; content: string; type: string }>(ck)
     if (cached) return NextResponse.json({ ...cached, cached: true })
 
@@ -166,9 +68,9 @@ export async function POST(request: NextRequest) {
     // nuance for text that never needed translating. Falls through if it fails.
     if (lang === 'hi' && isMostlyDevanagari(content)) {
       const direct = await generateJSON<{ title?: string; content?: string }>(
-        buildPrompt(category, content, type, 'Hindi (Devanagari script)'),
+        buildPrompt(category, content, type, 'Hindi (Devanagari script)', shortBrief),
         1536,
-        { chain: 'translate', validate: (v) => typeof v.content === 'string' && DEVANAGARI.test(v.content) }
+        { chain: 'translate', validate: (v) => typeof v.content === 'string' && DEVANAGARI.test(v.content) && !hasMixedScriptWord(v.content) }
       )
       if (direct?.content) {
         const result = { title: sanitizeText(direct.title || title), content: sanitizeText(direct.content), type }
@@ -184,7 +86,7 @@ export async function POST(request: NextRequest) {
     // we translate the raw extract directly.
     const targetLang = lang === 'en' ? 'en' : lang
 
-    const prompt = buildPrompt(category, content, type)
+    const prompt = buildPrompt(category, content, type, undefined, shortBrief)
 
     // The English essay we'll show (en) or translate (other langs). Defaults to the
     // raw extract / passed title so we always have SOMETHING to show/translate if
