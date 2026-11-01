@@ -57,6 +57,18 @@ export function CommandPalette() {
     }
   }, [open])
 
+  // Escape closes it wherever the focus is (the box may not have it yet, or a result may have taken it).
+  useEffect(() => {
+    if (!open) return
+    const onEscape = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      e.preventDefault()
+      setOpen(false)
+    }
+    document.addEventListener('keydown', onEscape)
+    return () => document.removeEventListener('keydown', onEscape)
+  }, [open, setOpen])
+
   // The palette lives on the home screen only, so what it opens is a place in the app (the store), not a page: For you,
   // Saved and a topic are the places of the menu, and a story found in the feed on screen is jumped to there.
   const commands = useMemo<Command[]>(() => {
