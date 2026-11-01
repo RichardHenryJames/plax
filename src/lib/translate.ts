@@ -13,6 +13,7 @@
 //      Hindi ALWAYS works, even when Azure isn't configured AND the LLM is out of quota.
 import { extractJSON, generateText } from './llm'
 import { raceStaggered } from './staggered'
+import { hasMixedScriptWord } from './script-mix'
 import { tidyMarkers } from './tidy'
 
 const AZURE_KEY = process.env.AZURE_TRANSLATOR_KEY
@@ -143,7 +144,9 @@ function validTranslation(input: string[], output: string[], to: string): boolea
     const translated = (output[i] ?? '').trim()
     if (!translated) return false
     if (to !== 'hi') return true
-    return (text.match(/\p{L}/gu)?.length ?? 0) < LONG_SOURCE_LETTERS || DEVANAGARI.test(translated)
+    // Long Latin text must come back in Devanagari, and no word of it may have another script's letters inside (see script-mix.ts):
+    // a refused answer is replaced by the next provider's.
+    return ((text.match(/\p{L}/gu)?.length ?? 0) < LONG_SOURCE_LETTERS || DEVANAGARI.test(translated)) && !hasMixedScriptWord(translated)
   })
 }
 
