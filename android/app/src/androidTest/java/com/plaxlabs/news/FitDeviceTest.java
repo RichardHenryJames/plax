@@ -243,12 +243,13 @@ public class FitDeviceTest {
             if (natural > lines && !ellipsized) found.add(name + ": the " + which + " is cut to " + lines + " of " + natural + " lines with no ellipsis");
             if (natural <= lines && ellipsized) found.add(name + ": the " + which + " ends in an ellipsis though all " + natural + " lines are shown");
         }
-        // The summary comes first and whole: with a picture on the page it is never cut, and it keeps three lines when it has them
-        // (on a page with some room: a page too short for much, at twice the text size, cannot hold all of it).
+        // Beside a poster, which only stands in for a picture, the summary is whole (the poster goes before a word is cut), and it
+        // keeps three lines when it has them (on a page with some room: a page too short for much, at twice the text size, cannot hold
+        // all of it). The photograph's rule, that it stays while the summary is cut, is in CardFitTest: these stories have no photograph.
         if (roomy && shown(page.body) && page.body.getLayout() != null) {
             int lines = page.body.getLayout().getLineCount(), natural = naturalLines(page.body);
             boolean cut = page.body.getLayout().getEllipsisCount(lines - 1) > 0;
-            if (page.hero.getHeight() > 0 && !page.sideBySide() && cut) found.add(name + ": the summary is cut though a picture is on the page");
+            if (page.hero.getHeight() > 0 && !page.sideBySide() && cut) found.add(name + ": the summary is cut though a poster is on the page");
             if (!page.sideBySide() && lines < Math.min(natural, CardFit.MIN_BODY_LINES) && page.title.getLayout() != null
                     && page.title.getLayout().getLineCount() > CardFit.MIN_TITLE_LINES)
                 found.add(name + ": the summary is down to " + lines + " lines while the headline has " + page.title.getLayout().getLineCount());
@@ -315,7 +316,7 @@ public class FitDeviceTest {
                     assertFalse(story.id(), holder.page.sideBySide());
                     int picture = holder.hero.getHeight();
                     assertTrue(story.id() + ": a picture is either absent or worth showing", picture == 0 || picture >= ui.dp(96));
-                    assertTrue(story.id() + ": the picture does not take over the page", picture <= height * (story.body().isEmpty() ? .62f : .55f) + 1);
+                    assertTrue(story.id() + ": the picture does not take over the page", picture <= height * .62f + 1);
                     if (!story.body().isEmpty()) {
                         int shown = holder.content.getLayout().getLineCount();
                         boolean cut = holder.content.getLayout().getEllipsisCount(shown - 1) > 0;
@@ -325,11 +326,12 @@ public class FitDeviceTest {
                     if (story.id().equals("typical")) {
                         typicalSize = holder.content.getTextSize();
                         assertTrue("an ordinary story has its picture", picture >= ui.dp(96));
+                        assertTrue("and a short summary lets it grow past a square, so that the page is full", picture > ui.dp(360));
                         assertEquals("and its summary, whole", story.body(), holder.content.getText().toString());
                     }
                     if (story.id().equals("long-body")) {
-                        assertEquals("a summary too long to share the page with a picture loses the picture, not words", 0, picture);
-                        assertTrue("and is set a little smaller before any of it is cut", holder.content.getTextSize() < typicalSize);
+                        assertEquals("a summary too long to share the page with a poster loses the poster before any of its words", 0, picture);
+                        assertEquals("and is set at the size of every other, then cut at a whole line", typicalSize, holder.content.getTextSize(), 0.01f);
                     }
                     if (story.body().length() > 0 && story.body().length() < 150) {
                         int last = holder.content.getLayout().getLineCount() - 1;

@@ -18,9 +18,9 @@ import android.widget.TextView;
  * One story, laid out so that all of it is in view at once. The page has nothing that scrolls, so a single swipe always
  * moves to the next story; to make that possible the picture, the tag and source line (with the brief, save and share buttons at
  * its right end), the headline and the summary are measured together and share the page's height ({@link CardFit}). The headline
- * and the summary come first and whole: the summary is set a little smaller before any of it is cut, the picture takes what they
- * leave (or goes, when that is too little), a long headline is set a little smaller, and only as a last resort is the summary cut to
- * whole lines with an ellipsis. The headline is the link to the full story.
+ * and the summary are measured together and share the page's height ({@link CardFit}). The page is always full: the picture
+ * keeps at least its minimum, the summary takes the rest and is cut to whole lines with an ellipsis where its room ends (a short
+ * one lets the picture grow instead), and a long headline is set a little smaller. The headline is the link to the full story.
  *
  * <p>There is no header, no bottom bar and no row of buttons under the text: the page has the whole screen. The menu button that
  * holds what they held floats over the picture's top-left corner; with no picture it stands at the start of the source line, which
@@ -32,14 +32,17 @@ final class StoryPage extends ViewGroup {
     /** A headline needing more lines than this at its usual size is set smaller; at the smallest size it may take one more. */
     private static final int HEADLINE_LINES = 4, LONG_HEADLINE_LINES = 5;
     private static final float[] HEADLINE_SCALES = {1f, .9f, .8f};
-    /** A summary that would otherwise be cut is first set a little smaller. */
-    private static final float[] BODY_SCALES = {1f, .94f, .88f};
+    /** The summary is always set at its own size, so that stories look alike; a longer one is cut at a whole line instead. */
+    private static final float[] BODY_SCALES = {1f};
     private static final int TOP_DP = 8, BOTTOM_DP = 8, SIDE_DP = 16, GUTTER_DP = 16, TEXT_WIDTH_DP = 640, WIDE_WIDTH_DP = 840;
     private static final int HERO_FLOOR_DP = 96, WIDE_AT_DP = 480;
-    /** The picture takes what the text leaves: at most square and 55% of the page, at least 30% of the width and a quarter of the page. */
-    private static final float HERO_MAX_WIDTH = 1f, HERO_MAX_HEIGHT = .55f, HERO_MIN_WIDTH = .3f, HERO_MIN_HEIGHT = .25f;
-    /** With nothing to read under the headline it may grow taller. */
-    private static final float HERO_TALL_WIDTH = 1.2f, HERO_TALL_HEIGHT = .62f;
+    /** The picture takes what the text leaves: at most a square and 55% of the page in the usual case, and up to 1.2 times its width
+     *  and 62% of the page when there is little to read, so that the page is full. */
+    private static final float HERO_MAX_WIDTH = 1f, HERO_MAX_HEIGHT = .55f, HERO_TALL_WIDTH = 1.2f, HERO_TALL_HEIGHT = .62f;
+    /** A photograph is given at least 60% of the width and 30% of the page before the summary is cut instead (as in Inshorts, a story
+     *  with a picture has one, and not a stamp of one); a poster, which only stands in for a picture, a third of that, and is dropped
+     *  when the text needs the room. */
+    private static final float PHOTO_MIN_WIDTH = .6f, PHOTO_MIN_HEIGHT = .3f, POSTER_MIN_WIDTH = .3f, POSTER_MIN_HEIGHT = .25f;
     /** The space above the source line when a picture is above it. */
     private static final int META_TOP_DP = 16;
     /** The menu button: the circle drawn, the gap after it, and how far inside the picture's corner it stands. */
@@ -123,10 +126,12 @@ final class StoryPage extends ViewGroup {
 
         int heroMaximum = wide ? 0 : Math.min((int) (columnWidth * HERO_MAX_WIDTH), (int) (boxHeight * HERO_MAX_HEIGHT));
         int heroTall = wide ? 0 : Math.max(heroMaximum, Math.min((int) (columnWidth * HERO_TALL_WIDTH), (int) (boxHeight * HERO_TALL_HEIGHT)));
-        int heroMinimum = Math.max(ui.dp(HERO_FLOOR_DP), Math.min((int) (columnWidth * HERO_MIN_WIDTH), (int) (boxHeight * HERO_MIN_HEIGHT)));
+        boolean posterShown = poster.getVisibility() == VISIBLE;
+        float minWidth = posterShown ? POSTER_MIN_WIDTH : PHOTO_MIN_WIDTH, minHeight = posterShown ? POSTER_MIN_HEIGHT : PHOTO_MIN_HEIGHT;
+        int heroMinimum = Math.max(ui.dp(HERO_FLOOR_DP), Math.min((int) (columnWidth * minWidth), (int) (boxHeight * minHeight)));
 
-        // The whole summary comes first. Only a summary that would still be cut is set a little smaller, and then smaller again;
-        // its lines are counted on a copy of its paint at each size (Devanagari lines are taller than Latin ones).
+        // The summary is measured at its own size; its lines are counted on a copy of its paint (Devanagari lines are taller than
+        // Latin ones), and the plan cuts it to the lines that fit beside the picture's minimum.
         float bodyPx = sp(bodySp);
         int bodyNatural = 0, bodyLine = 0;
         CardFit.Plan plan = null;
@@ -141,7 +146,7 @@ final class StoryPage extends ViewGroup {
             }
             plan = CardFit.plan(new CardFit.Input(boxHeight, metaWith, metaBare, 0,
                     hasTitle ? title.getPaddingTop() : 0, titleLine, titleNatural, titleMax,
-                    hasBody ? body.getPaddingTop() : 0, bodyLine, bodyNatural, heroMaximum, heroMinimum, heroTall));
+                    hasBody ? body.getPaddingTop() : 0, bodyLine, bodyNatural, heroMaximum, heroMinimum, heroTall, !posterShown));
             if (!hasBody || plan.bodyLines() >= bodyNatural) break;
         }
         // The summary at its chosen size, measured uncut, once, so that its real lines decide what is cut.

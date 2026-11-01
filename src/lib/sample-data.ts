@@ -18,6 +18,8 @@ export interface CardData {
   enhancedLang?: string
   // Original publish time (epoch ms) for news cards — powers a relative "2h ago".
   publishedAt?: number
+  // The text is the opening of the article itself (the feed gave only a line), so it is shown as it is, not rewritten.
+  lead?: boolean
   // Hero image URL for news cards (RSS thumbnails).
   image?: string
   // News sub-section (india/world/tech/business/science) — powers the filter bar.

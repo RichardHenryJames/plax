@@ -1,6 +1,7 @@
 import { RawContent, CATEGORY_MAP, TOPIC_SUBREDDITS, TOPIC_WIKI_QUERIES, TOPIC_WIKI_QUERIES_HI, TOPIC_NEWS_KEYWORD, TOPIC_GUARDIAN_SECTION, TOPIC_RSS_FEEDS, HINDI_RSS_FEEDS, GENERAL_NEWS_FEEDS } from './types'
 import { within, Remembered, SOURCE_DEADLINE_MS } from './deadline'
 import { fillMissingSummaries } from './blurb'
+import { extendSummaries } from './lead'
 import { isDisambiguationPage } from './wikipedia-quality'
 import { SITE_DISPLAY, SITE_URL } from './site'
 
@@ -1267,11 +1268,19 @@ export async function fetchRssNews(categories: string[], perFeed = 3, tagAs?: st
 
 // A feed that repeats the headline as the description leaves a story with nothing under its headline. For those the
 // article's own description is read (see lib/blurb.ts), within what is left of the source's deadline, so the pool is
-// never held up by it; a story it cannot help is left as it was.
+// never held up by it; a story it cannot help is left as it was. A feed that gives one short line leaves a card with a lot of
+// empty space under it, so a news story with so little gets the opening of its article (lib/lead.ts), in what is left after that.
 async function withSummaries(items: RawContent[], startedAt: number): Promise<RawContent[]> {
+  const userAgent = `Mozilla/5.0 (compatible; PlaxReader/1.0; +${SITE_URL})`
   try {
     const left = SOURCE_DEADLINE_MS - (Date.now() - startedAt) - 1500
-    await fillMissingSummaries(items, { budgetMs: Math.min(2500, left), userAgent: `Mozilla/5.0 (compatible; PlaxReader/1.0; +${SITE_URL})` })
+    await fillMissingSummaries(items, { budgetMs: Math.min(2500, left), userAgent })
+  } catch {
+    /* the stories stay as the feed gave them */
+  }
+  try {
+    const left = SOURCE_DEADLINE_MS - (Date.now() - startedAt) - 1500
+    await extendSummaries(items, { budgetMs: Math.min(3000, left), userAgent })
   } catch {
     /* the stories stay as the feed gave them */
   }

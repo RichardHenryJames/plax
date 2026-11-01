@@ -37,7 +37,7 @@ The site moved here when its first domain, plaxlabs.com, expired. The address is
 ## ✨ Features
 
 ### Core Experience
-- **📱 TikTok-style swipe** — Vertical full-screen cards with spring animations (drag, keyboard, scroll wheel). **One swipe is one story**: a card never scrolls. Its picture, headline and **whole summary** share the height of the screen (the picture takes what the text leaves, and a summary is cut, at a whole line with an ellipsis, only as a last resort), so everything is in one view, in the app and on the website (see [TECH.md](TECH.md#one-view-per-story))
+- **📱 TikTok-style swipe** — Vertical full-screen cards with spring animations (drag, keyboard, scroll wheel). **One swipe is one story**: a card never scrolls. Its picture and headline share the height of the screen with a summary that is cut, at a whole line with an ellipsis, where its room ends (the picture keeps its minimum; a short summary lets the picture grow, so a card is never left with a gap), so everything is in one view, in the app and on the website (see [TECH.md](TECH.md#one-view-per-story)). A story that came with one line gets the opening of its article, so a card has something to fill the page with
 - **🌍 Public first** — Opening Plax shows today's news straight away: no sign-up wall and no topic quiz. Choose topics for a **For you** feed, or sign in, only when you want to
 - **🧭 Four places, one menu** — **Feed** (news, or one topic), **For you** (a mix of the topics you chose), **Topics** and **Saved**. On a phone there is no header and no bottom bar: a story has the whole screen, and a round ☰ button on it opens a menu with the places, the language, the news sections, the account and the theme. Desktop keeps a side rail. The Android app works the same way
 - **✅ No repeats** — A story you have already looked at does not come back when you reload or return later, and one event reported by several outlets appears once. When everything new has been seen, a "You're all caught up" card offers to check again or to read the earlier stories
@@ -191,6 +191,7 @@ plax/
 │       ├── account-delete.ts          # Deleting a reader's own account (checks whose token it is first); unit-tested
 │       ├── app-redirect.ts            # Builds the redirect back into the Android app
 │       ├── blurb.ts                   # A missing summary, taken from the article's own description (server side); unit-tested
+│       ├── lead.ts                    # More text for a short news story: the opening of its article (server side); unit-tested
 │       ├── brand.ts                   # The one "P" outline, its colours and proportions: the icons and share cards are drawn from it
 │       ├── brand-tile.tsx             # The "P" on the amber tile, for the share cards
 │       ├── cache.ts                   # In-memory server cache (Map-based)

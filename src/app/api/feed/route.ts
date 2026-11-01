@@ -106,7 +106,9 @@ export async function GET(request: NextRequest) {
     // Quick processing — stable IDs based on content so same article always = same ID
     const cards: ProcessedCard[] = uniqueRaw.map((raw) => {
       const src = raw.source.toLowerCase().replace(/[^a-z0-9]/g, '-')
-      const contentKey = `${src}-${(raw.title || '').slice(0, 60)}-${raw.content.slice(0, 120)}`
+      // The id is made from what the feed said, not from the longer text the article's own page may have given since (lib/lead.ts),
+      // so that a story keeps its id whether or not that text has been found yet.
+      const contentKey = `${src}-${(raw.title || '').slice(0, 60)}-${(raw.idText ?? raw.content).slice(0, 120)}`
       const card: ProcessedCard = {
         id: `${src}-${stableHash(contentKey)}`,
         type: determineType(raw.content, raw.source),
@@ -122,6 +124,7 @@ export async function GET(request: NextRequest) {
         publishedAt: raw.publishedAt,
         image: raw.image,
         section: raw.section,
+        lead: raw.lead ? true : undefined,
       }
       const sig = signCard(card, SHARE_KEY)
       return sig ? { ...card, sig } : card

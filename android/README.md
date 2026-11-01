@@ -32,16 +32,22 @@ backend change. The website got the same design (see `TECH.md`, "One view per st
   a story with no usable link has a headline that cannot be pressed. The source and its age may take a second line beside the
   buttons, with each part of the age kept whole ("3h ago" never breaks), and the read time is left out on a phone narrower than
   420 dp. The line is never given up now, since the buttons are on it. The picture may be square (it was 4:3) and up to 55% of the
-  page (62% and 1.2 times the width when there is no summary), as on the website.
+  page, and taller (1.2 times the width, 62% of the page) when there is little to read, as on the website.
 - **A simpler menu.** Nothing in it repeats what is a tap away elsewhere. "Check for new stories" is gone: the feed already looks
   by itself when the app comes back after two minutes, offers the "New stories" pill, and the caught-up card has its own button.
   "Your topics" is gone (the Topics screen has a card for it, and the account sheet a row), and so is "Open Plax website" (the
   account sheet has it). Four drawables and the `open_site` string became unused and were removed.
-- **The summary comes first, whole.** `CardFit` (and `src/lib/card-fit.ts`, with the same test cases) now spends the height in this
-  order: the source line (with its buttons) and the headline; then the whole summary; and the picture takes what is left, and is
-  dropped when less than 30% of the width, a quarter of the page and 96 dp is left. A summary that would
-  still not fit is set 6%, then 12% smaller before any of it is cut, and then cut at a whole line with an ellipsis. In 1.5.5 the picture
-  kept its minimum and the summary got the remainder, so on a short page the summary was the first thing to go.
+- **The picture keeps its minimum, and the summary is cut where its room ends (after the reader saw a large empty space
+  under a two-line summary).** `CardFit` (and `src/lib/card-fit.ts`, with the same test cases) spends the height in this order: the
+  source line (with its buttons) and the headline; a photograph gets at least 60% of the width and 30% of the page (never under 96 dp);
+  the summary gets what remains, whole when it fits and otherwise cut at a whole line with an ellipsis ("abruptly", as in Inshorts);
+  and the picture takes whatever the lines leave. A short summary lets the picture grow, up to 1.2 times its width and 62% of the
+  page, so the page is always full. The summary is no longer set smaller before it is cut, so stories look alike. A poster (the emoji
+  tile of a story with no photograph) keeps the earlier rule: it is shown only when the whole summary fits beside it. The 1.5.5
+  follow-up ("whole summary first, the picture takes what is left") had dropped the picture of any story with a longer text.
+- **More text for the app's stories too.** The feed now gives a news story that came with one line the opening of its article (up to
+  about 600 characters), so a card has something to fill the page with; the app needs no change to receive it (`content` is longer).
+  See `TECH.md`, "More text for a short story". `PLAX_ARTICLE_LEADS=off` on the server turns it off.
 - **A bug the new device test found.** `StoryPage` counted a Hindi summary's lines on a copy of its paint, without the fallback-font line
   spacing a `TextView` uses, so Devanagari lines came out shorter than they are, and a summary was thought to fit beside a picture when
   it did not (5 cases in `FitDeviceTest`'s sweep, all in Hindi). The layout used for counting is now built as the view builds its own, and a

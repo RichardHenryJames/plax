@@ -133,7 +133,8 @@ export function Card({ card, isActive, translating = false }: CardProps) {
             {/* Tag, origin and the round buttons. A news card reads "INDIA  The Hindu ↗ · 20m ago · 20s" under its picture, and
                 Listen, Save and Share stand at the right end of the same line, as in the app: with no bar at the bottom the story
                 has the whole screen. The line never wraps: the source name gives way (an ellipsis) before the age does, and the
-                read time and the word "Breaking" give way on a narrow phone. */}
+                read time and the word "Breaking" (just its dot below 540 px) give way on anything narrower than 540 px: they
+                took the room of the name on a 430 px phone, where it came out as "T..". */}
             <motion.div
               data-fit="meta"
               initial={{ opacity: 0, y: 6 }}
@@ -154,7 +155,7 @@ export function Card({ card, isActive, translating = false }: CardProps) {
                   aria-label={isHindi ? 'ताज़ा' : 'Breaking'}
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-[#ffffff] animate-pulse" />
-                  <span className="hidden min-[420px]:inline">{isHindi ? 'ताज़ा' : 'Breaking'}</span>
+                  <span className="hidden min-[540px]:inline">{isHindi ? 'ताज़ा' : 'Breaking'}</span>
                 </span>
               )}
               {isNews ? (
@@ -170,7 +171,7 @@ export function Card({ card, isActive, translating = false }: CardProps) {
                     </span>
                   )}
                   {relativeTime && <span className="shrink-0 whitespace-nowrap">{card.source ? '· ' : ''}{relativeTime}</span>}
-                  {card.readTime && <span className="hidden min-[420px]:inline shrink-0 whitespace-nowrap">{card.source || relativeTime ? '· ' : ''}{card.readTime}</span>}
+                  {card.readTime && <span className="hidden min-[540px]:inline shrink-0 whitespace-nowrap">{card.source || relativeTime ? '· ' : ''}{card.readTime}</span>}
                 </span>
               ) : (
                 <>
@@ -289,7 +290,7 @@ export function Card({ card, isActive, translating = false }: CardProps) {
 
           {/* The row pinned under the summary: Go deeper, and on other cards Test yourself, more by the author and a credit.
               What these open floats over the summary, above the row, instead of pushing it: nothing on a card scrolls.
-              "Read full story", Save and Share live in the bar fixed at the bottom (CardActions). */}
+              The way to the full story is the headline's own link, and Listen, Save and Share are in the source line (CardActions). */}
           {hasActions && (
             <div data-fit="actions" className={`relative ${isNews || isLong ? 'mt-auto' : 'mt-2'}`}>
               <div className="flex flex-wrap items-start gap-2.5">

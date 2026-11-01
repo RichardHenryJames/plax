@@ -72,7 +72,7 @@ export function shortSummary(text: string, max: number = MAX_SUMMARY_CHARS): str
 
 // The first four letters of each word of four or more, so that "protest" and "protests" are one: what a headline and the
 // description of the same article have in common, and what a site's own tagline does not share with a headline.
-const stems = (text: string) =>
+export const stems = (text: string) =>
   new Set(text.toLowerCase().split(/[^\p{L}\p{N}]+/u).map((word) => [...word]).filter((letters) => letters.length >= 4).map((letters) => letters.slice(0, 4).join('')))
 
 /**

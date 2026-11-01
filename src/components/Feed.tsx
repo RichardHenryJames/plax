@@ -148,12 +148,12 @@ function rankByEngagement(batch: CardData[], scoreOf: (category: string) => numb
 }
 
 // Whether a card is eligible for AI enhancement/translation in the given language.
-// EN: only long-form raw extracts (skip quotes/short facts). HI: every substantive
-// card (so the whole feed reads in Hindi — incl. short news blurbs, which used to
+// EN: only long-form raw extracts (skip quotes/short facts), and not the opening of an article the server found (`lead`): that is
+// shown as it is. HI: every substantive card (so the whole feed reads in Hindi — incl. short news blurbs, which used to
 // stay English). Mirrors the logic in enhanceCard.
 function needsEnhance(card: CardData, lang: string): boolean {
   const base = card.originalContent ?? card.content
-  if (lang === 'en') return card.type === 'microessay' && (base?.length ?? 0) >= 240
+  if (lang === 'en') return card.type === 'microessay' && !card.lead && (base?.length ?? 0) >= 240
   return (base?.length ?? 0) >= 40
 }
 
@@ -237,6 +237,7 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
       publishedAt: c.publishedAt ? Number(c.publishedAt) : undefined,
       image: c.image || undefined,
       section: c.section || undefined,
+      lead: c.lead ? true : undefined,
       sig: c.sig || undefined,
     }))
   }
@@ -613,7 +614,7 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
     // Hindi: enhance every substantive card so the whole feed reads in Hindi
     // (incl. short news blurbs — they used to stay English below the old 120 gate).
     if (lang === 'en') {
-      if (card.type !== 'microessay' || (baseContent?.length ?? 0) < 240) return
+      if (card.type !== 'microessay' || card.lead || (baseContent?.length ?? 0) < 240) return
     } else {
       if ((baseContent?.length ?? 0) < 40) return
     }

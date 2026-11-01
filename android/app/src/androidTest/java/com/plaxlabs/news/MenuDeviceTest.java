@@ -108,6 +108,7 @@ public class MenuDeviceTest {
             // above the headline, and nothing is pinned to the bottom any more.
             var button = device.findObject(By.desc(text(R.string.menu))).getVisibleBounds();
             assertTrue("the menu button is in the top-left corner " + button, button.left < width / 4 && button.top < height * .15f);
+            assertTrue("the headline is the way to the full story", device.findObject(By.text("The first story of the day")).isClickable());
             assertFalse("there is no Read full story row", device.hasObject(By.descContains(text(R.string.read_full_story))));
             var title = device.findObject(By.text("The first story of the day")).getVisibleBounds();
             var source = device.findObject(By.textStartsWith("Publisher")).getVisibleBounds();
