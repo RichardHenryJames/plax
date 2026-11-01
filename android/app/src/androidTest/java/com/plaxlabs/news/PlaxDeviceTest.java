@@ -185,15 +185,22 @@ public class PlaxDeviceTest {
                 assertEquals("A local reading fixture.", holder.content.getText().toString());
                 assertTrue(holder.credit.getText().toString().contains("Fixture publisher"));
                 assertEquals("WORLD", holder.category.getText().toString());
-                assertEquals("example.com", holder.ctaHost.getText().toString());
+                assertTrue("The headline is the link to the full story", holder.title.isClickable());
                 assertEquals(View.VISIBLE, holder.hero.getVisibility());
                 assertEquals("A story without a picture gets a poster", View.VISIBLE, holder.poster.getVisibility());
                 assertEquals("\uD83C\uDF0D", holder.poster.getText().toString());
-                holder.save.performClick(); holder.share.performClick(); holder.cta.performClick(); holder.brief.performClick();
+                holder.save.performClick(); holder.share.performClick(); holder.title.performClick(); holder.brief.performClick();
                 assertArrayEquals(new int[]{1, 1, 1, 1}, calls);
                 adapter.onBindViewHolder(holder, 1);
                 assertEquals("A repeated headline is not shown twice", View.GONE, holder.content.getVisibility());
                 assertEquals("Remove saved story", holder.save.getContentDescription().toString());
+                Story unlinked = new Story("unlinked", "No link here", "A story the publisher gave no usable link for.", "news", "", "Publisher",
+                        "", "", "", 0);
+                adapter.submit(List.of(unlinked), Set.of(), false, true, 0);
+                adapter.onBindViewHolder(holder, 0);
+                assertFalse("With no usable link the headline is not pressable", holder.title.isClickable());
+                holder.title.performClick();
+                assertEquals("and a press on it opens nothing", 1, calls[2]);
                 adapter.onViewRecycled(holder);
             } finally { images.close(); }
         });
