@@ -332,7 +332,7 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
     return result
   }, [catKey, requestPage]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // The reader asked for newer stories (the caught-up card, or the refresh button).
+  // The reader asked for newer stories (the caught-up card, or the button on the empty and error screens).
   const checkNew = useCallback(async () => {
     if (isFetchingRef.current) return
     setChecking(true)
@@ -519,15 +519,6 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
     })
     setCurrentIndex(0)
   }, [pinnedCardId, pinCard])
-
-  // The header's refresh button looks for newer stories.
-  const refreshTick = useUIStore((s) => s.refreshTick)
-  const lastRefreshTick = useRef(refreshTick)
-  useEffect(() => {
-    if (refreshTick === lastRefreshTick.current) return
-    lastRefreshTick.current = refreshTick
-    void checkNew()
-  }, [refreshTick, checkNew])
 
   // Publish the current card so the desktop right rail can show it
   useEffect(() => {

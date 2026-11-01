@@ -33,10 +33,6 @@ interface UIState {
   pinnedCardId: string | null
   pinCard: (id: string | null) => void
 
-  // Bumped by the menu's "Check for new stories"; the feed looks for newer stories when it changes.
-  refreshTick: number
-  requestRefresh: () => void
-
   // News sub-section filter (india/world/tech/business/science; null = All)
   newsSection: string | null
   setNewsSection: (section: string | null) => void
@@ -78,9 +74,6 @@ export const useUIStore = create<UIState>((set) => ({
 
   pinnedCardId: null,
   pinCard: (id) => set(id ? { pinnedCardId: id, screen: 'feed' } : { pinnedCardId: null }),
-
-  refreshTick: 0,
-  requestRefresh: () => set((s) => ({ refreshTick: s.refreshTick + 1 })),
 
   newsSection: null,
   setNewsSection: (section) => set({ newsSection: section }),

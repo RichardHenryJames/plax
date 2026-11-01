@@ -38,10 +38,11 @@ function Icon({ children, className = '' }: { children: React.ReactNode; classNa
 
 /**
  * Everything the phone's header and bottom bar used to hold, in one panel that slides in from the left when the menu button is
- * pressed: the feed language, the four places (Feed, For you, Topics, Saved), the news sections, a check for new stories,
- * search, the account, the theme, and the contact and privacy pages as quiet links at the foot. (Choosing topics is on the
- * Topics screen, which has a card for it; a row here repeated it.) With it out of the way a story has the whole
- * screen, as in Inshorts. Phones and tablets only: a desktop has the side rail, which holds the same.
+ * pressed: the feed language, the four places (Feed, For you, Topics, Saved), the news sections, search, the account, the
+ * theme, and the contact and privacy pages as quiet links at the foot. (Choosing topics is on the Topics screen, which has a
+ * card for it, and looking for new stories needs no row: the feed does it when the reader comes back, every few minutes
+ * while the tab is open, and on the caught-up card. A row for either repeated something.) With it out of the way a story
+ * has the whole screen, as in Inshorts. Phones and tablets only: a desktop has the side rail, which holds the same.
  */
 export function MenuDrawer() {
   const open = useUIStore((s) => s.menuOpen)
@@ -54,7 +55,6 @@ export function MenuDrawer() {
   const newsSection = useUIStore((s) => s.newsSection)
   const setNewsSection = useUIStore((s) => s.setNewsSection)
   const currentCard = useUIStore((s) => s.currentCard)
-  const requestRefresh = useUIStore((s) => s.requestRefresh)
   const setCommandOpen = useUIStore((s) => s.setCommandOpen)
   const setAccountOpen = useUIStore((s) => s.setAccountOpen)
   const language = usePlaxStore((s) => s.language)
@@ -256,10 +256,6 @@ export function MenuDrawer() {
               )}
 
               <div className="mt-4 pt-3 border-t border-dark-border space-y-0.5">
-                <button type="button" onClick={then(requestRefresh)} className={row}>
-                  <Icon className="text-dark-muted"><path d="M20 12a8 8 0 11-2.6-5.9M20 4v5h-5" /></Icon>
-                  {t('refresh')}
-                </button>
                 <button type="button" onClick={then(() => setCommandOpen(true))} className={row}>
                   <Icon className="text-dark-muted"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></Icon>
                   {t('search')}
