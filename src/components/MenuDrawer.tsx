@@ -39,7 +39,8 @@ function Icon({ children, className = '' }: { children: React.ReactNode; classNa
 /**
  * Everything the phone's header and bottom bar used to hold, in one panel that slides in from the left when the menu button is
  * pressed: the feed language, the four places (Feed, For you, Topics, Saved), the news sections, a check for new stories,
- * search, topics, the account, the contact and privacy pages and the theme. With it out of the way a story has the whole
+ * search, the account, the theme, and the contact and privacy pages as quiet links at the foot. (Choosing topics is on the
+ * Topics screen, which has a card for it; a row here repeated it.) With it out of the way a story has the whole
  * screen, as in Inshorts. Phones and tablets only: a desktop has the side rail, which holds the same.
  */
 export function MenuDrawer() {
@@ -56,7 +57,6 @@ export function MenuDrawer() {
   const requestRefresh = useUIStore((s) => s.requestRefresh)
   const setCommandOpen = useUIStore((s) => s.setCommandOpen)
   const setAccountOpen = useUIStore((s) => s.setAccountOpen)
-  const setTopicsOpen = useUIStore((s) => s.setTopicsOpen)
   const language = usePlaxStore((s) => s.language)
   const setLanguage = usePlaxStore((s) => s.setLanguage)
   const themeMode = usePlaxStore((s) => s.themeMode)
@@ -264,10 +264,6 @@ export function MenuDrawer() {
                   <Icon className="text-dark-muted"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></Icon>
                   {t('search')}
                 </button>
-                <button type="button" onClick={then(() => setTopicsOpen(true))} className={row}>
-                  <Icon className="text-dark-muted"><path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 5v4M8 15v4" /></Icon>
-                  {t('yourTopics')}
-                </button>
                 <button type="button" onClick={then(() => setAccountOpen(true))} className={row}>
                   {user ? (
                     avatar ? (
@@ -286,14 +282,6 @@ export function MenuDrawer() {
                     {name && <span className="block text-xs text-dark-subtle truncate">{name}</span>}
                   </span>
                 </button>
-                <Link href="/contact" onClick={close} className={row}>
-                  <Icon className="text-dark-muted"><path d="M4 6.5h16v11H4zM4.5 7l7.5 6 7.5-6" /></Icon>
-                  {t('contactUs')}
-                </Link>
-                <Link href="/privacy" onClick={close} className={row}>
-                  <Icon className="text-dark-muted"><path d="M12 3l7.5 3v5.5c0 4.6-3.1 8.2-7.5 9.5-4.4-1.3-7.5-4.9-7.5-9.5V6L12 3z" /></Icon>
-                  {t('privacyPolicy')}
-                </Link>
               </div>
 
               <div className="px-3 pt-4">
@@ -313,6 +301,16 @@ export function MenuDrawer() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* The two pages every reader may look for, as quiet links at the foot of the menu */}
+              <div className={`flex items-center gap-5 px-3 pt-5 pb-1 text-[13px] text-dark-muted ${hindi}`}>
+                <Link href="/contact" onClick={close} className="focus-ring rounded underline-offset-4 hover:text-dark-text hover:underline">
+                  {t('contactUs')}
+                </Link>
+                <Link href="/privacy" onClick={close} className="focus-ring rounded underline-offset-4 hover:text-dark-text hover:underline">
+                  {t('privacyPolicy')}
+                </Link>
               </div>
             </div>
           </motion.aside>

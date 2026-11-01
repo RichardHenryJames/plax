@@ -27,6 +27,7 @@ export function CommandPalette() {
   const setOpen = useUIStore((s) => s.setCommandOpen)
   const toggle = useUIStore((s) => s.toggleCommand)
   const setFeedFilter = useUIStore((s) => s.setFeedFilter)
+  const setScreen = useUIStore((s) => s.setScreen)
   const searchItems = useUIStore((s) => s.searchItems)
   const setPendingJumpId = useUIStore((s) => s.setPendingJumpId)
   const { t, tp, lang } = useT()
@@ -56,10 +57,12 @@ export function CommandPalette() {
     }
   }, [open])
 
+  // The palette lives on the home screen only, so what it opens is a place in the app (the store), not a page: For you,
+  // Saved and a topic are the places of the menu, and a story found in the feed on screen is jumped to there.
   const commands = useMemo<Command[]>(() => {
     const nav: Command[] = [
-      { id: 'home', group: t('cmdGoTo'), label: t('forYou'), hint: t('cmdHomeFeed'), icon: '🏠', run: () => { setFeedFilter(null); router.push('/') } },
-      { id: 'bookmarks', group: t('cmdGoTo'), label: t('bookmarks'), hint: t('cmdSavedCards'), icon: '🔖', run: () => router.push('/profile') },
+      { id: 'home', group: t('cmdGoTo'), label: t('forYou'), hint: t('cmdHomeFeed'), icon: '🏠', run: () => setFeedFilter(null) },
+      { id: 'bookmarks', group: t('cmdGoTo'), label: t('bookmarks'), hint: t('cmdSavedCards'), icon: '🔖', run: () => setScreen('saved') },
       { id: 'profile', group: t('cmdGoTo'), label: t('profileStats'), hint: t('cmdReadingStats'), icon: '👤', run: () => router.push('/profile') },
     ]
     const topicList = selectedTopics.length ? TOPICS.filter((t) => selectedTopics.includes(t.id)) : [...TOPICS]
@@ -71,11 +74,11 @@ export function CommandPalette() {
         label,
         hint: t('cmdShowOnly', { x: label }),
         icon: topic.emoji,
-        run: () => { setFeedFilter(topic.id); router.push('/') },
+        run: () => setFeedFilter(topic.id),
       }
     })
     return [...nav, ...topicCmds]
-  }, [selectedTopics, router, setFeedFilter, t, tp])
+  }, [selectedTopics, router, setFeedFilter, setScreen, t, tp])
 
   // Content matches from the loaded feed (real search)
   const contentMatches = useMemo<Command[]>(() => {
@@ -92,10 +95,10 @@ export function CommandPalette() {
           label: it.title || it.content.slice(0, 60),
           hint: topic ? tp(topic.id, topic.label) : undefined,
           icon: topic?.emoji || '📄',
-          run: () => { setFeedFilter(null); setPendingJumpId(it.id); router.push('/') },
+          run: () => { setScreen('feed'); setPendingJumpId(it.id) },
         }
       })
-  }, [query, searchItems, router, setFeedFilter, setPendingJumpId, t, tp])
+  }, [query, searchItems, setScreen, setPendingJumpId, t, tp])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -108,15 +111,15 @@ export function CommandPalette() {
   // Keep active index in range
   useEffect(() => { setActive((a) => Math.min(a, Math.max(0, filtered.length - 1))) }, [filtered.length])
 
-  const runActive = () => {
-    const cmd = filtered[active]
+  // The result that was chosen, not the one that was highlighted: a finger has no hover to highlight it first.
+  const run = (cmd: Command | undefined) => {
     if (cmd) { cmd.run(); setOpen(false) }
   }
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') { e.preventDefault(); setActive((a) => Math.min(a + 1, filtered.length - 1)) }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((a) => Math.max(a - 1, 0)) }
-    else if (e.key === 'Enter') { e.preventDefault(); runActive() }
+    else if (e.key === 'Enter') { e.preventDefault(); run(filtered[active]) }
     else if (e.key === 'Escape') { e.preventDefault(); setOpen(false) }
   }
 
@@ -135,6 +138,9 @@ export function CommandPalette() {
           onClick={() => setOpen(false)}
         >
           <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-label={t('search')}
             initial={{ opacity: 0, scale: 0.98, y: -8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: -8 }}
@@ -153,9 +159,23 @@ export function CommandPalette() {
                 onChange={(e) => { setQuery(e.target.value); setActive(0) }}
                 onKeyDown={onKeyDown}
                 placeholder={t('cmdPlaceholder')}
-                className="flex-1 bg-transparent text-white placeholder:text-dark-subtle text-[15px] outline-none"
+                aria-label={t('search')}
+                autoComplete="off"
+                enterKeyHint="go"
+                className="flex-1 min-w-0 bg-transparent text-white placeholder:text-dark-subtle text-[15px] outline-none"
               />
-              <kbd className="text-[10px] font-medium text-dark-subtle bg-dark-bg border border-dark-border rounded px-1.5 py-0.5">ESC</kbd>
+              <kbd className="hidden sm:block text-[10px] font-medium text-dark-subtle bg-dark-bg border border-dark-border rounded px-1.5 py-0.5">ESC</kbd>
+              {/* A finger has no Escape key */}
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                aria-label={t('close')}
+                className="focus-ring sm:hidden flex items-center justify-center w-8 h-8 -mr-1 rounded-full text-dark-muted hover:text-white hover:bg-white/10 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
             </div>
 
             {/* Results */}
@@ -175,8 +195,9 @@ export function CommandPalette() {
                       <div className="px-4 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-dark-subtle">{cmd.group}</div>
                     )}
                     <button
+                      type="button"
                       onMouseEnter={() => setActive(i)}
-                      onClick={runActive}
+                      onClick={() => run(cmd)}
                       className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
                         i === active ? 'bg-[color:var(--signal)]/12' : 'hover:bg-white/5'
                       }`}

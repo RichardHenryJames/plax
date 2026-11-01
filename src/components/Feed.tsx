@@ -3,7 +3,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Card } from './Card'
-import { CardActions } from './CardActions'
 import { CardSkeleton } from './Skeleton'
 import { CaughtUp } from './CaughtUp'
 import { MenuButton } from './MenuButton'
@@ -1125,21 +1124,18 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
       {notice && (
         <div
           role="status"
-          className={`absolute bottom-28 left-1/2 -translate-x-1/2 z-40 glass-strong px-4 py-2 rounded-full text-xs font-medium text-white shadow-lg ${language === 'hi' ? 'lang-hi' : ''}`}
+          className={`absolute bottom-[calc(1.5rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-40 glass-strong px-4 py-2 rounded-full text-xs font-medium text-white shadow-lg ${language === 'hi' ? 'lang-hi' : ''}`}
         >
           {notice}
         </div>
       )}
-
-      {/* Fixed action dock (Inshorts-style) — stays put while cards flip */}
-      {!isMarker(currentCard) && <CardActions card={currentCard} />}
 
       {/* Loading indicator when fetching more at the end */}
       {isFetching && currentIndex >= visibleCards.length - 2 && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="absolute bottom-24 left-1/2 -translate-x-1/2 z-30"
+          className="absolute bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-30"
         >
           <div className="flex items-center gap-2 glass px-4 py-2 rounded-full">
             <motion.div

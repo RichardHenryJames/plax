@@ -10,6 +10,7 @@ import { withBase } from '@/lib/base-path'
 import { bodyWithoutHeadline } from '@/lib/story-body'
 import { NEWS_SECTIONS } from '@/lib/types'
 import { useCardFit } from './useCardFit'
+import { CardActions } from './CardActions'
 import { MenuButton } from './MenuButton'
 
 interface CardProps {
@@ -45,7 +46,15 @@ function relativeTimeLabel(publishedAt: number | undefined, hindi: boolean): str
 }
 
 export function Card({ card, isActive, translating = false }: CardProps) {
-  const { tp } = useT()
+  const { t, tp } = useT()
+  // The publisher's host, for the headline link's tooltip and its name for a screen reader.
+  const sourceHost = (() => {
+    try {
+      return card.sourceUrl ? new URL(card.sourceUrl).hostname.replace(/^www\./, '') : ''
+    } catch {
+      return ''
+    }
+  })()
   const topicMeta = TOPICS.find((t) => t.id === card.category)
   const gradientClass = topicMeta?.color || (card.category === 'general' ? 'from-slate-500 to-slate-600' : 'from-gray-500 to-gray-600')
   const categoryLabel = topicMeta ? tp(card.category, topicMeta.label) : (card.category === 'general' ? tp('general', 'Discover') : card.category === 'news' ? tp('news', 'News') : card.category)
@@ -87,12 +96,12 @@ export function Card({ card, isActive, translating = false }: CardProps) {
   useCardFit(boxRef, [card.id, card.title, card.content, card.image, translating, isHindi, hasHero, hasActions])
 
   return (
-    <div className={`relative flex flex-col overflow-hidden select-none h-full w-full lg:max-w-3xl lg:mx-auto px-5 sm:px-10 lg:px-14 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:pb-28 ${
+    <div className={`relative flex flex-col overflow-hidden select-none h-full w-full lg:max-w-3xl lg:mx-auto px-5 sm:px-10 lg:px-14 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:pb-10 ${
       isNews ? 'lg:pt-16' : isLong ? 'lg:pt-10' : 'lg:pt-16'
     } ${isHindi ? 'lang-hi' : ''}`}>
-      {/* A phone has no header and no bottom bar, so the padding only clears the status bar (top) and the fixed action bar
-          (bottom). Short cards that are not news centre vertically on a desktop; a news card and a long one start at the top,
-          and so does every card on a phone, where the menu button stands at the start of the first line. */}
+      {/* No header, no bottom bar and no action bar: the padding only clears the status bar and the home indicator, so a story
+          has the whole screen. Short cards that are not news centre vertically on a desktop; a news card and a long one start
+          at the top, and so does every card on a phone, where the menu button stands at the start of the first line. */}
       <div
         ref={boxRef}
         className={`card-fit story-column relative z-10 flex-1 min-h-0 flex flex-col w-full max-w-xl lg:max-w-2xl mx-auto ${
@@ -126,45 +135,63 @@ export function Card({ card, isActive, translating = false }: CardProps) {
               </motion.div>
             )}
 
-            {/* Tag and origin. A news card reads "INDIA  The Hindu · 20m ago · 20s" under its picture, as in the app. */}
+            {/* Tag, origin and the round buttons. A news card reads "INDIA  The Hindu ↗ · 20m ago · 20s" under its picture, and
+                Listen, Save and Share stand at the right end of the same line, as in the app: with no bar at the bottom the story
+                has the whole screen. The line never wraps: the source name gives way (an ellipsis) before the age does, and the
+                read time and the word "Breaking" give way on a narrow phone. */}
             <motion.div
               data-fit="meta"
               initial={{ opacity: 0, y: 6 }}
               animate={isActive ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.2 }}
-              className="flex items-center flex-wrap gap-x-3 gap-y-2"
+              className="flex items-center gap-2 min-[400px]:gap-2.5"
             >
               {isNews ? (
-                <span className="px-2.5 py-1 rounded-full bg-[color:var(--signal)]/15 text-[color:var(--signal-text)] text-[11px] font-bold uppercase tracking-wider">
+                <span className="shrink-0 px-2 min-[400px]:px-2.5 py-1 rounded-full bg-[color:var(--signal)]/15 text-[color:var(--signal-text)] text-[11px] font-bold uppercase tracking-wider">
                   {sectionLabel}
                 </span>
               ) : (
                 <CategoryChip category={card.category} label={categoryLabel} emoji={card.emoji} gradientClass={gradientClass} isHindi={isHindi} />
               )}
               {isBreaking && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[#ffffff] bg-red-600 px-2 py-1 rounded-sm">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#ffffff] animate-pulse" />
-                  {isHindi ? 'ताज़ा' : 'Breaking'}
+                <span
+                  className="shrink-0 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[#ffffff] bg-red-600 px-2 py-1 rounded-sm"
+                  aria-label={isHindi ? 'ताज़ा' : 'Breaking'}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#ffffff] animate-pulse" />
+                  <span className="hidden min-[420px]:inline">{isHindi ? 'ताज़ा' : 'Breaking'}</span>
                 </span>
               )}
               {isNews ? (
-                <span className="text-dark-muted text-[13px] font-medium">
-                  {[card.source, relativeTime, card.readTime].filter(Boolean).join(' · ')}
+                <span className="min-w-0 flex-1 flex items-center gap-1 text-dark-muted text-[13px] font-medium">
+                  {card.source && (
+                    <span className="min-w-0 flex items-center gap-0.5">
+                      <span className="truncate">{card.source}</span>
+                      {card.sourceUrl && (
+                        <svg className="hidden min-[400px]:block w-3 h-3 shrink-0 opacity-70" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M7 17L17 7M9 7h8v8" />
+                        </svg>
+                      )}
+                    </span>
+                  )}
+                  {relativeTime && <span className="shrink-0 whitespace-nowrap">{card.source ? '· ' : ''}{relativeTime}</span>}
+                  {card.readTime && <span className="hidden min-[420px]:inline shrink-0 whitespace-nowrap">{card.source || relativeTime ? '· ' : ''}{card.readTime}</span>}
                 </span>
               ) : (
                 <>
-                  <span className="inline-flex items-center gap-1 text-dark-subtle text-xs font-medium">
+                  <span className="shrink-0 inline-flex items-center gap-1 text-dark-subtle text-xs font-medium">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     {card.readTime}
                   </span>
                   {relativeTime && (
-                    <span className="inline-flex items-center gap-1 text-[color:var(--signal-text)] text-xs font-semibold">
+                    <span className="shrink-0 inline-flex items-center gap-1 text-[color:var(--signal-text)] text-xs font-semibold">
                       <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--signal)] animate-pulse" />
                       {relativeTime}
                     </span>
                   )}
                 </>
               )}
+              <CardActions card={card} />
             </motion.div>
 
           {/* Title */}
@@ -181,12 +208,16 @@ export function Card({ card, isActive, translating = false }: CardProps) {
               className="headline text-[28px] sm:text-[34px] lg:text-[38px] text-white"
             >
               {card.sourceUrl ? (
+                // The headline is the way to the full story at the publisher (there is no "Read full story" button): the
+                // link says so to a screen reader and in a tooltip, and the source name above it carries the arrow.
                 <a
                   href={card.sourceUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
-                  className="hover:text-[color:var(--signal)] transition-colors"
+                  title={sourceHost ? `${t('readFullStory')} · ${sourceHost}` : t('readFullStory')}
+                  aria-label={`${card.title}. ${t('readFullStory')}${sourceHost ? `, ${sourceHost}` : ''}`}
+                  className="focus-ring rounded-md underline-offset-[6px] decoration-2 decoration-[color:var(--signal)] hover:underline hover:text-[color:var(--signal)] transition-colors"
                 >
                   {card.title}
                 </a>

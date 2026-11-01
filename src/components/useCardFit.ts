@@ -21,12 +21,12 @@ const LONG_HEADLINE_LINES = 5
 const HEADLINE_SCALES = [1, 0.9, 0.8]
 /** A summary that would otherwise be cut is first set a little smaller. */
 const BODY_SCALES = [1, 0.94, 0.88]
-/** The picture takes what the text leaves: at most 4:3 and half of the box, at least 30% of the width and a quarter of the box. */
-const HERO_MAX_WIDTH = 0.75
-const HERO_MAX_HEIGHT = 0.5
+/** The picture takes what the text leaves: at most a square and 55% of the box, at least 30% of the width and a quarter of the box. */
+const HERO_MAX_WIDTH = 1
+const HERO_MAX_HEIGHT = 0.55
 /** With nothing to read under the headline it may grow taller. */
-const HERO_TALL_WIDTH = 0.85
-const HERO_TALL_HEIGHT = 0.55
+const HERO_TALL_WIDTH = 1.2
+const HERO_TALL_HEIGHT = 0.62
 const HERO_MIN_WIDTH = 0.3
 const HERO_MIN_HEIGHT = 0.25
 /** A picture shorter than this, in px, is never worth showing. */
@@ -127,21 +127,13 @@ export function fitCard(box: HTMLElement) {
     metaWith = hero ? meta.offsetHeight : metaBare
   }
   let actionsHeight = actions ? actions.offsetHeight : 0
-  // A box too short for the source line, one line of the headline and the row under the summary gives up that row, then
-  // (where there is no menu button to make room for) the source line, rather than let them run into each other. (Read full
-  // story, Save and Share are in the bar at the bottom of the page, which is always there.)
+  // A box too short for the source line, one line of the headline and the row under the summary gives up that row. The source
+  // line stays: Listen, Save and Share stand on it.
   if (title) {
     const least = titleTop + titleLine
     if (actions && metaBare + actionsHeight + least > height) {
       actions.style.display = 'none'
       actionsHeight = 0
-    }
-    const menu = box.querySelector<HTMLElement>('.menu-fab')
-    const hasMenu = !!menu && getComputedStyle(menu).display !== 'none'
-    if (meta && !hasMenu && metaBare + actionsHeight + least > height) {
-      meta.style.display = 'none'
-      metaBare = 0
-      metaWith = 0
     }
   }
 

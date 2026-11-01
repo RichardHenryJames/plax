@@ -10,6 +10,44 @@ exists (see *Updates from inside the app*), except in the Google Play build, whi
 which need the two small routes and the one small file listed under *Backend changes*,
 the app works against the backend as it was before this version.
 
+## Unreleased (after 1.5.5): full-screen stories, and a menu in place of the header and the bottom bar
+
+A reader asked for the app to be "like Inshorts": the header (the Plax mark and the English | हिन्दी switch) and the bottom bar took a
+fifth of the screen, and the "fit it in one view" rule of 1.5.5 sometimes left a story with a headline and no text. Nothing is released:
+the version is still 1.5.5 (code 13), and no bundle, APK, update file or store entry was touched. No new permission, library or
+backend change. The website got the same design (see `TECH.md`, "One view per story").
+
+- **No header, no bottom bar.** A story spans the whole screen between the system bars. A round **☰** button floats over the picture's
+  top-left corner (with no picture it stands at the start of the source line, which makes room for it; on Topics, Saved, For you with
+  nothing chosen, loading and "all caught up" it is in the corner of the screen) and opens `MenuSheet`, a panel that slides in from
+  the left, behind the system bars: the feed language, Feed / For you / Topics / Saved, the news sections (English headlines only,
+  as before), check for new stories, your topics, the account, the theme, About, Contact us, the privacy policy, the update check,
+  the website and Clear saved stories. The ✕, the back button, a tap beside the panel and a swipe to the left close it. A small spinner
+  in the top-right corner shows a refresh in progress, as the header's did. `MainActivity` lost `header()`, `navigation()`,
+  `sections()` and the ⋮ `PopupMenu`; the menu's actions are the old ones.
+- **The summary comes first, whole.** `CardFit` (and `src/lib/card-fit.ts`, with the same test cases) now spends the height in this
+  order: the source line, the headline and the action row; then the whole summary; and the picture takes what is left, at most 4:3
+  and half the page, and is dropped when less than 30% of the width, a quarter of the page and 96 dp is left. A summary that would
+  still not fit is set 6%, then 12% smaller before any of it is cut, and then cut at a whole line with an ellipsis. In 1.5.5 the picture
+  kept its minimum and the summary got the remainder, so on a short page the summary was the first thing to go.
+- **A bug the new device test found.** `StoryPage` counted a Hindi summary's lines on a copy of its paint, without the fallback-font line
+  spacing a `TextView` uses, so Devanagari lines came out shorter than they are, and a summary was thought to fit beside a picture when
+  it did not (5 cases in `FitDeviceTest`'s sweep, all in Hindi). The layout used for counting is now built as the view builds its own, and a
+  summary is costed at its average line times its lines, not the first three lines times the rest.
+- **Go deeper (the AI brief sheet)** keeps its title bar and cross outside the part that scrolls; looked at on the emulator with a
+  long brief. (On the website the cross was inside the scrolling part and scrolled away, and the sheet could run past the card: fixed there.)
+- **Tests.** `CardFitTest`: 14 JVM tests (a sweep of over 10,000 combinations asserts nothing is planned beyond the page). `FitDeviceTest`
+  (5): the pages are the whole screen now (360 x 600, 392 x 780, 412 x 850, 600 x 1000, 851 x 340 and 360 x 300 dp, at three text sizes, English
+  and Hindi), with checks that the menu button touches no text and stands inside the picture, and that a picture on the page never comes with a
+  cut summary. New `MenuDeviceTest` (4): a story has the whole screen with no header and no bar, the menu holds what they held and scrolls
+  to its last row, back / the cross / a tap beside it / a swipe close it, and choosing Topics moves there with the button still one tap away.
+  `PlaxDeviceTest`, `ContactDeviceTest` and `UpdateDeviceTest` open the menu button instead of "More options" and the bottom bar.
+  `test.ps1` runs `MenuDeviceTest` too. The three lint warnings the change caused (the old ⋮ icon and two strings now unused) were removed.
+- **Where it was run.** `test.ps1` needs PowerShell 7.4, which this machine (Windows PowerShell 5.1) did not have, so the same steps were
+  run by hand: install both debug APKs, `cmd package compile -m speed`, then `am instrument` on the seven classes plus the new one. The
+  Android SDK (platform 36, build tools 36.0.0, emulator and the API 36 Google APIs x86_64 image) was installed under
+  `%LOCALAPPDATA%\Android\Sdk` for this, with JDK 21 from `C:\Program Files\Java\jdk-21.0.12`, and the `Plax_News_Test` AVD created.
+
 ## What is in 1.5.5 (versionCode 13): one swipe, one story, all of it in one view
 
 A reader asked for a feed "like Inshorts": a story used to scroll inside its card first, and only a second scroll moved to the next
