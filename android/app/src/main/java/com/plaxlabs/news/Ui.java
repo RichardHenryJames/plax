@@ -99,6 +99,32 @@ final class Ui {
         return view;
     }
 
+    /** The width and height of the touch target of {@link #lineButton}, and the circle drawn in it. */
+    static final int LINE_BUTTON_WIDTH_DP = 44, LINE_BUTTON_HEIGHT_DP = 48, LINE_BUTTON_CIRCLE_DP = 36;
+
+    /**
+     * A button for the end of a story's source line: a 36 dp circle with a 20 dp glyph, in a 44 by 48 dp touch target so three of
+     * them fit beside the tag and the source on a narrow phone. The caller sets what a press does.
+     */
+    ImageButton lineButton(int drawable, int description, int fill, int tint) {
+        ImageButton view = new ImageButton(context);
+        view.setImageResource(drawable); view.setColorFilter(tint);
+        int across = (LINE_BUTTON_WIDTH_DP - LINE_BUTTON_CIRCLE_DP) / 2, down = (LINE_BUTTON_HEIGHT_DP - LINE_BUTTON_CIRCLE_DP) / 2;
+        view.setBackground(new RippleDrawable(ColorStateList.valueOf((text & 0x00ffffff) | 0x22000000),
+                new InsetDrawable(round(fill, LINE_BUTTON_CIRCLE_DP / 2f), dp(across), dp(down), dp(across), dp(down)),
+                new InsetDrawable(round(Color.WHITE, LINE_BUTTON_CIRCLE_DP / 2f), dp(across), dp(down), dp(across), dp(down))));
+        view.setContentDescription(context.getString(description));
+        ViewCompat.setTooltipText(view, context.getString(description));
+        view.setPadding(dp(12), dp(14), dp(12), dp(14));
+        view.setLayoutParams(new LinearLayout.LayoutParams(dp(LINE_BUTTON_WIDTH_DP), dp(LINE_BUTTON_HEIGHT_DP)));
+        return view;
+    }
+
+    /** A touch ripple with nothing behind it, for text that can be pressed (a headline that opens the story). */
+    Drawable pressable(float radiusDp) {
+        return new RippleDrawable(ColorStateList.valueOf((text & 0x00ffffff) | 0x22000000), null, round(Color.WHITE, radiusDp));
+    }
+
     /**
      * The menu button that floats over a story, where the header and the bottom bar used to be: a small circle of dark glass with a
      * white glyph, readable over any picture and on either theme. A 48 dp touch target with a 40 dp circle drawn in it.

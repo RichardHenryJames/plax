@@ -12,6 +12,7 @@ import android.view.ViewGroup;
 import android.widget.*;
 import androidx.annotation.NonNull;
 import androidx.core.view.ViewCompat;
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
 import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 import java.time.Instant;
@@ -42,6 +43,8 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private final Actions actions;
     private final int sidePadding;
     private final float titleSp, bodySp;
+    /** Wide enough to show the read time beside the buttons on the source line; narrower keeps the room for the source and its age. */
+    private final boolean roomy;
     private List<Story> stories = List.of();
     private Set<String> saved = Set.of();
     private boolean saving, storageReady;
@@ -49,6 +52,7 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     StoryAdapter(Ui ui, ImageLoader images, Actions actions, int widthDp, int heightDp) {
         this.ui = ui; this.images = images; this.actions = actions;
+        roomy = widthDp >= 420;
         // On a short screen the type is a little smaller, so that more of the story fits in the one view it gets.
         boolean compact = heightDp < 700;
         titleSp = compact ? 21 : 24;
@@ -163,46 +167,32 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         category.setPadding(ui.dp(10), ui.dp(5), ui.dp(10), ui.dp(5));
         category.setBackground(ui.round(ui.accentSoft, 12));
         meta.addView(category, new LinearLayout.LayoutParams(-2, -2));
+        // The source and its age may take a second line: the buttons make the row 48 dp tall, and two lines of this size fit in it.
         TextView credit = ui.text("", 12, ui.text2, false);
         credit.setMaxLines(2); credit.setEllipsize(TextUtils.TruncateAt.END);
-        credit.setPadding(ui.dp(10), 0, 0, 0);
+        credit.setPadding(ui.dp(10), 0, ui.dp(4), 0);
         meta.addView(credit, new LinearLayout.LayoutParams(0, -2, 1));
+        // The three buttons stand at the right end of the same line.
+        ImageButton brief = ui.lineButton(R.drawable.ic_sparkle, R.string.brief_description, ui.accentSoft, ui.accentText);
+        ImageButton save = ui.lineButton(R.drawable.ic_bookmark, R.string.save_description, ui.surfaceAlt, ui.text);
+        ImageButton share = ui.lineButton(R.drawable.ic_share, R.string.share, ui.surfaceAlt, ui.text);
+        for (ImageButton button : List.of(brief, save, share)) meta.addView(button);
 
+        // The headline is the link to the full story. The background is set before the padding, which a background may replace.
         TextView title = ui.text("", titleSp, ui.text, "serif");
+        title.setBackground(ui.pressable(8));
         title.setTypeface(Typeface.create("serif", Typeface.BOLD));
         title.setLineSpacing(0, 1.18f); title.setPadding(0, ui.dp(12), 0, 0);
         ViewCompat.setAccessibilityHeading(title, true);
         TextView content = ui.text("", bodySp, ui.text, false);
         content.setAlpha(.88f); content.setLineSpacing(0, 1.38f); content.setPadding(0, ui.dp(14), 0, 0);
 
-        LinearLayout actionRow = ui.row();
-        actionRow.setPadding(0, ui.dp(8), 0, 0);
-        LinearLayout cta = ui.row();
-        cta.setBackground(ui.touch(ui.round(ui.surfaceAlt, 16), 16));
-        cta.setPadding(ui.dp(16), ui.dp(8), ui.dp(14), ui.dp(8));
-        cta.setMinimumHeight(ui.dp(52)); cta.setClickable(true); cta.setFocusable(true);
-        LinearLayout labels = ui.column();
-        TextView ctaTitle = ui.text(context.getString(R.string.read_full_story), 14, ui.text, true);
-        TextView ctaHost = ui.text("", 11, ui.text2, false);
-        ctaHost.setSingleLine(); ctaHost.setEllipsize(TextUtils.TruncateAt.END);
-        labels.addView(ctaTitle); labels.addView(ctaHost);
-        cta.addView(labels, new LinearLayout.LayoutParams(0, -2, 1));
-        cta.addView(ui.icon(R.drawable.ic_arrow_up_right, ui.text, 20));
-        actionRow.addView(cta, new LinearLayout.LayoutParams(0, -2, 1));
-        ImageButton brief = ui.iconButton(R.drawable.ic_sparkle, R.string.brief_description, ui.accentSoft, ui.accentText, () -> { });
-        ImageButton save = ui.iconButton(R.drawable.ic_bookmark, R.string.save_description, ui.surfaceAlt, ui.text, () -> { });
-        ImageButton share = ui.iconButton(R.drawable.ic_share, R.string.share, ui.surfaceAlt, ui.text, () -> { });
-        for (ImageButton button : List.of(brief, save, share)) {
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ui.dp(48), ui.dp(48));
-            params.setMarginStart(ui.dp(8)); actionRow.addView(button, params);
-        }
-
         // Nothing on the page scrolls: it shares its height out so that all of it is in view, and a swipe changes story.
-        StoryPage page = new StoryPage(context, ui, hero, poster, meta, title, content, actionRow, ui.menuButton(() -> actions.menu()),
+        StoryPage page = new StoryPage(context, ui, hero, poster, meta, title, content, ui.menuButton(() -> actions.menu()),
                 titleSp, bodySp, POSTER_SP);
         page.setLayoutParams(new ViewGroup.LayoutParams(-1, -1));
         return new Holder(page, hero, image, placeholder, poster, imageBackground, posterBackground, category, credit,
-                title, content, cta, ctaHost, brief, save, share);
+                title, content, brief, save, share);
     }
 
     private void bindStory(Holder holder, int index) {
@@ -233,14 +223,15 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         holder.credit.setText(credit(context, story, locale));
         holder.title.setText(story.title());
         holder.title.setVisibility(story.title().isEmpty() ? View.GONE : View.VISIBLE);
+        // The headline opens the full story at the publisher; a story with no usable link is not pressable at all.
+        boolean linked = story.hasSource();
+        holder.title.setClickable(linked); holder.title.setFocusable(linked);
+        holder.title.setOnClickListener(linked ? view -> actions.source(story) : null);
+        ViewCompat.replaceAccessibilityAction(holder.title, AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_CLICK,
+                linked ? context.getString(R.string.read_full_story) : null, null);
         String text = story.body();
         holder.content.setText(text);
         holder.content.setVisibility(text.isEmpty() ? View.GONE : View.VISIBLE);
-
-        holder.cta.setEnabled(story.hasSource()); holder.cta.setAlpha(story.hasSource() ? 1f : .5f);
-        holder.ctaHost.setText(story.hasSource() ? story.sourceHost() : context.getString(R.string.source_unavailable));
-        holder.cta.setContentDescription(context.getString(R.string.read_full_story) + ", " + holder.ctaHost.getText());
-        holder.cta.setOnClickListener(view -> actions.source(story));
 
         boolean isSaved = saved.contains(story.id());
         holder.save.setImageResource(isSaved ? R.drawable.ic_bookmark_filled : R.drawable.ic_bookmark);
@@ -290,12 +281,16 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private String credit(Context context, Story story, Locale locale) {
         List<String> parts = new ArrayList<>();
         parts.add(story.source().isEmpty() ? context.getString(R.string.source_unknown) : story.source());
+        // Each part after the source is kept whole, so a line never breaks inside "3h ago".
         String age = age(context, story.publishedAt(), locale);
-        if (!age.isEmpty()) parts.add(age);
-        String reading = readTime(context, story);
-        if (!reading.isEmpty()) parts.add(reading);
+        if (!age.isEmpty()) parts.add(whole(age));
+        // On a narrow phone the room beside the buttons goes to the source and its age.
+        String reading = roomy ? readTime(context, story) : "";
+        if (!reading.isEmpty()) parts.add(whole(reading));
         return String.join(" \u00b7 ", parts);
     }
+
+    private static String whole(String text) { return text.replace(' ', '\u00a0'); }
 
     static String readTime(Context context, Story story) {
         int seconds = story.readSeconds();
@@ -325,18 +320,18 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     static final class Holder extends RecyclerView.ViewHolder {
         final StoryPage page; final FrameLayout hero; final ImageView image, placeholder;
-        final TextView poster, category, credit, title, content, ctaHost; final LinearLayout cta;
+        final TextView poster, category, credit, title, content;
         final android.graphics.drawable.Drawable imageBackground, posterBackground;
         final ImageButton brief, save, share;
         String storyId = "";
         Holder(StoryPage page, FrameLayout hero, ImageView image, ImageView placeholder, TextView poster,
                android.graphics.drawable.Drawable imageBackground, android.graphics.drawable.Drawable posterBackground,
-               TextView category, TextView credit, TextView title, TextView content, LinearLayout cta, TextView ctaHost,
+               TextView category, TextView credit, TextView title, TextView content,
                ImageButton brief, ImageButton save, ImageButton share) {
             super(page); this.page = page; this.hero = hero; this.image = image; this.placeholder = placeholder;
             this.poster = poster; this.imageBackground = imageBackground; this.posterBackground = posterBackground;
             this.category = category; this.credit = credit; this.title = title; this.content = content;
-            this.cta = cta; this.ctaHost = ctaHost; this.brief = brief; this.save = save; this.share = share;
+            this.brief = brief; this.save = save; this.share = share;
         }
     }
 }

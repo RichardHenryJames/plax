@@ -162,8 +162,8 @@ public class FitDeviceTest {
     /** What is wrong with one laid-out page, as sentences; none when it is right. */
     private static List<String> problems(String name, StoryPage page, int width, int height, boolean roomy) {
         List<String> found = new ArrayList<>();
-        View[] parts = {page.hero, page.meta, page.title, page.body, page.actions};
-        String[] names = {"picture", "source line", "headline", "summary", "action row"};
+        View[] parts = {page.hero, page.meta, page.title, page.body};
+        String[] names = {"picture", "source line", "headline", "summary"};
         for (int index = 0; index < parts.length; index++) {
             View part = parts[index];
             if (!shown(part)) continue;
@@ -200,7 +200,31 @@ public class FitDeviceTest {
             Rect picture = new Rect(page.hero.getLeft(), page.hero.getTop(), page.hero.getRight(), page.hero.getBottom());
             if (!picture.contains(drawn)) found.add(name + ": the menu button " + drawn + " is not inside the picture " + picture);
         }
-        if (page.actions.getHeight() == 0) found.add(name + ": the action row has no height");
+        // The source line holds the tag, the source, and the brief, save and share buttons at its right end: each whole inside the line,
+        // none on another, and the menu button (which stands at the start of the page when there is no picture) on none of them.
+        if (shown(page.meta) && page.meta instanceof ViewGroup line) {
+            String[] members = {"tag", "source", "brief button", "save button", "share button"};
+            if (line.getChildCount() != members.length) {
+                found.add(name + ": the source line holds " + line.getChildCount() + " views, not the tag, the source and three buttons");
+            } else {
+                Rect inside = new Rect(0, 0, line.getWidth(), line.getHeight());
+                Rect[] boxes = new Rect[members.length];
+                for (int index = 0; index < members.length; index++) {
+                    View member = line.getChildAt(index);
+                    boxes[index] = new Rect(member.getLeft(), member.getTop(), member.getRight(), member.getBottom());
+                    if (!inside.contains(boxes[index])) found.add(name + ": the " + members[index] + " leaves the source line " + boxes[index] + " of " + inside);
+                    for (int earlier = 0; earlier < index; earlier++)
+                        if (Rect.intersects(boxes[earlier], boxes[index])) found.add(name + ": the " + members[index] + " overlaps the " + members[earlier]);
+                    Rect onPage = new Rect(boxes[index]);
+                    onPage.offset(page.meta.getLeft(), page.meta.getTop());
+                    if (Rect.intersects(drawn, onPage)) found.add(name + ": the menu button " + drawn + " covers the " + members[index] + " " + onPage);
+                }
+                if (Math.abs(boxes[members.length - 1].right - line.getWidth()) > 1)
+                    found.add(name + ": the buttons are not at the right end of the source line " + boxes[members.length - 1] + " of " + inside);
+                if (boxes[2].height() < page.meta.getResources().getDisplayMetrics().density * 47)
+                    found.add(name + ": a button on the source line is under 48 dp to touch (" + boxes[2].height() + " px)");
+            }
+        }
         for (TextView text : new TextView[]{page.title, page.body}) {
             if (!shown(text) || text.getLayout() == null) continue;
             Layout layout = text.getLayout();
@@ -285,7 +309,7 @@ public class FitDeviceTest {
                     assertFalse(story.id(), holder.page.sideBySide());
                     int picture = holder.hero.getHeight();
                     assertTrue(story.id() + ": a picture is either absent or worth showing", picture == 0 || picture >= ui.dp(96));
-                    assertTrue(story.id() + ": the picture does not take over the page", picture <= height * .5f);
+                    assertTrue(story.id() + ": the picture does not take over the page", picture <= height * (story.body().isEmpty() ? .62f : .55f) + 1);
                     if (!story.body().isEmpty()) {
                         int shown = holder.content.getLayout().getLineCount();
                         boolean cut = holder.content.getLayout().getEllipsisCount(shown - 1) > 0;

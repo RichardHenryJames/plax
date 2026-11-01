@@ -16,16 +16,16 @@ import android.widget.TextView;
 
 /**
  * One story, laid out so that all of it is in view at once. The page has nothing that scrolls, so a single swipe always
- * moves to the next story; to make that possible the picture, the tag and source line, the headline, the summary and the
- * Read full story row are measured together and share the page's height ({@link CardFit}). The headline and the summary come
- * first and whole: the summary is set a little smaller before any of it is cut, the picture takes what they leave (or goes,
- * when that is too little), a long headline is set a little smaller, and only as a last resort is the summary cut to whole lines
- * with an ellipsis, or the source line given up (the publisher is still named on the Read full story row).
+ * moves to the next story; to make that possible the picture, the tag and source line (with the brief, save and share buttons at
+ * its right end), the headline and the summary are measured together and share the page's height ({@link CardFit}). The headline
+ * and the summary come first and whole: the summary is set a little smaller before any of it is cut, the picture takes what they
+ * leave (or goes, when that is too little), a long headline is set a little smaller, and only as a last resort is the summary cut to
+ * whole lines with an ellipsis. The headline is the link to the full story.
  *
- * <p>There is no header and no bottom bar: the page has the whole screen. The menu button that holds what they held floats over
- * the picture's top-left corner; with no picture it stands at the start of the source line, which makes room for it.
- * On a page that is much wider than it is tall (a phone on its side) the picture stands beside the text instead of above it.
- * Built in code by {@link StoryAdapter}, never inflated, so it has no constructor for tools.
+ * <p>There is no header, no bottom bar and no row of buttons under the text: the page has the whole screen. The menu button that
+ * holds what they held floats over the picture's top-left corner; with no picture it stands at the start of the source line, which
+ * makes room for it. On a page that is much wider than it is tall (a phone on its side) the picture stands beside the text instead
+ * of above it. Built in code by {@link StoryAdapter}, never inflated, so it has no constructor for tools.
  */
 @SuppressLint("ViewConstructor")
 final class StoryPage extends ViewGroup {
@@ -36,10 +36,10 @@ final class StoryPage extends ViewGroup {
     private static final float[] BODY_SCALES = {1f, .94f, .88f};
     private static final int TOP_DP = 8, BOTTOM_DP = 8, SIDE_DP = 16, GUTTER_DP = 16, TEXT_WIDTH_DP = 640, WIDE_WIDTH_DP = 840;
     private static final int HERO_FLOOR_DP = 96, WIDE_AT_DP = 480;
-    /** The picture takes what the text leaves: at most 4:3 and half the page, at least 30% of the width and a quarter of the page. */
-    private static final float HERO_MAX_WIDTH = .75f, HERO_MAX_HEIGHT = .5f, HERO_MIN_WIDTH = .3f, HERO_MIN_HEIGHT = .25f;
+    /** The picture takes what the text leaves: at most square and 55% of the page, at least 30% of the width and a quarter of the page. */
+    private static final float HERO_MAX_WIDTH = 1f, HERO_MAX_HEIGHT = .55f, HERO_MIN_WIDTH = .3f, HERO_MIN_HEIGHT = .25f;
     /** With nothing to read under the headline it may grow taller. */
-    private static final float HERO_TALL_WIDTH = .85f, HERO_TALL_HEIGHT = .55f;
+    private static final float HERO_TALL_WIDTH = 1.2f, HERO_TALL_HEIGHT = .62f;
     /** The space above the source line when a picture is above it. */
     private static final int META_TOP_DP = 16;
     /** The menu button: the circle drawn, the gap after it, and how far inside the picture's corner it stands. */
@@ -50,17 +50,16 @@ final class StoryPage extends ViewGroup {
     private final Ui ui;
     final FrameLayout hero;
     final TextView poster, title, body;
-    final View meta, actions, menu;
+    final View meta, menu;
     private final float titleSp, bodySp, posterSp;
-    private final Rect heroBox = new Rect(), metaBox = new Rect(), titleBox = new Rect(), bodyBox = new Rect(),
-            actionsBox = new Rect(), menuBox = new Rect();
+    private final Rect heroBox = new Rect(), metaBox = new Rect(), titleBox = new Rect(), bodyBox = new Rect(), menuBox = new Rect();
     private boolean wide, pictureAbove;
 
-    StoryPage(Context context, Ui ui, FrameLayout hero, TextView poster, View meta, TextView title, TextView body, View actions,
-              View menu, float titleSp, float bodySp, float posterSp) {
+    StoryPage(Context context, Ui ui, FrameLayout hero, TextView poster, View meta, TextView title, TextView body, View menu,
+              float titleSp, float bodySp, float posterSp) {
         super(context);
         this.ui = ui; this.hero = hero; this.poster = poster; this.meta = meta; this.title = title; this.body = body;
-        this.actions = actions; this.menu = menu; this.titleSp = titleSp; this.bodySp = bodySp; this.posterSp = posterSp;
+        this.menu = menu; this.titleSp = titleSp; this.bodySp = bodySp; this.posterSp = posterSp;
         setBackgroundColor(ui.bg);
         title.setEllipsize(TextUtils.TruncateAt.END);
         body.setEllipsize(TextUtils.TruncateAt.END);
@@ -68,7 +67,7 @@ final class StoryPage extends ViewGroup {
         // the finger: a view with a height of its own is drawn, and touched, over its siblings.
         menu.setTranslationZ(1f);
         menu.setOutlineProvider(null);
-        for (View child : new View[]{menu, hero, meta, title, body, actions}) addView(child);
+        for (View child : new View[]{menu, hero, meta, title, body}) addView(child);
     }
 
     /** Whether the picture is beside the text rather than above it. */
@@ -97,7 +96,7 @@ final class StoryPage extends ViewGroup {
         int columnWidth = wide ? boxWidth - sideWidth - ui.dp(GUTTER_DP) : boxWidth;
 
         int circle = ui.dp(MENU_DP), indent = circle + ui.dp(MENU_GAP_DP), metaTop = wide ? 0 : ui.dp(META_TOP_DP);
-        int actionsHeight = natural(actions, columnWidth);
+        // The line holds the buttons, so it is always there; it is 48 dp tall because of them.
         int metaNatural = natural(meta, columnWidth);
         int metaWith = metaTop + metaNatural;
         // With no picture above it the line is the first thing on the page, and starts after the menu button.
@@ -122,14 +121,6 @@ final class StoryPage extends ViewGroup {
             titleLine = Math.max(1, ceilDiv(uncutHeight - title.getPaddingTop() - title.getPaddingBottom(), titleNatural));
         }
 
-        // A page too short for the source line, one line of the headline and the action row gives up the source line rather
-        // than let the text run into the buttons; the publisher is still named on the Read full story row. The menu button keeps
-        // its row.
-        boolean metaShown = true;
-        if (hasTitle && metaBare + actionsHeight + title.getPaddingTop() + titleLine > boxHeight) {
-            metaShown = false; metaWith = 0; metaBare = wide ? 0 : circle;
-        }
-
         int heroMaximum = wide ? 0 : Math.min((int) (columnWidth * HERO_MAX_WIDTH), (int) (boxHeight * HERO_MAX_HEIGHT));
         int heroTall = wide ? 0 : Math.max(heroMaximum, Math.min((int) (columnWidth * HERO_TALL_WIDTH), (int) (boxHeight * HERO_TALL_HEIGHT)));
         int heroMinimum = Math.max(ui.dp(HERO_FLOOR_DP), Math.min((int) (columnWidth * HERO_MIN_WIDTH), (int) (boxHeight * HERO_MIN_HEIGHT)));
@@ -148,7 +139,7 @@ final class StoryPage extends ViewGroup {
                 // differ (a Devanagari line with a vowel sign above or below is taller than one without).
                 if (bodyNatural > 0) bodyLine = Math.max(1, ceilDiv(at.getLineBottom(bodyNatural - 1), bodyNatural));
             }
-            plan = CardFit.plan(new CardFit.Input(boxHeight, metaWith, metaBare, actionsHeight,
+            plan = CardFit.plan(new CardFit.Input(boxHeight, metaWith, metaBare, 0,
                     hasTitle ? title.getPaddingTop() : 0, titleLine, titleNatural, titleMax,
                     hasBody ? body.getPaddingTop() : 0, bodyLine, bodyNatural, heroMaximum, heroMinimum, heroTall));
             if (!hasBody || plan.bodyLines() >= bodyNatural) break;
@@ -166,7 +157,7 @@ final class StoryPage extends ViewGroup {
         // What the headline really takes decides what is left for the summary.
         int heroHeight = wide ? boxHeight : plan.hero();
         pictureAbove = !wide && heroHeight > 0;
-        int fixed = (pictureAbove ? metaWith : metaBare) + actionsHeight + (wide ? 0 : heroHeight);
+        int fixed = (pictureAbove ? metaWith : metaBare) + (wide ? 0 : heroHeight);
         int titleHeight = 0;
         if (hasTitle) {
             int titleLines = plan.titleLines();
@@ -215,11 +206,9 @@ final class StoryPage extends ViewGroup {
                 y += metaBare;
             }
         }
-        if (!metaShown) metaBox.set(metaBox.left, metaBox.top, metaBox.left, metaBox.top);
         meta.measure(exactly(metaBox.width()), exactly(metaBox.height()));
         titleBox.set(columnLeft, y, columnLeft + columnWidth, y + titleHeight); y += titleHeight;
         bodyBox.set(columnLeft, y, columnLeft + columnWidth, y + bodyHeight);
-        actionsBox.set(columnLeft, top + boxHeight - actionsHeight, columnLeft + columnWidth, top + boxHeight);
 
         // The button stands inside the picture's corner, or, with no picture, where the page begins.
         int touch = ui.dp(MENU_TOUCH_DP), pad = (touch - circle) / 2, inset = ui.dp(MENU_INSET_DP);
@@ -230,7 +219,7 @@ final class StoryPage extends ViewGroup {
     }
 
     @Override protected void onLayout(boolean changed, int l, int t, int r, int b) {
-        place(hero, heroBox); place(meta, metaBox); place(title, titleBox); place(body, bodyBox); place(actions, actionsBox);
+        place(hero, heroBox); place(meta, metaBox); place(title, titleBox); place(body, bodyBox);
         place(menu, menuBox);
     }
 

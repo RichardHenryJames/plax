@@ -23,7 +23,6 @@
     <string name="contact_page_line">संपर्क पेज: %1$s</string>
     <string name="contact_about">Plax को %1$s ने बनाया है। हर ख़बर में उसके प्रकाशक का नाम और मूल ख़बर का लिंक होता है; ख़बरें और तस्वीरें उनके प्रकाशकों की हैं।</string>
     <string name="done">ठीक है</string>
-    <string name="open_site">Plax वेबसाइट खोलें</string>
     <string name="loading">आपकी अगली पढ़ाई खोज रहे हैं&#8230;</string>
     <string name="loading_more">और ख़बरें खोज रहे हैं&#8230;</string>
     <string name="network_error">ख़बरें लोड नहीं हो सकीं। अपना कनेक्शन जाँचें और फिर कोशिश करें।</string>

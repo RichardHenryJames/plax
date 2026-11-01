@@ -21,25 +21,23 @@ import androidx.core.view.WindowInsetsControllerCompat;
 
 /**
  * The menu: everything the header and the bottom bar used to hold, in one panel that slides in from the left when the menu
- * button is pressed. The feed language, the four places (Feed, For you, Topics, Saved), the news sections, a check for new
- * stories, topics, the account, theme, About, Contact us, the privacy policy, the update check, the website and clearing saved
- * stories. With it out of the way a story has the whole screen, as in Inshorts. A swipe to the left, the close button, the back
- * button or a tap outside closes it.
+ * button is pressed. The feed language, the four places (Feed, For you, Topics, Saved), the news sections, the account, theme,
+ * About, Contact us, the privacy policy, the update check and clearing saved stories. Nothing in it repeats what is a tap away
+ * elsewhere: looking for new stories happens by itself and on the caught-up card, choosing topics is the card on the Topics
+ * screen and a row in the account sheet, and the website is in the account sheet. With it out of the way a story has the whole
+ * screen, as in Inshorts. A swipe to the left, the close button, the back button or a tap outside closes it.
  */
 final class MenuSheet {
     interface Actions {
         void screen(FeedViewModel.Screen screen);
         void language(String language);
         void section(String id);
-        void refresh();
-        void interests();
         void account();
         void theme();
         void about();
         void contact();
         void privacy();
         void update();
-        void website();
         void clearSaved();
     }
 
@@ -111,16 +109,13 @@ final class MenuSheet {
         }
 
         list.addView(divider());
-        list.addView(row(R.drawable.ic_refresh, activity.getString(R.string.check_new), false, actions::refresh));
-        list.addView(row(R.drawable.ic_sliders, activity.getString(R.string.interests_title), false, actions::interests));
         list.addView(row(R.drawable.ic_person, activity.getString(R.string.account), false, actions::account));
-        list.addView(divider());
         list.addView(row(R.drawable.ic_theme, activity.getString(R.string.theme), false, actions::theme));
+        list.addView(divider());
         list.addView(row(R.drawable.ic_info, activity.getString(R.string.about), false, actions::about));
         list.addView(row(R.drawable.ic_mail, activity.getString(R.string.contact_us), false, actions::contact));
         list.addView(row(R.drawable.ic_shield, activity.getString(R.string.privacy_policy), false, actions::privacy));
         list.addView(row(R.drawable.ic_download, activity.getString(storeBuild ? R.string.update_play : R.string.update_check), false, actions::update));
-        list.addView(row(R.drawable.ic_globe, activity.getString(R.string.open_site), false, actions::website));
         list.addView(row(R.drawable.ic_trash, activity.getString(R.string.clear_saved), false, actions::clearSaved));
 
         ScrollView scroll = new ScrollView(activity);

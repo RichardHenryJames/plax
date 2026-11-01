@@ -405,15 +405,12 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
             @Override public void screen(FeedViewModel.Screen screen) { model.screen(screen); }
             @Override public void language(String language) { Language.apply(language); }
             @Override public void section(String id) { model.section(id); }
-            @Override public void refresh() { model.refresh(); }
-            @Override public void interests() { chooseInterests(); }
             @Override public void account() { MainActivity.this.account(); }
             @Override public void theme() { chooseTheme(); }
             @Override public void about() { MainActivity.this.about(); }
             @Override public void contact() { MainActivity.this.contact(); }
             @Override public void privacy() { open(FeedApi.PRIVACY_URL); }
             @Override public void update() { updates.check(true); }
-            @Override public void website() { open(FeedApi.SITE); }
             @Override public void clearSaved() { confirmClearSaved(); }
         });
     }

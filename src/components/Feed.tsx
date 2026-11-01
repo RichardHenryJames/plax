@@ -30,6 +30,7 @@ const NEW_SESSION_MS = 30 * 60 * 1000 // away this long: start again from the ne
 const SWAP_WINDOW_MS = 1500 // new stories replace the list only while the reader has not moved
 const PLACE_KEEP_MS = 2 * 60 * 1000 // a feed left this recently (for Topics or Saved) is found as it was, with no request
 const PLACES_KEPT = 6
+const HINT_KEY = 'plax-swipe-hint' // set once the reader has swiped: the hint has done its job
 export const CAUGHT_UP_ID = '__caught_up__'
 
 const isMarker = (c: CardData) => c.id === CAUGHT_UP_ID
@@ -182,12 +183,25 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
   const [checking, setChecking] = useState(false)
   const [loadFailed, setLoadFailed] = useState(false) // the newest page could not be fetched and nothing is cached
   const [notice, setNotice] = useState('')
+  const [hint, setHint] = useState(false)
   const shownAtRef = useRef(0)
   const currentIndexRef = useRef(0)
   const sigRef = useRef(sig)
   const [session, setSession] = useState(0) // bumped to start again from the newest stories
   useEffect(() => { cardsRef.current = cards }, [cards])
   useEffect(() => { currentIndexRef.current = currentIndex }, [currentIndex])
+  // How to move on is shown on the first visit only, for a few seconds or until the first swipe, never over the story again.
+  useEffect(() => {
+    try { if (localStorage.getItem(HINT_KEY)) return } catch { return }
+    const show = setTimeout(() => setHint(true), 2000)
+    const hide = setTimeout(() => setHint(false), 9000)
+    return () => { clearTimeout(show); clearTimeout(hide) }
+  }, [])
+  useEffect(() => {
+    if (currentIndex === 0) return
+    setHint(false)
+    try { localStorage.setItem(HINT_KEY, '1') } catch { /* private mode: the hint just shows again next time */ }
+  }, [currentIndex])
   sigRef.current = sig
 
   const flash = useCallback((message: string) => {
@@ -1139,13 +1153,13 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
         </motion.div>
       )}
 
-      {/* Swipe hint on first card — at the right edge, clear of the row of buttons pinned under the summary */}
-      {currentIndex === 0 && (
+      {/* First visit only: how to move on. In the corner, where a line of text rarely reaches, and gone after the first swipe. */}
+      {hint && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 2 }}
-          className="absolute bottom-[6.25rem] lg:bottom-28 right-5 sm:right-10 z-30 text-dark-subtle text-xs flex flex-col items-end gap-1.5 pointer-events-none"
+          className="absolute bottom-[calc(1rem+env(safe-area-inset-bottom))] lg:bottom-6 right-4 sm:right-10 z-30 text-dark-subtle text-xs flex flex-col items-end gap-1.5 pointer-events-none"
+          aria-hidden="true"
         >
           <motion.div
             animate={{ y: [0, -8, 0] }}
