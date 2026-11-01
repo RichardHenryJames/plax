@@ -104,11 +104,11 @@ public class MenuDeviceTest {
                 assertFalse(text(label) + " is not on a story", device.hasObject(By.text(text(label))));
             assertFalse("no header with the name on it", device.hasObject(By.text(text(R.string.app_name))));
 
-            // The button floats in the top-left corner and the row of buttons is at the very bottom, where the bar used to be.
+            // The button floats in the top-left corner; the headline is the way to the full story, and nothing is pinned under the text.
             var button = device.findObject(By.desc(text(R.string.menu))).getVisibleBounds();
             assertTrue("the menu button is in the top-left corner " + button, button.left < width / 4 && button.top < height * .15f);
-            var row = device.findObject(By.descContains(text(R.string.read_full_story))).getVisibleBounds();
-            assertTrue("the Read full story row reaches the bottom of the screen " + row + " of " + height, row.bottom > height * .92f);
+            assertTrue("the headline is the way to the full story", device.findObject(By.text("The first story of the day")).isClickable());
+            assertFalse("there is no Read full story row under the text", device.hasObject(By.desc(text(R.string.read_full_story))));
             var title = device.findObject(By.text("The first story of the day")).getVisibleBounds();
             assertFalse("the menu button does not cover the headline " + button + " " + title, android.graphics.Rect.intersects(button, title));
             assertTrue("the summary is on the page", device.hasObject(By.textStartsWith("A summary of the first story")));
@@ -120,9 +120,13 @@ public class MenuDeviceTest {
             assertTrue(device.wait(Until.hasObject(By.text("The first story of the day")), 15_000));
             openMenu();
             for (int label : new int[]{R.string.language_english, R.string.language_hindi, R.string.feed, R.string.for_you, R.string.topics, R.string.saved,
-                    R.string.section_world, R.string.section_tech, R.string.section_business, R.string.section_science, R.string.check_new,
-                    R.string.interests_title, R.string.account, R.string.theme, R.string.about})
+                    R.string.section_world, R.string.section_tech, R.string.section_business, R.string.section_science,
+                    R.string.account, R.string.theme, R.string.about})
                 assertTrue(text(label) + " is in the menu", device.hasObject(By.text(text(label))));
+            // What is a tap away elsewhere is not repeated here: new stories are looked for by themselves and on the caught-up card, and
+            // topics are chosen from the Topics screen and the account sheet.
+            for (int label : new int[]{R.string.check_new, R.string.interests_title})
+                assertFalse(text(label) + " is not in the menu", device.hasObject(By.text(text(label))));
 
             // The menu is longer than a screen on some phones: it scrolls, and the last row can be reached.
             UiScrollable list = new UiScrollable(new UiSelector().className("android.widget.ScrollView").scrollable(true));

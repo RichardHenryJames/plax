@@ -225,8 +225,9 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         holder.title.setVisibility(story.title().isEmpty() ? View.GONE : View.VISIBLE);
         // The headline opens the full story at the publisher; a story with no usable link is not pressable at all.
         boolean linked = story.hasSource();
-        holder.title.setClickable(linked); holder.title.setFocusable(linked);
+        // The listener first: setOnClickListener makes a view clickable again, even with a null listener.
         holder.title.setOnClickListener(linked ? view -> actions.source(story) : null);
+        holder.title.setClickable(linked); holder.title.setFocusable(linked);
         ViewCompat.replaceAccessibilityAction(holder.title, AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_CLICK,
                 linked ? context.getString(R.string.read_full_story) : null, null);
         String text = story.body();
