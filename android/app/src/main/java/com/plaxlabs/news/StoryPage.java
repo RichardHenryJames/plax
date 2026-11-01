@@ -36,9 +36,9 @@ final class StoryPage extends ViewGroup {
     private static final float[] BODY_SCALES = {1f};
     private static final int TOP_DP = 8, BOTTOM_DP = 8, SIDE_DP = 16, GUTTER_DP = 16, TEXT_WIDTH_DP = 640, WIDE_WIDTH_DP = 840;
     private static final int HERO_FLOOR_DP = 96, WIDE_AT_DP = 480;
-    /** The picture takes what the text leaves: at most a square and 55% of the page in the usual case, and up to 1.2 times its width
-     *  and 62% of the page when there is little to read, so that the page is full. */
-    private static final float HERO_MAX_WIDTH = 1f, HERO_MAX_HEIGHT = .55f, HERO_TALL_WIDTH = 1.2f, HERO_TALL_HEIGHT = .62f;
+    /** The picture takes what the text leaves: at most a square and 55% of the page in the usual case, and up to 1.4 times its width
+     *  and 66% of the page when there is little to read, so that the page is full. */
+    private static final float HERO_MAX_WIDTH = 1f, HERO_MAX_HEIGHT = .55f, HERO_TALL_WIDTH = 1.4f, HERO_TALL_HEIGHT = .66f;
     /** A photograph is given at least 60% of the width and 30% of the page before the summary is cut instead (as in Inshorts, a story
      *  with a picture has one, and not a stamp of one); a poster, which only stands in for a picture, a third of that, and is dropped
      *  when the text needs the room. */
@@ -193,7 +193,11 @@ final class StoryPage extends ViewGroup {
         }
 
         int heroWidth = wide ? sideWidth : columnWidth;
-        setTextPx(poster, Math.max(sp(8), Math.min(sp(posterSp), (wide ? Math.min(heroWidth, heroHeight) : heroHeight) * .5f)));
+        // The poster's sign grows with its tile: a little under a third of it, not under its usual size while the tile can hold that,
+        // and not over 1.75 times it.
+        float heroSide = wide ? Math.min(heroWidth, heroHeight) : heroHeight;
+        setTextPx(poster, Math.max(sp(8), Math.min(sp(posterSp) * 1.75f,
+                Math.min(heroSide * .5f, Math.max(sp(posterSp), heroSide * .28f)))));
         hero.measure(exactly(heroWidth), exactly(heroHeight));
         int y = top;
         if (wide) {
@@ -214,6 +218,17 @@ final class StoryPage extends ViewGroup {
         meta.measure(exactly(metaBox.width()), exactly(metaBox.height()));
         titleBox.set(columnLeft, y, columnLeft + columnWidth, y + titleHeight); y += titleHeight;
         bodyBox.set(columnLeft, y, columnLeft + columnWidth, y + bodyHeight);
+
+        // The room left over (a short summary on a tall page, once the picture is at its tallest) is spread evenly between the parts,
+        // as on the website, rather than left as a gap under the text; the first part stays where the page begins.
+        Rect[] column = new Rect[4];
+        int count = 0;
+        if (pictureAbove) column[count++] = heroBox;
+        column[count++] = metaBox;
+        if (hasTitle) column[count++] = titleBox;
+        if (bodyHeight > 0) column[count++] = bodyBox;
+        int spare = top + boxHeight - column[count - 1].bottom;
+        if (spare > 0) for (int index = 1; index < count; index++) column[index].offset(0, spare * index / (count - 1));
 
         // The button stands inside the picture's corner, or, with no picture, where the page begins.
         int touch = ui.dp(MENU_TOUCH_DP), pad = (touch - circle) / 2, inset = ui.dp(MENU_INSET_DP);

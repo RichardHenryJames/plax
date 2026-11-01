@@ -83,9 +83,11 @@ function spend(input: FitInput, titleLines: number): { plan: FitPlan; room: numb
   const roomWith = input.height - input.actions - input.meta - title
   const roomBare = input.height - input.actions - input.metaBare - title
   const picture = input.heroMaximum > 0
+  // With little to read the picture may grow to the tallest it may be (a poster too: its sign grows with it).
+  const tallest = Math.max(input.heroMaximum, input.heroTall)
 
   if (input.bodyNatural === 0) {
-    const hero = Math.min(roomWith, Math.max(input.heroMaximum, input.heroTall))
+    const hero = Math.min(roomWith, tallest)
     const shown = picture && hero >= input.heroMinimum
     return { plan: { hero: shown ? hero : 0, titleLines, bodyLines: 0 }, room: shown ? roomWith : roomBare }
   }
@@ -103,7 +105,7 @@ function spend(input: FitInput, titleLines: number): { plan: FitPlan; room: numb
     const wanted = input.heroKept === false ? input.bodyNatural : Math.min(input.bodyNatural, MIN_BODY_LINES)
     if (beside >= wanted) {
       const lines = Math.min(input.bodyNatural, beside)
-      const hero = Math.min(roomWith - input.bodyTop - lines * line, Math.max(input.heroMaximum, input.heroTall))
+      const hero = Math.min(roomWith - input.bodyTop - lines * line, tallest)
       return { plan: { hero, titleLines, bodyLines: lines }, room: roomWith }
     }
   }
