@@ -37,6 +37,8 @@ final class MenuSheet {
         void about();
         void contact();
         void privacy();
+        /** Opens the consent tool's choices (only offered where the law asks for them). */
+        void adChoices();
         void update();
         void clearSaved();
     }
@@ -52,7 +54,7 @@ final class MenuSheet {
     private final AppCompatActivity activity;
     private final Actions actions;
 
-    private MenuSheet(AppCompatActivity activity, Ui ui, FeedViewModel.State state, boolean storeBuild, Actions actions) {
+    private MenuSheet(AppCompatActivity activity, Ui ui, FeedViewModel.State state, boolean storeBuild, boolean adChoices, Actions actions) {
         this.activity = activity; this.ui = ui; this.actions = actions;
         dialog = new Dialog(activity, R.style.Theme_Plax_Menu);
         int width = Math.min(ui.dp(WIDTH_DP), Math.round(activity.getResources().getDisplayMetrics().widthPixels * .86f));
@@ -115,6 +117,7 @@ final class MenuSheet {
         list.addView(row(R.drawable.ic_info, activity.getString(R.string.about), false, actions::about));
         list.addView(row(R.drawable.ic_mail, activity.getString(R.string.contact_us), false, actions::contact));
         list.addView(row(R.drawable.ic_shield, activity.getString(R.string.privacy_policy), false, actions::privacy));
+        if (adChoices) list.addView(row(R.drawable.ic_info, activity.getString(R.string.ad_choices), false, actions::adChoices));
         list.addView(row(R.drawable.ic_download, activity.getString(storeBuild ? R.string.update_play : R.string.update_check), false, actions::update));
         list.addView(row(R.drawable.ic_trash, activity.getString(R.string.clear_saved), false, actions::clearSaved));
 
@@ -159,8 +162,8 @@ final class MenuSheet {
         }
     }
 
-    static MenuSheet show(AppCompatActivity activity, Ui ui, FeedViewModel.State state, boolean storeBuild, Actions actions) {
-        MenuSheet sheet = new MenuSheet(activity, ui, state, storeBuild, actions);
+    static MenuSheet show(AppCompatActivity activity, Ui ui, FeedViewModel.State state, boolean storeBuild, boolean adChoices, Actions actions) {
+        MenuSheet sheet = new MenuSheet(activity, ui, state, storeBuild, adChoices, actions);
         sheet.dialog.show();
         return sheet;
     }

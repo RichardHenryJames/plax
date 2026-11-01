@@ -54,7 +54,15 @@ public class ContactDeviceTest {
 
     private void openMenu(String item) {
         assertTrue("the screen is up", device.wait(Until.hasObject(By.desc("Menu")), 15_000));
-        device.findObject(By.desc("Menu")).click();
+        // This test runs on the live feed, which rebuilds the page as it arrives: a button found a moment ago can be stale when pressed.
+        for (int attempt = 0; ; attempt++) {
+            try {
+                device.wait(Until.findObject(By.desc("Menu")), 5_000).click();
+                break;
+            } catch (androidx.test.uiautomator.StaleObjectException | NullPointerException gone) {
+                if (attempt == 4) throw gone;
+            }
+        }
         // The close button is at the top of the panel, so it is on screen however long the list below it is (a row further down,
         // such as Privacy policy, is below the fold on a screen of this height).
         assertTrue("the menu is open", device.wait(Until.hasObject(By.desc("Close menu")), 5_000));

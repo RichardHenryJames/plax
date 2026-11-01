@@ -171,6 +171,20 @@ final class Ui {
         return view;
     }
 
+    /** The button of an ad's call to action. It has no click listener: the ads library handles a press on it, and counts it. */
+    Button callToAction() {
+        Button view = new Button(context);
+        view.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        view.setTextSize(15); view.setTextColor(onAccent); view.setAllCaps(false);
+        view.setIncludeFontPadding(fontPadding);
+        view.setStateListAnimator(null);
+        view.setGravity(Gravity.CENTER);
+        view.setMinHeight(dp(52)); view.setMinimumWidth(0);
+        view.setBackground(touch(round(accent, 16), 16));
+        view.setPadding(dp(28), 0, dp(28), 0);
+        return view;
+    }
+
     /** A quieter button for a second choice beside {@link #primaryButton}. */
     TextView secondaryButton(CharSequence label, Runnable click) {
         TextView view = text(label, 15, accentText, true);

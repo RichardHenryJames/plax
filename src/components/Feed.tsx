@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Card } from './Card'
 import { CardSkeleton } from './Skeleton'
 import { CaughtUp } from './CaughtUp'
+import { AdCard } from './AdCard'
 import { MenuButton } from './MenuButton'
 import { CardData } from '@/lib/sample-data'
 import { usePlaxStore } from '@/lib/store'
@@ -14,6 +15,9 @@ import { NEWS_SECTIONS } from '@/lib/types'
 import { withBase } from '@/lib/base-path'
 import { SeenStore, replace, append, EARLIER_LIMIT } from '@/lib/story-engine'
 import { loadSeen, saveSeen } from '@/lib/seen-storage'
+import { withAds, adSlots, adCardId, isAdCardId, adOrdinal } from '@/lib/ad-slots'
+import { PAGE_ON } from '@/lib/ads-config'
+import { useAdsBlocked } from '@/lib/ads-state'
 
 const LOAD_MORE_THRESHOLD = 10 // fetch more when 10 cards from end
 const CARD_CACHE_KEY = 'plax-card-cache-v2'
@@ -31,11 +35,19 @@ const SWAP_WINDOW_MS = 1500 // new stories replace the list only while the reade
 const PLACE_KEEP_MS = 2 * 60 * 1000 // a feed left this recently (for Topics or Saved) is found as it was, with no request
 const PLACES_KEPT = 6
 const HINT_KEY = 'plax-swipe-hint' // set once the reader has swiped: the hint has done its job
+const AD_PAGE_MIN_HEIGHT = 520 // a full-page ad (the unit, the label and the button under it) needs a page about this tall
+const MAX_AD_FAILURES = 2 // after this many slots that could not be served, no more are put in: the service is not answering
 export const CAUGHT_UP_ID = '__caught_up__'
 
 const isMarker = (c: CardData) => c.id === CAUGHT_UP_ID
 const withoutMarker = (cards: CardData[]) => cards.filter((c) => !isMarker(c))
 const marker = (): CardData => ({ id: CAUGHT_UP_ID, type: 'microessay', content: '', category: 'news', readTime: '' })
+
+// An ad stands between stories as a card of its own (see lib/ad-slots.ts). Like the caught-up card it is not a story: it is never
+// read, saved, shared, searched, counted or translated. It is only in what is on screen, never in the list of stories the feed keeps.
+const isAd = (c: CardData) => isAdCardId(c.id)
+const isFiller = (c: CardData) => isMarker(c) || isAd(c)
+const adCard = (ordinal: number): CardData => ({ id: adCardId(ordinal), type: 'microessay', content: '', category: 'news', readTime: '' })
 
 // Where each feed was left (what was loaded, what was held back, and the story being read), so going to Topics
 // or Saved and back finds the same story, as in the app. Kept for the life of the page only.
@@ -426,8 +438,10 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
       exhaustedRef.current = kept.exhausted
       setExhausted(kept.exhausted)
       commit(kept.cards)
-      setFocusCard(kept.focus) // the index counts a pinned saved story, so it comes back too
-      setCurrentIndex(Math.min(kept.index, kept.cards.length - 1 + (kept.focus ? 1 : 0)))
+      setFocusCard(kept.focus) // the index counts a pinned saved story, so it comes back too, and the ads that stand between stories
+      const storiesKept = kept.cards.filter((c) => !isMarker(c)).length + (kept.focus ? 1 : 0)
+      const adsKept = PAGE_ON ? adSlots(storiesKept).length : 0
+      setCurrentIndex(Math.min(kept.index, kept.cards.length - 1 + (kept.focus ? 1 : 0) + adsKept))
       setIsInitialLoad(false)
       settled = true
       return leave
@@ -478,7 +492,20 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
   }, [sig, session]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Cards on screen: a saved story opened from the Saved tab is pinned to the front. A news section
-  //    (India / World / …) narrows the news cards. ──
+  //    (India / World / …) narrows the news cards. Where the site has ads, one stands after every fifth story. ──
+  const [unfilledAds, setUnfilledAds] = useState<Set<number>>(() => new Set())
+  const [filledAds, setFilledAds] = useState<Set<number>>(() => new Set())
+  const adsBlockedHere = useAdsBlocked()
+  // A page shorter than this (a phone on its side) has no room for a full-page ad shown whole, and an ad is never cut off or squeezed:
+  // there the stories simply run on (the strip at the foot is still there).
+  const [roomForAd, setRoomForAd] = useState(true)
+  useEffect(() => {
+    const tall = window.matchMedia(`(min-height: ${AD_PAGE_MIN_HEIGHT}px)`)
+    const update = () => setRoomForAd(tall.matches)
+    update()
+    tall.addEventListener('change', update)
+    return () => tall.removeEventListener('change', update)
+  }, [])
   const visibleCards = useMemo(
     () => {
       let base = cards
@@ -488,11 +515,29 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
       if (newsSection) base = base.filter((c) => c.category === 'news' && c.section === newsSection)
       // A saved card is pinned to the FRONT (deduped) so the reader lands on it
       // regardless of when the live feed finishes loading.
-      if (focusCard && !base.some((c) => c.id === focusCard.id)) return [focusCard, ...base]
-      return base
+      if (focusCard && !base.some((c) => c.id === focusCard.id)) base = [focusCard, ...base]
+      if (!PAGE_ON || !roomForAd) return base
+      // The caught-up card is not a story: it stays last, and an ad is never put between the last story and it. An ad that was
+      // asked for and could not be served is left out for good, so the reader never lands on an empty page. Where ads are blocked,
+      // or two in a row could not be served, no more are put in; the ones already shown stay, so nothing moves under the reader.
+      const stories = base.filter((c) => !isMarker(c))
+      const ended = base.filter(isMarker)
+      const giveUp = adsBlockedHere || unfilledAds.size >= MAX_AD_FAILURES
+      return [
+        ...withAds(stories, (slot) => (unfilledAds.has(slot.ordinal) || (giveUp && !filledAds.has(slot.ordinal)) ? null : adCard(slot.ordinal))),
+        ...ended,
+      ]
     },
-    [cards, focusCard, newsSection]
+    [cards, focusCard, newsSection, unfilledAds, filledAds, adsBlockedHere, roomForAd]
   )
+  const dropAd = useCallback((id: string) => {
+    const ordinal = adOrdinal(id)
+    if (ordinal !== null) setUnfilledAds((prev) => (prev.has(ordinal) ? prev : new Set(prev).add(ordinal)))
+  }, [])
+  const keepAd = useCallback((id: string) => {
+    const ordinal = adOrdinal(id)
+    if (ordinal !== null) setFilledAds((prev) => (prev.has(ordinal) ? prev : new Set(prev).add(ordinal)))
+  }, [])
 
   // Reset to the top whenever the news section changes (not when the feed is merely mounted again)
   const lastNewsSection = useRef(newsSection)
@@ -537,7 +582,7 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
   // Publish the current card so the desktop right rail can show it
   useEffect(() => {
     const shown = visibleCards[currentIndex]
-    setCurrentCard(shown && !isMarker(shown) ? shown : null)
+    setCurrentCard(shown && !isFiller(shown) ? shown : null)
   }, [currentIndex, visibleCards, setCurrentCard])
 
   // ── Lazy AI enhancement / translation: rewrite the raw extract of the card
@@ -742,13 +787,13 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
   // Mark the current card as read as soon as it's displayed
   useEffect(() => {
     const shown = visibleCards[currentIndex]
-    if (shown && !isMarker(shown)) markCardRead(shown.id)
+    if (shown && !isFiller(shown)) markCardRead(shown.id)
   }, [currentIndex, visibleCards]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Track engagement on card change
   const trackEngagement = useCallback(
     (cardIndex: number) => {
-      if (cardIndex >= 0 && cardIndex < visibleCards.length && !isMarker(visibleCards[cardIndex])) {
+      if (cardIndex >= 0 && cardIndex < visibleCards.length && !isFiller(visibleCards[cardIndex])) {
         const card = visibleCards[cardIndex]
         const timeSpent = Date.now() - cardEntryTime.current
         markCardRead(card.id)
@@ -777,9 +822,10 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
       trackEngagement(currentIndex)
       setDirection(dir)
       setCurrentIndex(newIndex)
-      incrementCardsRead()
+      // Moving on from an ad is not reading a story.
+      if (!isAd(visibleCards[currentIndex])) incrementCardsRead()
     },
-    [visibleCards.length, currentIndex, trackEngagement, incrementCardsRead, isFetching, fetchMore]
+    [visibleCards, currentIndex, trackEngagement, incrementCardsRead, isFetching, fetchMore]
   )
 
   // Touch navigation — a card does not scroll, so a decisive swipe anywhere on it moves to the next or the previous story,
@@ -898,7 +944,7 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
     if (seenRef.current) saveSeen(seenRef.current)
   }, [])
   const markSeen = useCallback((card: CardData) => {
-    if (isMarker(card)) return
+    if (isFiller(card)) return
     if (seen().mark(card, Date.now()) && !saveTimer.current) {
       saveTimer.current = setTimeout(() => { saveTimer.current = null; if (seenRef.current) saveSeen(seenRef.current) }, 3000)
     }
@@ -911,7 +957,7 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
   }, [markSeen])
   const startViewing = useCallback((card: CardData | undefined) => {
     leaveCard()
-    if (!card || isMarker(card) || document.visibilityState !== 'visible') return
+    if (!card || isFiller(card) || document.visibilityState !== 'visible') return
     viewingRef.current = { card, since: Date.now() }
     dwellTimer.current = setTimeout(() => markSeen(card), DWELL_MS)
   }, [leaveCard, markSeen])
@@ -1109,7 +1155,14 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
             onTouchEnd={handleTouchEnd}
             className="card-slot"
           >
-            <Card card={currentCard} isActive={true} translating={currentTranslating} />
+            {isAd(currentCard) ? (
+              <>
+                <AdCard onNext={() => goToCard(currentIndex + 1, 1)} onFilled={() => keepAd(currentCard.id)} onUnfilled={() => dropAd(currentCard.id)} />
+                <MenuButton corner />
+              </>
+            ) : (
+              <Card card={currentCard} isActive={true} translating={currentTranslating} />
+            )}
           </motion.div>
         </AnimatePresence>
       )}

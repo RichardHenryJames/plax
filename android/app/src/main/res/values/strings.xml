@@ -169,4 +169,9 @@
     <string name="update_failed">Cannot check for updates right now. Try again later.</string>
     <string name="update_no_browser">No browser is available to download the update.</string>
     <string name="about_updates">Once a day, and when you choose Check for updates, Plax asks its website whether a newer version exists. Nothing about you is sent. If there is one you can download and install it yourself; Plax never installs anything on its own.</string>
+    <string name="about_text_ads">Bite-sized news and ideas from Plax Labs.\n\nStories come from the Plax feed in English or Hindi. Publisher links open in your browser and images load from publisher hosts. The optional AI brief sends the story text you choose to Plax Labs, which uses AI services to write it.\n\nStories you have looked at are remembered on this phone only, so they do not come back. Your topics and saved stories stay on this phone unless you choose to sign in with Google; then they sync to your Plax account.\n\nPlax shows ads from Google: a strip at the bottom and a full page after every fifth story. For them Google may use your phone\'s advertising ID, and where the law asks for it, Plax asks for your consent first. Where it applies you can change your choices from the menu, and you can reset or delete your advertising ID in your phone\'s settings. Apart from the ads there is no analytics SDK.\n\nQuestions, corrections or publisher requests:\n%2$s\n\nVersion %1$s. Not affiliated with Inshorts. Content belongs to its respective publishers.</string>
+    <string name="ad_label">Ad</string>
+    <string name="ad_description">Advertisement</string>
+    <string name="ad_next_hint">Swipe up for the next story</string>
+    <string name="ad_choices">Privacy and ad choices</string>
 </resources>

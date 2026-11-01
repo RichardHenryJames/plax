@@ -171,7 +171,7 @@ plax/
 │   │   ├── AuthProviderWrapper.tsx    # Conditionally wraps app with auth
 │   │   ├── BrandMark.tsx              # The Plax mark: logo glyph + serif wordmark
 │   │   ├── Card.tsx                   # Content card, fitted to one view (picture or poster, tag line, serif headline, text, extras in sheets)
-│   │   ├── CardActions.tsx            # Action bar: Read full story, Listen, Copy, Save, Share
+│   │   ├── CardActions.tsx            # Listen, Copy, Save, Share: the buttons at the right end of the source line
 │   │   ├── CaughtUp.tsx               # "You're all caught up" end-of-list card
 │   │   ├── CloudSync.tsx              # Invisible bridge: Zustand ↔ Supabase (merges, never replaces)
 │   │   ├── DeleteAccountPanel.tsx     # Sign in with Google and delete the account, for /delete-account

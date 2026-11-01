@@ -43,6 +43,8 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
     private static final String HANDLED = "plax.callback.handled";
 
     private final Handler main = new Handler(Looper.getMainLooper());
+    /** No ad pages in the pager. */
+    private static final int[] NO_SLOTS = {};
     /** The story a link is being made for, if any; a second tap meanwhile must not open a second chooser. */
     private Story sharingStory;
     /** Which request is current, so that one given up on is never obeyed if it answers later. */
@@ -52,6 +54,15 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
 
     private Ui ui;
     private FeedViewModel model;
+    private AdNetwork network;
+    private AdController ads;
+    private AdBar adBar;
+    /** The slots that hold an ad page in the pager as it is now: what positions of the pager mean is read with this. */
+    private int[] pagerSlots = NO_SLOTS;
+    /** The set of ad pages changed while the pager was moving; the pager is made again when it has stopped. */
+    private boolean adsDirty;
+    /** Whether the screen is tall enough for an ad between stories (a phone on its side is not). */
+    private boolean roomForAds;
     private ImageLoader images;
     private StoryAdapter adapter;
     private ViewPager2 pager;
@@ -90,6 +101,9 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
         accountManager = AccountManager.get(this);
         updates = UpdateManager.get(this);
         model = new ViewModelProvider(this).get(FeedViewModel.class);
+        network = Ads.network();
+        ads = new ViewModelProvider(this).get(AdsViewModel.class).controller;
+        roomForAds = getResources().getConfiguration().screenHeightDp >= AdBar.MIN_SCREEN_HEIGHT_DP;
         long deadline = SystemClock.uptimeMillis() + SPLASH_LIMIT_MS;
         splash.setKeepOnScreenCondition(() -> !model.ready() && SystemClock.uptimeMillis() < deadline);
 
@@ -110,6 +124,10 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
             view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
             return insets;
         });
+
+        // Ads wait for the reader's consent where the law asks for it; with no ad unit in the build nothing here runs at all.
+        ads.listen(this::adsChanged);
+        if (network.banner() || network.page()) network.start(this, this::adsReady);
 
         String language = Language.current();
         if (!language.equals(model.current().lang())) model.language(language);
@@ -147,9 +165,21 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
             @Override public void onPageSelected(int position) {
                 if (rendering) return;
                 pager.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
-                model.position(position);
-                prefetch(position);
-                if (shown != null) banner(shown, position);
+                // An ad page stands for the story before it, so the model keeps the place of the story the reader has just read.
+                int item = AdSlots.item(position, pagerSlots);
+                model.position(item);
+                prefetch(item);
+                if (shown != null) {
+                    banner(shown, item);
+                    if (adPagesOn(shown)) ads.reader(item, shown.stories().size(), AdSlots.slotAt(position, pagerSlots));
+                }
+            }
+
+            // Pages are put in, and taken out, only while the pager is still, so that nothing moves under a swipe.
+            @Override public void onPageScrollStateChanged(int state) {
+                if (state != ViewPager2.SCROLL_STATE_IDLE || !adsDirty || rendering) return;
+                adsDirty = false;
+                if (shown != null) render(shown);
             }
         });
         View inner = pager.getChildAt(0);
@@ -274,6 +304,10 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
         FrameLayout.LayoutParams spinnerParams = new FrameLayout.LayoutParams(ui.dp(40), ui.dp(40), Gravity.TOP | Gravity.END);
         spinnerParams.setMargins(0, ui.dp(12), ui.dp(16), 0);
         content.addView(spinner, spinnerParams);
+
+        // The ad strip stands last, under the story; it is there only where a story is and the build has an ad for it.
+        adBar = new AdBar(this, ui, network);
+        root.addView(adBar.view(), new LinearLayout.LayoutParams(-1, -2));
     }
 
     private View tile(Topic topic) {
@@ -313,11 +347,19 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
             }
             interests(state.interests());
 
-            adapter.submit(state.stories(), state.savedIds(), state.saving(), state.storageReady(), state.earlier());
+            // Where the reader is, and which ad pages stand in the pager. Ad pages are asked for ahead of the reader, so the reader's
+            // place is told to the ads first; what they hold then is what the pager is made of.
+            int item = noStories ? 0 : Math.min(state.position(), state.stories().size() - 1);
+            boolean adPages = adPagesOn(state);
+            int onAd = adPages ? AdSlots.slotAt(pager.getCurrentItem(), pagerSlots) : -1;
+            if (adPages) ads.reader(item, state.stories().size(), onAd);
+            int[] slots = adPages ? ads.shown() : NO_SLOTS;
+            adapter.submit(AdSlots.interleave(state.stories(), slots, Story::ad), state.savedIds(), state.saving(), state.storageReady(), state.earlier());
+            pagerSlots = slots;
             if (!noStories) {
-                int target = Math.min(state.position(), state.stories().size() - 1);
+                int target = pagerIndex(item, onAd, slots);
                 if (pager.getCurrentItem() != target) pager.setCurrentItem(target, false);
-                prefetch(target);
+                prefetch(item);
                 if (!reportedDrawn && browsing) { reportedDrawn = true; pager.post(this::reportFullyDrawn); }
             }
             boolean showSkeleton = browsing && noStories && state.loading() && state.feedError() == 0;
@@ -334,10 +376,45 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
 
             spinner.setVisibility(state.refreshing() ? View.VISIBLE : View.GONE);
             freshPill.setVisibility(state.fresh() ? View.VISIBLE : View.GONE);
-            banner(state, pager.getCurrentItem());
+            banner(state, item);
+            adBar.show(adBar.enabled() && browsing && !noStories);
             if (state.notice() != 0) { Toast.makeText(this, state.notice(), Toast.LENGTH_SHORT).show(); model.acknowledgeNotice(); }
         } finally { rendering = false; }
     }
+
+    /** Whether ad pages belong between the stories now: a feed with stories on a screen tall enough, in a build that has them. */
+    private boolean adPagesOn(FeedViewModel.State state) {
+        boolean browsing = state.screen() == FeedViewModel.Screen.FEED || state.screen() == FeedViewModel.Screen.FOR_YOU;
+        return browsing && !state.stories().isEmpty() && ads.enabled() && roomForAds;
+    }
+
+    /**
+     * The page of the pager that shows this item of the model's list, with the ad pages of {@code slots} in it. A reader who is on an
+     * ad page stays on it: the model puts an ad page at the story before it.
+     */
+    private static int pagerIndex(int item, int onAd, int[] slots) {
+        if (onAd >= 0 && item == onAd - 1)
+            for (int index = 0; index < slots.length; index++) if (slots[index] == onAd) return onAd + index;
+        return AdSlots.pagerIndex(item, slots);
+    }
+
+    /** The ad pages may have changed: made again at once, or, while the pager is moving, when it has stopped. */
+    private void adsChanged() {
+        if (rendering || shown == null) return;
+        if (pager.getScrollState() == ViewPager2.SCROLL_STATE_IDLE) render(shown);
+        else adsDirty = true;
+    }
+
+    /** Consent is settled and the ads library is started. */
+    private void adsReady() {
+        if (isFinishing() || isDestroyed()) return;
+        ads.ready();
+        adBar.ready();
+        // The reader may already be on a story: ask for the ad ahead of them now, not at their next swipe.
+        if (shown != null) render(shown);
+    }
+
+    @Override public AdNetwork.Page ad(int ordinal) { return ads.page(ordinal); }
 
     /** The card on the Topics screen that opens the choice of topics for For you. */
     private void interests(Set<String> chosen) {
@@ -401,7 +478,7 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
     /** The menu button: opens everything the header and the bottom bar used to hold. */
     private void openMenu() {
         if (menuSheet != null && menuSheet.isShowing()) return;
-        menuSheet = MenuSheet.show(this, ui, model.current(), updates.storeBuild(), new MenuSheet.Actions() {
+        menuSheet = MenuSheet.show(this, ui, model.current(), updates.storeBuild(), network.privacyOptions(this), new MenuSheet.Actions() {
             @Override public void screen(FeedViewModel.Screen screen) { model.screen(screen); }
             @Override public void language(String language) { Language.apply(language); }
             @Override public void section(String id) { model.section(id); }
@@ -410,6 +487,7 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
             @Override public void about() { MainActivity.this.about(); }
             @Override public void contact() { MainActivity.this.contact(); }
             @Override public void privacy() { open(FeedApi.PRIVACY_URL); }
+            @Override public void adChoices() { network.showPrivacyOptions(MainActivity.this, () -> { }); }
             @Override public void update() { updates.check(true); }
             @Override public void clearSaved() { confirmClearSaved(); }
         });
@@ -512,9 +590,11 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
     @Override protected void onResume() {
         super.onResume();
         updates.attach(updateHost);
+        adBar.resume();
     }
 
     @Override protected void onPause() {
+        adBar.pause();
         updates.detach(updateHost);
         super.onPause();
     }
@@ -533,7 +613,8 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
     }
 
     private void about() {
-        String text = getString(R.string.about_text, BuildConfig.VERSION_NAME, Contact.EMAIL);
+        boolean withAds = network.banner() || network.page();
+        String text = getString(withAds ? R.string.about_text_ads : R.string.about_text, BuildConfig.VERSION_NAME, Contact.EMAIL);
         // Store builds are updated by Google Play and never look for updates, so they do not describe it.
         if (!updates.storeBuild()) text += "\n\n" + getString(R.string.about_updates);
         openDialog = new MaterialAlertDialogBuilder(this).setTitle(R.string.about)
@@ -664,6 +745,9 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
 
     @Override protected void onDestroy() {
         giveUpWaiting();
+        // The ads of the pages live on in their view model while the screen is made again; this screen lets go of its own strip.
+        ads.listen(null);
+        adBar.destroy();
         if (sheet != null) sheet.dismiss();
         if (interestsSheet != null) interestsSheet.dismiss();
         if (accountSheet != null) accountSheet.dismiss();

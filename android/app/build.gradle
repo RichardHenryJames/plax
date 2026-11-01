@@ -6,6 +6,31 @@ plugins { id 'com.android.application' }
 def playStoreOverride = providers.gradleProperty('playStore').getOrNull()
 if (playStoreOverride != null && !(playStoreOverride in ['true', 'false'])) throw new GradleException('playStore must be true or false.')
 
+// Google ads (AdMob): the banner at the foot of the screen and the full-page ad after every fifth story. The ids are the ones of the
+// owner's AdMob account. They are not secret (every APK holds them) but a build must not make them up, so they come from Gradle
+// properties (android/gradle.properties, or -P on the command line): admobAppId, admobBannerUnit and admobNativeUnit. The preview and
+// release builds show an ad only where its unit is set, and none at all while they are not. The debug build shows none either, unless
+// -PtestAds=true, which uses Google's demo ad units: real test ads, safe to click, tied to no account, for looking at the layout.
+// A build for readers must never carry the demo ids, and a live ad must never be clicked while testing (that is invalid traffic).
+def adProperty = { String name -> (providers.gradleProperty(name).getOrNull() ?: '').trim() }
+def adIf = { String value, String pattern -> value ==~ pattern ? value : '' }
+def demoAdApp = 'ca-app-pub-3940256099942544~3347511713'
+def demoAdBanner = 'ca-app-pub-3940256099942544/9214589741'
+def demoAdNative = 'ca-app-pub-3940256099942544/2247696110'
+def liveAdApp = adIf(adProperty('admobAppId'), /ca-app-pub-\d{16}~\d{10}/)
+def liveAdBanner = liveAdApp.isEmpty() ? '' : adIf(adProperty('admobBannerUnit'), /ca-app-pub-\d{16}\/\d{10}/)
+def liveAdNative = liveAdApp.isEmpty() ? '' : adIf(adProperty('admobNativeUnit'), /ca-app-pub-\d{16}\/\d{10}/)
+def showTestAds = providers.gradleProperty('testAds').getOrNull() == 'true'
+// -PadsConsentTest=eea (or other) makes a debug build behave as if the reader were in the EEA (or outside it), to see Google's consent
+// message. It never reaches a build for readers.
+def adsConsentTest = adProperty('adsConsentTest')
+if (!(adsConsentTest in ['', 'eea', 'other'])) throw new GradleException('adsConsentTest must be eea or other.')
+if (providers.gradleProperty('admobAppId').isPresent() && liveAdApp.isEmpty()) throw new GradleException('admobAppId is not an AdMob app id (ca-app-pub-0000000000000000~0000000000).')
+if (!liveAdApp.isEmpty()) {
+    if (providers.gradleProperty('admobBannerUnit').isPresent() && liveAdBanner.isEmpty()) throw new GradleException('admobBannerUnit is not an AdMob ad unit id (ca-app-pub-0000000000000000/0000000000).')
+    if (providers.gradleProperty('admobNativeUnit').isPresent() && liveAdNative.isEmpty()) throw new GradleException('admobNativeUnit is not an AdMob ad unit id (ca-app-pub-0000000000000000/0000000000).')
+}
+
 // The key that signs the bundle for Google Play (the upload key) is kept outside the repository, in a properties file
 // on the machine that builds: PLAX_UPLOAD_PROPERTIES names it, otherwise ~/.plax-signing/upload.properties. Run
 // new-upload-key.ps1 once to make both. Without the file the release type stays unsigned, so a build can never be
@@ -25,9 +50,13 @@ android {
         versionCode 13
         versionName '1.5.5'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
-        // The browser returns to the app on this scheme after Google sign-in; each build type has its own.
-        manifestPlaceholders = [authScheme: 'com.plaxlabs.news']
+        // The browser returns to the app on this scheme after Google sign-in; each build type has its own. The AdMob app id is
+        // required in the manifest by the ads library; with no ad shown it is the demo id, which is tied to no account and asks for nothing.
+        manifestPlaceholders = [authScheme: 'com.plaxlabs.news', admobAppId: demoAdApp]
         buildConfigField 'String', 'AUTH_SCHEME', '"com.plaxlabs.news"'
+        buildConfigField 'String', 'ADS_BANNER_UNIT', '""'
+        buildConfigField 'String', 'ADS_PAGE_UNIT', '""'
+        buildConfigField 'String', 'ADS_CONSENT_TEST', '""'
     }
     buildFeatures {
         buildConfig true
@@ -49,15 +78,21 @@ android {
         debug {
             applicationIdSuffix '.preview'
             versionNameSuffix '-preview'
-            manifestPlaceholders = [authScheme: 'com.plaxlabs.news.preview']
+            manifestPlaceholders = [authScheme: 'com.plaxlabs.news.preview', admobAppId: demoAdApp]
             buildConfigField 'String', 'AUTH_SCHEME', '"com.plaxlabs.news.preview"'
             buildConfigField 'boolean', 'PLAY_STORE', playStoreOverride ?: 'false'
+            buildConfigField 'String', 'ADS_BANNER_UNIT', showTestAds ? '"' + demoAdBanner + '"' : '""'
+            buildConfigField 'String', 'ADS_PAGE_UNIT', showTestAds ? '"' + demoAdNative + '"' : '""'
+            buildConfigField 'String', 'ADS_CONSENT_TEST', '"' + adsConsentTest + '"'
         }
         release {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            manifestPlaceholders = [authScheme: 'com.plaxlabs.news', admobAppId: liveAdApp.isEmpty() ? demoAdApp : liveAdApp]
             buildConfigField 'boolean', 'PLAY_STORE', playStoreOverride ?: 'true'
+            buildConfigField 'String', 'ADS_BANNER_UNIT', '"' + liveAdBanner + '"'
+            buildConfigField 'String', 'ADS_PAGE_UNIT', '"' + liveAdNative + '"'
             if (signingConfigs.findByName('upload')) signingConfig signingConfigs.upload
         }
         // The shipped preview: optimized like release (R8, not debuggable) but signed with the local
@@ -68,9 +103,11 @@ android {
             versionNameSuffix '-preview'
             signingConfig signingConfigs.debug
             matchingFallbacks = ['release']
-            manifestPlaceholders = [authScheme: 'com.plaxlabs.news.preview']
+            manifestPlaceholders = [authScheme: 'com.plaxlabs.news.preview', admobAppId: liveAdApp.isEmpty() ? demoAdApp : liveAdApp]
             buildConfigField 'String', 'AUTH_SCHEME', '"com.plaxlabs.news.preview"'
             buildConfigField 'boolean', 'PLAY_STORE', playStoreOverride ?: 'false'
+            buildConfigField 'String', 'ADS_BANNER_UNIT', '"' + liveAdBanner + '"'
+            buildConfigField 'String', 'ADS_PAGE_UNIT', '"' + liveAdNative + '"'
         }
     }
     compileOptions {
@@ -91,6 +128,9 @@ dependencies {
     implementation 'com.google.android.material:material:1.13.0'
     implementation 'com.squareup.okhttp3:okhttp:5.3.2'
     implementation 'com.google.code.gson:gson:2.14.0'
+    // Google ads: the banner and the full-page native ad, and the consent message that readers in the EEA, the UK and Switzerland see.
+    implementation 'com.google.android.gms:play-services-ads:25.5.0'
+    implementation 'com.google.android.ump:user-messaging-platform:4.0.0'
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test:runner:1.7.0'

@@ -12,6 +12,9 @@ import { TopicsScreen } from '@/components/TopicsScreen'
 import { SavedScreen } from '@/components/SavedScreen'
 import { ForYouEmpty } from '@/components/ForYouEmpty'
 import { FeedErrorBoundary } from '@/components/FeedErrorBoundary'
+import { AdStrip } from '@/components/AdStrip'
+import { AdsRuntime } from '@/components/AdsRuntime'
+import { STRIP_ON } from '@/lib/ads-config'
 import { TOPICS, usePlaxStore } from '@/lib/store'
 import { useUIStore } from '@/lib/ui-store'
 import { useEffect, useState } from 'react'
@@ -73,27 +76,31 @@ export function HomeApp({ seed }: { seed?: Record<string, string>[] }) {
           screen, and the menu button over it opens everything else (MenuDrawer). */}
       <div className="flex h-full">
         <LeftRail />
-        <div className="relative flex-1 min-w-0 h-full">
-          <FeedErrorBoundary>
-            {screen === 'topics' ? (
-              <>
-                <TopicsScreen />
-                <MenuButton corner />
-              </>
-            ) : screen === 'saved' ? (
-              <>
-                <SavedScreen />
-                <MenuButton corner />
-              </>
-            ) : forYouEmpty ? (
-              <>
-                <ForYouEmpty />
-                <MenuButton corner />
-              </>
-            ) : (
-              <Feed categories={categories} seed={seed} />
-            )}
-          </FeedErrorBoundary>
+        <div className="relative flex min-w-0 flex-1 flex-col h-full">
+          <div className="relative min-h-0 flex-1">
+            <FeedErrorBoundary>
+              {screen === 'topics' ? (
+                <>
+                  <TopicsScreen />
+                  <MenuButton corner />
+                </>
+              ) : screen === 'saved' ? (
+                <>
+                  <SavedScreen />
+                  <MenuButton corner />
+                </>
+              ) : forYouEmpty ? (
+                <>
+                  <ForYouEmpty />
+                  <MenuButton corner />
+                </>
+              ) : (
+                <Feed categories={categories} seed={seed} />
+              )}
+            </FeedErrorBoundary>
+          </div>
+          {/* The strip of ad under the story, on the feed only: the story is laid out in the room it leaves. */}
+          {STRIP_ON && screen === 'feed' && !forYouEmpty && <AdStrip />}
         </div>
         <RightRail />
       </div>
@@ -101,6 +108,7 @@ export function HomeApp({ seed }: { seed?: Record<string, string>[] }) {
       <CommandPalette />
       <TopicEditor />
       <AccountSheet />
+      <AdsRuntime />
     </main>
   )
 }

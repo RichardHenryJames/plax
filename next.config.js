@@ -18,6 +18,9 @@ const nextConfig = {
       { source: '/', destination: '/news', basePath: false, permanent: false },
       { source: '/robots.txt', destination: '/news/robots.txt', basePath: false, permanent: false },
       { source: '/sitemap.xml', destination: '/news/sitemap.xml', basePath: false, permanent: false },
+      // Google's ad sellers files are read at the root of the domain too (they exist only when ads are set up).
+      { source: '/ads.txt', destination: '/news/ads.txt', basePath: false, permanent: false },
+      { source: '/app-ads.txt', destination: '/news/app-ads.txt', basePath: false, permanent: false },
     ]
   },
 

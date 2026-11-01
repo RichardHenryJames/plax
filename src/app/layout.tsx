@@ -4,6 +4,7 @@ import { AuthProviderWrapper } from '@/components/AuthProviderWrapper'
 import { SITE, SITE_URL, TOPIC_SEO } from '@/lib/seo'
 import { withBase } from '@/lib/base-path'
 import { THEME_SCRIPT } from '@/lib/theme'
+import { ads } from '@/lib/ads-config'
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -57,6 +58,8 @@ export const metadata: Metadata = {
   },
   manifest: '/manifest.webmanifest',
   category: 'education',
+  // Tells AdSense which account the site belongs to (it is how the site is claimed). Only where ads are set up.
+  ...(ads.client ? { other: { 'google-adsense-account': ads.client } } : {}),
 }
 
 export const viewport: Viewport = {

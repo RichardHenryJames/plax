@@ -15,6 +15,15 @@
         android:roundIcon="@mipmap/ic_launcher"
         android:supportsRtl="true"
         android:theme="@style/Theme.Plax.Starting">
+        <!-- Google's ads library needs the AdMob app id here. Which one is per build type (see build.gradle); while no ad is shown it is
+             Google's demo id, which is tied to no account. The library starts only when the app asks it to, after the reader's consent. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="${admobAppId}" />
+        <!-- Ads and measurement start when the app calls MobileAds.initialize, not when the process starts. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.DELAY_APP_MEASUREMENT_INIT"
+            android:value="true" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

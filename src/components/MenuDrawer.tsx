@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import Link from 'next/link'
 import { useAuth } from '@/components/AuthProvider'
+import { hasAdChoices, openAdChoices } from '@/components/AdChoices'
 import { BrandMark } from '@/components/BrandMark'
 import { useUIStore } from '@/lib/ui-store'
 import { usePlaxStore } from '@/lib/store'
@@ -299,14 +300,26 @@ export function MenuDrawer() {
                 </div>
               </div>
 
-              {/* The two pages every reader may look for, as quiet links at the foot of the menu */}
-              <div className={`flex items-center gap-5 px-3 pt-5 pb-1 text-[13px] text-dark-muted ${hindi}`}>
+              {/* The pages every reader may look for, as quiet links at the foot of the menu */}
+              <div className={`flex flex-wrap items-center gap-x-5 gap-y-2 px-3 pt-5 pb-1 text-[13px] text-dark-muted ${hindi}`}>
                 <Link href="/contact" onClick={close} className="focus-ring rounded underline-offset-4 hover:text-dark-text hover:underline">
                   {t('contactUs')}
                 </Link>
                 <Link href="/privacy" onClick={close} className="focus-ring rounded underline-offset-4 hover:text-dark-text hover:underline">
                   {t('privacyPolicy')}
                 </Link>
+                {hasAdChoices && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      close()
+                      openAdChoices()
+                    }}
+                    className="focus-ring rounded underline-offset-4 hover:text-dark-text hover:underline"
+                  >
+                    {t('adChoices')}
+                  </button>
+                )}
               </div>
             </div>
           </motion.aside>

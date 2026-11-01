@@ -32,9 +32,11 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         void earlier();
         /** The menu button over a story: everything the header and the bottom bar used to hold. */
         default void menu() { }
+        /** The ad that fills the ad page with this number (see {@link AdSlots#ordinal}), or null when it is not there (any longer). */
+        default AdNetwork.Page ad(int ordinal) { return null; }
     }
 
-    private static final int STORY = 0, CAUGHT_UP = 1;
+    private static final int STORY = 0, CAUGHT_UP = 1, AD = 2;
     /** The emoji on the poster of a story with no picture; the page shrinks it to fit a small picture. */
     private static final float POSTER_SP = 64;
 
@@ -45,7 +47,11 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private final float titleSp, bodySp;
     /** Wide enough to show the read time beside the buttons on the source line; narrower keeps the room for the source and its age. */
     private final boolean roomy;
+    /** The width of the card an ad is drawn in: the screen less a margin, and no wider than the reading column. */
+    private final int adWidth;
     private List<Story> stories = List.of();
+    /** The ad each ad page of the list holds, by the number of its slot: what was bound at the last submit. */
+    private Map<Integer, AdNetwork.Page> adPages = Map.of();
     private Set<String> saved = Set.of();
     private boolean saving, storageReady;
     private int earlier;
@@ -60,20 +66,26 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         // Keep a comfortable reading width on tablets and in landscape.
         int cardWidth = Math.min(widthDp, 640);
         sidePadding = ui.dp(Math.max(16, (widthDp - cardWidth) / 2f));
+        adWidth = ui.dp(Math.min(widthDp - 32, 560));
     }
 
     void submit(List<Story> updated, Set<String> savedIds, boolean saving, boolean ready, int earlierCount) {
         List<Story> before = stories;
         Set<String> previousSaved = saved;
+        Map<Integer, AdNetwork.Page> previousAds = adPages;
+        Map<Integer, AdNetwork.Page> currentAds = new HashMap<>();
+        for (Story story : updated) if (story.isAd()) currentAds.put(story.adOrdinal(), actions.ad(story.adOrdinal()));
         boolean previousSaving = this.saving, previousReady = storageReady;
         int previousEarlier = earlier;
-        stories = updated; saved = savedIds; this.saving = saving; storageReady = ready; earlier = earlierCount;
+        stories = updated; adPages = currentAds; saved = savedIds; this.saving = saving; storageReady = ready; earlier = earlierCount;
         DiffUtil.calculateDiff(new DiffUtil.Callback() {
             @Override public int getOldListSize() { return before.size(); }
             @Override public int getNewListSize() { return updated.size(); }
             @Override public boolean areItemsTheSame(int old, int next) { return before.get(old).id().equals(updated.get(next).id()); }
             @Override public boolean areContentsTheSame(int old, int next) {
                 Story story = updated.get(next);
+                // An ad page changes only when another ad has taken the slot.
+                if (story.isAd()) return previousAds.get(story.adOrdinal()) == currentAds.get(story.adOrdinal());
                 if (story.isCaughtUp()) return previousEarlier == earlierCount;
                 return before.get(old).equals(story) && before.size() == updated.size()
                         && previousSaved.contains(story.id()) == savedIds.contains(story.id())
@@ -84,15 +96,61 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     @Override public int getItemCount() { return stories.size(); }
 
-    @Override public int getItemViewType(int index) { return stories.get(index).isCaughtUp() ? CAUGHT_UP : STORY; }
+    @Override public int getItemViewType(int index) {
+        Story story = stories.get(index);
+        return story.isAd() ? AD : story.isCaughtUp() ? CAUGHT_UP : STORY;
+    }
 
     @NonNull @Override public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int type) {
-        return type == CAUGHT_UP ? caughtUp(parent.getContext()) : story(parent);
+        return type == AD ? adPage(parent.getContext()) : type == CAUGHT_UP ? caughtUp(parent.getContext()) : story(parent);
     }
 
     @Override public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int index) {
         if (holder instanceof Caught caught) bindCaughtUp(caught);
+        else if (holder instanceof AdHolder ad) bindAd(ad, index);
         else bindStory((Holder) holder, index);
+    }
+
+    /**
+     * The page of an ad: the menu button in the corner as on every page, the ad's card in the middle, and under it a quiet hint of how
+     * to move on. The hint is text only: nothing of ours that can be pressed stands near the ad.
+     */
+    private AdHolder adPage(Context context) {
+        FrameLayout page = new FrameLayout(context);
+        page.setLayoutParams(new ViewGroup.LayoutParams(-1, -1));
+        page.setBackgroundColor(ui.bg);
+        FrameLayout host = new FrameLayout(context);
+        FrameLayout.LayoutParams hostSize = new FrameLayout.LayoutParams(-1, -1);
+        hostSize.topMargin = ui.dp(StoryPage.MENU_TOUCH_DP + 8); hostSize.bottomMargin = ui.dp(56);
+        page.addView(host, hostSize);
+
+        LinearLayout hint = ui.row();
+        hint.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+        ImageView arrow = ui.icon(R.drawable.ic_arrow_up, ui.text2, 16);
+        arrow.setAlpha(.8f);
+        hint.addView(arrow, new LinearLayout.LayoutParams(ui.dp(16), ui.dp(16)));
+        TextView words = ui.text(context.getString(R.string.ad_next_hint), 12, ui.text2, false);
+        words.setPadding(ui.dp(6), 0, 0, 0);
+        hint.addView(words);
+        FrameLayout.LayoutParams hintSize = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+        hintSize.bottomMargin = ui.dp(22);
+        page.addView(hint, hintSize);
+
+        FrameLayout.LayoutParams corner = new FrameLayout.LayoutParams(ui.dp(StoryPage.MENU_TOUCH_DP), ui.dp(StoryPage.MENU_TOUCH_DP), Gravity.TOP | Gravity.START);
+        corner.setMargins(ui.dp(12), ui.dp(4), 0, 0);
+        page.addView(ui.menuButton(() -> actions.menu()), corner);
+        return new AdHolder(page, host);
+    }
+
+    private void bindAd(AdHolder holder, int index) {
+        AdNetwork.Page ad = actions.ad(stories.get(index).adOrdinal());
+        if (holder.ad == ad) return;
+        holder.host.removeAllViews();
+        holder.ad = ad;
+        if (ad == null) return;
+        View card = ad.view(holder.itemView.getContext(), ui);
+        if (card.getParent() instanceof ViewGroup parent) parent.removeView(card);
+        holder.host.addView(card, new FrameLayout.LayoutParams(adWidth, -2, Gravity.CENTER));
     }
 
     private Caught caughtUp(Context context) {
@@ -223,10 +281,11 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         holder.credit.setText(credit(context, story, locale));
         holder.title.setText(story.title());
         holder.title.setVisibility(story.title().isEmpty() ? View.GONE : View.VISIBLE);
-        // The headline opens the full story at the publisher; a story with no usable link is not pressable at all.
+        // The headline opens the full story at the publisher; a story with no usable link is not pressable at all. The listener is
+        // set first: setting one makes a view clickable, even a null one.
         boolean linked = story.hasSource();
-        holder.title.setClickable(linked); holder.title.setFocusable(linked);
         holder.title.setOnClickListener(linked ? view -> actions.source(story) : null);
+        holder.title.setClickable(linked); holder.title.setFocusable(linked);
         ViewCompat.replaceAccessibilityAction(holder.title, AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_CLICK,
                 linked ? context.getString(R.string.read_full_story) : null, null);
         String text = story.body();
@@ -310,6 +369,15 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     @Override public void onViewRecycled(@NonNull RecyclerView.ViewHolder holder) {
         if (holder instanceof Holder story) images.cancel(story.image);
+        // The ad stays with its slot; only its card is taken off this page, which is free to hold another.
+        if (holder instanceof AdHolder ad) { ad.host.removeAllViews(); ad.ad = null; }
+    }
+
+    /** The page of an ad between stories. */
+    static final class AdHolder extends RecyclerView.ViewHolder {
+        final FrameLayout host;
+        AdNetwork.Page ad;
+        AdHolder(View root, FrameLayout host) { super(root); this.host = host; }
     }
 
     /** The caught-up card at the end of the new stories. */

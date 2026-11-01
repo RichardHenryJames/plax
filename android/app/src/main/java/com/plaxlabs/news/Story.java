@@ -34,6 +34,21 @@ record Story(String id, String title, String content, String category, String se
 
     boolean isCaughtUp() { return CAUGHT_UP_ID.equals(id); }
 
+    /**
+     * The full-page ad that stands between stories, after every fifth one. Like the caught-up card it is shown as a page of the pager
+     * but is never a story: the feed model never holds one (the pager's list is made from the model's with the ads put in), so it is
+     * never read, saved or shared.
+     */
+    static Story ad(int ordinal) { return new Story("__ad_" + ordinal + "__", "", "", "news", "", "", "", "", "", 0); }
+
+    boolean isAd() { return id.startsWith("__ad_") && id.endsWith("__") && id.length() > 6; }
+
+    /** The number of the slot an ad page stands in, from 1, or 0 for anything else. */
+    int adOrdinal() {
+        if (!isAd()) return 0;
+        try { return Integer.parseInt(id.substring(5, id.length() - 2)); } catch (NumberFormatException none) { return 0; }
+    }
+
     String headlineKey() {
         return title.isBlank() ? id : title.strip().toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
     }

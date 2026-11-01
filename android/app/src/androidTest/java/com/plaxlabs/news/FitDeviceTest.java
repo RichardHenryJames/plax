@@ -147,16 +147,22 @@ public class FitDeviceTest {
 
     private static boolean shown(View view) { return view.getVisibility() != View.GONE && view.getWidth() > 0 && view.getHeight() > 0; }
 
-    /** How many lines this view's text takes at its width and size, uncut. */
+    /**
+     * How many lines this view's text takes at its width and size, uncut, asked of the view itself: its own layout is what the page
+     * limits, and a second layout built by hand once disagreed with it by a line (a Hindi headline at twice the text size).
+     */
     private static int naturalLines(TextView view) {
-        CharSequence text = view.getText();
-        int inner = view.getWidth() - view.getTotalPaddingLeft() - view.getTotalPaddingRight();
-        return android.text.StaticLayout.Builder.obtain(text, 0, text.length(), view.getPaint(), inner)
-                .setLineSpacing(view.getLineSpacingExtra(), view.getLineSpacingMultiplier())
-                .setIncludePad(view.getIncludeFontPadding())
-                .setBreakStrategy(view.getBreakStrategy())
-                .setHyphenationFrequency(view.getHyphenationFrequency())
-                .build().getLineCount();
+        int limit = view.getMaxLines();
+        if (limit == Integer.MAX_VALUE) return view.getLayout().getLineCount();
+        int width = View.MeasureSpec.makeMeasureSpec(view.getWidth(), View.MeasureSpec.EXACTLY);
+        int height = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
+        view.setMaxLines(Integer.MAX_VALUE);
+        view.measure(width, height);
+        int lines = view.getLayout().getLineCount();
+        // The page as it was: the limit back, and the layout it gives.
+        view.setMaxLines(limit);
+        view.measure(width, height);
+        return lines;
     }
 
     /** What is wrong with one laid-out page, as sentences; none when it is right. */

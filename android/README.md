@@ -21,13 +21,25 @@ backend change. The website got the same design (see `TECH.md`, "One view per st
   top-left corner (with no picture it stands at the start of the source line, which makes room for it; on Topics, Saved, For you with
   nothing chosen, loading and "all caught up" it is in the corner of the screen) and opens `MenuSheet`, a panel that slides in from
   the left, behind the system bars: the feed language, Feed / For you / Topics / Saved, the news sections (English headlines only,
-  as before), check for new stories, your topics, the account, the theme, About, Contact us, the privacy policy, the update check,
-  the website and Clear saved stories. The ✕, the back button, a tap beside the panel and a swipe to the left close it. A small spinner
-  in the top-right corner shows a refresh in progress, as the header's did. `MainActivity` lost `header()`, `navigation()`,
-  `sections()` and the ⋮ `PopupMenu`; the menu's actions are the old ones.
+  as before), the account, the theme, About, Contact us, the privacy policy, the update check and Clear saved stories. The ✕, the
+  back button, a tap beside the panel and a swipe to the left close it. A small spinner in the top-right corner shows a refresh in
+  progress, as the header's did. `MainActivity` lost `header()`, `navigation()`, `sections()` and the ⋮ `PopupMenu`; the menu's
+  actions are the old ones.
+- **The buttons are on the source line, and the headline is the link.** The row under the summary is gone (the "Read full story"
+  button with the publisher's host, and the brief, Save and Share buttons), so the 60 dp it took go to the story. The brief (✨),
+  Save and Share are three 36 dp circles in 44 by 48 dp touch targets (`Ui.lineButton`) at the right end of the tag and source
+  line. The headline opens the story at the publisher: a press ripples on it, TalkBack announces "Read full story" as its action, and
+  a story with no usable link has a headline that cannot be pressed. The source and its age may take a second line beside the
+  buttons, with each part of the age kept whole ("3h ago" never breaks), and the read time is left out on a phone narrower than
+  420 dp. The line is never given up now, since the buttons are on it. The picture may be square (it was 4:3) and up to 55% of the
+  page (62% and 1.2 times the width when there is no summary), as on the website.
+- **A simpler menu.** Nothing in it repeats what is a tap away elsewhere. "Check for new stories" is gone: the feed already looks
+  by itself when the app comes back after two minutes, offers the "New stories" pill, and the caught-up card has its own button.
+  "Your topics" is gone (the Topics screen has a card for it, and the account sheet a row), and so is "Open Plax website" (the
+  account sheet has it). Four drawables and the `open_site` string became unused and were removed.
 - **The summary comes first, whole.** `CardFit` (and `src/lib/card-fit.ts`, with the same test cases) now spends the height in this
-  order: the source line, the headline and the action row; then the whole summary; and the picture takes what is left, at most 4:3
-  and half the page, and is dropped when less than 30% of the width, a quarter of the page and 96 dp is left. A summary that would
+  order: the source line (with its buttons) and the headline; then the whole summary; and the picture takes what is left, and is
+  dropped when less than 30% of the width, a quarter of the page and 96 dp is left. A summary that would
   still not fit is set 6%, then 12% smaller before any of it is cut, and then cut at a whole line with an ellipsis. In 1.5.5 the picture
   kept its minimum and the summary got the remainder, so on a short page the summary was the first thing to go.
 - **A bug the new device test found.** `StoryPage` counted a Hindi summary's lines on a copy of its paint, without the fallback-font line
@@ -277,7 +289,7 @@ Share a story as a page on Plax, and the same look as the website.
   cached by 1.3.x are shared by their publisher's link until the feed hands the app a fresh copy.
 - **No new permission, library, tracker or account requirement.**
 - **The website now matches the app**, which is the reference: the same header, section chips, card,
-  action row, typography (serif headlines, sans text) and theme choice (System by default). The
+  buttons on the source line, typography (serif headlines, sans text) and theme choice (System by default). The
   differences are deliberate and listed in [TECH.md](../TECH.md#navigation--menubuttontsx-menudrawertsx-leftrailtsx-brandmarktsx)
   (since the full-screen change, header and bottom bar are replaced by a menu in both).
 
@@ -392,7 +404,7 @@ No repeats
 
 For you
 - Four places: **Feed**, **For you**, **Topics**, **Saved**, all in the ☰ menu (a story has the whole screen; there is no
-  bottom bar). For you mixes the topics you choose (a card on that screen, or ☰ > Your topics). Nothing has to be
+  bottom bar). For you mixes the topics you choose (a card on that screen, or a row in the account sheet). Nothing has to be
   chosen first: the app opens on public news. The wording and layout match the
   website.
 
@@ -451,7 +463,7 @@ Speed
 
 Experience
 - Redesigned cards (picture or poster, category, source and age, serif headline,
-  body without the repeated headline, one-tap **Read full story**, AI brief, bookmark,
+  body without the repeated headline, a headline that opens the full story, AI brief, bookmark,
   share), skeleton loading, a menu (☰) instead of a header and a bottom bar, topic tiles, light/dark/
   system theme, large-text and tablet-width handling, and light haptics.
 - **English and Hindi** (the language switch is at the top of the ☰ menu): the native Hindi feed plus a
