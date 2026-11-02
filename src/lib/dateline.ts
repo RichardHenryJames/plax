@@ -19,6 +19,8 @@ const AGENCY = '\\((?:PTI|IANS|ANI|AFP|AP|UNI|Reuters|Bloomberg)\\)'
 const MARKED = new RegExp(`^(${PLACE})((?:,\\s*${DATE_LINE})?)((?:\\s*${AGENCY})?)\\s*([:\\u2013\\u2014-])?\\s+`)
 const CREDIT_LINE = /^(?:Our|Special|Staff|Senior)\s+(?:Bureau|Correspondent|Reporter|Representative)\b(?:\s+[A-Z][a-z]+(?: [A-Z][a-z]+)?)?\s*[:\u2013\u2014-]\s*/
 const FOR_WEB = /^\(\s*for web\s*\)\s*/i
+/** A note to the editors that a page's text carries in brackets at its start: "(Highlighted paras can be removed for Print. Please retain those for online)". */
+const EDITOR_NOTE = /^\(\s*(?:highlighted paras?|please retain|editor['\u2019]?s note|note\s*:)[^)]*\)\s*/i
 /** A credit with no mark after it: only a dateline after it makes it one. */
 const UNMARKED_CREDIT = /^(?:Our|Special|Staff|Senior)\s+(?:Bureau|Correspondent|Reporter|Representative)\s+/
 /** What can follow a place with no mark between, in words that begin a sentence and cannot go on a name ("New Delhi The Centre"). */
@@ -112,7 +114,7 @@ function withoutPlace(text: string): string {
  * does ("Special Representative Ajay Banga said").
  */
 export function stripDateline(text: string): string {
-  const rest = text.trim().replace(FOR_WEB, '').replace(CREDIT_LINE, '')
+  const rest = text.trim().replace(EDITOR_NOTE, '').replace(FOR_WEB, '').replace(CREDIT_LINE, '')
   const credit = UNMARKED_CREDIT.exec(rest)
   if (credit) {
     const body = rest.slice(credit[0].length)

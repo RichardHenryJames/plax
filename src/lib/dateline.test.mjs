@@ -41,6 +41,17 @@ test('a credit and a place and a date, with no mark, before a sentence: the way 
   ]) assert.equal(stripDateline(kept), kept)
 })
 
+test('a note to the editors in brackets goes, and the dateline behind it with it: the way a BusinessLine page begins', () => {
+  const note = '(Highlighted paras can be removed for Print. Please retain those for online) '
+  const story = 'With the tightening of the monetary policy by the Reserve Bank of India and interest rates moving up, HDFC Life is clearly witnessing a preference.'
+  assert.equal(stripDateline(`${note}Kolkata ${story}`), story)
+  assert.equal(stripDateline(`${note}${story}`), story)
+  assert.equal(stripDateline(`(Note: the figures are provisional) New Delhi ${CENTRE}`), CENTRE)
+  // A bracket that is not a note is the story's own.
+  const spoken = '(Reuters) was not yet able to confirm the report, which the ministry in Delhi called baseless on Monday evening.'
+  assert.equal(stripDateline(spoken), spoken)
+})
+
 test('what only looks like a dateline is kept: a force, a body, a club, a company, a title, a name', () => {
   for (const kept of [
     'Delhi Police said on Monday that the accused had been arrested from a hotel near the airport after a two-day search.',
