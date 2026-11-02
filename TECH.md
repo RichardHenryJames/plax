@@ -550,10 +550,14 @@ Feed({ categories })   categories = ['news'] (Feed tab), one topic, or the reade
 5. Card navigation (a card never scrolls, so one gesture moves exactly one story):
    - Touch: a decisive swipe anywhere on the card (≥ 72 px, mostly vertical, quick or long); only an
      input or a sheet that scrolls by itself (`data-no-feed-scroll`) keeps its own swipes
-   - Keyboard (↓, PageDown, Space, j = next; ↑, PageUp, Shift+Space, k = prev)
-   - Scroll wheel and trackpad: one notch or one swipe moves one story, and the momentum a trackpad adds
-     after the swipe does not move a second one. Nothing waits for the wheel to fall silent, so the next
-     swipe always counts (see [Wheel and trackpad](#wheel-and-trackpad-libwheel-gesturets))
+   - Keyboard (↓, Space, j = next; ↑, k = prev)
+   - Scroll wheel: one push of ≥ 50 px moves one story, and navigation then stays locked until the
+     wheel has been idle for 220 ms, so a trackpad's momentum cannot skip stories. Known limit: a
+     laptop touchpad keeps sending small events for about a second after a swipe, so a swipe that
+     starts less than 220 ms after the last of them is ignored (on a recording of a real touchpad this
+     rule moved for 16 of about 27 one-at-a-time swipes), and the wheel does nothing over the side
+     rails (`aside`). A rule that told a new swipe from the tail by its speed (commit `80d90dc`) was
+     reverted: on the same recording it made 38 moves for about 27 swipes
 
 6. Languages: the feed is always fetched in English and each card is AI-translated in
    place, so switching language never changes which stories are shown (a card keeps its
@@ -836,30 +840,13 @@ flagged; a word of another script standing on its own, such as a name, is left a
 | Feature | Implementation |
 |---------|---------------|
 | Swipe | A decisive touch swipe anywhere on the card moves one story: ≥ 72 px, mostly vertical, quick or long. A card never scrolls, so there is no "scroll the text first" |
-| Keyboard nav | `ArrowDown`/`PageDown`/`Space`/`j` = next, `ArrowUp`/`PageUp`/`Shift+Space`/`k` = prev; a key with Ctrl, Alt or Cmd is the browser's and is left alone |
-| Scroll wheel and trackpad | `lib/wheel-gesture.ts` decides when a push is a request for another story (see [Wheel and trackpad](#wheel-and-trackpad-libwheel-gesturets)). The wheel over a side rail moves the story unless that rail has more than fits and scrolls itself; over a sheet or dropdown (`data-no-feed-scroll`) it scrolls that; Ctrl+wheel (zoom, and a trackpad pinch) is the browser's |
+| Keyboard nav | `ArrowDown`/`Space`/`j` = next, `ArrowUp`/`k` = prev |
+| Scroll wheel | One push of ≥ 50 px moves one story; locked until the wheel has been idle for 220 ms (the lock's timer is not cleared when the handler is re-registered after a move, which would swallow the next push). A touchpad swipe that starts within 220 ms of the previous one's last event is ignored (see Card navigation above) |
 | Infinite scroll | Auto-fetch when ≤ 10 cards remaining (see [Feed Pipeline](#feed-pipeline)) |
 | No repeats | Seen tracking, same-event merging, "New stories" button and the caught-up card (see [No-repeat Engine](#no-repeat-engine)) |
 | Empty state | Loading spinner during initial load; "Try again" when the first page cannot be fetched and nothing is cached |
 | Progress dots | Side dots showing ±4 cards around current position |
 | Loading bar | Animated gradient bar at top during fetch |
-
-### Wheel and trackpad (`lib/wheel-gesture.ts`)
-
-A card never scrolls, so the wheel has one thing to say: the reader has asked for another story. `createWheelGesture().push(event)` answers -1, 0 or 1 from the event's deltas and its own `timeStamp`, so `wheel-gesture.test.mjs` can play whole trackpad swipes through it; `Feed.tsx` keeps one gesture for the life of the feed and does the rest (what the wheel is over, Ctrl, `preventDefault`). Three kinds of hardware have to give one answer: a mouse sends one event per notch (100 px in Chrome, 3 lines in Firefox); a trackpad sends a stream while the fingers move and then a tail of fading events for a second or more, the system's momentum, which is not the reader asking again; a free-spinning wheel sends a steady stream.
-
-**What went wrong before.** The rule locked after each move and let go only after 220 ms without a single wheel event. A trackpad's tail has no gap that long, so a second swipe begun inside it was swallowed, and so was every swipe after it for as long as events kept coming: the reader could not go on to the next story until the stream stopped (reported on a laptop's built-in touchpad, two fingers: it moved again "only after the pointer was moved"). Two smaller faults went with it: the wheel over a side rail did nothing even when the rail had nothing to scroll (the rails are 256 and 320 px wide, so on a laptop much of the window was dead), and a Firefox notch (`deltaY` 3, counted in lines and never converted) needed seventeen notches to reach the 50 px threshold.
-
-**The rule now.**
-- Pushes are in pixels: a notch counted in lines is decisive (never half a push), a page is the window's height; under 1 px (resting fingers) or more sideways than vertical is ignored.
-- A move needs 50 px of push one way. After it nothing moves another for 200 ms (the story slides in), and the gesture that made the move waits 400 ms, because its swipe has not yet peaked.
-- A turn, 600 ms of silence, or a gap of 40 ms or more begins a new gesture, and its push counts in full. A gap counts only when the event after it does not hold the push the gap should have held (or the stream before it was too slow to make a move): touching the pad again stops the momentum and the new swipe takes a moment to start, whereas **Chromium merges the wheel events that pile up while the page is busy**. Measured in Edge: after a stall the events arrive with their original time stamps and each carries the summed delta of those it replaced, so a merged event is a continuation, not a new swipe.
-- Without such a gap a stream is taken for the momentum of the swipe that moved the story, and only the push above that momentum counts. The momentum is taken to fade from the swipe's peak speed, to a third of it in 1.3 s, slower than any real one: a tail never rises above that curve, a new swipe, a spinning wheel or a long drag does, and the curve falls to nothing, so nothing can lock the wheel for long.
-- Speeds are push divided by the time the events cover, not per event, so a 60 Hz and a 144 Hz screen, a merged event and 15.6 ms time-stamp ticks all read alike.
-
-**Checked.** `wheel-gesture.test.mjs` has 20 tests: notches in pixels, lines and pages; jitter and sideways swipes; one swipe is one story for 200 combinations of strength, momentum, event rate, rounding and direction, and for 300 noisy random ones; swipes begun inside the last one's momentum, laid on top of it, or gentle after a hard one; events merged by a busy page; turning round; the slide time; a jitter that never stops. A throwaway sweep of 2,500 random swipes under five conditions (clean, 15.6 ms ticks, a 100 ms and a 250 ms stall with the events merged, a 150 ms stall with ticks) moved exactly one story for 98.6 to 99.9% of them (the rest fade linearly for over a second, longer than any real momentum), and six swipes in a row, 0.6 and 0.9 s apart with 40 to 90 ms between them, moved six stories in 87 to 100% of runs; the misses are never extra moves. In Edge, with events dispatched in the page: one glide moves one story; four glides 450 ms apart move four (before: one); ten notches 150 ms apart move five (before: one); the wheel over either rail moves the story (before: nothing), and over a rail that overflows (a 420 px window) it scrolls the rail and leaves the story.
-
-**Not checked.** A real trackpad: the streams are synthesised, with the momentum modelled as an exponential or a linear fade and the gap after touching the pad taken to be 40 to 100 ms. If a device differs, the knobs are `TAIL_TAU_MS`, `GAP_MS`, `WEAK_SPEED`, `SLIDE_MS` and `COOLDOWN_MS` at the top of the file. Safari, Firefox and macOS were not run.
 
 ### `Card.tsx` — Content Card
 
