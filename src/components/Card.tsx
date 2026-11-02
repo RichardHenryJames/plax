@@ -136,12 +136,12 @@ export function Card({ card, isActive, translating = false }: CardProps) {
               </motion.div>
             )}
 
-            {/* Tag, origin and the round buttons. A news card reads "INDIA  The Hindu ↗ · 20m ago · 20s" under its picture, and
-                Listen, Save and Share stand at the right end of the same line, as in the app: with no bar at the bottom the story
-                has the whole screen. The line never wraps: the source name gives way (an ellipsis) before the age does, and the age
-                only as a last resort (a Hindi age on a 360 px phone), so that it never runs under a button; the read time and the
-                word "Breaking" (just its dot below 540 px) give way on anything narrower than 540 px: they took the room of the
-                name on a 430 px phone, where it came out as "T..". */}
+            {/* Tag, origin and the round buttons. A news card reads "INDIA  The Hindu ↗ / 20m ago" under its picture (the name over
+                the age, on a phone), and Listen, Save and Share stand at the right end of the same line, as in the app: with no
+                bar at the bottom the story has the whole screen. The line never wraps: on a phone the age stands under the name, so
+                that the name (which was cut to "The Hi…" beside the age and the buttons) keeps the width, and each is cut with an
+                ellipsis only as a last resort; from 540 px they stand in one line, with the read time, as before; the word
+                "Breaking" (just its dot below 540 px) gives way on anything narrower than 540 px. */}
             <motion.div
               data-fit="meta"
               initial={{ opacity: 0, y: 6 }}
@@ -166,7 +166,7 @@ export function Card({ card, isActive, translating = false }: CardProps) {
                 </span>
               )}
               {isNews ? (
-                <span className="min-w-0 flex-1 flex items-center gap-1 text-dark-muted text-[13px] font-medium">
+                <span className="min-w-0 flex-1 flex flex-col justify-center leading-tight text-dark-muted text-[13px] font-medium min-[540px]:flex-row min-[540px]:items-center min-[540px]:gap-1">
                   {card.source && (
                     <span className="min-w-0 flex items-center gap-0.5">
                       <span className="truncate">{card.source}</span>
@@ -177,7 +177,12 @@ export function Card({ card, isActive, translating = false }: CardProps) {
                       )}
                     </span>
                   )}
-                  {relativeTime && <span className="min-w-0 shrink-[0.2] truncate">{card.source ? '· ' : ''}{relativeTime}</span>}
+                  {relativeTime && (
+                    <span className="min-w-0 truncate text-[12px] min-[540px]:text-[13px] min-[540px]:shrink-[0.2]">
+                      {card.source && <span className="hidden min-[540px]:inline">· </span>}
+                      {relativeTime}
+                    </span>
+                  )}
                   {card.readTime && <span className="hidden min-[540px]:inline shrink-0 whitespace-nowrap">{card.source || relativeTime ? '· ' : ''}{card.readTime}</span>}
                 </span>
               ) : (

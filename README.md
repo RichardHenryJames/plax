@@ -195,8 +195,14 @@ plax/
 │       ├── ai.ts                      # Gemini/Groq summarization & quiz gen
 │       ├── account-delete.ts          # Deleting a reader's own account (checks whose token it is first); unit-tested
 │       ├── app-redirect.ts            # Builds the redirect back into the Android app
-│       ├── blurb.ts                   # A missing summary, taken from the article's own description (server side); unit-tested
-│       ├── lead.ts                    # More text for a short news story: the opening of its article (server side); unit-tested
+│       ├── blurb.ts                   # A missing summary, taken from the article's own description; the picture a page names; where a sentence ends (server side); unit-tested
+│       ├── lead.ts                    # More text for a short news story (the opening of its article) and a picture for one that has none, cleaned of datelines and junk (server side); unit-tested
+│       ├── lead-cache.ts              # What a page gave, kept 12 hours across server instances (Next's data cache)
+│       ├── news-enrich.ts             # The feed route's step that adds the openings and pictures after the pool
+│       ├── layout-guard.ts            # Keeps the page's window-sized boxes at their heights when Google's ad script sets them to auto; unit-tested
+│       ├── sentence.ts                # Where a sentence ends (not after Dr., an initial or U.S.), shared by the server and the browser
+│       ├── story-order.ts             # The news stream's order (full cards first) and which telling of one event is kept; unit-tested
+│       ├── text-fit.ts                # Where a summary ends when its room does: at a sentence or a word, never through one; unit-tested (TextFit.java is its port)
 │       ├── brand.ts                   # The one "P" outline, its colours and proportions: the icons and share cards are drawn from it
 │       ├── brand-tile.tsx             # The "P" on the amber tile, for the share cards
 │       ├── cache.ts                   # In-memory server cache (Map-based)
@@ -205,7 +211,7 @@ plax/
 │       ├── database.types.ts          # Supabase generated types
 │       ├── deadline.ts                # Per-source time limit for the feed fetchers
 │       ├── legal.ts                   # Contact address and dates stated by the privacy and delete-account pages
-│       ├── poster.ts                  # The poster of a story with no picture: when it is wanted and which sign it carries (the app's signs); unit-tested
+│       ├── poster.ts                  # The poster of a story with no picture: when it is wanted and the outlet's name that heads it; unit-tested
 │       ├── sample-data.ts             # CardData type + personalization helpers
 │       ├── script-mix.ts              # Finds a Hindi word with another script's letters inside it (a model glitch); unit-tested
 │       ├── seen-storage.ts            # Reads and writes the seen history in localStorage
