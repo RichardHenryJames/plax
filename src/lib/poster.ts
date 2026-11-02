@@ -1,18 +1,11 @@
-// What stands in for the picture of a story that has none, as in the app (StoryAdapter.emoji): the sign of its news section
-// (India is the flag), else its topic's own emoji, else a spark. Pure, so it can be tested without a browser.
+// What stands in for the picture of a story that has none: the name of its outlet, set like a masthead over a soft wash, with the
+// story's section under it. (It used to be a sign: the flag of India, a globe for the world. The flag is not drawn at all by Windows,
+// which showed "IN" in a box, and a globe on a news story looked like a placeholder, which it was.) The app draws the same poster
+// (StoryAdapter, StoryPage). Pure, so it can be tested without a browser.
 
-/** The news sections' signs. They are the app's too: poster.test.mjs fails if the two drift apart. */
-export const SECTION_POSTERS: Record<string, string> = {
-  india: '\u{1F1EE}\u{1F1F3}',
-  world: '\u{1F30D}',
-  tech: '\u{1F4BB}',
-  business: '\u{1F4BC}',
-  science: '\u{1F52C}',
-}
-
-/** The sign for a story's poster: `key` is its section, else its category; `topicEmoji` is that topic's own emoji, when it has one. */
-export function posterEmoji(key: string, topicEmoji?: string): string {
-  return SECTION_POSTERS[key] ?? topicEmoji ?? '\u2728'
+/** The masthead: the outlet's name as the story gives it, tidied, or '' when it names none. */
+export function posterName(card: { source?: string }): string {
+  return (card.source ?? '').replace(/\s+/g, ' ').trim()
 }
 
 /**

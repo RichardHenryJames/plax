@@ -4,10 +4,14 @@ import { fetchAllContent } from '@/lib/sources'
 import { getCached, setCache } from '@/lib/cache'
 import { ProcessedCard, EMOJI_MAP, RawContent } from '@/lib/types'
 import { signCard, signingKey } from '@/lib/share-sign'
+import { newsOrder, richestFirst } from '@/lib/story-order'
+import { enrichNews } from '@/lib/news-enrich'
 
 // Use Node.js runtime for reliable external API fetches
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+// A cold pool takes up to its sources' deadline, and the pages not yet kept (lib/news-enrich.ts) a few seconds more.
+export const maxDuration = 30
 
 // Every card is signed so that, when a reader shares it, the server can tell a card it served from one somebody made
 // up (see lib/share.ts). Without a key the cards simply carry no signature and sharing falls back to the source link.
@@ -18,8 +22,10 @@ const SHARE_KEY = signingKey()
 // by Next's data cache so a cold instance still answers a non-refresh request
 // instantly from the last-computed pool — the key to Inshorts-like first-load
 // speed. Personalization (exclude/dedup/rank) still happens per-request downstream.
+// The pool leaves out the opening of each article and the page's picture (`leads: false`): they are added after it, by
+// enrichNews, because a cache that is read inside this one would not be read at all.
 const getPooledContent = unstable_cache(
-  async (categories: string[], lang: string) => fetchAllContent(categories, lang),
+  async (categories: string[], lang: string) => fetchAllContent(categories, lang, { leads: false }),
   ['feed-pool'],
   { revalidate: 180, tags: ['feed'] }
 )
@@ -75,7 +81,7 @@ export async function GET(request: NextRequest) {
     // Non-refresh → persistent pooled cache (fast, cross-instance). refresh=true
     // (pull-to-refresh / news auto-refresh) → always a live fetch.
     const rawContents = refresh
-      ? await fetchAllContent(categories, lang)
+      ? await fetchAllContent(categories, lang, { leads: false })
       : await getPooledContent([...categories].sort(), lang)
     console.log(`[Plax API] Fetched ${rawContents.length} raw items`)
 
@@ -86,6 +92,10 @@ export async function GET(request: NextRequest) {
         error: 'All content sources returned empty',
       })
     }
+
+    // The opening of each short story's article and the picture of each story with none, from the pages' own markup; what a
+    // page gave is kept across requests, so only the pages not yet read cost time here.
+    await enrichNews(rawContents)
 
     // Deduplicate raw content by title (same HN story, same Wikipedia event, etc.)
     const seenTitles = new Set<string>()
@@ -100,7 +110,9 @@ export async function GET(request: NextRequest) {
     // many outlets (BBC + NDTV + The Hindu). Collapse near-duplicate headlines into
     // one card by fingerprinting their significant title words, so the news feed
     // shows one card per event, not five. Only applies to time-sensitive news.
-    const uniqueRaw = dedupeStories(exactUnique)
+    // The telling kept is the one with the most to show (its text, its picture), not the first told; the order of the rest is as it was.
+    const kept = new Set(dedupeStories(richestFirst(exactUnique)))
+    const uniqueRaw = exactUnique.filter((raw) => kept.has(raw))
     console.log(`[Plax API] After dedup: ${uniqueRaw.length} unique items (removed ${rawContents.length - uniqueRaw.length} duplicates)`)
 
     // Quick processing — stable IDs based on content so same article always = same ID
@@ -278,13 +290,11 @@ function filterAndLimit(
   limit: number
 ): ProcessedCard[] {
   // Dedicated News feed → sort strictly newest-first so it reads as LATEST news
-  // (recency beats source-variety here). Cards without a publish time sink last.
-  // A per-source cap keeps one outlet from dominating the stream.
+  // (recency beats source-variety here), the stories that fill a card before those
+  // that leave room on it. Cards without a publish time sink last. A per-source cap
+  // keeps one outlet from dominating the stream.
   if (categories.length === 1 && categories[0] === 'news') {
-    const sorted = [...cards]
-      .filter((c) => c.category === 'news')
-      .sort((a, b) => (b.publishedAt ?? 0) - (a.publishedAt ?? 0))
-    return capPerSource(sorted, 6).slice(0, limit)
+    return newsOrder(cards, 6, limit)
   }
 
   if (categories.length === 0) {
@@ -320,21 +330,6 @@ function filterAndLimit(
       : shuffle(cards) // nothing relevant in this batch → don't return an empty feed
 
   return interleaveBySource(ordered).slice(0, limit)
-}
-
-// Cap how many cards any single source contributes (preserving the incoming
-// order among the kept ones) so no one publisher dominates the News stream.
-function capPerSource(cards: ProcessedCard[], maxPerSource: number): ProcessedCard[] {
-  const counts = new Map<string, number>()
-  const out: ProcessedCard[] = []
-  for (const c of cards) {
-    const key = c.source || 'other'
-    const n = counts.get(key) || 0
-    if (n >= maxPerSource) continue
-    counts.set(key, n + 1)
-    out.push(c)
-  }
-  return out
 }
 
 // Round-robin the cards by source so the feed doesn't show long runs of the same

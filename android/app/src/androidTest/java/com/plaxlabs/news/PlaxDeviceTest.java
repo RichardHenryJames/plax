@@ -188,7 +188,10 @@ public class PlaxDeviceTest {
                 assertTrue("The headline is the link to the full story", holder.title.isClickable());
                 assertEquals(View.VISIBLE, holder.hero.getVisibility());
                 assertEquals("A story without a picture gets a poster", View.VISIBLE, holder.poster.getVisibility());
-                assertEquals("\uD83C\uDF0D", holder.poster.getText().toString());
+                String posterText = holder.poster.getText().toString();
+                assertTrue("headed by the outlet's name: " + posterText, posterText.startsWith("Fixture publisher\n"));
+                assertTrue("with the section under it, small: " + posterText, posterText.endsWith("\nWORLD"));
+                assertFalse("and no sign", posterText.contains("\uD83C\uDF0D"));
                 holder.save.performClick(); holder.share.performClick(); holder.title.performClick(); holder.brief.performClick();
                 assertArrayEquals(new int[]{1, 1, 1, 1}, calls);
                 adapter.onBindViewHolder(holder, 1);

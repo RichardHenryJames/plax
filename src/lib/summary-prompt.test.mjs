@@ -17,8 +17,8 @@ test('only the website\'s news card asks for the short brief', () => {
   for (const category of CATEGORIES.filter((c) => c !== 'news')) assert.equal(wantsShortBrief(category, true), false, category)
 })
 
-test('the short news brief is a few lines, the usual brief and the app\'s are unchanged', () => {
-  assert.match(topicGuidance('news', true).words, /^35–60 words/)
+test('the short news brief fills a card, the usual brief and the app\'s are unchanged', () => {
+  assert.match(topicGuidance('news', true).words, /^55–85 words/)
   assert.match(topicGuidance('news', true).words, /never pad a thin source/)
   assert.equal(topicGuidance('news').words, '70–110 words, 2–3 tight paragraphs')
   assert.equal(topicGuidance('news', false).words, '70–110 words, 2–3 tight paragraphs')
@@ -35,13 +35,13 @@ test('the prompt carries the range that was asked for, in either language', () =
   const usual = buildPrompt('news', source, 'microessay')
   const brief = buildPrompt('news', source, 'microessay', undefined, true)
   assert.match(usual, /- 70–110 words, 2–3 tight paragraphs\./)
-  assert.doesNotMatch(usual, /35–60/)
-  assert.match(brief, /- 35–60 words in one or two tight paragraphs\./)
+  assert.doesNotMatch(usual, /55–85/)
+  assert.match(brief, /- 55–85 words in one or two tight paragraphs/)
   assert.doesNotMatch(brief, /70–110/)
   // Written straight in Hindi from a Hindi source: the language rule stays and the range follows the flag.
   const hindi = buildPrompt('news', source, 'microessay', 'Hindi (Devanagari script)', true)
   assert.match(hindi, /entirely in Hindi \(Devanagari script\)/)
-  assert.match(hindi, /35–60 words/)
+  assert.match(hindi, /55–85 words/)
   // What the model is told about faithfulness and format does not depend on the flag.
   for (const prompt of [usual, brief, hindi]) {
     assert.match(prompt, /STAY FAITHFUL to the source/)
@@ -53,7 +53,7 @@ test('the prompt carries the range that was asked for, in either language', () =
 test('the route sends the flag only through wantsShortBrief and keeps its own cache version for the short brief', () => {
   const route = fs.readFileSync(here('../app/api/summarize/route.ts'), 'utf8')
   assert.match(route, /const shortBrief = wantsShortBrief\(category, card\)/)
-  assert.match(route, /cacheKey\('summarize', shortBrief \? 'v2-brief' : 'v2'/)
+  assert.match(route, /cacheKey\('summarize', shortBrief \? 'v3-brief' : 'v2'/)
   // Both prompts (the Hindi direct one and the English one) follow the flag.
   assert.match(route, /buildPrompt\(category, content, type, 'Hindi \(Devanagari script\)', shortBrief\)/)
   assert.match(route, /buildPrompt\(category, content, type, undefined, shortBrief\)/)

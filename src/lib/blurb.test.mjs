@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  decodeEntities, pageDescription, shortSummary, summaryFromPage, isPublicWebUrl, fillMissingSummaries, forgetSummaries, MAX_SUMMARY_CHARS,
+  decodeEntities, pageDescription, pageImage, shortSummary, summaryFromPage, isPublicWebUrl, fillMissingSummaries, forgetSummaries, MAX_SUMMARY_CHARS,
 } from './blurb.ts'
 
 // The page of an article, as a link preview reads it.
@@ -46,6 +46,41 @@ test('a long description ends at a sentence when one ends far enough in, else at
   assert.equal(shortSummary('Short enough.'), 'Short enough.')
   const hindi = 'यह एक छोटी सी ख़बर है। '.repeat(30).trim()
   assert.ok(shortSummary(hindi).endsWith('\u0964'), 'a danda ends a Hindi sentence')
+})
+
+test('a full stop after a title, an initial or an abbreviation is not where a sentence ends', () => {
+  const text = 'Dr. Rao said on Monday that M. K. Stalin would arrive at 4:30 p.m. in the U.S. capital with Mr. Singh and Prof. Das. ' +
+    'The meeting that follows will take several hours, officials said, and the visitors will leave on Tuesday morning after the talks are over and done.'
+  const cut = shortSummary(text, 140)
+  assert.ok(cut.length <= 140)
+  assert.ok(!/(Dr|Mr|Prof|K|U\.S|p\.m)\.$/.test(cut), cut)
+  assert.ok(cut.endsWith('\u2026') || cut.endsWith('Das.'), cut)
+  assert.ok(shortSummary('The vote was no. The council then adjourned for the day after a long debate.', 40).endsWith('no.'), 'a word that is not an abbreviation ends a sentence')
+})
+
+test("the picture a page names for link previews: og:image, else twitter:image, as an https address of a named host", () => {
+  const link = 'https://news.example/world/story-1'
+  assert.equal(pageImage(page('<meta property="og:image" content="https://cdn.example/a.jpg"><meta name="twitter:image" content="https://cdn.example/b.jpg">'), link), 'https://cdn.example/a.jpg')
+  assert.equal(pageImage(page('<meta name="twitter:image" content="https://cdn.example/b.jpg">'), link), 'https://cdn.example/b.jpg')
+  assert.equal(pageImage(page('<meta content="/img/a.jpg?w=1200&amp;h=675" property="og:image">'), link), 'https://news.example/img/a.jpg?w=1200&h=675')
+  assert.equal(pageImage(page('<meta property="og:image" content="http://cdn.example/a.jpg">'), link), 'https://cdn.example/a.jpg', 'plain http is asked for as https')
+  assert.equal(pageImage(page('<meta property="og:image:secure_url" content="https://cdn.example/s.jpg"><meta property="og:image" content="http://cdn.example/a.jpg">'), link), 'https://cdn.example/s.jpg')
+  assert.equal(pageImage(page('<meta name="viewport" content="width=device-width">'), link), '')
+  assert.equal(pageImage(`<html><head></head><body><meta property="og:image" content="https://cdn.example/a.jpg"></body></html>`, link), '', 'only the head is read')
+})
+
+test('a logo, an icon, a vector, a stand-in or an address that is not public is not a picture for a card', () => {
+  const link = 'https://news.example/x'
+  for (const bad of [
+    'https://cdn.example/assets/logo.png', 'https://cdn.example/static/site-logo-1200.jpg', 'https://cdn.example/favicon.ico', 'https://cdn.example/a.svg',
+    'https://cdn.example/img/placeholder.jpg', 'https://cdn.example/img/no-image.png', 'https://cdn.example/default-image.jpg', 'https://cdn.example/og-default.jpg',
+    'https://cdn.example/anim.gif', 'data:image/png;base64,AAAA', 'https://localhost/a.jpg', 'https://192.168.0.2/a.jpg', 'https://cdn.example:8443/a.jpg', 'javascript:alert(1)',
+  ]) assert.equal(pageImage(page(`<meta property="og:image" content="${bad}">`), link), '', bad)
+  // A word that only contains one of these is a photograph: "blanket", "catalogue", "branded".
+  for (const good of ['https://cdn.example/2026/11/blanket-ban.jpg', 'https://cdn.example/catalogue/photo.jpg', 'https://cdn.example/wp-content/uploads/2026/11/AFP__20260812__Sudan.jpg?resize=1200%2C630'])
+    assert.equal(pageImage(page(`<meta property="og:image" content="${good}">`), link), good, good)
+  // The first picture that is a photograph wins: a logo as og:image leaves twitter:image to be used.
+  assert.equal(pageImage(page('<meta property="og:image" content="https://cdn.example/logo.png"><meta name="twitter:image" content="https://cdn.example/photo.jpg">'), link), 'https://cdn.example/photo.jpg')
 })
 
 test('the summary of a page is what stands under the headline', () => {

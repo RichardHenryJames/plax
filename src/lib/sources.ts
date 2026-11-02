@@ -1269,8 +1269,11 @@ export async function fetchRssNews(categories: string[], perFeed = 3, tagAs?: st
 // A feed that repeats the headline as the description leaves a story with nothing under its headline. For those the
 // article's own description is read (see lib/blurb.ts), within what is left of the source's deadline, so the pool is
 // never held up by it; a story it cannot help is left as it was. A feed that gives one short line leaves a card with a lot of
-// empty space under it, so a news story with so little gets the opening of its article (lib/lead.ts), in what is left after that.
-async function withSummaries(items: RawContent[], startedAt: number): Promise<RawContent[]> {
+// empty space under it, so a news story with so little gets the opening of its article, and one with no picture the one its page
+// names (lib/lead.ts), in what is left after that. The feed route does that last part itself, after the pool, with a reader that
+// remembers across requests and instances (lib/news-enrich.ts), and asks the pool for `leads: false`: a cache nested in the pool's own
+// cache is not read, so the pool could not share what it found.
+async function withSummaries(items: RawContent[], startedAt: number, leads = true): Promise<RawContent[]> {
   const userAgent = `Mozilla/5.0 (compatible; PlaxReader/1.0; +${SITE_URL})`
   try {
     const left = SOURCE_DEADLINE_MS - (Date.now() - startedAt) - 1500
@@ -1278,6 +1281,7 @@ async function withSummaries(items: RawContent[], startedAt: number): Promise<Ra
   } catch {
     /* the stories stay as the feed gave them */
   }
+  if (!leads) return items
   try {
     const left = SOURCE_DEADLINE_MS - (Date.now() - startedAt) - 1500
     await extendSummaries(items, { budgetMs: Math.min(3000, left), userAgent })
@@ -1289,7 +1293,7 @@ async function withSummaries(items: RawContent[], startedAt: number): Promise<Ra
 
 // Hindi news via RSS (Devanagari) — used only in Hindi mode so the feed carries
 // current Indian news natively in Hindi.
-export async function fetchHindiNews(perFeed = 4): Promise<RawContent[]> {
+export async function fetchHindiNews(perFeed = 4, leads = true): Promise<RawContent[]> {
   const startedAt = Date.now()
   const jobs = HINDI_RSS_FEEDS.map(([name, url]) => fetchOneFeed(name, url, 'news', perFeed))
   const results = await Promise.allSettled(jobs)
@@ -1297,14 +1301,14 @@ export async function fetchHindiNews(perFeed = 4): Promise<RawContent[]> {
   results.forEach((res) => {
     if (res.status === 'fulfilled') out.push(...res.value)
   })
-  return withSummaries(out, startedAt)
+  return withSummaries(out, startedAt, leads)
 }
 
 // Dedicated "News" topic — a broad latest-headlines stream from reputable
 // India-first + global publishers, all filed under category 'news'. This powers
 // the standalone News feed (the Inshorts experience). We pull DEEP (many items
 // per feed) so the pool is large enough that a reader can scroll a long way.
-export async function fetchGeneralNews(perFeed = 15): Promise<RawContent[]> {
+export async function fetchGeneralNews(perFeed = 15, leads = true): Promise<RawContent[]> {
   const startedAt = Date.now()
   const jobs = GENERAL_NEWS_FEEDS.map(([name, url, section]) => fetchOneFeed(name, url, 'news', perFeed, section))
   const results = await Promise.allSettled(jobs)
@@ -1312,7 +1316,7 @@ export async function fetchGeneralNews(perFeed = 15): Promise<RawContent[]> {
   results.forEach((res) => {
     if (res.status === 'fulfilled') out.push(...res.value)
   })
-  return withSummaries(out, startedAt)
+  return withSummaries(out, startedAt, leads)
 }
 
 
@@ -1371,7 +1375,9 @@ function cleanRedditTitle(title: string): string {
 }
 
 // ─── Aggregate all sources (each one is independently error-safe) ───
-export async function fetchAllContent(categories: string[] = [], lang: string = 'en'): Promise<RawContent[]> {
+// `leads: false` leaves the opening of each article and the page's picture to the caller (the feed route does it after the pool).
+export async function fetchAllContent(categories: string[] = [], lang: string = 'en', options: { leads?: boolean } = {}): Promise<RawContent[]> {
+  const leads = options.leads !== false
   // ── HINDI FEED ──────────────────────────────────────────────────────────
   // For Hindi we source natively from Hindi Wikipedia (Devanagari content) so
   // even un-enhanced cards render in Hindi. Skip the English-only sources
@@ -1390,7 +1396,7 @@ export async function fetchAllContent(categories: string[] = [], lang: string = 
       fetchWikipediaByTopics(topicsForSearch, 6, 'hi'),
       fetchWikipediaContent(18, 'hi'),
       includeBooks ? fetchIndianAuthorBooks(6) : Promise.resolve([]),
-      fetchHindiNews(4), // current Indian news in Hindi (RSS, key-free, real-time)
+      fetchHindiNews(4, leads), // current Indian news in Hindi (RSS, key-free, real-time)
     ]
     const hindiNames = ['WikipediaTopics', 'Wikipedia', 'IndianAuthors', 'HindiNews']
     const memoryKeys = hindiNames.map((name) => `${name}|hi|${[...categories].sort().join(',')}`)
@@ -1485,7 +1491,7 @@ export async function fetchAllContent(categories: string[] = [], lang: string = 
     includePoetry ? fetchPoetry(2) : Promise.resolve([]),
     includeGuardian ? fetchGuardian(guardianTopics, 4) : Promise.resolve([]),
     includeRss ? fetchRssNews(rssTopics, 3) : Promise.resolve([]),
-    wantsNews ? fetchGeneralNews(15) : Promise.resolve([]),
+    wantsNews ? fetchGeneralNews(15, leads) : Promise.resolve([]),
   ]
   // A source that is stuck (some answered after a minute or more) must not hold the whole pool hostage.
   // Its last good answer, if it has one, stands in for it, and what it eventually returns is kept for next time.

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { articleLead, leadFor, extendSummaries, forgetLeads, LEAD_MAX_CHARS, LEAD_BELOW_CHARS } from './lead.ts'
+import { articleLead, leadFor, leadFrom, extendSummaries, forgetLeads, stripDateline, NoPage, LEAD_MAX_CHARS, LEAD_BELOW_CHARS } from './lead.ts'
 
 const SENTENCE = (n) => `Officials said on Sunday that the review of case number ${n} would take several weeks and that every district would be asked for figures.`
 const page = (body, head = '') => `<!doctype html><html><head><title>x</title>${head}</head><body>${body}</body></html>`
@@ -102,19 +102,33 @@ test('a news story with a short text gets its article opening, and keeps the tex
   assert.equal(stories[0].idText, 'A short line.')
 })
 
-test('only news with a short text and a public address is read, the newest first, a page of one outlet at most', async () => {
+test('only news with a short text or no picture, and a public address, is read: the newest first, a page of one outlet at most', async () => {
   forgetLeads()
   const read = []
   const stories = [
     ...Array.from({ length: 9 }, (_, i) => story(i + 1)),
     story(20, { category: 'science' }),
-    story(21, { content: SENTENCE(21).repeat(3).slice(0, LEAD_BELOW_CHARS + 10) }),
+    // Full and with a picture: nothing to give, though it keeps its place among the outlet's six.
+    story(21, { content: SENTENCE(21).repeat(3).slice(0, LEAD_BELOW_CHARS + 10), image: 'https://news.example/21.jpg' }),
     story(22, { url: 'http://localhost:3000/x' }),
     story(23, { url: undefined }),
     story(24, { source: 'Other', publishedAt: 5 }),
   ]
   await extendSummaries(stories, { readPage: async (link) => { read.push(link); return open(Number(link.split('/').pop())) } })
-  assert.deepEqual(read.sort(), ['https://news.example/4', 'https://news.example/5', 'https://news.example/6', 'https://news.example/7', 'https://news.example/8', 'https://news.example/9', 'https://news.example/24'].sort())
+  assert.deepEqual(read.sort(), ['https://news.example/7', 'https://news.example/8', 'https://news.example/9', 'https://news.example/24'].sort())
+})
+
+test('the stories of one outlet are not all asked for together: the pages being read are of different sites in turn', async () => {
+  forgetLeads()
+  const read = []
+  const stories = [
+    story(1, { source: 'A', url: 'https://a.example/1' }),
+    story(2, { source: 'A', url: 'https://a.example/2' }),
+    story(3, { source: 'B', url: 'https://b.example/3' }),
+    story(4, { source: 'B', url: 'https://b.example/4' }),
+  ]
+  await extendSummaries(stories, { concurrency: 1, readPage: async (link) => { read.push(link); return page('') } })
+  assert.deepEqual(read, ['https://b.example/4', 'https://a.example/2', 'https://b.example/3', 'https://a.example/1'])
 })
 
 test("the same opening on different stories is the site's own text, and is not used", async () => {
@@ -200,4 +214,123 @@ test('no more pages than the limit are read in one go, too small a budget reads 
   } finally {
     delete process.env.PLAX_ARTICLE_LEADS
   }
+})
+
+// ── What is not the story's words
+const STORY = [
+  'The Centre has notified rules for grievance redressal under the new employment law, mandating that complaints be resolved within fifteen days.',
+  'State governments will have to set up a three-tier mechanism at the gram panchayat, block and district levels, the Ministry said on Monday.',
+  'The rules provide for designated officers at each level to receive, register, enquire into and dispose of complaints from workers.',
+  'Workers who are not satisfied may escalate the matter to the next level if it remains pending beyond the prescribed period of time.',
+]
+const withHead = (head, ...paragraphs) => page(`<article>${paragraphs.map((p) => `<p>${p}</p>`).join('')}</article>`, head)
+
+test('the line that says where a story was written is taken off the front', () => {
+  const body = 'Tata Trusts board member Darius Khambata has alleged that directors of Tata Sons sullied the image of the company.'
+  for (const written of [
+    'Mumbai: ', 'MUMBAI: ', 'Mumbai - ', '( for web) Our Bureau Mumbai:  ', 'Hyderabad, Nov 2: ', 'New Delhi, Nov 2 (PTI) ', 'LONDON (Reuters) - ',
+    'KOCHI ', 'New Delhi ', 'CHENNAI ', 'PUDUKOTTAI ', 'KOTTAYAM ',
+  ]) assert.equal(stripDateline(written + body), body, written)
+  // What only looks like one is kept: a name, a country's possessive, an acronym, a plain first word.
+  for (const kept of [
+    'Hemanth, the 21-year-old accused in the chainsaw attack, was related to the minor victim, sources told India Today.',
+    "Tamil Nadu's economic performance under the new government has come under attack from the opposition on Monday.",
+    'NASA scientists said on Monday that the cluster is among the oldest known stellar remnants in the galaxy.',
+    'UNICEF Executive Director Catherine Russell said on Monday that children in the region are at risk of famine.',
+    'Sources said the minister would resign on Monday, and that a successor had already been chosen by the party.',
+  ]) assert.equal(stripDateline(kept), kept)
+})
+
+test("another story linked inside a structured body, a widget's counter or a sentence given twice send the reading to the markup", () => {
+  const markup = [STORY[0], STORY[1], STORY[2]]
+  const wanted = markup.join(' ')
+  const linked = ld({ '@type': 'NewsArticle', articleBody: `${STORY[0]} https://news.example/related Cutting off a rural lifeline ${STORY[1]}` })
+  assert.equal(articleLead(page(`<article>${markup.map((p) => `<p>${p}</p>`).join('')}</article>`, linked)), wanted)
+  const counted = ld({ '@type': 'NewsArticle', articleBody: `${STORY[0]} Cutting off a rural lifeline opinion 1 ${STORY[1]}` })
+  assert.equal(articleLead(page(`<article>${markup.map((p) => `<p>${p}</p>`).join('')}</article>`, counted)), wanted)
+  const twice = ld({ '@type': 'NewsArticle', articleBody: `${STORY[0]} ${STORY[1]} ${STORY[1]}` })
+  assert.equal(articleLead(page(`<article>${markup.map((p) => `<p>${p}</p>`).join('')}</article>`, twice)), wanted)
+  // With no markup to read, the structured body is cut where the furniture begins, at a sentence.
+  assert.equal(articleLead(page('', linked)), STORY[0])
+  assert.equal(articleLead(page('', counted)), STORY[0])
+})
+
+test('a web address is never in the text, and a clean structured body is used as it is', () => {
+  const clean = ld({ '@type': 'NewsArticle', articleBody: `${STORY.join('\n')}\n${STORY[0].replace('Centre', 'Union Government')}` })
+  const lead = articleLead(page('', clean))
+  assert.ok(!/https?:|www\./.test(lead))
+  assert.ok(lead.startsWith(STORY[0]))
+})
+
+test('the day\'s running updates and a list of names are not a story a card can sum up', () => {
+  const title = 'Q2 Results Today Live: Marico and Petronet profit surge'
+  const live = 'Q2 Results Today, 02nd November 2026 Live Updates: Find all the latest Q2 results 2026 updates of Aadhaar Ventures India, Aelea Commodities, Amir Chand Jagdish Kumar, Akums Drugs and Pharmaceuticals, Alankit, Alacrity Securities, Advance Metering Technology, Amara Raja Energy, Arvind Fashions, Add-Shop ERetail.'
+  assert.equal(leadFrom(title, 'x', live), '')
+  const names = 'The Q2 results of Aadhaar Ventures India, Aelea Commodities, Amir Chand Jagdish Kumar, Akums Drugs, Alankit, Alacrity Securities, Advance Metering, Amara Raja Energy, Arvind Fashions, Add-Shop ERetail, Atharva Poly-Plast, Avonmore Capital'
+  assert.equal(leadFrom(title, 'x', names), '')
+  assert.ok(leadFrom('Officials review case number nine', 'x', `${SENTENCE(9)} ${STORY[0]}`).startsWith('Officials said'))
+})
+
+// ── The picture of a story that has none
+const OG = (address) => `<meta property="og:image" content="${address}">`
+const opening = (n, head) => withHead(head, SENTENCE(n), STORY[n % 4])
+
+test('a story with no picture gets the one its page names, as an https address; one that has a picture keeps it', async () => {
+  forgetLeads()
+  const stories = [story(1), story(2, { image: 'https://cdn.example/own.jpg' }), story(3, { url: 'https://other.example/3', source: 'Other' })]
+  const heads = { 1: OG('/img/one.jpg?w=1200&amp;h=675'), 2: OG('https://cdn.example/page-says.jpg'), 3: OG('http://cdn.example/three.jpg') }
+  const extended = await extendSummaries(stories, { readPage: async (link) => opening(Number(link.split('/').pop()), heads[link.split('/').pop()]) })
+  assert.equal(extended, 3)
+  assert.equal(stories[0].image, 'https://news.example/img/one.jpg?w=1200&h=675')
+  assert.equal(stories[1].image, 'https://cdn.example/own.jpg')
+  assert.equal(stories[2].image, 'https://cdn.example/three.jpg')
+})
+
+test('a full story with no picture is read for the picture only, and its text stays as it is', async () => {
+  forgetLeads()
+  const full = SENTENCE(1).repeat(3).slice(0, LEAD_BELOW_CHARS + 20)
+  const stories = [story(1, { content: full })]
+  const extended = await extendSummaries(stories, { readPage: async () => opening(1, OG('https://cdn.example/one.jpg')) })
+  assert.equal(extended, 0)
+  assert.equal(stories[0].content, full)
+  assert.equal(stories[0].lead, undefined)
+  assert.equal(stories[0].image, 'https://cdn.example/one.jpg')
+})
+
+test('a logo, an icon, a stand-in or a banner shared by several stories is not the story\'s picture', async () => {
+  forgetLeads()
+  const stories = [story(1), story(2), story(3), story(4), story(5), story(6)]
+  const heads = {
+    1: OG('https://cdn.example/assets/logo.png'),
+    2: OG('https://cdn.example/icons/site.svg'),
+    3: OG('https://cdn.example/default-image.jpg'),
+    4: OG('https://cdn.example/banner.jpg'),
+    5: OG('https://cdn.example/banner.jpg'),
+    6: OG('https://cdn.example/banner.jpg'),
+  }
+  await extendSummaries(stories, { readPage: async (link) => opening(Number(link.split('/').pop()), heads[link.split('/').pop()]) })
+  assert.deepEqual(stories.map((s) => s.image), [undefined, undefined, undefined, undefined, undefined, undefined])
+  // Two stories of one event may share a photograph.
+  forgetLeads()
+  const pair = [story(1), story(2)]
+  await extendSummaries(pair, { readPage: async (link) => opening(Number(link.split('/').pop()), OG('https://cdn.example/event.jpg')) })
+  assert.deepEqual(pair.map((s) => s.image), ['https://cdn.example/event.jpg', 'https://cdn.example/event.jpg'])
+})
+
+test('a reader that remembers across requests can say that a page gave nothing, and what it says is used', async () => {
+  forgetLeads()
+  const stories = [story(1), story(2)]
+  const reported = []
+  const extended = await extendSummaries(stories, {
+    report: (report) => reported.push(report),
+    readInfo: async (link) => {
+      if (link.endsWith('/2')) throw new NoPage()
+      return { lead: `${SENTENCE(1)} ${STORY[0]}`, image: 'https://cdn.example/one.jpg' }
+    },
+  })
+  assert.equal(extended, 1)
+  assert.equal(stories[0].lead, true)
+  assert.equal(stories[0].image, 'https://cdn.example/one.jpg')
+  assert.equal(stories[1].lead, undefined)
+  assert.deepEqual(reported, [{ read: 1, texts: 1, pictures: 1, failed: [] }])
 })

@@ -20,9 +20,10 @@ export function topicGuidance(category: string, shortBrief = false): { role: str
           '- Lead with the single most important fact (who/what/where/when).\n' +
           '- Give essential context and why it matters, neutrally — no hype, no opinion.\n' +
           '- Prefer concrete specifics (numbers, places, names) straight from the source.',
-        // No full stop at the end: the prompt adds one. A thin source stays short instead of being padded to the range.
+        // No full stop at the end: the prompt adds one. The brief fills a card, which holds about as much as an Inshorts card and a little
+        // more, so it is asked to be as full as the source allows; a thin source stays short instead of being padded to the range.
         words: shortBrief
-          ? '35–60 words in one or two tight paragraphs. Stay close to the length of the source when it is short, and never pad a thin source'
+          ? '55–85 words in one or two tight paragraphs, as full as the source allows. Stay close to the length of the source when it is short, and never pad a thin source'
           : '70–110 words, 2–3 tight paragraphs',
       }
     case 'science':

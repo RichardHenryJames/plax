@@ -2,6 +2,7 @@
 
 import { useLayoutEffect, type RefObject } from 'react'
 import { planFit, MIN_BODY_LINES } from '@/lib/card-fit'
+import { fitText } from '@/lib/text-fit'
 
 // Fits one story card into its box, as the Android app's StoryPage does: nothing on a card scrolls, so a single swipe
 // always moves to the next story, and for that the picture, the tag and source line, the headline, the summary and the
@@ -21,12 +22,11 @@ const LONG_HEADLINE_LINES = 5
 const HEADLINE_SCALES = [1, 0.9, 0.8]
 /** The summary is always set at its own size, so that stories look alike; a longer one is cut at a whole line instead. */
 const BODY_SCALES = [1]
-/** The picture takes what the text leaves: at most a square and 55% of the box in the usual case, and up to 1.4 times its width and
- * 66% of the box when there is little to read, so that the card is full. */
-const HERO_MAX_WIDTH = 1
-const HERO_MAX_HEIGHT = 0.55
-const HERO_TALL_WIDTH = 1.4
-const HERO_TALL_HEIGHT = 0.66
+/** The picture takes what the text leaves, but not much more than its least: at most three quarters of the width and 40% of the box, so
+ * that the pictures of cards look alike. (It used to grow to 1.4 times the width when there was little to read; a short story is now a
+ * matter for the text: see lib/card-fit.ts.) */
+const HERO_MAX_WIDTH = 0.75
+const HERO_MAX_HEIGHT = 0.4
 /** A photograph is given at least 60% of the width and 30% of the box before the summary is cut instead (as in Inshorts, a story
  * with a picture has one, and not a stamp of one); a poster, which only stands in for a picture, a third of that, and is dropped
  * when the text needs the room. */
@@ -69,6 +69,45 @@ function limit(element: HTMLElement, lines: number, natural: number, line: numbe
   element.style.maxHeight = `${top + lines * line}px`
 }
 
+// A summary that is one run of plain text is cut by words, not by the browser's clamp, which ends a line wherever its room does ("prope…"):
+// see lib/text-fit.ts. React drew the text, so what was drawn is kept to be put back when the card is fitted again.
+const shortened = new WeakMap<Text, { original: string; written: string }>()
+
+/** The text node of a summary that is one run of plain text, or null (paragraphs, bold words: those are cut by lines). */
+function plainText(element: HTMLElement): Text | null {
+  const nodes = Array.from(element.childNodes)
+  return nodes.length === 1 && nodes[0].nodeType === Node.TEXT_NODE ? (nodes[0] as Text) : null
+}
+
+/** Puts back the text an earlier fit shortened, unless React has drawn other text there since. */
+function restoreText(element: HTMLElement | null) {
+  const node = element ? plainText(element) : null
+  if (!node) return
+  const mark = shortened.get(node)
+  if (mark && node.data === mark.written) node.data = mark.original
+  shortened.delete(node)
+}
+
+/** Shows the summary in this many lines, ending at a sentence or a word (see lib/text-fit.ts), or by the clamp when it is not plain text. */
+function cutSummary(element: HTMLElement, lines: number, natural: number, line: number, top: number) {
+  release(element, ...CUT)
+  restoreText(element)
+  if (lines >= natural) return
+  const node = plainText(element)
+  if (!node) {
+    limit(element, lines, natural, line, top)
+    return
+  }
+  const original = node.data
+  const countLines = (candidate: string) => {
+    node.data = candidate
+    return Math.max(1, Math.round((element.offsetHeight - top) / line))
+  }
+  const written = fitText(original, lines, countLines)
+  node.data = written
+  shortened.set(node, { original, written })
+}
+
 function part(box: HTMLElement, name: string) {
   return box.querySelector<HTMLElement>(`[data-fit="${name}"]`)
 }
@@ -96,6 +135,7 @@ export function fitCard(box: HTMLElement) {
   release(actions, 'display')
   release(title, 'font-size', ...CUT)
   release(body, 'font-size', ...CUT)
+  restoreText(body)
   box.dataset.hero = hero ? 'on' : 'off'
   const height = box.clientHeight
   const width = box.clientWidth
@@ -142,20 +182,19 @@ export function fitCard(box: HTMLElement) {
     }
   }
 
-  const heroMaximum = hero ? Math.min(width * HERO_MAX_WIDTH, height * HERO_MAX_HEIGHT) : 0
-  const heroTall = hero ? Math.max(heroMaximum, Math.min(width * HERO_TALL_WIDTH, height * HERO_TALL_HEIGHT)) : 0
   const poster = !!hero && hero.classList.contains('poster-tile')
   const heroMinimum = Math.max(
     HERO_FLOOR,
     poster ? Math.min(width * POSTER_MIN_WIDTH, height * POSTER_MIN_HEIGHT) : Math.min(width * PHOTO_MIN_WIDTH, height * PHOTO_MIN_HEIGHT),
   )
+  const heroMaximum = hero ? Math.max(heroMinimum, Math.min(width * HERO_MAX_WIDTH, height * HERO_MAX_HEIGHT)) : 0
 
   // The summary is measured at its own size; the plan cuts it to the lines that fit beside the picture's minimum.
   let bodyNatural = 0
   let bodyLine = 0
   let bodyTop = 0
   const planNow = () =>
-    planFit({ height, meta: metaWith, metaBare, actions: actionsHeight, titleTop, titleLine, titleNatural, titleMax, bodyTop, bodyLine, bodyNatural, heroMaximum, heroMinimum, heroTall, heroKept: !poster })
+    planFit({ height, meta: metaWith, metaBare, actions: actionsHeight, titleTop, titleLine, titleNatural, titleMax, bodyTop, bodyLine, bodyNatural, heroMaximum, heroMinimum, heroKept: !poster })
   let plan = planNow()
   if (body) {
     for (const scale of BODY_SCALES) {
@@ -176,13 +215,13 @@ export function fitCard(box: HTMLElement) {
     if (hero) {
       if (heroHeight > 0) {
         hero.style.height = `${heroHeight}px`
-        // A poster's emoji is sized from it.
+        // A poster's name is sized from it.
         hero.style.setProperty('--hero-h', `${heroHeight}px`)
       } else hero.style.display = 'none'
     }
     if (title) limit(title, titleLines, titleNatural, titleLine, titleTop)
     if (body) {
-      if (bodyLines > 0) limit(body, bodyLines, bodyNatural, bodyLine, bodyTop)
+      if (bodyLines > 0) cutSummary(body, bodyLines, bodyNatural, bodyLine, bodyTop)
       else body.style.display = 'none'
     }
   }

@@ -9,7 +9,7 @@ import { useT } from '@/lib/i18n'
 import { withBase } from '@/lib/base-path'
 import { bodyWithoutHeadline } from '@/lib/story-body'
 import { NEWS_SECTIONS } from '@/lib/types'
-import { posterEmoji, wantsPoster } from '@/lib/poster'
+import { posterName, wantsPoster } from '@/lib/poster'
 import { useCardFit } from './useCardFit'
 import { CardActions } from './CardActions'
 import { MenuButton } from './MenuButton'
@@ -117,15 +117,19 @@ export function Card({ card, isActive, translating = false }: CardProps) {
                 className={`overflow-hidden rounded-3xl ${hasPoster ? 'poster-tile flex items-center justify-center' : 'bg-[var(--wash-1)]'}`}
               >
                 {hasPoster ? (
-                  <span aria-hidden="true" className="poster-emoji select-none leading-none">
-                    {posterEmoji(card.section || card.category, TOPICS.find((t) => t.id === (card.section || card.category))?.emoji)}
-                  </span>
+                  <div aria-hidden="true" className="poster-mark select-none">
+                    {posterName(card) && <span className="poster-name">{posterName(card)}</span>}
+                    <span className="poster-rule" />
+                    <span className="poster-label">{sectionLabel}</span>
+                  </div>
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={card.image}
                     alt={card.title || 'News image'}
                     className="w-full h-full object-cover"
+                    // Some publishers' picture servers refuse a request that says another site sent it.
+                    referrerPolicy="no-referrer"
                     onError={() => setImageFailed(true)}
                   />
                 )}

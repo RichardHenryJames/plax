@@ -248,7 +248,8 @@ public class FitDeviceTest {
         // all of it). The photograph's rule, that it stays while the summary is cut, is in CardFitTest: these stories have no photograph.
         if (roomy && shown(page.body) && page.body.getLayout() != null) {
             int lines = page.body.getLayout().getLineCount(), natural = naturalLines(page.body);
-            boolean cut = page.body.getLayout().getEllipsisCount(lines - 1) > 0;
+            // The summary is cut by the page itself, at a sentence or a word (TextFit), so a cut one is a text that is not the whole.
+            boolean cut = !page.body.getText().toString().equals(page.wholeBody().toString());
             if (page.hero.getHeight() > 0 && !page.sideBySide() && cut) found.add(name + ": the summary is cut though a poster is on the page");
             if (!page.sideBySide() && lines < Math.min(natural, CardFit.MIN_BODY_LINES) && page.title.getLayout() != null
                     && page.title.getLayout().getLineCount() > CardFit.MIN_TITLE_LINES)
@@ -316,17 +317,22 @@ public class FitDeviceTest {
                     assertFalse(story.id(), holder.page.sideBySide());
                     int picture = holder.hero.getHeight();
                     assertTrue(story.id() + ": a picture is either absent or worth showing", picture == 0 || picture >= ui.dp(96));
-                    assertTrue(story.id() + ": the picture does not take over the page", picture <= height * .66f + 1);
+                    assertTrue(story.id() + ": the picture does not take over the page", picture <= height * .4f + 1);
                     if (!story.body().isEmpty()) {
                         int shown = holder.content.getLayout().getLineCount();
-                        boolean cut = holder.content.getLayout().getEllipsisCount(shown - 1) > 0;
+                        // A cut summary is a cut of the text itself, ending at a sentence or a word, not an ellipsis the view draws.
+                        boolean cut = !holder.content.getText().toString().equals(story.body());
                         if (cut) assertTrue(story.id() + ": only " + shown + " lines of a cut summary are shown", shown >= CardFit.MIN_BODY_LINES);
+                        if (cut) assertEquals(story.id() + ": the view draws no ellipsis of its own", 0, holder.content.getLayout().getEllipsisCount(shown - 1));
+                        if (cut) assertTrue(story.id() + ": a cut summary ends at a word, not in the middle of one: " + holder.content.getText(),
+                                holder.content.getText().toString().endsWith("\u2026") || holder.content.getText().toString().matches(".*[.!?\u0964]$"));
                         if (picture > 0) assertFalse(story.id() + ": with a picture on the page the summary is whole", cut);
                     }
                     if (story.id().equals("typical")) {
                         typicalSize = holder.content.getTextSize();
                         assertTrue("an ordinary story has its picture", picture >= ui.dp(96));
-                        assertTrue("and a short summary lets it grow past a square, so that the page is full", picture > ui.dp(360));
+                        assertTrue("and a short summary does not make it grow past its most, so that pictures look alike",
+                                picture <= ui.dp(392 - 32) * .75f + 1);
                         assertTrue("and the summary ends at the bottom of the page, not halfway down it", height - holder.content.getBottom() <= ui.dp(8) + 2);
                         assertEquals("and its summary, whole", story.body(), holder.content.getText().toString());
                     }
@@ -340,7 +346,7 @@ public class FitDeviceTest {
                         assertEquals(story.body(), holder.content.getText().toString());
                         assertTrue(story.id() + ": and a short story still fills the page", height - holder.content.getBottom() <= ui.dp(8) + 2);
                     }
-                    if (story.body().isEmpty()) assertTrue(story.id() + ": with nothing to read the picture grows", picture > height * .31f);
+                    if (story.body().isEmpty()) assertTrue(story.id() + ": with nothing to read the picture is at its most", picture > height * .31f);
                 }
             } finally { images.close(); }
         });

@@ -58,8 +58,9 @@ export async function POST(request: NextRequest) {
     // Cache key includes a prompt VERSION + category so a prompt change (e.g. the
     // topic-aware rewrite that removed Hook/Takeaway labels) invalidates stale
     // entries instead of serving pre-fix summaries forever. The short news brief has a version of its own,
-    // so long briefs cached for the same story are never served in its place (and the app's briefs stay as they were).
-    const ck = await cacheKey('summarize', shortBrief ? 'v2-brief' : 'v2', category || '', lang, title, (content as string).slice(0, 2200))
+    // so long briefs cached for the same story are never served in its place (and the app's briefs stay as they were). It was
+    // bumped to v3 when the brief grew from 35–60 to 55–85 words, so that the shorter ones cached before are not served.
+    const ck = await cacheKey('summarize', shortBrief ? 'v3-brief' : 'v2', category || '', lang, title, (content as string).slice(0, 2200))
     const cached = await getCachedAI<{ title: string; content: string; type: string }>(ck)
     if (cached) return NextResponse.json({ ...cached, cached: true })
 
