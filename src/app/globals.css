@@ -208,7 +208,8 @@ body {
   background-image: linear-gradient(135deg, color-mix(in srgb, var(--signal) 18%, transparent), var(--wash-1));
 }
 .poster-emoji {
-  font-size: min(4rem, calc(var(--hero-h, 8rem) * 0.5));
+  /* The sign grows with its tile: a little under a third of it, never under 4rem (while the tile can hold it), never over 7rem. */
+  font-size: min(7rem, calc(var(--hero-h, 8rem) * 0.5), max(4rem, calc(var(--hero-h, 8rem) * 0.28)));
 }
 
 /* ── Reading Typography ──

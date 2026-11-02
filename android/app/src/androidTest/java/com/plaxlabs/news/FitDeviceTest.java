@@ -316,7 +316,7 @@ public class FitDeviceTest {
                     assertFalse(story.id(), holder.page.sideBySide());
                     int picture = holder.hero.getHeight();
                     assertTrue(story.id() + ": a picture is either absent or worth showing", picture == 0 || picture >= ui.dp(96));
-                    assertTrue(story.id() + ": the picture does not take over the page", picture <= height * .62f + 1);
+                    assertTrue(story.id() + ": the picture does not take over the page", picture <= height * .66f + 1);
                     if (!story.body().isEmpty()) {
                         int shown = holder.content.getLayout().getLineCount();
                         boolean cut = holder.content.getLayout().getEllipsisCount(shown - 1) > 0;
@@ -327,6 +327,7 @@ public class FitDeviceTest {
                         typicalSize = holder.content.getTextSize();
                         assertTrue("an ordinary story has its picture", picture >= ui.dp(96));
                         assertTrue("and a short summary lets it grow past a square, so that the page is full", picture > ui.dp(360));
+                        assertTrue("and the summary ends at the bottom of the page, not halfway down it", height - holder.content.getBottom() <= ui.dp(8) + 2);
                         assertEquals("and its summary, whole", story.body(), holder.content.getText().toString());
                     }
                     if (story.id().equals("long-body")) {
@@ -337,6 +338,7 @@ public class FitDeviceTest {
                         int last = holder.content.getLayout().getLineCount() - 1;
                         assertEquals(story.id() + ": a short summary is shown whole", 0, holder.content.getLayout().getEllipsisCount(last));
                         assertEquals(story.body(), holder.content.getText().toString());
+                        assertTrue(story.id() + ": and a short story still fills the page", height - holder.content.getBottom() <= ui.dp(8) + 2);
                     }
                     if (story.body().isEmpty()) assertTrue(story.id() + ": with nothing to read the picture grows", picture > height * .31f);
                 }

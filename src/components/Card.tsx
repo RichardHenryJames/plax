@@ -96,11 +96,13 @@ export function Card({ card, isActive, translating = false }: CardProps) {
     } ${isHindi ? 'lang-hi' : ''}`}>
       {/* No header, no bottom bar and no action bar: the padding only clears the status bar and the home indicator, so a story
           has the whole screen. Short cards that are not news centre vertically on a desktop; a news card and a long one start
-          at the top, and so does every card on a phone, where the menu button stands at the start of the first line. */}
+          at the top, and so does every card on a phone, where the menu button stands at the start of the first line. What room
+          is left on a news card (a short summary, once the picture is at its tallest) is spread evenly between its parts, and
+          the row at the bottom stays at the bottom, so the card has no hole under its text. */}
       <div
         ref={boxRef}
         className={`card-fit story-column relative z-10 flex-1 min-h-0 flex flex-col w-full max-w-xl lg:max-w-2xl mx-auto ${
-          isNews || isLong ? 'justify-start' : 'justify-start lg:justify-center'
+          isNews || isLong ? 'justify-between' : 'justify-start lg:justify-center'
         }`}
       >
             {/* Hero image — a news card carries the publisher's picture, and it leads the card as in the app. Its height is
@@ -132,9 +134,10 @@ export function Card({ card, isActive, translating = false }: CardProps) {
 
             {/* Tag, origin and the round buttons. A news card reads "INDIA  The Hindu ↗ · 20m ago · 20s" under its picture, and
                 Listen, Save and Share stand at the right end of the same line, as in the app: with no bar at the bottom the story
-                has the whole screen. The line never wraps: the source name gives way (an ellipsis) before the age does, and the
-                read time and the word "Breaking" (just its dot below 540 px) give way on anything narrower than 540 px: they
-                took the room of the name on a 430 px phone, where it came out as "T..". */}
+                has the whole screen. The line never wraps: the source name gives way (an ellipsis) before the age does, and the age
+                only as a last resort (a Hindi age on a 360 px phone), so that it never runs under a button; the read time and the
+                word "Breaking" (just its dot below 540 px) give way on anything narrower than 540 px: they took the room of the
+                name on a 430 px phone, where it came out as "T..". */}
             <motion.div
               data-fit="meta"
               initial={{ opacity: 0, y: 6 }}
@@ -170,7 +173,7 @@ export function Card({ card, isActive, translating = false }: CardProps) {
                       )}
                     </span>
                   )}
-                  {relativeTime && <span className="shrink-0 whitespace-nowrap">{card.source ? '· ' : ''}{relativeTime}</span>}
+                  {relativeTime && <span className="min-w-0 shrink-[0.2] truncate">{card.source ? '· ' : ''}{relativeTime}</span>}
                   {card.readTime && <span className="hidden min-[540px]:inline shrink-0 whitespace-nowrap">{card.source || relativeTime ? '· ' : ''}{card.readTime}</span>}
                 </span>
               ) : (
@@ -292,7 +295,7 @@ export function Card({ card, isActive, translating = false }: CardProps) {
               What these open floats over the summary, above the row, instead of pushing it: nothing on a card scrolls.
               The way to the full story is the headline's own link, and Listen, Save and Share are in the source line (CardActions). */}
           {hasActions && (
-            <div data-fit="actions" className={`relative ${isNews || isLong ? 'mt-auto' : 'mt-2'}`}>
+            <div data-fit="actions" className={`relative ${isNews || isLong ? '' : 'mt-2'}`}>
               <div className="flex flex-wrap items-start gap-2.5">
                 {/* Go deeper — AI-generated bonus insights on tap */}
                 {hasDeeper && (

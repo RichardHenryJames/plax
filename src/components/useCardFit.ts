@@ -21,12 +21,12 @@ const LONG_HEADLINE_LINES = 5
 const HEADLINE_SCALES = [1, 0.9, 0.8]
 /** The summary is always set at its own size, so that stories look alike; a longer one is cut at a whole line instead. */
 const BODY_SCALES = [1]
-/** The picture takes what the text leaves: at most a square and 55% of the box in the usual case, and up to 1.2 times its width and
- * 62% of the box when there is little to read, so that the card is full. */
+/** The picture takes what the text leaves: at most a square and 55% of the box in the usual case, and up to 1.4 times its width and
+ * 66% of the box when there is little to read, so that the card is full. */
 const HERO_MAX_WIDTH = 1
 const HERO_MAX_HEIGHT = 0.55
-const HERO_TALL_WIDTH = 1.2
-const HERO_TALL_HEIGHT = 0.62
+const HERO_TALL_WIDTH = 1.4
+const HERO_TALL_HEIGHT = 0.66
 /** A photograph is given at least 60% of the width and 30% of the box before the summary is cut instead (as in Inshorts, a story
  * with a picture has one, and not a stamp of one); a poster, which only stands in for a picture, a third of that, and is dropped
  * when the text needs the room. */

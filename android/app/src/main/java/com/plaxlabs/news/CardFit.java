@@ -73,9 +73,11 @@ final class CardFit {
         int roomWith = in.height() - in.actions() - in.meta() - title;
         int roomBare = in.height() - in.actions() - in.metaBare() - title;
         boolean picture = in.heroMaximum() > 0;
+        // With little to read the picture may grow to the tallest it may be (a poster too: its sign grows with it).
+        int tallest = Math.max(in.heroMaximum(), in.heroTall());
 
         if (in.bodyNatural() == 0) {
-            int hero = Math.min(roomWith, Math.max(in.heroMaximum(), in.heroTall()));
+            int hero = Math.min(roomWith, tallest);
             boolean shown = picture && hero >= in.heroMinimum();
             return new Spent(new Plan(shown ? hero : 0, titleLines, 0), shown ? roomWith : roomBare);
         }
@@ -90,7 +92,7 @@ final class CardFit {
             int wanted = in.heroKept() ? Math.min(in.bodyNatural(), MIN_BODY_LINES) : in.bodyNatural();
             if (beside >= wanted) {
                 int lines = Math.min(in.bodyNatural(), beside);
-                int hero = Math.min(roomWith - in.bodyTop() - lines * line, Math.max(in.heroMaximum(), in.heroTall()));
+                int hero = Math.min(roomWith - in.bodyTop() - lines * line, tallest);
                 return new Spent(new Plan(hero, titleLines, lines), roomWith);
             }
         }
