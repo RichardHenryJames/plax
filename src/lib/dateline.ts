@@ -8,7 +8,8 @@
 //     and counters the structured body carries, and the widgets the markup carries, are each in one of the two only.
 //  2. It cannot be anything else (stripDateline): "( for web)" and "Our Bureau Mumbai:"; a place and an agency ("LONDON (Reuters) -");
 //     a place, a date and a mark ("Hyderabad, Nov 2:"); a known place and a colon ("Mumbai: "); a known place in capitals ("KOCHI The
-//     Ernakulam", but not "DELHI POLICE said"); a known place and "The", "A" or "An" ("New Delhi The Centre has", which is no prose).
+//     Ernakulam", but not "DELHI POLICE said"); a known place and "The", "A" or "An" ("New Delhi The Centre has", which is no prose);
+//     a known place and a date before such a word, with the credit before it ("Our Bureau New Delhi, November 2 In high-level talks").
 // A dateline of a place that is not on the list, and that the page does not confirm, is left where it is.
 
 const PLACE = "[A-Z][A-Za-z.'\u2019-]*(?: [A-Z][A-Za-z.'\u2019-]*){0,2}"
@@ -18,6 +19,8 @@ const AGENCY = '\\((?:PTI|IANS|ANI|AFP|AP|UNI|Reuters|Bloomberg)\\)'
 const MARKED = new RegExp(`^(${PLACE})((?:,\\s*${DATE_LINE})?)((?:\\s*${AGENCY})?)\\s*([:\\u2013\\u2014-])?\\s+`)
 const CREDIT_LINE = /^(?:Our|Special|Staff|Senior)\s+(?:Bureau|Correspondent|Reporter|Representative)\b(?:\s+[A-Z][a-z]+(?: [A-Z][a-z]+)?)?\s*[:\u2013\u2014-]\s*/
 const FOR_WEB = /^\(\s*for web\s*\)\s*/i
+/** A credit with no mark after it: only a dateline after it makes it one. */
+const UNMARKED_CREDIT = /^(?:Our|Special|Staff|Senior)\s+(?:Bureau|Correspondent|Reporter|Representative)\s+/
 /** What can follow a place with no mark between, in words that begin a sentence and cannot go on a name ("New Delhi The Centre"). */
 const SENTENCE_STARTER = /^(?:The|A|An|In|On|At|As|After|Amid|With)\s/
 
@@ -72,7 +75,10 @@ function markedLength(text: string): number {
   if (!found) return 0
   const [whole, place, dated, agency, mark] = found
   const known = PLACES.has(place.toLowerCase())
-  return agency !== '' || (dated !== '' && !!mark) || (known && mark === ':') ? whole.length : 0
+  const sure = agency !== '' || (dated !== '' && !!mark) || (known && mark === ':')
+  // A known place and a date with no mark after them, before a word that begins a sentence: "New Delhi, November 2 In high-level talks".
+  const datedBeforeSentence = known && dated !== '' && SENTENCE_STARTER.test(text.slice(whole.length))
+  return sure || datedBeforeSentence ? whole.length : 0
 }
 
 /** How much of the start is a known place with no mark after it that only a dateline can be, or 0. */
@@ -90,15 +96,30 @@ function unmarkedLength(text: string): number {
 
 const startsLikeSentence = (text: string) => text.length >= 40 && /^[A-Z\u201c"\u2018']/.test(text)
 
-/** The text without the line that says where it was written, when it begins with one that cannot be anything else. */
-export function stripDateline(text: string): string {
-  const rest = text.trim().replace(FOR_WEB, '').replace(CREDIT_LINE, '')
-  const cut = markedLength(rest) || unmarkedLength(rest)
+/** The text without a dateline at its start that cannot be anything else (see above), or as it is. */
+function withoutPlace(text: string): string {
+  const cut = markedLength(text) || unmarkedLength(text)
   if (cut > 0) {
-    const after = rest.slice(cut)
+    const after = text.slice(cut)
     if (startsLikeSentence(after)) return after
   }
-  return rest
+  return text
+}
+
+/**
+ * The text without the line that says where it was written, when it begins with one that cannot be anything else. A credit with no
+ * mark after it ("Our Bureau New Delhi, November 2 In high-level talks") goes with the dateline that follows it, and stays when none
+ * does ("Special Representative Ajay Banga said").
+ */
+export function stripDateline(text: string): string {
+  const rest = text.trim().replace(FOR_WEB, '').replace(CREDIT_LINE, '')
+  const credit = UNMARKED_CREDIT.exec(rest)
+  if (credit) {
+    const body = rest.slice(credit[0].length)
+    const after = withoutPlace(body)
+    if (after !== body) return after
+  }
+  return withoutPlace(rest)
 }
 
 /**

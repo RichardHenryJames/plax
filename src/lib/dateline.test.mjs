@@ -27,6 +27,20 @@ test('a known place in capitalised words is a dateline only when a word that beg
   }
 })
 
+test('a credit and a place and a date, with no mark, before a sentence: the way BusinessLine begins a story', () => {
+  const talks = 'In high-level official talks in Brussels, India and the European Union agreed to maintain close contact on all open issues.'
+  for (const written of ['Our Bureau New Delhi, November 2 ', 'Our Bureau Mumbai, Nov 2 ', 'New Delhi, November 2 ', 'Special Correspondent Chennai, Nov. 2 ', 'Mumbai, Nov 2 ']) {
+    assert.equal(stripDateline(written + talks), talks, written)
+  }
+  // A credit that no dateline follows is the start of a sentence, and a date is not a place.
+  for (const kept of [
+    'Our Bureau chief said on Monday that the new rules would take effect next month, officials added to the report.',
+    'Special Representative Ajay Banga said on Monday that the fund would grow by a third over the next five years.',
+    'Our Correspondent in Kabul said on Monday that the border crossing had been closed since the early morning.',
+    'May 3 The meeting was moved to the next week, the organisers told the members of the committee on Monday.',
+  ]) assert.equal(stripDateline(kept), kept)
+})
+
 test('what only looks like a dateline is kept: a force, a body, a club, a company, a title, a name', () => {
   for (const kept of [
     'Delhi Police said on Monday that the accused had been arrested from a hotel near the airport after a two-day search.',

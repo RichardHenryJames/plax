@@ -221,6 +221,7 @@ plax/
 │       ├── share-sign.ts              # Server only: HMAC signing and verification of cards
 │       ├── share-store.ts             # Stored story pages (the existing ai_cache table)
 │       ├── sources.ts                 # Content fetchers (Wikipedia, HN, Reddit, ZenQuotes, news)
+│       ├── rss-text.ts                # The text of an RSS field: markup out, entities decoded, a field escaped twice (NDTV's "&amp;#039;") decoded again; unit-tested
 │       ├── store.ts                   # Zustand store (topics, bookmarks, engagements, theme)
 │       ├── story-body.ts              # Body text without the headline repeated (as in the app)
 │       ├── story-engine.ts            # No-repeat engine: same-event matching, seen history, merging

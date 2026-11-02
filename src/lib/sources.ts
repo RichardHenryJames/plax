@@ -1,6 +1,7 @@
 import { RawContent, CATEGORY_MAP, TOPIC_SUBREDDITS, TOPIC_WIKI_QUERIES, TOPIC_WIKI_QUERIES_HI, TOPIC_NEWS_KEYWORD, TOPIC_GUARDIAN_SECTION, TOPIC_RSS_FEEDS, HINDI_RSS_FEEDS, GENERAL_NEWS_FEEDS } from './types'
 import { within, Remembered, SOURCE_DEADLINE_MS } from './deadline'
 import { fillMissingSummaries } from './blurb'
+import { decodeRss } from './rss-text'
 import { extendSummaries } from './lead'
 import { isDisambiguationPage } from './wikipedia-quality'
 import { SITE_DISPLAY, SITE_URL } from './site'
@@ -1130,24 +1131,6 @@ export async function fetchNews(categories: string[], perTopic = 3): Promise<Raw
 // strip HTML, and hand the headline + blurb to the AI-enhance step, which frames
 // each into a faithful Plax micro-essay. No API key, works for English topics and
 // (separately) Hindi news.
-
-// Decode common XML/HTML entities and strip tags from an RSS field.
-function decodeRss(s: string): string {
-  return (s || '')
-    .replace(/<!\[CDATA\[|\]\]>/g, '')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n))
-    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCharCode(parseInt(n, 16)))
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;|&apos;/g, "'")
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&[a-z]+;/gi, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
 
 // Parse an RSS (<item>) or Atom (<entry>) feed into {title, desc, link, published, image} items.
 function parseRss(xml: string, limit = 6): { title: string; desc: string; link: string; published?: number; image?: string }[] {
