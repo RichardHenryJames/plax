@@ -9,6 +9,7 @@
 import { bodyWithoutHeadline } from './story-body.ts'
 import { decodeEntities, endsSentence, isPublicWebUrl, pageImage, shortSummary, stems } from './blurb.ts'
 import { holds, indexBody, mayBeDateline, stripDateline } from './dateline.ts'
+import { trimWeakTail } from './sentence.ts'
 
 /** The most text kept for a card: about a hundred words, more than a screen holds. The card cuts it where its room ends. */
 export const LEAD_MAX_CHARS = 600
@@ -183,7 +184,7 @@ function endAtSentence(text: string): string {
   const ends = [...trimmed.matchAll(/[.!?\u0964](?=["\u201d\u2019')\]]?\s)/g)].filter((end) => endsSentence(trimmed, end.index ?? 0))
   const last = ends.length > 0 ? (ends[ends.length - 1].index ?? -1) + 1 : -1
   if (last > trimmed.length * 0.5) return trimmed.slice(0, last)
-  return trimmed.replace(/[\s,;:\u2013\u2014-]+$/, '') + '\u2026'
+  return trimWeakTail(trimmed).replace(/[\s,;:\u2013\u2014-]+$/, '') + '\u2026'
 }
 
 /** What a page opens with, and whether that is settled: nothing in it waits for the page's own paragraphs to say if it begins with a dateline. */

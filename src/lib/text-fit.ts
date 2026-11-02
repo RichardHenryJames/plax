@@ -1,12 +1,13 @@
 // Where a summary ends when its room does: at the end of a sentence when one falls close to the end of the room, else after the last
-// word that fits, with an ellipsis. Never in the middle of a word ("prope…"), which a browser's or a phone's own ellipsis does, and
+// word that fits and can end a text (not "and", "of the", an initial: "…Bagchi and V…"), with an ellipsis. Never in the middle of a word
+// ("prope…"), which a browser's or a phone's own ellipsis does, and
 // never so early that the card is left with a hole: a sentence is a better place to stop than a word only when it is within `slack`
 // lines of the room.
 //
 // Pure, with the measuring passed in (how many lines a text takes at the card's width), so that it can be tested without a browser. A
 // port of TextFit.java in the Android app (android/app/src/main/java/com/plaxlabs/news/TextFit.java); useCardFit measures with the
 // page, the app with a layout, and both cut alike.
-import { endsSentence } from './sentence.ts'
+import { endsSentence, trimWeakTail } from './sentence.ts'
 
 export const ELLIPSIS = '\u2026'
 /** A sentence that ends this many lines or fewer short of the room is where the text stops. */
@@ -52,5 +53,5 @@ export function fitText(text: string, lines: number, countLines: (candidate: str
     if (countLines(sentence) >= lines - slack) return sentence
     break // an earlier sentence is further from the end still
   }
-  return trimTail(full.slice(0, ends[best])) + ELLIPSIS
+  return trimTail(trimWeakTail(full.slice(0, ends[best]))) + ELLIPSIS
 }

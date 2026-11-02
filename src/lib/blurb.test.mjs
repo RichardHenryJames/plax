@@ -48,6 +48,12 @@ test('a long description ends at a sentence when one ends far enough in, else at
   assert.ok(shortSummary(hindi).endsWith('\u0964'), 'a danda ends a Hindi sentence')
 })
 
+test('a cut at a word does not stop on one that needs the next: "and V" gives way to the name before it', () => {
+  const text = 'The bench comprising Chief Justice of India Surya Kant and Justices Joymalya Bagchi and V Viswanathan said the order was unsustainable and set it aside on Monday.'
+  assert.equal(shortSummary(text, text.indexOf(' Viswanathan')), 'The bench comprising Chief Justice of India Surya Kant and Justices Joymalya Bagchi\u2026')
+  assert.equal(shortSummary(text, text.indexOf(' unsustainable') + 3), 'The bench comprising Chief Justice of India Surya Kant and Justices Joymalya Bagchi and V Viswanathan said the order\u2026')
+})
+
 test('a full stop after a title, an initial or an abbreviation is not where a sentence ends', () => {
   const text = 'Dr. Rao said on Monday that M. K. Stalin would arrive at 4:30 p.m. in the U.S. capital with Mr. Singh and Prof. Das. ' +
     'The meeting that follows will take several hours, officials said, and the visitors will leave on Tuesday morning after the talks are over and done.'

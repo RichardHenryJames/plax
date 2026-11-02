@@ -61,6 +61,72 @@ public class TextFitTest {
         assertTrue(shown.endsWith(TextFit.ELLIPSIS) || shown.matches(".*[.!?]$"));
     }
 
+    private static final String COURT = "The Supreme Court on Monday (November 2, 2026) set aside an order of the Rajasthan State Election Commission (SEC) refusing permission to a civil society organisation to conduct voter awareness campaigns. "
+            + "Observing that voters\u2019 awareness initiatives by such organisations should be encouraged rather than restricted, a bench comprising Chief Justice of India Surya Kant and Justices Joymalya Bagchi and V Viswanathan said the order was unsustainable.";
+    private static final String SHARES = "IDBI Bank shares ended 2.1 per cent lower in Mumbai on Monday compared to a 1.7 per cent rise in the Sensex as staff began a two-day strike against the planned sale of the lender to a foreign investor.";
+
+    @Test public void aCutAfterAWordStopsOnOneThatSaysAThingNotOnAndOfTheAnInitialATitleOrANumber() {
+        assertTrue("not \"\u2026 Bagchi and V\u2026\"", TextFit.fit(COURT, 11, COUNT, 0).endsWith("Justices Joymalya Bagchi\u2026"));
+        assertTrue("not \"\u2026 the order was\u2026\"", TextFit.fit(COURT, 12, COUNT, 0).endsWith("and V Viswanathan said the order\u2026"));
+        assertTrue("not \"\u2026 initiatives by such\u2026\"", TextFit.fit(COURT, 7, COUNT, 0).endsWith("awareness initiatives\u2026"));
+        assertTrue("not \"\u2026 an order of the\u2026\"", TextFit.fit(COURT, 2, COUNT, 0).endsWith("set aside an order\u2026"));
+        assertTrue("not \"\u2026 of 2027 in a\u2026\"", TextFit.fit(STORY, 8, COUNT, 0).endsWith("will exit by the end\u2026"));
+        assertTrue("not \"\u2026 compared to a\u2026\"", TextFit.fit(SHARES, 2, COUNT, 0).endsWith("Monday compared\u2026"));
+        assertTrue("not \"\u2026 against the\u2026\"", TextFit.fit(SHARES, 4, COUNT, 0).endsWith("a two-day strike\u2026"));
+    }
+
+    @Test public void whateverTheRoomACutEndsOnAWordThatCanEndATextAndTheTextShownStillFits() {
+        java.util.Set<String> weak = java.util.Set.of("a", "an", "the", "and", "or", "of", "to", "in", "on", "at", "for", "by", "with", "from", "as", "that", "was", "is", "v");
+        for (String text : new String[] {COURT, SHARES, STORY}) {
+            for (int lines = 3; lines <= 12; lines++) {
+                String shown = TextFit.fit(text, lines, COUNT, 0);
+                assertTrue(lines + ": " + shown, COUNT.lines(shown) <= lines);
+                if (!shown.endsWith(TextFit.ELLIPSIS)) continue;
+                String[] words = shown.substring(0, shown.length() - 1).trim().split(" ");
+                String last = words[words.length - 1].replaceAll("[^\\p{L}\\p{N}]+", "").toLowerCase(java.util.Locale.ROOT);
+                assertFalse(lines + ": " + shown, weak.contains(last));
+            }
+        }
+    }
+
+    @Test public void aTextCutAtAWordStopsBeforeTheWordsThatNeedTheNextOne() {
+        assertEquals("a bench comprising Chief Justice of India Surya Kant and Justices Joymalya Bagchi",
+                TextFit.trimWeakTail("a bench comprising Chief Justice of India Surya Kant and Justices Joymalya Bagchi and V"));
+        assertEquals("shares ended 2.1 per cent lower in Mumbai on Monday compared", TextFit.trimWeakTail("shares ended 2.1 per cent lower in Mumbai on Monday compared to a 1.7"));
+        assertEquals("all forces will exit by the end", TextFit.trimWeakTail("all forces will exit by the end of 2027 in a"));
+        assertEquals("the minister said on Monday that he would meet", TextFit.trimWeakTail("the minister said on Monday that he would meet Dr."));
+        assertEquals("Officials said the review would take several weeks", TextFit.trimWeakTail("Officials said the review would take several weeks \u2013"));
+        for (String kept : new String[] {
+                "Officials said the review would take several weeks",
+                "The bench comprising Chief Justice of India Surya Kant and Justices Joymalya Bagchi",
+                "the study of 4,000 patients found that nothing changed, researchers said.",
+                "Officials said the review would take several weeks,"}) assertEquals(kept, TextFit.trimWeakTail(kept));
+    }
+
+    @Test public void anOpeningBracketThatIsNeverClosedNearTheEndIsNoPlaceToStop() {
+        assertEquals("The Supreme Court on Monday", TextFit.trimWeakTail("The Supreme Court on Monday (November 2"));
+        assertEquals("Raids were carried out on Monday by officers of the Directorate of Revenue Intelligence",
+                TextFit.trimWeakTail("Raids were carried out on Monday by officers of the Directorate of Revenue Intelligence (DRI"));
+        String closed = "The Supreme Court on Monday (November 2, 2026) set aside the order";
+        assertEquals(closed, TextFit.trimWeakTail(closed));
+        String far = "(the first line of a long note that goes on for a good while and says several things about the case";
+        assertEquals(far, TextFit.trimWeakTail(far));
+        assertEquals("A (short note", TextFit.trimWeakTail("A (short note"));
+    }
+
+    @Test public void atMostFourWordsAreTakenOffAndNeverSoManyThatFewerThanFourAreLeft() {
+        assertEquals("the minister said that", TextFit.trimWeakTail("the minister said that the"));
+        assertEquals("one two three", TextFit.trimWeakTail("one two three"));
+        assertEquals("they said it was one of the in", TextFit.trimWeakTail("they said it was one of the in a of the to"));
+        assertEquals("a b c of the", TextFit.trimWeakTail("a b c of the in a", 2, 3));
+    }
+
+    @Test public void hindiPostpositionsAndConjunctionsDoNotEndACutEither() {
+        assertEquals("रविवार को दिल्ली के रामलीला मैदान में विपक्षी दलों के कई नेता", TextFit.trimWeakTail("रविवार को दिल्ली के रामलीला मैदान में विपक्षी दलों के कई नेता और"));
+        assertEquals("रविवार को दिल्ली में हज़ारों लोगों की भीड़ इकट्ठा हुई और हज़ारों लोगों",
+                TextFit.trimWeakTail("रविवार को दिल्ली में हज़ारों लोगों की भीड़ इकट्ठा हुई और हज़ारों लोगों की"));
+    }
+
     @Test public void aFullStopAfterATitleOrAnInitialIsNotTheEndOfASentence() {
         String text = "Dr. Rao said on Monday that M. K. Stalin would arrive at 4:30 p.m. in the U.S. capital with Mr. Singh and Prof. Das and others.";
         for (int lines = 1; lines <= 3; lines++) {

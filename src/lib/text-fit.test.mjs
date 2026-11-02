@@ -59,6 +59,33 @@ test('a sentence further than that from the end of the room is not worth the gap
   assert.ok(shown.endsWith(ELLIPSIS) || /[.!?]$/.test(shown))
 })
 
+const COURT = 'The Supreme Court on Monday (November 2, 2026) set aside an order of the Rajasthan State Election Commission (SEC) refusing permission to a civil society organisation to conduct voter awareness campaigns. ' +
+  'Observing that voters\u2019 awareness initiatives by such organisations should be encouraged rather than restricted, a bench comprising Chief Justice of India Surya Kant and Justices Joymalya Bagchi and V Viswanathan said the order was unsustainable.'
+const SHARES = 'IDBI Bank shares ended 2.1 per cent lower in Mumbai on Monday compared to a 1.7 per cent rise in the Sensex as staff began a two-day strike against the planned sale of the lender to a foreign investor.'
+
+test('a cut after a word stops on one that says a thing, not on "and", "of the", an initial, a title or a number', () => {
+  assert.ok(fitText(COURT, 11, countLines, 0).endsWith('Justices Joymalya Bagchi\u2026'), 'not "\u2026 Bagchi and V\u2026"')
+  assert.ok(fitText(COURT, 12, countLines, 0).endsWith('and V Viswanathan said the order\u2026'), 'not "\u2026 the order was\u2026"')
+  assert.ok(fitText(COURT, 7, countLines, 0).endsWith('awareness initiatives\u2026'), 'not "\u2026 initiatives by such\u2026"')
+  assert.ok(fitText(COURT, 2, countLines, 0).endsWith('set aside an order\u2026'), 'not "\u2026 an order of the\u2026"')
+  assert.ok(fitText(STORY, 8, countLines, 0).endsWith('will exit by the end\u2026'), 'not "\u2026 of 2027 in a\u2026"')
+  assert.ok(fitText(SHARES, 2, countLines, 0).endsWith('Monday compared\u2026'), 'not "\u2026 compared to a\u2026"')
+  assert.ok(fitText(SHARES, 4, countLines, 0).endsWith('a two-day strike\u2026'), 'not "\u2026 against the\u2026"')
+})
+
+test('whatever the room, a cut ends on a word that can end a text, and the text shown still fits', () => {
+  const weak = new Set(['a', 'an', 'the', 'and', 'or', 'of', 'to', 'in', 'on', 'at', 'for', 'by', 'with', 'from', 'as', 'that', 'was', 'is', 'v'])
+  for (const text of [COURT, SHARES, STORY]) {
+    for (let lines = 3; lines <= 12; lines++) {
+      const shown = fitText(text, lines, countLines, 0)
+      assert.ok(countLines(shown) <= lines, `${lines}: ${shown}`)
+      if (!shown.endsWith(ELLIPSIS)) continue
+      const last = shown.slice(0, -1).trim().split(' ').pop().replace(/[^\p{L}\p{N}]+/gu, '').toLowerCase()
+      assert.ok(!weak.has(last), `${lines}: ${shown}`)
+    }
+  }
+})
+
 test('a full stop after a title or an initial is not the end of a sentence', () => {
   const text = 'Dr. Rao said on Monday that M. K. Stalin would arrive at 4:30 p.m. in the U.S. capital with Mr. Singh and Prof. Das and others.'
   for (let lines = 1; lines <= 3; lines++) {

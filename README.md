@@ -203,7 +203,7 @@ plax/
 │       ├── layout-guard.ts            # Keeps the page's window-sized boxes at their heights when Google's ad script sets them to auto; unit-tested
 │       ├── sentence.ts                # Where a sentence ends (not after Dr., an initial or U.S.), shared by the server and the browser
 │       ├── story-order.ts             # The news stream's order (full cards first) and which telling of one event is kept; unit-tested
-│       ├── text-fit.ts                # Where a summary ends when its room does: at a sentence or a word, never through one; unit-tested (TextFit.java is its port)
+│       ├── text-fit.ts                # Where a summary ends when its room does: at a sentence or a word that can end a text, never through one; unit-tested (TextFit.java is its port)
 │       ├── brand.ts                   # The one "P" outline, its colours and proportions: the icons and share cards are drawn from it
 │       ├── brand-tile.tsx             # The "P" on the amber tile, for the share cards
 │       ├── cache.ts                   # In-memory server cache (Map-based)

@@ -45,8 +45,10 @@ full-screen change adds no permission, library or backend change (the ads below 
   and the picture takes whatever the lines leave. A short summary no longer lets the picture grow (it did, up to 1.4 times its width, until
   2 November 2026; that made pages unlike each other): the picture is at most 75% of the width and 40% of the page, and the room still
   left is spread evenly between the parts. The summary ends where its room ends, at a sentence when one is within two lines of the end
-  and else after the last whole word that fits, with an ellipsis (`TextFit`, the port of `src/lib/text-fit.ts`, with the same test cases),
-  not through the middle of a word as the text view's own ellipsis did. The summary is no longer set smaller before it is cut, so stories
+  and else after the last whole word that fits and can end a text, with an ellipsis (`TextFit`, the port of `src/lib/text-fit.ts`, with the
+  same test cases): not "and", "of the", an initial, a title, a number or a bracket never closed ("…Justices Joymalya Bagchi and V…" ends
+  "…Justices Joymalya Bagchi…"; up to four words are taken off, never leaving fewer than four), and not through the middle of a word as
+  the text view's own ellipsis did. The summary is no longer set smaller before it is cut, so stories
   look alike. A poster (the tile of a story with no photograph: the outlet's name set like a masthead, a short rule and the section under
   it, where it used to carry an emoji: the flag of India, a globe) keeps the earlier rule: it is shown only when the whole summary fits
   beside it. The 1.5.5 follow-up ("whole summary first, the picture takes what is left") had dropped the picture of any story with a

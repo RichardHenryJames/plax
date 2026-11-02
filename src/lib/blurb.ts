@@ -5,7 +5,7 @@
 // stand under that headline. It is read from the start of the page only, kept for a few hours, and used only when the feed had
 // nothing better. Everything here fails quietly: a story without a summary is shown as it always was.
 import { bodyWithoutHeadline } from './story-body.ts'
-import { endsSentence } from './sentence.ts'
+import { endsSentence, trimWeakTail } from './sentence.ts'
 
 export { endsSentence }
 /** The most of a page's description that is kept: about three lines on a phone, and an end at a sentence. */
@@ -106,7 +106,7 @@ export function pageImage(html: string, pageUrl: string): string {
   return ''
 }
 
-/** At most `max` characters, ending where a sentence ends when one does far enough in, else at a word, with an ellipsis. */
+/** At most `max` characters, ending where a sentence ends when one does far enough in, else at a word that can end a text, with an ellipsis. */
 export function shortSummary(text: string, max: number = MAX_SUMMARY_CHARS): string {
   if (text.length <= max) return text
   const window = text.slice(0, max)
@@ -114,7 +114,7 @@ export function shortSummary(text: string, max: number = MAX_SUMMARY_CHARS): str
   const last = ends.length > 0 ? (ends[ends.length - 1].index ?? -1) + 1 : -1
   if (last >= Math.floor(max * 0.4)) return window.slice(0, last).trim()
   const space = window.lastIndexOf(' ')
-  return (space > 0 ? window.slice(0, space) : window).replace(/[\s,;:\u2013\u2014-]+$/, '') + '\u2026'
+  return trimWeakTail(space > 0 ? window.slice(0, space) : window).replace(/[\s,;:\u2013\u2014-]+$/, '') + '\u2026'
 }
 
 // The first four letters of each word of four or more, so that "protest" and "protests" are one: what a headline and the
