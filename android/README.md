@@ -943,6 +943,62 @@ project is back:
   Supabase, the Custom Tab path with a real code, and a real hosted project (its key formats, defaults and rate
   limits). Those are the one manual sign-in the runbook ends with.
 
+## Verification performed for 1.6.0 (2 November 2026)
+
+On the isolated Android 16 (API 36, x86_64) `Plax_News_Test` emulator, the development machine, a real browser (Microsoft Edge, headless,
+driven by Playwright) and the deployed site; no physical phone, no Play Console, no Supabase dashboard, no live ad clicked.
+
+- **The bundle** `artifacts\plax-1.6.0.aab` (7,474,150 bytes, SHA-256 `a7bbd347c0b2c2bdba4be3a5d1e1e72e8c3ba7bba2b6cd4e241a1c5f513f78b6`),
+  built with the owner's AdMob ids (three public ids, passed as `ORG_GRADLE_PROJECT_admobAppId`, `_admobBannerUnit`, `_admobNativeUnit`;
+  nothing is committed): the 16 checks of `package-aab.ps1` pass (bundletool 1.18.3 validates it; one signer, the Plax upload key, SHA-256
+  `dade46fd…de1219`; package `com.plaxlabs.news`, 1.6.0 (14), min SDK 26, target SDK 36, not debuggable, no cleartext, no backups, and under
+  200 MB). Its permissions are `INTERNET` and what the ad SDK adds (`ACCESS_NETWORK_STATE`, the advertising ID `AD_ID`, the three
+  `ACCESS_ADSERVICES_*`, `WAKE_LOCK`, `FOREGROUND_SERVICE`) with the AndroidX receiver-protection one; it does not ask to install packages.
+  The script checks only the app id; the banner unit (`…/8383793916`)
+  and the native unit (`…/5757630575`) were found once each in the dex, the app id (`…~9585194942`) is in the manifest, and none of
+  Google's demo ids is anywhere in the bundle. **It has not been uploaded**: that is done in the Play Console (answer yes to "contains
+  ads" and declare the advertising ID). The bundle was built twice, the first before the last change (a cut text no longer stopping on "and",
+  "of the" or an initial); only this one is the deliverable, and the assistant uploaded neither, so the version code 14 is as free as it was.
+- **Tests.** **234 JVM tests** (228 + 6 new in `TextFitTest`), 0 failing, 14 opt-in skipped; lint **0 errors** and 1 warning (a newer Gradle
+  exists) for debug and preview, and both assemble. **113 device tests pass** (601 s) against the final code, on the preview build. The
+  website: `tsc` clean, **284 unit tests** and a production build.
+- **The bundle installed the way Google Play installs it** (bundletool, split APKs for the emulator):
+  - *Over 1.5.5, data kept* (version code 13 became 14; 1.5.5 has the old header and bottom bar, so the check waits for either): it
+    opens in 1.7 s (2.7 s for the first bundle), the story saved on 1.5.5 is still saved, no crash, no ANR. Run for both bundles.
+  - *Fresh install:* the feed loads real stories; no page has a scroll view; a page is one swipe, the first right after a cold start
+    sometimes needing two (as in 1.5.5); after every fifth story a full page of ads stands, with "Swipe up for the next story", and one swipe
+    leaves it; the menu has no "Check for updates" (a store build never makes the check); Contact us shows the address, the maker and the
+    page; About names 1.6.0, says the app shows ads from Google and no longer says there is no ad SDK; Continue with Google reaches Google's
+    sign-in page in the browser; no crash, no ANR, no cleartext or StrictMode complaint, and the ad library does not stop the app.
+  - *How the text ends on the phone:* of 12 card bodies 10 ended at the end of a sentence and 2 at a word that can end a text ("…which
+    are likely…", "…people from various walks…": the cut had fallen after "likely to" and "walks of"); none stopped on a word that needs the next.
+- **What this emulator does to the checks, and what it does not mean.** It is an AdMob *test device*, so the library serves "Test Ad"
+  creatives and the **native ad validator**, a popup the SDK shows only for test ads on a test device and never for a reader, appears on
+  top of the page. It reported "No implementation issues found" for the native layout; it also covers the Menu button and swallows a
+  swipe that starts under it, which UI Automator cannot see (it is drawn with a solid blue button, rgb 26,115,232, that the scripts find on
+  a screenshot and tap). Swipes of 45% of the screen were dropped by the pager 9 times in 12 (a pager turns a page on a drag of more than
+  half a page or on a flick, and this emulator delivers a gesture sparsely: the 1.5.5 notes measured 56% of a page working 6 times in 12
+  and 91% working 12 in 12); swipes of 65% moved 13 of 14 on one run and 10 of 12 on another, the misses being the first swipe after a
+  cold start and swipes made while the validator popup was appearing or on screen (it was dismissed during those runs); the cause of
+  each miss was not isolated. None of this was tried on a phone.
+- **The website, on the live site** (after each deployment): the layout harness at 14 viewports from 320x568 to 1440x900 (nine phones, two
+  phones on their side, a tablet, a laptop and a desktop) over 8 live stories each: **no problems**, every card with its source, headline,
+  summary and row, a picture on all but the two sides-on sizes (by design), and **one gesture moved 8 of 8 at every size**. The text audit
+  of the first 60 news stories: median 530 characters, the shortest 382, none under 300, a picture on every one, no web address, repeated
+  phrase, leftover label or dateline, no HTML entity, and one text ending in an ellipsis. The reader with the new rules on 40 live pages,
+  twice: 37 and 33 began as production's text did; the others were stories that had changed since, or a text that production had wrongly cut
+  ("Who:" taken off an Al Jazeera match preview); the pages of NDTV (403) and Ars Technica (405) refuse the development machine.
+- **Real defects found on the way, and fixed** (on the site, the server and the app): the first dateline rule took the first word off
+  "Delhi Police said", "AIIMS Delhi doctors", "RELIANCE Industries" and "Trump: I will" (it is now `lib/dateline.ts`: only what can be
+  nothing else, or what the page's own paragraphs show); a cut text ended "…Bagchi and V…" and "…compared to a 1.7…" (about one cut card in
+  three stopped on a word that needs the next); a BusinessLine story began "Our Bureau New Delhi, November 2" or "(Highlighted paras can be
+  removed for Print…)"; NDTV's "Pune&amp;#039;s" showed as "Pune&#039;s". The site's data cache outlives a deployment, so the key of
+  the page cache was changed twice on the way (`article-page-v2`, `-v3`).
+
+**Not verified**: a physical phone (nothing is claimed about any device); a browser other than Edge; a live ad (the new AdMob app was
+"requires review" and the units return no fill, and none was clicked); the Play Console and Google Play review and rollout; finishing a
+Google sign-in; the 14 opt-in tests that need the Docker stack.
+
 ## Verification performed for 1.5.5 (30 October 2026)
 
 On the isolated Android 16 (API 36, x86_64) `Plax_News_Test` emulator, the development machine, a real browser (Microsoft Edge, headless,
