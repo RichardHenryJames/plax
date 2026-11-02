@@ -111,7 +111,10 @@ public class MenuDeviceTest {
             assertTrue("the headline is the way to the full story", device.findObject(By.text("The first story of the day")).isClickable());
             assertFalse("there is no Read full story row", device.hasObject(By.descContains(text(R.string.read_full_story))));
             var title = device.findObject(By.text("The first story of the day")).getVisibleBounds();
-            var source = device.findObject(By.textStartsWith("Publisher")).getVisibleBounds();
+            // The poster of a story with no picture is headed by the outlet's name too, and fills the picture: the source line is the
+            // shortest of the texts that begin with the name.
+            var source = device.findObjects(By.textStartsWith("Publisher")).stream().map(object -> object.getVisibleBounds())
+                    .min(java.util.Comparator.comparingInt(bounds -> bounds.height())).orElseThrow();
             assertTrue("the source line is above the headline " + source + " " + title, source.bottom <= title.top + 4);
             for (int label : new int[]{R.string.brief_description, R.string.save_description, R.string.share}) {
                 var buttonBounds = device.findObject(By.desc(text(label))).getVisibleBounds();
