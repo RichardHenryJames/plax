@@ -16,6 +16,7 @@ import { withBase } from '@/lib/base-path'
 import { SeenStore, replace, append, EARLIER_LIMIT } from '@/lib/story-engine'
 import { loadSeen, saveSeen } from '@/lib/seen-storage'
 import { withAds, adSlots, adCardId, isAdCardId, adOrdinal } from '@/lib/ad-slots'
+import { createWheelGesture } from '@/lib/wheel-gesture'
 import { PAGE_ON } from '@/lib/ads-config'
 import { useAdsBlocked } from '@/lib/ads-state'
 
@@ -861,13 +862,15 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
     const handleKey = (e: KeyboardEvent) => {
       const ui = useUIStore.getState()
       if (ui.commandOpen || ui.topicsOpen || ui.menuOpen) return
+      // Ctrl, Alt and Cmd with a key are the browser's shortcuts (Ctrl+PageDown changes tab), not a way through the stories.
+      if (e.ctrlKey || e.metaKey || e.altKey) return
       const target = e.target as HTMLElement | null
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return
-      if (e.key === 'ArrowDown' || e.key === ' ' || e.key === 'j') {
+      if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === 'j' || (e.key === ' ' && !e.shiftKey)) {
         e.preventDefault()
         goToCard(currentIndex + 1, 1)
       }
-      if (e.key === 'ArrowUp' || e.key === 'k') {
+      if (e.key === 'ArrowUp' || e.key === 'PageUp' || e.key === 'k' || (e.key === ' ' && e.shiftKey)) {
         e.preventDefault()
         goToCard(currentIndex - 1, -1)
       }
@@ -876,57 +879,33 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
     return () => window.removeEventListener('keydown', handleKey)
   }, [currentIndex, goToCard])
 
-  // Scroll wheel navigation — a card does not scroll, so a push of the wheel moves through the stories: one story per
-  // gesture. Trackpad/mouse momentum fires a long tail of events, so after each navigation we LOCK until the wheel goes
-  // fully idle (drains the momentum) — guaranteeing at most ONE card per gesture. This matches the mobile "one decisive
-  // swipe = one card" feel (desktop was skipping multiple articles on a single flick / accidental scroll).
-  const overscroll = useRef(0)
-  const navLocked = useRef(false)
-  const wheelIdleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Scroll wheel and trackpad navigation: a card does not scroll, so a push of the wheel, or a swipe on the trackpad, moves through
+  // the stories. lib/wheel-gesture.ts decides what counts as a request for another story: a swipe moves one, the momentum the
+  // system adds after it does not move a second, and nothing waits for the wheel to fall silent, so the next swipe always counts.
+  const [wheel] = useState(createWheelGesture)
   useEffect(() => {
-    const WHEEL_THRESHOLD = 50 // px of push before navigating: a notch of a mouse wheel, or a short trackpad swipe
-    const IDLE_MS = 220 // no wheel for this long = gesture over → unlock + reset
     const handleWheel = (e: WheelEvent) => {
       const ui = useUIStore.getState()
       if (ui.commandOpen || ui.topicsOpen || ui.menuOpen) return
+      // Ctrl and the wheel is the browser's zoom, and a pinch on a trackpad is sent the same way.
+      if (e.ctrlKey) return
 
-      // Ignore wheel events over the desktop rails / any other scrollable chrome
-      // so they scroll natively instead of navigating the feed.
+      // What scrolls by itself keeps the wheel: a sheet, a list in a dropdown, and a side rail that has more than fits. A rail that
+      // has not is only in the way, and the wheel over it moves the stories like anywhere else.
       const target = e.target as HTMLElement | null
-      if (target && typeof target.closest === 'function' && target.closest('aside, [data-no-feed-scroll]')) return
-
-      // Reset the idle detector: when the wheel stops for IDLE_MS, the gesture is
-      // over — unlock navigation and clear any accumulated push.
-      if (wheelIdleTimer.current) clearTimeout(wheelIdleTimer.current)
-      wheelIdleTimer.current = setTimeout(() => {
-        navLocked.current = false
-        overscroll.current = 0
-      }, IDLE_MS)
-
-      // If we already navigated this gesture, swallow the momentum tail until the
-      // wheel goes idle (prevents multi-card skips).
-      e.preventDefault()
-      if (navLocked.current) return
-
-      overscroll.current += e.deltaY
-      if (overscroll.current > WHEEL_THRESHOLD) {
-        navLocked.current = true
-        overscroll.current = 0
-        goToCard(currentIndex + 1, 1)
-      } else if (overscroll.current < -WHEEL_THRESHOLD) {
-        navLocked.current = true
-        overscroll.current = 0
-        goToCard(currentIndex - 1, -1)
+      if (target && typeof target.closest === 'function') {
+        if (target.closest('[data-no-feed-scroll]')) return
+        const rail = target.closest('aside')
+        if (rail && rail.scrollHeight > rail.clientHeight + 1) return
       }
+
+      e.preventDefault()
+      const step = wheel.push({ dx: e.deltaX, dy: e.deltaY, mode: e.deltaMode, time: e.timeStamp || performance.now(), page: window.innerHeight })
+      if (step !== 0) goToCard(currentIndex + step, step)
     }
     window.addEventListener('wheel', handleWheel, { passive: false })
-    // Not the idle timer: it is what unlocks navigation after a move, and a move changes currentIndex, which runs this
-    // cleanup. Clearing it here left the next push of the wheel swallowed.
     return () => window.removeEventListener('wheel', handleWheel)
-  }, [currentIndex, goToCard])
-  useEffect(() => () => {
-    if (wheelIdleTimer.current) clearTimeout(wheelIdleTimer.current)
-  }, [])
+  }, [currentIndex, goToCard, wheel])
 
   const currentCard = visibleCards[currentIndex]
   const prevCard = currentIndex > 0 ? visibleCards[currentIndex - 1] : null
