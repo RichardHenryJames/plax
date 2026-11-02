@@ -18,7 +18,7 @@ const kept = unstable_cache(
     if (info.lead === '' && info.image === '') throw new NoPage()
     return info
   },
-  ['article-page-v1'],
+  ['article-page-v2'],
   { revalidate: KEPT_SECONDS },
 )
 
