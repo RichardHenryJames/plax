@@ -2,7 +2,8 @@
 
 import { useEffect, useRef } from 'react'
 import { ads } from '@/lib/ads-config'
-import { ADS_BLOCKED_EVENT, adsBlocked } from '@/lib/ads-state'
+import { ADS_BLOCKED_EVENT, adsBlocked, rememberAds } from '@/lib/ads-state'
+import type { AdKind } from '@/lib/ads-verdict'
 
 declare global {
   interface Window {
@@ -29,9 +30,13 @@ const GIVE_UP_MS = 5000
  * One Google ad unit. The AdSense script (loaded once by AdsRuntime) fills the `<ins>` it finds, and marks it `filled` or `unfilled`;
  * that is how the page knows when there is nothing to show and can give the room back instead of leaving a hole. The unit is asked for
  * an ad once and never refreshed, as the program rules require. In preview a labelled box stands in and nothing is requested.
+ *
+ * What Google itself answers is remembered (`kind` says which place this is, see lib/ads-verdict.ts); a wait that ran out, and a blocker,
+ * say nothing about the account, so they are not.
  */
 export function AdSlot({
   unit,
+  kind,
   width,
   height,
   shape,
@@ -39,6 +44,8 @@ export function AdSlot({
   onStatus,
 }: {
   unit: string
+  /** Which place this is: what is learned about its ads is kept for it. */
+  kind: AdKind
   /** The size of a fixed unit, in px (a unit made to that size, so the ad is never clipped). */
   width?: number
   height?: number
@@ -62,32 +69,33 @@ export function AdSlot({
     const element = ins.current
     if (!element) return
     let done = false
-    const finish = (status: AdStatus) => {
+    const finish = (status: AdStatus, answered: boolean) => {
       if (done) return
       done = true
+      if (answered) rememberAds(kind, status === 'filled')
       report.current?.(status)
     }
     // No script, no ad: nothing to wait for.
     if (adsBlocked()) {
-      finish('unfilled')
+      finish('unfilled', false)
       return
     }
-    const onBlocked = () => finish('unfilled')
+    const onBlocked = () => finish('unfilled', false)
     window.addEventListener(ADS_BLOCKED_EVENT, onBlocked)
     const read = () => {
       const status = element.getAttribute('data-ad-status')
-      if (status === 'filled') finish('filled')
-      else if (status === 'unfilled') finish('unfilled')
+      if (status === 'filled') finish('filled', true)
+      else if (status === 'unfilled') finish('unfilled', true)
     }
     const watch = new MutationObserver(read)
     watch.observe(element, { attributes: true, attributeFilter: ['data-ad-status'] })
-    const giveUp = setTimeout(() => finish('unfilled'), GIVE_UP_MS)
+    const giveUp = setTimeout(() => finish('unfilled', false), GIVE_UP_MS)
     if (!asked.current) {
       asked.current = true
       try {
         ;(window.adsbygoogle = window.adsbygoogle || []).push({})
       } catch {
-        finish('unfilled')
+        finish('unfilled', false)
       }
     }
     read()
@@ -96,7 +104,7 @@ export function AdSlot({
       clearTimeout(giveUp)
       window.removeEventListener(ADS_BLOCKED_EVENT, onBlocked)
     }
-  }, [unit])
+  }, [unit, kind])
 
   if (ads.preview) {
     return (

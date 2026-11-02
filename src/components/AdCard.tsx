@@ -19,6 +19,13 @@ const QUIET_MS = 220
 const RETRY_MS = 900
 /** A place for the ad this tall (the half page, 600 px, and the air above and below it) gets the half-page unit; a shorter one, the rectangle. */
 const TALL_FROM = 632
+/**
+ * How long (ms) the page waits, with nothing on it but room, before it shows its label and its button. An ask that Google has no ad for
+ * is answered in a second or so and the card is dropped: a page that is about to go should never have said "Advertisement" over a blank.
+ * A slow answer, though, must not leave a reader on a page with nothing to tell them how to go on, so after this the label and the button
+ * come up whether the ad has or not. (The page's swipe and the keys work throughout.)
+ */
+const SLOW_MS = 2500
 
 /**
  * The full-page ad that stands between stories: after every fifth one, in the same swipe feed, so the next story is one swipe away,
@@ -41,7 +48,10 @@ const TALL_FROM = 632
  * the script stops: nothing above it is touched. (On a browser without container units the page is as tall as its contents, which still
  * works.)
  *
- * With no ad to show (none served, or a blocker) it tells the feed, which drops the card, so a reader is never left on an empty page.
+ * With no ad to show (none served, or a blocker) it tells the feed, which drops the card, so a reader is never left on an empty page. Until
+ * an ad has come the card shows only room (its label and button are `invisible`, which keeps the layout the ad's shape was chosen from),
+ * so an ask that is answered with nothing leaves no "Advertisement" over a blank; and where the ads have not been served at all the
+ * feed stops putting the card in for hours (lib/ads-verdict.ts).
  */
 export function AdCard({
   onNext,
@@ -59,15 +69,23 @@ export function AdCard({
 }) {
   const { t, lang } = useT()
   const [shape, setShape] = useState<AdShape | null>(null)
+  // Whether the label and the button are shown: once an ad has come, or when the wait has gone on long.
+  const [revealed, setRevealed] = useState(false)
   const scroller = useRef<HTMLDivElement>(null)
   const area = useRef<HTMLDivElement>(null)
   const hand = useRef({ onNext, onPrev, onHold })
   hand.current = { onNext, onPrev, onHold }
   const hindi = lang === 'hi' ? 'lang-hi' : ''
+  const chrome = revealed ? '' : 'invisible'
 
   // The shape is chosen once, from the room there is, before the ad is asked for: an ad is never asked for twice.
   useEffect(() => {
     setShape((area.current?.clientHeight ?? 0) >= TALL_FROM ? 'tall' : 'rectangle')
+  }, [])
+
+  useEffect(() => {
+    const timer = setTimeout(() => setRevealed(true), SLOW_MS)
+    return () => clearTimeout(timer)
   }, [])
 
   // The box starts in the middle of its range, and starts not counting: whatever arrives in the first moments is the tail of the gesture
@@ -135,7 +153,7 @@ export function AdCard({
         <div
           className={`sticky top-0 mx-auto flex w-full max-w-[26rem] shrink-0 grow-0 basis-[100cqh] flex-col items-center px-5 pt-16 pb-6 text-center lg:pt-20 ${hindi}`}
         >
-          <span className="rounded-full border border-dark-border px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-dark-muted">
+          <span className={`rounded-full border border-dark-border px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-dark-muted ${chrome}`}>
             {t('adLabel')}
           </span>
 
@@ -144,10 +162,14 @@ export function AdCard({
               {shape && (
                 <AdSlot
                   unit={ads.page}
+                  kind="page"
                   shape={shape}
                   label="Ad preview"
                   onStatus={(next) => {
-                    if (next === 'filled') onFilled()
+                    if (next === 'filled') {
+                      setRevealed(true)
+                      onFilled()
+                    }
                     if (next === 'unfilled') onUnfilled()
                   }}
                 />
@@ -155,7 +177,7 @@ export function AdCard({
             </div>
           </div>
 
-          <div className="flex flex-col items-center gap-2.5">
+          <div className={`flex flex-col items-center gap-2.5 ${chrome}`}>
             <button type="button" onClick={onNext} className="btn-primary focus-ring px-6 py-2.5 text-sm">
               {t('adNextButton')} ↓
             </button>

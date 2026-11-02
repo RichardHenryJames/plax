@@ -17,7 +17,7 @@ import { SeenStore, replace, append, EARLIER_LIMIT } from '@/lib/story-engine'
 import { loadSeen, saveSeen } from '@/lib/seen-storage'
 import { withAds, adSlots, adCardId, isAdCardId, adOrdinal } from '@/lib/ad-slots'
 import { ads, adPlacement } from '@/lib/ads-config'
-import { useAdsBlocked, useRailVisible } from '@/lib/ads-state'
+import { useAdsBlocked, useAdsResting, useRailVisible } from '@/lib/ads-state'
 
 const LOAD_MORE_THRESHOLD = 10 // fetch more when 10 cards from end
 const CARD_CACHE_KEY = 'plax-card-cache-v2'
@@ -503,6 +503,9 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
   const [unfilledAds, setUnfilledAds] = useState<Set<number>>(() => new Set())
   const [filledAds, setFilledAds] = useState<Set<number>>(() => new Set())
   const adsBlockedHere = useAdsBlocked()
+  // An ad unit that came back empty and has never been served is left alone for hours (lib/ads-verdict.ts): while the AdSense account has
+  // not approved the site, a reader is not taken to an empty card on every visit.
+  const pageResting = useAdsResting('page')
   // A page shorter than this (a phone on its side) has no room for a full-page ad shown whole, and an ad is never cut off or squeezed:
   // there the stories simply run on (the strip at the foot is still there).
   const [roomForAd, setRoomForAd] = useState(true)
@@ -526,16 +529,16 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
       if (!pageAds || !roomForAd) return base
       // The caught-up card is not a story: it stays last, and an ad is never put between the last story and it. An ad that was
       // asked for and could not be served is left out for good, so the reader never lands on an empty page. Where ads are blocked,
-      // or two in a row could not be served, no more are put in; the ones already shown stay, so nothing moves under the reader.
+      // resting, or two in a row could not be served, no more are put in; the ones already shown stay, so nothing moves under the reader.
       const stories = base.filter((c) => !isMarker(c))
       const ended = base.filter(isMarker)
-      const giveUp = adsBlockedHere || unfilledAds.size >= MAX_AD_FAILURES
+      const giveUp = adsBlockedHere || pageResting || unfilledAds.size >= MAX_AD_FAILURES
       return [
         ...withAds(stories, (slot) => (unfilledAds.has(slot.ordinal) || (giveUp && !filledAds.has(slot.ordinal)) ? null : adCard(slot.ordinal))),
         ...ended,
       ]
     },
-    [cards, focusCard, newsSection, unfilledAds, filledAds, adsBlockedHere, roomForAd, pageAds]
+    [cards, focusCard, newsSection, unfilledAds, filledAds, adsBlockedHere, pageResting, roomForAd, pageAds]
   )
   const dropAd = useCallback((id: string) => {
     const ordinal = adOrdinal(id)
