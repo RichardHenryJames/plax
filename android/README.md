@@ -10,12 +10,13 @@ exists (see *Updates from inside the app*), except in the Google Play build, whi
 which need the two small routes and the one small file listed under *Backend changes*,
 the app works against the backend as it was before this version.
 
-## Unreleased (after 1.5.5): full-screen stories, and a menu in place of the header and the bottom bar
+## What is in 1.6.0 (versionCode 14), part 1: full-screen stories, and a menu in place of the header and the bottom bar
 
 A reader asked for the app to be "like Inshorts": the header (the Plax mark and the English | हिन्दी switch) and the bottom bar took a
-fifth of the screen, and the "fit it in one view" rule of 1.5.5 sometimes left a story with a headline and no text. Nothing is released:
-the version is still 1.5.5 (code 13), and no bundle, APK, update file or store entry was touched. No new permission, library or
-backend change. The website got the same design (see `TECH.md`, "One view per story").
+fifth of the screen, and the "fit it in one view" rule of 1.5.5 sometimes left a story with a headline and no text. This and the ads
+below are version 1.6.0 (code 14); nothing has been uploaded to Google Play, and no update file or store entry was touched. The
+full-screen change adds no permission, library or backend change (the ads below do). The website got the same design (see `TECH.md`,
+"One view per story").
 
 - **No header, no bottom bar.** A story spans the whole screen between the system bars. A round **☰** button floats over the picture's
   top-left corner (with no picture it stands at the start of the source line, which makes room for it; on Topics, Saved, For you with
@@ -65,6 +66,83 @@ backend change. The website got the same design (see `TECH.md`, "One view per st
   run by hand: install both debug APKs, `cmd package compile -m speed`, then `am instrument` on the seven classes plus the new one. The
   Android SDK (platform 36, build tools 36.0.0, emulator and the API 36 Google APIs x86_64 image) was installed under
   `%LOCALAPPDATA%\Android\Sdk` for this, with JDK 21 from `C:\Program Files\Java\jdk-21.0.12`, and the `Plax_News_Test` AVD created.
+
+## What is in 1.6.0 (versionCode 14), part 2: Google ads, a strip at the foot and a full-page ad after every fifth story
+
+A reader asked for Google ads "like Inshorts": a strip that is always at the bottom, and a full-page ad between stories. Nothing has been
+uploaded to Google Play. The owner's AdMob app and its two ad units now exist (see *The owner's AdMob ids*), but **a build shows ads only when it is given
+the ids of an AdMob app and its ad units**, so the source as it stands, built the usual way, shows none. It does carry the ads library and its permissions (see *What it adds to the app*), so the
+Play Console's ads and advertising-id answers change for every release built from it. [`PLAY-CONSOLE-ANSWERS-ADS.txt`](PLAY-CONSOLE-ANSWERS-ADS.txt)
+lists them; `PLAY-CONSOLE-ANSWERS-1.5.5.txt` stays what it was for 1.5.5, which has no ads. The website has the same ads (see `TECH.md`, "Ads").
+
+- **What a reader sees.** An adaptive banner under the story at the foot of the screen, on a screen at least 500 dp tall (a phone on its
+  side has none), on the Feed and For you screens while they have stories. It gives its room back to the story when no ad comes (it asks
+  again after 60 s, up to three times). After every fifth story a full-page *native* ad stands in the pager as a page of its own: the
+  ad's headline, picture or video (at least 120 dp, never cropped), text and button, an "Ad" badge and Google's AdChoices mark. It is
+  never the last page, it is not a story (not read, not saved, not in the reader's history), and a swipe leaves it like any other page.
+  The page is shown only where its card fits whole: it needs about 360 dp plus 90 dp for each step of the text size (450 dp of page at
+  normal text, 540 dp at the largest; the pager is the screen less the strip, so 510 and 600 dp of screen), `AdSlots.pageFits`. On a
+  shorter screen, or with larger text than that screen can hold, the strip stays and the ad page is left out, which is better than a
+  card whose button is cut off. An ad that cannot be drawn costs a blank page, never the app (`NativeAdPage.safe`).
+- **When an ad is asked for** (`AdController`, a pure state machine with `AdControllerTest`). When the reader is within three stories
+  before a slot, so that it is ready on arrival and nothing moves while they read. An ad that arrives after its slot has passed is
+  destroyed; a seen ad is kept while the reader is within one story of it and released two or more away; one never seen goes stale
+  after 50 minutes (Google's ads expire); two failures in a row pause asking for five minutes. A slot with no ad is simply not there and
+  the stories run on. `AdSlots` (with `AdSlotsTest`; the same rule as `src/lib/ad-slots.ts`) maps between the pager's pages and the
+  model's stories, and an ad page stands for the story before it.
+- **Consent** (`GoogleAds`). Google's User Messaging Platform comes first: `requestConsentInfoUpdate`, then
+  `loadAndShowConsentFormIfRequired`, and only when `canRequestAds()` is true is the ads library started (on a background thread). So
+  nothing is requested before a reader in the EEA, the UK or Switzerland has chosen. **Privacy and ad choices** is in the menu only where Google
+  says a reader must be able to change the choice (`getPrivacyOptionsRequirementStatus() == REQUIRED`). The message itself is made in
+  AdMob (Privacy & messaging).
+- **What the build is given.** Gradle properties, never the source: `admobAppId` (`ca-app-pub-` and 16 digits, `~`, 10 digits),
+  `admobBannerUnit` and `admobNativeUnit` (`ca-app-pub-`, 16 digits, `/`, 10 digits), in `android/gradle.properties`,
+  `%USERPROFILE%\.gradle\gradle.properties` or `-P` on the command line. A malformed value stops the build. The release and preview types
+  show an ad only where its unit is set. Without an app id the manifest carries Google's *sample* application id (the ads library stops
+  the app at start without one) and nothing is shown; the About text says that Plax shows ads only when a build has ad units. The debug build
+  shows none either, unless `-PtestAds=true`, which uses Google's demo units: real *test* ads that are safe to tap, tied to no account,
+  for looking at the layout. `-PadsConsentTest=eea` (or `other`) makes a debug build act as if the reader were in the EEA (or outside
+  it), to see the consent message. A build for readers never carries the demo ids, and a live ad is never clicked while testing.
+- **The owner's AdMob ids (set up 1 to 2 Nov 2026).** App `ca-app-pub-2225161543339119~9585194942` ("Plax: Short News & Topics",
+  `com.plaxlabs.news`), banner unit `ca-app-pub-2225161543339119/8383793916` (`plax-banner-bottom`) and native unit
+  `ca-app-pub-2225161543339119/5757630575` (`plax-native-fullpage`). They are public, like every id in an APK, and go in
+  `%USERPROFILE%\.gradle\gradle.properties` as `admobAppId=`, `admobBannerUnit=` and `admobNativeUnit=` (or `-P`), never in the source.
+  AdMob lists the app as *Requires review*, with limited ad serving, until it finds `app-ads.txt` on the developer website of the Play
+  listing (`plax-rouge.vercel.app`, so the website has to be deployed with `NEXT_PUBLIC_ADSENSE_CLIENT` first) and the payment profile
+  is complete (an owner task). The consent message for the EEA, the UK and Switzerland ("Plax app EEA UK consent") is published; its ad
+  partners are the 198 AdMob chooses by default.
+- **What it adds to the app.** `com.google.android.gms:play-services-ads:25.5.0` and `com.google.android.ump:user-messaging-platform:4.0.0`,
+  and seven permissions in the merged manifest: `ACCESS_NETWORK_STATE`, `com.google.android.gms.permission.AD_ID` and three
+  `ACCESS_ADSERVICES_*` (all from `play-services-ads-api`), and `WAKE_LOCK` and `FOREGROUND_SERVICE` (from `androidx.work`, which the
+  ads library pulls in). `package-aab.ps1` names these seven, so any other new permission still stops a bundle; it also requires the
+  AdMob application id in the manifest and says whether the bundle shows ads. The 1.5.5 rule "no permission but INTERNET" is therefore
+  the rule for 1.5.5, not for a build from this source.
+- **Native ad rules kept.** An "Ad" badge on every ad; AdChoices in the top-right corner; every asset (headline, text, picture or video,
+  icon, button) inside the `NativeAdView` and registered with it; no click listener of ours on an ad asset and nothing of ours that can
+  be pressed near it; the media view at least 120 dp and not cropped.
+- **Tests.** `AdSlotsTest` (15, two of them for the room an ad page needs) and `AdControllerTest` (24) on the JVM. `AdsDeviceTest` (12) drives the whole thing on an emulator with
+  a fake network (`Ads.network`, a test seam): nothing is asked for before consent; an ad page stands after the fifth story and not
+  before, and is not counted as a story; an ad that arrives while the reader is reading joins ahead of them and nothing moves; one that
+  arrives after its slot has passed is never shown; an ad that does not come leaves no gap; going back to an ad shows the same page; the
+  strip stands under the story, the story ends above it, and it goes with the stories and comes back; a phone on its side has no strip
+  and no ad page, and they return when it is upright; the menu's ad choices are there only where they apply; About says there are ads
+  only when there are. **A bug it found:** after an ad arrived the screen was drawn from the position last *published* by the feed
+  model, which paging does not update, so the pager jumped back to where the reader had been; `FeedViewModel.position()` is the live
+  one and `MainActivity.render()` uses it. `NativeAdPageDeviceTest` (5) draws the full-page card with a stand-in for the ad Google hands
+  over (a new AdMob app is served no native ad until it is reviewed, so a real one cannot be looked at): on five page sizes and three text
+  sizes, with a picture, with none and with only a headline and a button, the label, headline, text and button are all on the card and the
+  card is inside its page; a card is drawn on a page of exactly the height `AdSlots.pageNeededDp` asks for at every text size, so the gate
+  cannot drift from the layout; and an ad that cannot be drawn costs a blank page, not the app. (Its first run showed the button cut off
+  on a 360 x 600 and an 820 x 540 page at the largest text; that is why the text is two lines and why the gate exists.)
+  `test.ps1` runs `AdsDeviceTest` and `NativeAdPageDeviceTest` too.
+- **With the real ads library** (an API 36 emulator, a debug build with `-PtestAds=true`, Google's demo units; nothing was tapped).
+  The banner loads and the story is laid out above it. With `-PadsConsentTest=eea` Google's consent form comes before any ad, *Do not
+  consent* lets (limited) ads go ahead, and **Privacy and ad choices** is in the menu and opens the form again. A build with the owner's
+  live ids is accepted by the library; while AdMob has not reviewed the app both units answer *no fill* (error 3) and the screen keeps its
+  whole height. **Not seen yet: a native ad page filled by a real ad.** Both of Google's demo native units fail on this emulator with
+  error 0, "Incorrect native ad response. Click actions were not properly specified" (loading the ad on an Activity context instead of
+  the application's made no difference; Google staff have called this a problem of the demo unit), and the live native unit has no fill
+  until the app is reviewed. Look at the page once a live unit serves test ads, or on a phone with a `-PtestAds=true` debug build.
 
 ## What is in 1.5.5 (versionCode 13): one swipe, one story, all of it in one view
 
@@ -649,7 +727,8 @@ its official release into `.tools\` and compared with the SHA-256 that release p
 the R8 mapping and `artifacts\aab-verification.json`. It stops unless the bundle validates; has exactly one signer and it is the
 upload key; is `com.plaxlabs.news` at the version in `app\build.gradle`; has min SDK 26 and target SDK 36 (Google Play requires 36 for
 new apps from 31 August 2026); is not debuggable; has cleartext traffic and backups off; asks for no permission but `INTERNET`
-(plus the AndroidX receiver-protection one) and never `REQUEST_INSTALL_PACKAGES`; and is under 200 MB. `-NoBuild` only re-checks.
+(plus the AndroidX receiver-protection one, and the seven the ads library brings: see *What is in 1.6.0, part 2: Google ads*) and never
+`REQUEST_INSTALL_PACKAGES`; has the AdMob application id in its manifest (and says whether the bundle shows ads); and is under 200 MB. `-NoBuild` only re-checks.
 There is no native code, so Google Play's 16 KB page-size rule does not apply. The R8 mapping travels inside the bundle for crash
 reports.
 
@@ -665,7 +744,7 @@ next to this file (it begins with what changed in 1.5.5, then what to do about t
 | Account deletion | In the app: Account, then Delete account. Web resource for the Data safety form: `https://plax-rouge.vercel.app/news/delete-account` |
 | Data safety | Answer from what the code does (below), then check it against Google's definitions |
 | App access | Nothing is locked: every feature works without signing in, so no reviewer login is needed |
-| Ads | None |
+| Ads | None in 1.5.5. A bundle built from the current source carries the ads library and its permissions even with no ad unit ids, so answer yes to "contains ads" and declare the advertising ID: [`PLAY-CONSOLE-ANSWERS-ADS.txt`](PLAY-CONSOLE-ANSWERS-ADS.txt) has the answers |
 | Target audience | The policy says Plax is for people 13 and over, so choose 13+ (not children) to match it |
 | Content rating | The questionnaire is yours to answer; the feed shows publishers' headlines, which can be about crime or violence |
 | News apps | Plax is an aggregator, so the News and Magazine declaration applies (required since 27 August 2025). Every story is attributed to its source with a link out; the answers are in section 9 of the answers file, and the legal-entity facts are yours. The declaration's contact URL must be the contact page |
@@ -678,7 +757,8 @@ hosting provider's connection log), which Google treats as processed, not collec
 account: email address and name (Personal info), the address of the Google profile picture (declare it as Photos to be safe),
 the account id (Identifiers), the topics chosen and the stories saved (the
 Android app) and, on the website only, reading activity. Purpose: app functionality and account management. Encrypted in transit
-(HTTPS). Users can ask for deletion, in the app and at the web resource above. No data is sold, and none is shared for advertising;
+(HTTPS). Users can ask for deletion, in the app and at the web resource above. No data is sold, and none is shared for advertising (that is 1.5.5;
+a build with Google's ads library also has the data it collects and shares automatically, listed in [`PLAY-CONSOLE-ANSWERS-ADS.txt`](PLAY-CONSOLE-ANSWERS-ADS.txt));
 story text sent for an AI brief goes to AI services acting for Plax and carries no account.
 
 ## Tests

@@ -1,0 +1,141 @@
+PLAX - GOOGLE PLAY CONSOLE: WHAT CHANGES FOR A RELEASE THAT CONTAINS GOOGLE ADS
+Prepared: 1 and 2 November 2026, for version 1.6.0 (code 14), the first with ads. Nothing here has been submitted. In AdMob and AdSense
+the app, the ad units and the consent messages were created on 1 and 2 November in the owner's logged-in browser (section 1 says which);
+nothing was changed in the Play Console: that is your account. The official Google pages used are listed at the end.
+
+PLAY-CONSOLE-ANSWERS-1.5.5.txt is still right for a 1.5.5 bundle, which has no ads. Every "No ads", "Advertising ID: No" and
+"no permission but INTERNET" in it is wrong for a bundle of 1.6.0: use this file for that release.
+
+State key: READY = taken from the code, check it once. DONE = already done, with the owner's login. OWNER = only you can do it or
+decide it. HOLD = not yet.
+
+
+0. WHEN THIS APPLIES
+====================
+To any bundle of 1.6.0 or later, with or without ad unit ids. The ads library (play-services-ads 25.5.0 and the User
+Messaging Platform 4.0.0) and its seven permissions are in every build. A build that is given no AdMob ids shows no ads, and still
+carries them, so Play sees an app that holds the advertising ID permission and the answers below apply either way.
+.\package-aab.ps1 says which kind a bundle is: "shows ads: AdMob application id ca-app-pub-..." or "shows no ads: it carries
+Google's sample AdMob id". The permissions it accepts beyond INTERNET are exactly these seven, and any other still stops the bundle:
+  android.permission.ACCESS_NETWORK_STATE            (play-services-ads-api)
+  com.google.android.gms.permission.AD_ID            (play-services-ads-api: the advertising ID)
+  android.permission.ACCESS_ADSERVICES_AD_ID         (play-services-ads-api: Privacy Sandbox on Android)
+  android.permission.ACCESS_ADSERVICES_ATTRIBUTION   (play-services-ads-api)
+  android.permission.ACCESS_ADSERVICES_TOPICS        (play-services-ads-api)
+  android.permission.WAKE_LOCK                       (androidx.work, which the ads library pulls in)
+  android.permission.FOREGROUND_SERVICE              (androidx.work)
+RECEIVE_BOOT_COMPLETED, which androidx.work asks for, is removed by the ads library's own manifest, so it is not in the bundle.
+FOREGROUND_SERVICE is an ordinary permission and the app starts no foreground service; if the Console asks about it, say so, and
+look at the pre-launch report. READY, but only a Console run can show how Play treats it.
+
+
+1. ORDER OF WORK
+================
+  1. OWNER  AdMob account (admob.google.com): accept its terms and enter the payment and tax details. These are yours to give. The
+            account exists and its terms are accepted; AdMob still shows "Payment setup incomplete" until you do this part.
+  2. DONE   AdMob > Apps: "Plax: Short News & Topics", Android, package com.plaxlabs.news, linked to the live Play listing
+            (AdMob app 9585194942). It shows "Requires review" until AdMob has found app-ads.txt (section 5) and reviewed the app.
+  3. DONE   Two ad units: a Banner "plax-banner-bottom" (ca-app-pub-2225161543339119/8383793916) and a Native advanced
+            "plax-native-fullpage" (ca-app-pub-2225161543339119/5757630575). Both show "0 active" until the app is reviewed.
+  4. DONE   AdMob > Privacy & messaging: the GDPR message "Plax app EEA UK consent" (EEA, UK, Switzerland) is published, with "Do not
+            consent" on and the privacy policy address set. The US states message is not made; make it if you want it. The app asks
+            for the message first and requests no ad until it is settled (GoogleAds.java).
+  5. READY  Give the build the three ids (they are not secret, every APK holds them). In android\gradle.properties, or
+            %USERPROFILE%\.gradle\gradle.properties, or as -P on the command line:
+                admobAppId=ca-app-pub-0000000000000000~0000000000
+                admobBannerUnit=ca-app-pub-0000000000000000/0000000000
+                admobNativeUnit=ca-app-pub-0000000000000000/0000000000
+            A malformed id stops the build. Then .\package-aab.ps1.
+  6. OWNER  app-ads.txt (section 5), then the Console answers (sections 2 to 4), then the privacy policy switch (section 6).
+  7. READY  Before any of it, look at the layout with Google's demo units, which show real test ads that are safe to tap:
+                .\build.ps1 -Tasks ':app:assembleDebug' -ExtraArgs '-PtestAds=true'    (the debug build only)
+            and to see the consent message as a reader in the EEA would:  -PadsConsentTest=eea  (or other).
+            A live ad is never tapped while testing: that is invalid traffic and can suspend the AdMob account.
+
+
+2. PLAY CONSOLE: APP CONTENT
+============================
+  Ads .................. YES, "my app contains ads". READY. (If the bundle shows no ads, the answer is still yes: the library is in it.)
+  Advertising ID ....... YES. READY. Purposes to tick, the ones Google lists for its ads library: Advertising or marketing; Analytics;
+                         Fraud prevention, security, and compliance. If this is answered No while the manifest holds
+                         com.google.android.gms.permission.AD_ID, Play refuses the release.
+  Target audience ...... Unchanged, 13 and over, not children. Ads for an audience that includes children would need the Families
+                         policy and a certified ad network; Plax is not that. In AdMob also set the maximum ad content rating and
+                         block the categories you do not want next to news (for example gambling, dating, sensitive categories).
+                         OWNER decides the levels.
+  News and magazine .... Unchanged (section 9 of the 1.5.5 file). Ads do not change that declaration.
+  Content rating ....... Answer the questionnaire again for this release; it asks whether the app shows ads.
+
+
+3. PLAY CONSOLE: DATA SAFETY (change the 1.5.5 answers)
+=======================================================
+Google's own table for the ads library (version 25.5.0, the one in this build) says it collects and shares the following
+automatically, for advertising, analytics and fraud prevention, encrypted in transit with TLS. The Console form is yours to decide
+(Google says so); this is the mapping that fits it. READY to enter, OWNER to confirm against the form on the day.
+
+  What the library says it collects         Data type in the form                       Collected   Shared     Purposes
+  IP address (may give a rough location)    Location > Approximate location             yes         yes        Advertising or marketing, Analytics,
+                                                                                                               Fraud prevention, security, compliance
+  Taps, app launches, video views           App activity > App interactions             yes         yes        same
+  App launch time, hangs, energy use        App info and performance > Diagnostics      yes         yes        same
+  Advertising ID, app set ID, and other     Device or other IDs                         yes         yes        same
+  identifiers of accounts on the device
+
+  Encrypted in transit ........ Yes (TLS).
+  Can the user choose? ........ The advertising ID can be reset or deleted in Android's settings, and Google's Limited Ads setting
+                                 stops the ID and other data being sent. Answer as the form's wording fits you (collection by the
+                                 library is automatic, not an in-app choice).
+  Deletion .................... Plax's deletion (Account > Delete account) removes what Plax stores. It cannot remove data Google
+                                 holds for ads; readers manage that in Android's ad settings and Google's ad settings. Say so
+                                 plainly in the form's deletion text.
+  What stays as in 1.5.5 ...... Name and email (with Google sign-in), the account id, the picture address, topics and saved stories.
+                                 "No data is sold" stays true. "None is shared for advertising" does NOT: it is shared with Google.
+
+
+4. STORE LISTING
+================
+Take out every "no ads" claim from the listing text in section 3 of the 1.5.5 file and from the Hindi draft: "No ads and no tracking
+tools" is the line, and the short summary and the price line say "no ads" as well. Play shows "Contains ads" on the listing by itself
+once the Ads answer is yes. Say what is true: Plax is free and has ads. Do not say the ads are "non-intrusive". OWNER.
+The release notes should say that there are now ads (a strip at the foot and one full-page ad after every fifth story), and that the
+reader is asked about ad choices first where the law requires it.
+
+
+5. app-ads.txt (OWNER checks, READY in the code)
+================================================
+AdMob reads app-ads.txt at the root of the developer website named in the Play listing. The website serves it once
+NEXT_PUBLIC_ADSENSE_CLIENT is set in Vercel: https://plax-rouge.vercel.app/app-ads.txt redirects to /news/app-ads.txt, which holds
+      google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0
+IMPORTANT: that line must carry the publisher id AdMob shows (AdMob > Settings > Account information). It is the same number as the
+AdSense id (ca-pub-...) only when both belong to the same Google account. If they differ, the file has to list the AdMob id too; tell me
+and the route is changed (it reads one id today). The listing's website must be this host: if you move to a new domain, move the
+file with it (the old plaxlabs.com is gone). AdMob can take a day or more to see the file; its page for the app says when it has.
+
+
+6. PRIVACY POLICY, AND WHEN
+===========================
+The policy is one page for the website and the app. It says that Plax shows ads, names Google as the one who serves them, and links the
+reader's ad choices once NEXT_PUBLIC_ADS_POLICY=true (or the website has real ads). Set it in Vercel when the release with ads goes
+out, not before: the live policy must not describe ads that readers do not have, nor lack them when they do. HOLD until then.
+Menu > Privacy and ad choices opens Google's message again, only where Google says a reader must be able to change it.
+
+
+7. WHAT WAS NOT CHECKED
+=======================
+Not checked, and not claimed: that AdMob or AdSense approves the app or the site (Google decides; an aggregator that republishes
+headlines and short summaries is a case where approval is not certain); that Google Play's review accepts the full-page native ad
+between stories (it is shown only when the reader swipes to it, has the Ad badge and AdChoices, and is left by a swipe, but the policy
+review is Google's); how the ads behave on a physical phone (all runs were on an Android 16 emulator, with a fake network or Google's
+demo units); and what any real ad looks like or earns. No live ad was ever requested or tapped.
+
+
+OFFICIAL GOOGLE PAGES USED
+==========================
+  Advertising ID declaration .......... https://support.google.com/googleplay/android-developer/answer/6048248
+  Data safety section ................. https://support.google.com/googleplay/android-developer/answer/10787469
+  Ads policy (Google Play) ............ https://support.google.com/googleplay/android-developer/answer/9857753
+  Data disclosure for the ads library . https://developers.google.com/admob/android/privacy/play-data-disclosure
+  Consent (User Messaging Platform) ... https://developers.google.com/admob/android/privacy
+  app-ads.txt for AdMob ............... https://support.google.com/admob/answer/9363762
+  ads.txt for AdSense (the website) .... https://support.google.com/adsense/answer/7532444
+  Native ads (rules and badges) ....... https://support.google.com/admob/answer/6329638

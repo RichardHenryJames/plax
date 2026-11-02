@@ -46,7 +46,8 @@ The site moved here when its first domain, plaxlabs.com, expired. The address is
 - **🔖 Bookmarks** — Save cards with instant animated feedback; they live in the Saved tab and, when signed in, in your account
 - **♾️ Infinite scroll** — Auto-fetches more content as you approach the end of your card stack
 - **🌙 Dark and light themes** — Warm marigold on near-black, or on paper. **System** is the default, like the app; Light and Dark are one tap away
-- **🎨 The same design as the app** — Serif headlines and a plain-sans text, the picture first, a soft tag and `Source · age · read time` line, and one action row. On desktop the same column sits between a left and a right panel
+- **🎨 The same design as the app** — Serif headlines and a plain-sans text, the picture first, a soft tag and `Source · age · read time` line with Listen, Save and Share at its right end, and a Go deeper row under the text. The headline is the link to the full story. On desktop the same column sits between a left and a right panel
+- **📢 Google ads, off until configured** — A strip at the foot of the page and a full-page ad after every fifth story, on the website (AdSense) and in the Android app (AdMob): the next story is one swipe away, the ad is labelled, and where the law asks, readers are asked about their ad choices first. With no ids set there is no script, no strip, no ad card and nothing is sent to Google (see [TECH.md](TECH.md#ads--adstriptsx-adcardtsx-adslottsx-adsruntimetsx-adchoicestsx), [android/README.md](android/README.md) and `.env.example`)
 - **🔗 Share a story** — Share and Copy make a link to **Plax's own page** for the story (`/news/s/<headline>-<id>`) instead of the publisher's: it previews as a card with the headline in WhatsApp and elsewhere, shows a short summary with its source and a link to the full report, and is listed in the sitemap. Only a story this server signed can become a page, so nobody can put words of their own on the domain; if anything fails, the publisher's link is shared as before. See [TECH.md](TECH.md#shared-story-pages)
 
 ### Content Sources (All Free, No API Keys Required)
@@ -118,6 +119,10 @@ GROQ_API_KEY=your_key_here
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+
+# Google ads (optional: with none of these set there are no ads). The ids are public, not secrets;
+# the full list, with what each one is for, is in .env.example
+# NEXT_PUBLIC_ADSENSE_CLIENT=ca-pub-0000000000000000
 ```
 
 ```bash
@@ -238,6 +243,10 @@ plax/
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY`
+   - Optional, for Google ads (they are built into the page, so they must be set before the build; with none there are no ads):
+     `NEXT_PUBLIC_ADSENSE_CLIENT`, `NEXT_PUBLIC_ADSENSE_SLOT_STRIP_NARROW`, `NEXT_PUBLIC_ADSENSE_SLOT_STRIP_WIDE`,
+     `NEXT_PUBLIC_ADSENSE_SLOT_PAGE`, and `NEXT_PUBLIC_ADS_POLICY=true` when the Android release with ads goes out. Never set
+     `NEXT_PUBLIC_ADS_PREVIEW` here.
 3. Domain: the site is served from the project's Vercel domain, `plax-rouge.vercel.app` (**Vercel → Settings → Domains**). The address
    is built into the Android app (`FeedApi.SITE`) and the website (`src/lib/site.ts`), so adding a custom domain later means changing both
    and shipping a new app; installed apps cannot be redirected from the server.
