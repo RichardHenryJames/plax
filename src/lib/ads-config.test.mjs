@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readAdsConfig, stripEnabled, pageEnabled, adsEnabled, adsDisclosed, adsTxtLine, isPublisherId, isUnitId } from './ads-config.ts'
+import { readFileSync } from 'node:fs'
+import { readAdsConfig, stripEnabled, pageEnabled, railEnabled, adsEnabled, adPlacement, adsDisclosed, adsTxtLine, isPublisherId, isUnitId, RAIL_MIN_WIDTH } from './ads-config.ts'
 
 const CLIENT = 'ca-pub-1234567890123456'
 const full = {
@@ -12,10 +13,13 @@ const full = {
 
 test('with nothing set there are no ads at all, so the site is exactly as it was', () => {
   const config = readAdsConfig({})
-  assert.deepEqual(config, { client: '', stripNarrow: '', stripWide: '', page: '', preview: false })
+  assert.deepEqual(config, { client: '', stripNarrow: '', stripWide: '', page: '', rail: '', preview: false })
   assert.equal(stripEnabled(config), false)
   assert.equal(pageEnabled(config), false)
+  assert.equal(railEnabled(config), false)
   assert.equal(adsEnabled(config), false)
+  assert.deepEqual(adPlacement(config, true), { strip: false, page: false, rail: false })
+  assert.deepEqual(adPlacement(config, false), { strip: false, page: false, rail: false })
 })
 
 test('with the publisher and the units set, the strip and the page card are on', () => {
@@ -56,12 +60,61 @@ test('stray spaces around a value are ignored', () => {
   assert.equal(config.page, '3333333333')
 })
 
-test('preview turns both on with no ids, and only when it is exactly "true"', () => {
+test('preview turns all three on with no ids, and only when it is exactly "true"', () => {
   const preview = readAdsConfig({ NEXT_PUBLIC_ADS_PREVIEW: 'true' })
   assert.equal(preview.preview, true)
   assert.equal(stripEnabled(preview), true)
   assert.equal(pageEnabled(preview), true)
+  assert.equal(railEnabled(preview), true)
   for (const other of ['1', 'yes', 'TRUE', 'false', '']) assert.equal(readAdsConfig({ NEXT_PUBLIC_ADS_PREVIEW: other }).preview, false, other)
+})
+
+test('the right panel uses its own unit when there is one, and the page unit (a responsive one) when there is not', () => {
+  assert.equal(readAdsConfig(full).rail, '3333333333', 'no unit of its own: the page unit serves')
+  const own = readAdsConfig({ ...full, NEXT_PUBLIC_ADSENSE_SLOT_RAIL: '4444444444' })
+  assert.equal(own.rail, '4444444444')
+  assert.equal(own.page, '3333333333', 'and the page keeps its own')
+  assert.equal(readAdsConfig({ ...full, NEXT_PUBLIC_ADSENSE_SLOT_RAIL: ' 4444444444 ' }).rail, '4444444444', 'spaces are ignored')
+  assert.equal(readAdsConfig({ ...full, NEXT_PUBLIC_ADSENSE_SLOT_RAIL: 'oops' }).rail, '3333333333', 'a typo falls back instead of reaching Google')
+})
+
+test('the panel needs a unit and a publisher, like the others', () => {
+  assert.equal(railEnabled(readAdsConfig(full)), true)
+  assert.equal(railEnabled(readAdsConfig({ ...full, NEXT_PUBLIC_ADSENSE_CLIENT: undefined })), false, 'units without a publisher show nothing')
+  const stripOnly = readAdsConfig({ ...full, NEXT_PUBLIC_ADSENSE_SLOT_PAGE: undefined })
+  assert.equal(railEnabled(stripOnly), false, 'a strip alone does not make a panel unit')
+  const railOnly = readAdsConfig({ NEXT_PUBLIC_ADSENSE_CLIENT: CLIENT, NEXT_PUBLIC_ADSENSE_SLOT_RAIL: '4444444444' })
+  assert.equal(railEnabled(railOnly), true)
+  assert.equal(adsEnabled(railOnly), true, 'a panel unit alone is enough to need the script')
+})
+
+test('a desktop has its ad in the right panel and none in the middle', () => {
+  const config = readAdsConfig(full)
+  assert.deepEqual(adPlacement(config, true), { strip: false, page: false, rail: true })
+})
+
+test('anywhere without the panel the ads are the strip and the page between stories', () => {
+  const config = readAdsConfig(full)
+  assert.deepEqual(adPlacement(config, false), { strip: true, page: true, rail: false })
+})
+
+test('a desktop with no unit for its panel keeps the middle as it was, so a strip alone still shows', () => {
+  const stripOnly = readAdsConfig({ ...full, NEXT_PUBLIC_ADSENSE_SLOT_PAGE: undefined })
+  assert.deepEqual(adPlacement(stripOnly, true), { strip: true, page: false, rail: false })
+})
+
+test('the preview follows the same placement, so what is looked at is what is shipped', () => {
+  const preview = readAdsConfig({ NEXT_PUBLIC_ADS_PREVIEW: 'true' })
+  assert.deepEqual(adPlacement(preview, true), { strip: false, page: false, rail: true })
+  assert.deepEqual(adPlacement(preview, false), { strip: true, page: true, rail: false })
+})
+
+test('the panel appears at the width the code says (Tailwind\'s xl, 1280 px), so the ads move exactly when the panel arrives', () => {
+  assert.equal(RAIL_MIN_WIDTH, 1280)
+  const rail = readFileSync(new URL('../components/RightRail.tsx', import.meta.url), 'utf8')
+  assert.match(rail, /<aside className="hidden xl:flex /, 'the panel is shown from xl')
+  const tailwind = readFileSync(new URL('../../tailwind.config.js', import.meta.url), 'utf8')
+  assert.doesNotMatch(tailwind, /screens\s*:/, 'no custom breakpoints: xl is Tailwind\'s own 1280 px')
 })
 
 test('ids are told by their shape', () => {

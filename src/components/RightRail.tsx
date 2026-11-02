@@ -8,10 +8,11 @@ import { useAuth } from '@/components/AuthProvider'
 import { addBookmarkToCloud, removeBookmarkFromCloud } from '@/lib/cloud-sync'
 import { useT } from '@/lib/i18n'
 import { signedFields } from '@/lib/share-client'
+import { RailAd } from '@/components/RailAd'
 
 /**
  * RightRail — desktop context panel (hidden below xl).
- * Now-reading · live stats · top interests · keyboard shortcuts.
+ * The ad (when the site has ads) · now-reading · live stats · top interests · keyboard shortcuts.
  */
 export function RightRail() {
   const cardsRead = usePlaxStore((s) => s.cardsRead)
@@ -57,6 +58,7 @@ export function RightRail() {
 
   return (
     <aside className="hidden xl:flex flex-col w-80 shrink-0 h-full border-l border-dark-border bg-dark-card overflow-y-auto overscroll-contain thin-scrollbar">
+      <RailAd />
       {/* Now reading */}
       <div className="px-5 pt-6 pb-4">
         <span className={`text-[11px] font-semibold uppercase tracking-wider text-dark-subtle ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('nowReading')}</span>

@@ -16,8 +16,8 @@ import { withBase } from '@/lib/base-path'
 import { SeenStore, replace, append, EARLIER_LIMIT } from '@/lib/story-engine'
 import { loadSeen, saveSeen } from '@/lib/seen-storage'
 import { withAds, adSlots, adCardId, isAdCardId, adOrdinal } from '@/lib/ad-slots'
-import { PAGE_ON } from '@/lib/ads-config'
-import { useAdsBlocked } from '@/lib/ads-state'
+import { ads, adPlacement } from '@/lib/ads-config'
+import { useAdsBlocked, useRailVisible } from '@/lib/ads-state'
 
 const LOAD_MORE_THRESHOLD = 10 // fetch more when 10 cards from end
 const CARD_CACHE_KEY = 'plax-card-cache-v2'
@@ -37,6 +37,7 @@ const PLACES_KEPT = 6
 const HINT_KEY = 'plax-swipe-hint' // set once the reader has swiped: the hint has done its job
 const AD_PAGE_MIN_HEIGHT = 520 // a full-page ad (the unit, the label and the button under it) needs a page about this tall
 const MAX_AD_FAILURES = 2 // after this many slots that could not be served, no more are put in: the service is not answering
+const AD_HOLD_MS = 700 // the wheel is held back this long after the ad page moved on by scroll: its tail is still coming (the page takes 300 ms to leave)
 export const CAUGHT_UP_ID = '__caught_up__'
 
 const isMarker = (c: CardData) => c.id === CAUGHT_UP_ID
@@ -199,6 +200,11 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
   const shownAtRef = useRef(0)
   const currentIndexRef = useRef(0)
   const sigRef = useRef(sig)
+  // Whether the stories have an ad between them. A desktop has its ad in the right panel instead (see adPlacement), so none stands
+  // in the feed there; the ref lets the effect that restores a feed count the ads the way the page now has them.
+  const pageAds = adPlacement(ads, useRailVisible()).page
+  const pageAdsRef = useRef(pageAds)
+  pageAdsRef.current = pageAds
   const [session, setSession] = useState(0) // bumped to start again from the newest stories
   useEffect(() => { cardsRef.current = cards }, [cards])
   useEffect(() => { currentIndexRef.current = currentIndex }, [currentIndex])
@@ -441,7 +447,7 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
       commit(kept.cards)
       setFocusCard(kept.focus) // the index counts a pinned saved story, so it comes back too, and the ads that stand between stories
       const storiesKept = kept.cards.filter((c) => !isMarker(c)).length + (kept.focus ? 1 : 0)
-      const adsKept = PAGE_ON ? adSlots(storiesKept).length : 0
+      const adsKept = pageAdsRef.current ? adSlots(storiesKept).length : 0
       setCurrentIndex(Math.min(kept.index, kept.cards.length - 1 + (kept.focus ? 1 : 0) + adsKept))
       setIsInitialLoad(false)
       settled = true
@@ -517,7 +523,7 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
       // A saved card is pinned to the FRONT (deduped) so the reader lands on it
       // regardless of when the live feed finishes loading.
       if (focusCard && !base.some((c) => c.id === focusCard.id)) base = [focusCard, ...base]
-      if (!PAGE_ON || !roomForAd) return base
+      if (!pageAds || !roomForAd) return base
       // The caught-up card is not a story: it stays last, and an ad is never put between the last story and it. An ad that was
       // asked for and could not be served is left out for good, so the reader never lands on an empty page. Where ads are blocked,
       // or two in a row could not be served, no more are put in; the ones already shown stay, so nothing moves under the reader.
@@ -529,7 +535,7 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
         ...ended,
       ]
     },
-    [cards, focusCard, newsSection, unfilledAds, filledAds, adsBlockedHere, roomForAd]
+    [cards, focusCard, newsSection, unfilledAds, filledAds, adsBlockedHere, roomForAd, pageAds]
   )
   const dropAd = useCallback((id: string) => {
     const ordinal = adOrdinal(id)
@@ -927,6 +933,17 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
   useEffect(() => () => {
     if (wheelIdleTimer.current) clearTimeout(wheelIdleTimer.current)
   }, [])
+  // A move that did not come from the wheel (the ad page's scroll, which the ad's frame hands over) holds the wheel back the same way:
+  // the tail of the gesture is still arriving and must not move the next story too. Its first event takes the wait over (handleWheel).
+  const holdWheel = useCallback(() => {
+    navLocked.current = true
+    overscroll.current = 0
+    if (wheelIdleTimer.current) clearTimeout(wheelIdleTimer.current)
+    wheelIdleTimer.current = setTimeout(() => {
+      navLocked.current = false
+      overscroll.current = 0
+    }, AD_HOLD_MS)
+  }, [])
 
   const currentCard = visibleCards[currentIndex]
   const prevCard = currentIndex > 0 ? visibleCards[currentIndex - 1] : null
@@ -1158,7 +1175,13 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
           >
             {isAd(currentCard) ? (
               <>
-                <AdCard onNext={() => goToCard(currentIndex + 1, 1)} onFilled={() => keepAd(currentCard.id)} onUnfilled={() => dropAd(currentCard.id)} />
+                <AdCard
+                  onNext={() => goToCard(currentIndex + 1, 1)}
+                  onPrev={() => goToCard(currentIndex - 1, -1)}
+                  onHold={holdWheel}
+                  onFilled={() => keepAd(currentCard.id)}
+                  onUnfilled={() => dropAd(currentCard.id)}
+                />
                 <MenuButton corner />
               </>
             ) : (

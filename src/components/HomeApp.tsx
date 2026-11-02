@@ -14,7 +14,8 @@ import { ForYouEmpty } from '@/components/ForYouEmpty'
 import { FeedErrorBoundary } from '@/components/FeedErrorBoundary'
 import { AdStrip } from '@/components/AdStrip'
 import { AdsRuntime } from '@/components/AdsRuntime'
-import { STRIP_ON } from '@/lib/ads-config'
+import { ads, adPlacement } from '@/lib/ads-config'
+import { useRailVisible } from '@/lib/ads-state'
 import { TOPICS, usePlaxStore } from '@/lib/store'
 import { useUIStore } from '@/lib/ui-store'
 import { useEffect, useState } from 'react'
@@ -27,6 +28,7 @@ export function HomeApp({ seed }: { seed?: Record<string, string>[] }) {
   const selectedTopics = usePlaxStore((s) => s.selectedTopics)
   const screen = useUIStore((s) => s.screen)
   const feedFilter = useUIStore((s) => s.feedFilter)
+  const railVisible = useRailVisible()
   const [mounted, setMounted] = useState(false)
 
   // Avoid hydration mismatch
@@ -99,8 +101,9 @@ export function HomeApp({ seed }: { seed?: Record<string, string>[] }) {
               )}
             </FeedErrorBoundary>
           </div>
-          {/* The strip of ad under the story, on the feed only: the story is laid out in the room it leaves. */}
-          {STRIP_ON && screen === 'feed' && !forYouEmpty && <AdStrip />}
+          {/* The strip of ad under the story, on the feed only: the story is laid out in the room it leaves. A desktop has its ad in the
+              right panel instead, and none in the middle. */}
+          {adPlacement(ads, railVisible).strip && screen === 'feed' && !forYouEmpty && <AdStrip />}
         </div>
         <RightRail />
       </div>

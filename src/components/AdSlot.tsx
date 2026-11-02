@@ -12,6 +12,16 @@ declare global {
 
 export type AdStatus = 'loading' | 'filled' | 'unfilled'
 
+/**
+ * The shapes a responsive unit can be asked for. A rectangle is 300 x 250, or up to 336 x 280 where there is room: the shape that is
+ * served most. A tall one is a half page, 300 x 600: the biggest an ad comes in on a page, for a place with room for it.
+ */
+export type AdShape = 'rectangle' | 'tall'
+const SHAPES: Record<AdShape, { format: string; minHeight: number; preview: number }> = {
+  rectangle: { format: 'rectangle', minHeight: 250, preview: 280 },
+  tall: { format: 'vertical', minHeight: 600, preview: 600 },
+}
+
 /** How long an ad has to appear before the space is given back. (A blocked script is noticed at once, not after this.) */
 const GIVE_UP_MS = 5000
 
@@ -24,7 +34,7 @@ export function AdSlot({
   unit,
   width,
   height,
-  rectangle = false,
+  shape,
   label,
   onStatus,
 }: {
@@ -32,8 +42,8 @@ export function AdSlot({
   /** The size of a fixed unit, in px (a unit made to that size, so the ad is never clipped). */
   width?: number
   height?: number
-  /** A responsive rectangle (at most 336 x 280, as wide as the room allows): it can never be taller than the page it is on. */
-  rectangle?: boolean
+  /** A responsive unit asked for a shape, as wide as the room it is in allows (never wider than the shape's own widest). */
+  shape?: AdShape
   /** What the preview box says. */
   label: string
   onStatus?: (status: AdStatus) => void
@@ -92,8 +102,9 @@ export function AdSlot({
     return (
       <div
         data-ad-preview
+        data-ad-shape={shape}
         className="flex items-center justify-center rounded-lg border border-dashed border-dark-border bg-[var(--wash-1)] text-[11px] text-dark-subtle"
-        style={{ width: rectangle ? '100%' : width, height: rectangle ? 280 : height }}
+        style={{ width: shape ? '100%' : width, height: shape ? SHAPES[shape].preview : height }}
       >
         {label}
       </div>
@@ -105,15 +116,15 @@ export function AdSlot({
       ref={ins}
       className="adsbygoogle"
       style={{
-        display: rectangle ? 'block' : 'inline-block',
-        width: rectangle ? '100%' : width,
-        height: rectangle ? undefined : height,
-        minHeight: rectangle ? 250 : undefined,
+        display: shape ? 'block' : 'inline-block',
+        width: shape ? '100%' : width,
+        height: shape ? undefined : height,
+        minHeight: shape ? SHAPES[shape].minHeight : undefined,
       }}
       data-ad-client={ads.client}
       data-ad-slot={unit}
-      data-ad-format={rectangle ? 'rectangle' : undefined}
-      data-full-width-responsive={rectangle ? 'false' : undefined}
+      data-ad-format={shape ? SHAPES[shape].format : undefined}
+      data-full-width-responsive={shape ? 'false' : undefined}
     />
   )
 }

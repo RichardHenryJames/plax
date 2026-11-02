@@ -15,6 +15,8 @@ export interface AdsConfig {
   stripWide: string
   /** The ad unit of the full-page card between stories. */
   page: string
+  /** The ad unit of the right panel on a desktop. A responsive unit serves any shape, so it falls back to the page unit. */
+  rail: string
   /** Boxes in place of ads, and no request to Google. */
   preview: boolean
 }
@@ -37,11 +39,13 @@ export function readAdsConfig(env: Env): AdsConfig {
     const value = (env[name] ?? '').trim()
     return isUnitId(value) ? value : ''
   }
+  const page = unit('NEXT_PUBLIC_ADSENSE_SLOT_PAGE')
   return {
     client: isPublisherId(client) ? client : '',
     stripNarrow: unit('NEXT_PUBLIC_ADSENSE_SLOT_STRIP_NARROW'),
     stripWide: unit('NEXT_PUBLIC_ADSENSE_SLOT_STRIP_WIDE'),
-    page: unit('NEXT_PUBLIC_ADSENSE_SLOT_PAGE'),
+    page,
+    rail: unit('NEXT_PUBLIC_ADSENSE_SLOT_RAIL') || page,
     preview: (env.NEXT_PUBLIC_ADS_PREVIEW ?? '').trim() === 'true',
   }
 }
@@ -52,8 +56,34 @@ export const stripEnabled = (config: AdsConfig) => config.preview || (config.cli
 /** Whether the feed has a full-page ad after every fifth story. */
 export const pageEnabled = (config: AdsConfig) => config.preview || (config.client !== '' && config.page !== '')
 
+/** Whether the right panel of a desktop carries an ad. */
+export const railEnabled = (config: AdsConfig) => config.preview || (config.client !== '' && config.rail !== '')
+
 /** Whether any ad is shown at all (and so whether the script, the consent choice and the privacy link are needed). */
-export const adsEnabled = (config: AdsConfig) => stripEnabled(config) || pageEnabled(config)
+export const adsEnabled = (config: AdsConfig) => stripEnabled(config) || pageEnabled(config) || railEnabled(config)
+
+/** The width from which the right panel is on screen (Tailwind's `xl`, which `RightRail` is shown at). */
+export const RAIL_MIN_WIDTH = 1280
+
+export interface Placement {
+  /** The strip under the story. */
+  strip: boolean
+  /** The full-page ad after every fifth story. */
+  page: boolean
+  /** The ad in the right panel. */
+  rail: boolean
+}
+
+/**
+ * Where the ads are. A desktop (the right panel is on screen) has its ad in the panel and none in the middle: no strip under the
+ * story and no page between stories. Anywhere else (a phone, a tablet, a window too narrow for the panel) there is the strip, and the
+ * page after every fifth story. A panel with no unit of its own to show leaves the middle as it was, so a configuration that has only
+ * the strip still shows it.
+ */
+export function adPlacement(config: AdsConfig, railVisible: boolean): Placement {
+  const rail = railVisible && railEnabled(config)
+  return { rail, strip: !rail && stripEnabled(config), page: !rail && pageEnabled(config) }
+}
 
 /**
  * Whether the privacy policy says that Plax shows ads. One policy covers the website and the Android app, so it says so where the
@@ -75,10 +105,9 @@ export const ads: AdsConfig = readAdsConfig({
   NEXT_PUBLIC_ADSENSE_SLOT_STRIP_NARROW: process.env.NEXT_PUBLIC_ADSENSE_SLOT_STRIP_NARROW,
   NEXT_PUBLIC_ADSENSE_SLOT_STRIP_WIDE: process.env.NEXT_PUBLIC_ADSENSE_SLOT_STRIP_WIDE,
   NEXT_PUBLIC_ADSENSE_SLOT_PAGE: process.env.NEXT_PUBLIC_ADSENSE_SLOT_PAGE,
+  NEXT_PUBLIC_ADSENSE_SLOT_RAIL: process.env.NEXT_PUBLIC_ADSENSE_SLOT_RAIL,
   NEXT_PUBLIC_ADS_PREVIEW: process.env.NEXT_PUBLIC_ADS_PREVIEW,
 })
 
-export const STRIP_ON = stripEnabled(ads)
-export const PAGE_ON = pageEnabled(ads)
 export const ADS_ON = adsEnabled(ads)
 export const ADS_DISCLOSED = adsDisclosed(ads, { NEXT_PUBLIC_ADS_POLICY: process.env.NEXT_PUBLIC_ADS_POLICY })

@@ -40,6 +40,11 @@ look at the pre-launch report. READY, but only a Console run can show how Play t
   4. DONE   AdMob > Privacy & messaging: the GDPR message "Plax app EEA UK consent" (EEA, UK, Switzerland) is published, with "Do not
             consent" on and the privacy policy address set. The US states message is not made; make it if you want it. The app asks
             for the message first and requests no ad until it is settled (GoogleAds.java).
+  4b. DONE  AdSense (the website): the site plax-rouge.vercel.app is verified with the meta tag and its review was requested on 2 Nov
+            2026, after the four NEXT_PUBLIC_ADSENSE_* variables were set in Vercel and the site rebuilt. Auto ads is Off for the
+            site (so Google places nothing of its own over the stories); AdSense's "Auto optimise" is On, which is its default.
+            The site shows "Requires review" until Google decides, which can take days or weeks; until then every ad request is
+            unfilled, the strip stays closed and the page after the fifth story is dropped (two in a row, and no more that session).
   5. READY  Give the build the three ids (they are not secret, every APK holds them). In android\gradle.properties, or
             %USERPROFILE%\.gradle\gradle.properties, or as -P on the command line:
                 admobAppId=ca-app-pub-0000000000000000~0000000000
@@ -101,23 +106,23 @@ The release notes should say that there are now ads (a strip at the foot and one
 reader is asked about ad choices first where the law requires it.
 
 
-5. app-ads.txt (OWNER checks, READY in the code)
-================================================
-AdMob reads app-ads.txt at the root of the developer website named in the Play listing. The website serves it once
-NEXT_PUBLIC_ADSENSE_CLIENT is set in Vercel: https://plax-rouge.vercel.app/app-ads.txt redirects to /news/app-ads.txt, which holds
-      google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0
-IMPORTANT: that line must carry the publisher id AdMob shows (AdMob > Settings > Account information). It is the same number as the
-AdSense id (ca-pub-...) only when both belong to the same Google account. If they differ, the file has to list the AdMob id too; tell me
-and the route is changed (it reads one id today). The listing's website must be this host: if you move to a new domain, move the
-file with it (the old plaxlabs.com is gone). AdMob can take a day or more to see the file; its page for the app says when it has.
+5. app-ads.txt (DONE in the code; AdMob checks it)
+=================================================
+AdMob reads app-ads.txt at the root of the developer website named in the Play listing. The website has served it since 2 Nov 2026
+(NEXT_PUBLIC_ADSENSE_CLIENT is set in Vercel): https://plax-rouge.vercel.app/app-ads.txt redirects to /news/app-ads.txt, which holds
+      google.com, pub-2225161543339119, DIRECT, f08c47fec0942fa0
+The publisher id is the one AdSense and AdMob share (both are on richardhenryjames64@gmail.com). The listing's website must be this host:
+if you move to a new domain, move the file with it (the old plaxlabs.com is gone). AdMob's app-ads.txt page said "No ad requests with
+app-ads.txt yet" on 2 Nov: its crawler can take up to seven days, and it reports only once the app has sent ad requests, so look again
+after the release is live. The app stays "Requires review, limited ad serving" until then.
 
 
 6. PRIVACY POLICY, AND WHEN
 ===========================
 The policy is one page for the website and the app. It says that Plax shows ads, names Google as the one who serves them, and links the
-reader's ad choices once NEXT_PUBLIC_ADS_POLICY=true (or the website has real ads). Set it in Vercel when the release with ads goes
-out, not before: the live policy must not describe ads that readers do not have, nor lack them when they do. HOLD until then.
-Menu > Privacy and ad choices opens Google's message again, only where Google says a reader must be able to change it.
+reader's ad choices once NEXT_PUBLIC_ADS_POLICY=true (or the website has real ads). The website has real ads configured since 2 Nov
+2026, so the live policy already says so (checked on the live page). Menu > Privacy and ad choices opens Google's message again, only
+where Google says a reader must be able to change it.
 
 
 7. WHAT WAS NOT CHECKED
@@ -126,7 +131,8 @@ Not checked, and not claimed: that AdMob or AdSense approves the app or the site
 headlines and short summaries is a case where approval is not certain); that Google Play's review accepts the full-page native ad
 between stories (it is shown only when the reader swipes to it, has the Ad badge and AdChoices, and is left by a swipe, but the policy
 review is Google's); how the ads behave on a physical phone (all runs were on an Android 16 emulator, with a fake network or Google's
-demo units); and what any real ad looks like or earns. No live ad was ever requested or tapped.
+demo units); and what any real ad looks like or earns. No ad has been served or tapped: the website's ad requests (made while it was
+checked live on 2 Nov, with AdSense not yet approving the site) were all "unfilled".
 
 
 OFFICIAL GOOGLE PAGES USED
