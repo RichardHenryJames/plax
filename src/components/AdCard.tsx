@@ -34,6 +34,13 @@ const TALL_FROM = 632
  * The whole page is that box (`data-no-feed-scroll` keeps the feed's own wheel and touch handlers off it), so every gesture on it goes
  * the one way and none can move the page twice.
  *
+ * Nothing here depends on a `height`, because Google's script sets `height: auto !important` and `min-height: 0 !important` on every box
+ * around a responsive ad (seen with the real script: the page, the box that held the room to scroll, the area of the ad). The room to
+ * scroll is two spacers of a fixed height beside the page, not a tall box around it, and the page is exactly as tall as the scrolling box
+ * by its `flex-basis`, in that box's own units (`cqh`), which the script leaves alone. The box is absolutely positioned, which is where
+ * the script stops: nothing above it is touched. (On a browser without container units the page is as tall as its contents, which still
+ * works.)
+ *
  * With no ad to show (none served, or a blocker) it tells the feed, which drops the card, so a reader is never left on an empty page.
  */
 export function AdCard({
@@ -121,12 +128,12 @@ export function AdCard({
       data-no-feed-scroll
       role="complementary"
       aria-label={t('adLabel')}
-      className="absolute inset-0 overflow-y-auto overscroll-contain [overflow-anchor:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="absolute inset-0 overflow-y-auto overscroll-contain [container-type:size] [overflow-anchor:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
-      <div style={{ height: `calc(100% + ${2 * SLACK}px)` }}>
+      <div className="flex flex-col">
+        <div aria-hidden className="shrink-0" style={{ height: SLACK }} />
         <div
-          className={`sticky top-0 mx-auto flex w-full max-w-[26rem] flex-col items-center px-5 pt-16 pb-6 text-center lg:pt-20 ${hindi}`}
-          style={{ height: `calc(100% - ${2 * SLACK}px)` }}
+          className={`sticky top-0 mx-auto flex w-full max-w-[26rem] shrink-0 grow-0 basis-[100cqh] flex-col items-center px-5 pt-16 pb-6 text-center lg:pt-20 ${hindi}`}
         >
           <span className="rounded-full border border-dark-border px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-dark-muted">
             {t('adLabel')}
@@ -156,6 +163,7 @@ export function AdCard({
             <p className="hidden text-xs text-dark-subtle [@media(pointer:fine)]:block">{t('adNextKey')}</p>
           </div>
         </div>
+        <div aria-hidden className="shrink-0" style={{ height: SLACK }} />
       </div>
     </div>
   )
