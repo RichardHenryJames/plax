@@ -5,7 +5,9 @@
 // stand under that headline. It is read from the start of the page only, kept for a few hours, and used only when the feed had
 // nothing better. Everything here fails quietly: a story without a summary is shown as it always was.
 import { bodyWithoutHeadline } from './story-body.ts'
+import { endsSentence } from './sentence.ts'
 
+export { endsSentence }
 /** The most of a page's description that is kept: about three lines on a phone, and an end at a sentence. */
 export const MAX_SUMMARY_CHARS = 320
 /** Less than this is not a summary. */
@@ -59,11 +61,56 @@ export function pageDescription(html: string): string {
   return ''
 }
 
+/** An address of a picture that is not worth a card: an icon or a vector, an animation, or a logo or stand-in a site gives where it has no photo. */
+const NOT_A_PHOTO = /\.(?:svg|ico|gif|webm|mp4)$|(?:^|[/_.-])(?:logo|favicon|placeholder|no-?image|noimage|default-?(?:image|share|og|thumb\w*)|share-?default|og-?default|blank|sprite|avatar|brand)(?:[/_.-]|$)/
+
+/** A page's picture as an https address of a named host, or '' when it is not one: a logo, an icon, an address that is not public. */
+function pictureAddress(raw: string, pageUrl: string): string {
+  let url: URL
+  try {
+    url = new URL(raw, pageUrl)
+  } catch {
+    return ''
+  }
+  if (url.protocol === 'http:') url.protocol = 'https:'
+  if (url.protocol !== 'https:' || !isPublicWebUrl(url.href)) return ''
+  let name = url.pathname
+  try {
+    name = decodeURIComponent(name)
+  } catch {
+    /* an address that is not escaped properly is judged as it is written */
+  }
+  return NOT_A_PHOTO.test(name.toLowerCase()) ? '' : url.href
+}
+
+/**
+ * The picture a page gives to link previews (og:image, else twitter:image), for a story whose feed gave none. Empty when the page
+ * has none, or it is a logo or a stand-in rather than a photograph. Read from the head of the page only.
+ */
+export function pageImage(html: string, pageUrl: string): string {
+  const end = html.search(/<\/head>/i)
+  const head = end >= 0 ? html.slice(0, end) : html
+  const wanted = ['og:image:secure_url', 'og:image', 'og:image:url', 'twitter:image', 'twitter:image:src']
+  const found = new Map<string, string>()
+  for (const tag of head.matchAll(/<meta\b(?:[^>"']|"[^"]*"|'[^']*')*>/gi)) {
+    const attribute = attributes(tag[0])
+    const key = (attribute.property || attribute.name || '').toLowerCase()
+    if (wanted.includes(key) && attribute.content && !found.has(key)) found.set(key, attribute.content)
+  }
+  for (const key of wanted) {
+    const raw = found.get(key)
+    if (!raw) continue
+    const address = pictureAddress(decodeEntities(raw).trim(), pageUrl)
+    if (address) return address
+  }
+  return ''
+}
+
 /** At most `max` characters, ending where a sentence ends when one does far enough in, else at a word, with an ellipsis. */
 export function shortSummary(text: string, max: number = MAX_SUMMARY_CHARS): string {
   if (text.length <= max) return text
   const window = text.slice(0, max)
-  const ends = [...window.matchAll(/[.!?\u0964](?=\s|$)/g)]
+  const ends = [...window.matchAll(/[.!?\u0964](?=\s|$)/g)].filter((end) => endsSentence(window, end.index ?? 0))
   const last = ends.length > 0 ? (ends[ends.length - 1].index ?? -1) + 1 : -1
   if (last >= Math.floor(max * 0.4)) return window.slice(0, last).trim()
   const space = window.lastIndexOf(' ')
