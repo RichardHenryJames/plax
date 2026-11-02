@@ -4,11 +4,11 @@ import { planFit, MIN_BODY_LINES, MIN_TITLE_LINES } from './card-fit.ts'
 
 // The cases mirror CardFitTest.java in the Android app: the same numbers give the same plan on both. They are the pixels of a
 // phone page of 744 high: a 40 source line, a 58 action row, headline lines of 32 under 10 of space, summary lines of 28 under
-// 12 of space, a picture of between 117 and 297 (262 is the usual most, 297 the most when there is little to read).
+// 12 of space, a picture of between 117 and 262 (262 is the most it is ever given, however little there is to read).
 
 const page = (height, titleNatural, bodyNatural) => ({
   height, meta: 40, metaBare: 40, actions: 58, titleTop: 10, titleLine: 32, titleNatural, titleMax: 4,
-  bodyTop: 12, bodyLine: 28, bodyNatural, heroMaximum: 262, heroMinimum: 117, heroTall: 297,
+  bodyTop: 12, bodyLine: 28, bodyNatural, heroMaximum: 262, heroMinimum: 117,
 })
 
 const used = (input, plan) =>
@@ -19,20 +19,18 @@ const used = (input, plan) =>
 test('a roomy page shows the whole summary and lets the picture grow, up to the tallest it may be', () => {
   const input = page(744, 3, 7)
   const plan = planFit(input)
-  assert.equal(plan.hero, 297, 'the picture takes the room the text leaves, up to its most')
+  assert.equal(plan.hero, 262, 'the picture takes the room the text leaves, up to its most')
   assert.equal(plan.titleLines, 3)
   assert.equal(plan.bodyLines, 7, 'every line of the summary')
   assert.ok(used(input, plan) <= 744)
 })
 
-test('a little to read gives the picture more than a square, so that the card is full', () => {
+test('a little to read does not make the picture grow past its most: pictures look alike, and the room left is the caller\'s to spread', () => {
   const input = page(744, 2, 2)
   const plan = planFit(input)
-  assert.ok(plan.hero > input.heroMaximum, 'past the usual most')
-  assert.equal(plan.hero, input.heroTall)
+  assert.equal(plan.hero, input.heroMaximum)
   assert.equal(plan.bodyLines, 2)
-  // Room that is left after that is the little that cannot be filled, and the page is not over-full.
-  assert.ok(used(input, plan) <= 744)
+  assert.ok(used(input, plan) < 744 - 100, 'a good deal of room is left for the caller')
 })
 
 test('a long summary is shown whole and the picture shrinks to what is left', () => {
@@ -41,7 +39,7 @@ test('a long summary is shown whole and the picture shrinks to what is left', ()
   assert.equal(plan.titleLines, 4)
   assert.equal(plan.bodyLines, 12, 'the whole summary when it fits beside the least picture')
   assert.equal(plan.hero, 744 - 58 - 40 - (10 + 4 * 32) - (12 + 12 * 28), 'and the picture takes what remains')
-  assert.ok(plan.hero >= 117 && plan.hero < 297)
+  assert.ok(plan.hero >= 117 && plan.hero < 262)
   assert.ok(used(input, plan) <= 744)
 })
 
@@ -64,7 +62,7 @@ test('a poster only stands in for a picture, so it is dropped before any of the 
   assert.ok(used(input, plan) <= 744)
   // With room for all of the summary beside it, a poster is shown like a photograph.
   const roomy = planFit({ ...page(744, 3, 7), heroKept: false })
-  assert.equal(roomy.hero, 297)
+  assert.equal(roomy.hero, 262)
   assert.equal(roomy.bodyLines, 7)
   // And a photograph is kept.
   assert.equal(planFit({ ...page(744, 4, 14), heroKept: true }).hero, 132)
@@ -127,15 +125,15 @@ test('the source line is counted as it stands: with the picture above it, or fir
   assert.ok(used(withMenu, plan) <= 412)
 })
 
-test('a story with nothing under its headline lets the picture grow taller', () => {
+test('a story with nothing under its headline gets the picture at its most, and no more', () => {
   const plan = planFit(page(744, 2, 0))
-  assert.equal(plan.hero, 297)
+  assert.equal(plan.hero, 262)
   assert.equal(plan.bodyLines, 0)
   assert.equal(planFit(page(250, 2, 0)).hero, 0, 'and with no room for a picture it has none')
 })
 
 test('a page with no picture spends everything on text', () => {
-  const none = { ...page(500, 2, 9), heroMaximum: 0, heroTall: 0 }
+  const none = { ...page(500, 2, 9), heroMaximum: 0 }
   const plan = planFit(none)
   assert.equal(plan.hero, 0)
   assert.equal(plan.titleLines, 2)
@@ -155,7 +153,7 @@ test('a headline too tall for the page loses lines even with no summary to prote
 test('a story with no headline is just the summary', () => {
   const plan = planFit(page(744, 0, 8))
   assert.equal(plan.titleLines, 0)
-  assert.equal(plan.hero, 297)
+  assert.equal(plan.hero, 262)
   assert.equal(plan.bodyLines, 8)
 })
 
@@ -168,7 +166,7 @@ test('line heights that are fractions of a pixel do not lose a line to rounding'
   const height = 54 + 39 + (10 + 3 * titleLine) + (12 + 2 * bodyLine)
   const input = {
     height, meta: 39, metaBare: 39, actions: 54, titleTop: 10, titleLine, titleNatural: 3, titleMax: 3,
-    bodyTop: 12, bodyLine, bodyNatural: 2, heroMaximum: 0, heroMinimum: 96, heroTall: 0,
+    bodyTop: 12, bodyLine, bodyNatural: 2, heroMaximum: 0, heroMinimum: 96,
   }
   const plan = planFit(input)
   assert.equal(plan.titleLines, 3, 'the headline keeps its three lines')
@@ -184,7 +182,7 @@ test('whatever the page holds, nothing is planned beyond it, and the summary is 
           for (const bare of [40, 52]) {
             const input = {
               height, meta: 40, metaBare: bare, actions: 58, titleTop: 10, titleLine: 32, titleNatural: title, titleMax: title > 4 ? 5 : 4,
-              bodyTop: 12, bodyLine: 28, bodyNatural: body, heroMaximum: maximum, heroMinimum: 117, heroTall: Math.floor(maximum * 1.2),
+              bodyTop: 12, bodyLine: 28, bodyNatural: body, heroMaximum: maximum, heroMinimum: 117,
             }
             const plan = planFit(input)
             const where = `height ${height} title ${title} body ${body} maximum ${maximum} bare ${bare}: ${JSON.stringify(plan)} uses ${used(input, plan)}`
@@ -192,7 +190,7 @@ test('whatever the page holds, nothing is planned beyond it, and the summary is 
             const leastHeadline = title === 0 ? 0 : 10 + 32
             if (height >= bare + 58 + leastHeadline) assert.ok(used(input, plan) <= height + 0.5, where)
             assert.ok(plan.hero === 0 || plan.hero >= 117, `a picture is either absent or worth showing: ${where}`)
-            assert.ok(plan.hero <= Math.max(maximum, input.heroTall), where)
+            assert.ok(plan.hero <= maximum, where)
             assert.ok(plan.titleLines <= Math.min(title, input.titleMax), where)
             assert.ok(plan.bodyLines <= body, where)
             if (maximum === 0) assert.equal(plan.hero, 0, 'no picture in this layout')

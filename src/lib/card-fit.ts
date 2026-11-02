@@ -2,9 +2,11 @@
 // which means everything on it has to fit, and the card is always full: the source line and the row at the bottom are always
 // there, then the headline; the picture keeps at least its minimum (a story with a picture is not left without one, nor with a
 // stamp of one), and the summary takes the rest, cut to a whole line with an ellipsis, never through the middle of one, where
-// its room ends, as in Inshorts. A short summary leaves room, and the picture takes it, up to the tallest it may be. Only a
-// card too short for the minimum picture and a few lines of summary has no picture, and before the summary is cut below
-// three lines the headline gives up lines, but never below two.
+// its room ends, as in Inshorts. The picture takes whatever the lines leave, up to the tallest it may be, which is not much more
+// than its least: pictures that grew with a short summary made cards unlike each other, so a short summary is a matter for the
+// text (the server finds more of it, and shows a story with little of it last), and what room is still left is spread between
+// the parts of the card by the caller. Only a card too short for the minimum picture and a few lines of summary has no picture,
+// and before the summary is cut below three lines the headline gives up lines, but never below two.
 //
 // Pure arithmetic in pixels, so it can be tested without a browser. A port of CardFit.java in the Android app
 // (android/app/src/main/java/com/plaxlabs/news/CardFit.java), so both lay a story out alike; useCardFit measures the
@@ -39,12 +41,10 @@ export interface FitInput {
   bodyLine: number
   /** The lines the summary needs at its width, uncut. */
   bodyNatural: number
-  /** The tallest picture worth showing in the usual case; zero when the card has no picture. */
+  /** The tallest picture worth showing; zero when the card has no picture. A little more than its least, so that pictures look alike. */
   heroMaximum: number
   /** The least a picture is given: below this the summary is cut instead, and a card that cannot hold it has no picture. */
   heroMinimum: number
-  /** The tallest the picture may grow when the card has little to read (and when there is nothing to read under the headline). */
-  heroTall: number
   /**
    * Whether the picture is a photograph, kept at its least while the summary is cut. A poster only stands in for a picture, and
    * is dropped before any of the summary is cut. A photograph unless it says otherwise.
@@ -83,8 +83,7 @@ function spend(input: FitInput, titleLines: number): { plan: FitPlan; room: numb
   const roomWith = input.height - input.actions - input.meta - title
   const roomBare = input.height - input.actions - input.metaBare - title
   const picture = input.heroMaximum > 0
-  // With little to read the picture may grow to the tallest it may be (a poster too: its sign grows with it).
-  const tallest = Math.max(input.heroMaximum, input.heroTall)
+  const tallest = input.heroMaximum
 
   if (input.bodyNatural === 0) {
     const hero = Math.min(roomWith, tallest)
@@ -95,7 +94,8 @@ function spend(input: FitInput, titleLines: number): { plan: FitPlan; room: numb
   const line = Math.max(1, input.bodyLine)
   // The picture keeps at least its minimum, and the summary takes the rest: all of it when it fits there, else as many whole
   // lines as do, and the picture takes whatever the lines leave (less than a line more than its minimum, when the summary is
-  // cut; up to the tallest it may be, when the summary is short). Line heights are fractions of a pixel in a browser: room left
+  // cut; up to the tallest it may be, when the summary is short, and the room that is still left is the caller's to spread).
+  // Line heights are fractions of a pixel in a browser: room left
   // for exactly two lines can come out as 1.9999999999999998 of one, and would lose a line (and, through the readable test, a
   // line of the headline). Half a pixel is not a line, and is not seen; the arithmetic is otherwise the same as the app's, which
   // counts whole pixels.
