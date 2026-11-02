@@ -245,7 +245,8 @@ plax/
    - `SUPABASE_SERVICE_ROLE_KEY`
    - Optional, for Google ads (they are built into the page, so they must be set before the build; with none there are no ads):
      `NEXT_PUBLIC_ADSENSE_CLIENT`, `NEXT_PUBLIC_ADSENSE_SLOT_STRIP_NARROW`, `NEXT_PUBLIC_ADSENSE_SLOT_STRIP_WIDE`,
-     `NEXT_PUBLIC_ADSENSE_SLOT_PAGE`, and `NEXT_PUBLIC_ADS_POLICY=true` when the Android release with ads goes out. Never set
+     `NEXT_PUBLIC_ADSENSE_SLOT_PAGE`, optionally `NEXT_PUBLIC_ADSENSE_SLOT_RAIL` (the right panel on a desktop; the page unit is used
+     when it is not set), and `NEXT_PUBLIC_ADS_POLICY=true` when the Android release with ads goes out. Never set
      `NEXT_PUBLIC_ADS_PREVIEW` here.
 3. Domain: the site is served from the project's Vercel domain, `plax-rouge.vercel.app` (**Vercel → Settings → Domains**). The address
    is built into the Android app (`FeedApi.SITE`) and the website (`src/lib/site.ts`), so adding a custom domain later means changing both
