@@ -17,8 +17,27 @@ import java.util.function.IntFunction;
 final class AdSlots {
     /** One ad after this many stories. */
     static final int STORIES_PER_AD = 5;
+    /**
+     * What a full-page ad needs, in dp: the card plus the page's margins. The card (see {@link NativeAdPage}) is a picture of at least
+     * 120 dp, a label, a headline, a line of text and a button; all but the picture is text, which grows with the font scale, by about
+     * 90 dp for each whole step of it. {@code NativeAdPageDeviceTest} draws the card on pages of exactly this height at every scale
+     * and fails when this is too little, so the numbers cannot drift from the layout.
+     */
+    private static final int PAGE_BASE_DP = 360, PAGE_PER_FONT_SCALE_DP = 90;
+    /** The strip at the foot of the screen takes this much of the pager's height. */
+    private static final int STRIP_DP = 60;
 
     private AdSlots() { }
+
+    /** The height in dp that an ad page needs at this font scale. A scale under 1 changes nothing: the picture does not shrink. */
+    static int pageNeededDp(float fontScale) {
+        return PAGE_BASE_DP + Math.round(PAGE_PER_FONT_SCALE_DP * Math.max(1f, fontScale));
+    }
+
+    /** Whether a screen this tall (in dp), at this font scale, has room for an ad page: its pager is the screen less the strip. */
+    static boolean pageFits(int screenHeightDp, float fontScale) {
+        return screenHeightDp - STRIP_DP >= pageNeededDp(fontScale);
+    }
 
     /** The {@code after} of each slot a list of this many stories has: 5, 10, 15, and so on, but only where another story follows. */
     static int[] after(int storyCount, int every) {

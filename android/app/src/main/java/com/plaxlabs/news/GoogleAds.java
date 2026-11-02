@@ -153,7 +153,7 @@ final class GoogleAds implements AdNetwork {
         NativePage(NativeAd ad) { this.ad = ad; }
 
         @Override public View view(Context context, Ui ui) {
-            if (view == null) view = NativeAdPage.build(context, ui, ad);
+            if (view == null) view = NativeAdPage.safe(context, ui, ad);
             return view;
         }
 

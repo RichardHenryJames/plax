@@ -168,6 +168,12 @@ public final class FeedViewModel extends AndroidViewModel {
 
     LiveData<State> state() { return state; }
     State current() { return state.getValue(); }
+
+    /**
+     * Where the reader is now. The position in a published state is where the reader was when it was published: paging does not
+     * publish, so a screen made again from the last state (a turn of the phone) would otherwise put the reader back on an old story.
+     */
+    int position() { return position; }
     /** True once the first screen is decided: cached stories are drawn, or the cache and network have answered. */
     boolean ready() { return ready; }
     long now() { return clock.getAsLong(); }

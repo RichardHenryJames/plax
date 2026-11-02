@@ -103,7 +103,8 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
         model = new ViewModelProvider(this).get(FeedViewModel.class);
         network = Ads.network();
         ads = new ViewModelProvider(this).get(AdsViewModel.class).controller;
-        roomForAds = getResources().getConfiguration().screenHeightDp >= AdBar.MIN_SCREEN_HEIGHT_DP;
+        var configuration = getResources().getConfiguration();
+        roomForAds = AdSlots.pageFits(configuration.screenHeightDp, configuration.fontScale);
         long deadline = SystemClock.uptimeMillis() + SPLASH_LIMIT_MS;
         splash.setKeepOnScreenCondition(() -> !model.ready() && SystemClock.uptimeMillis() < deadline);
 
@@ -347,9 +348,10 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
             }
             interests(state.interests());
 
-            // Where the reader is, and which ad pages stand in the pager. Ad pages are asked for ahead of the reader, so the reader's
-            // place is told to the ads first; what they hold then is what the pager is made of.
-            int item = noStories ? 0 : Math.min(state.position(), state.stories().size() - 1);
+            // Where the reader is, and which ad pages stand in the pager. The model's own position is used, not the one in the state:
+            // paging does not publish, so the state's is where the reader was at the last publish. Ad pages are asked for ahead of the
+            // reader, so the reader's place is told to the ads first; what they hold then is what the pager is made of.
+            int item = noStories ? 0 : Math.min(model.position(), state.stories().size() - 1);
             boolean adPages = adPagesOn(state);
             int onAd = adPages ? AdSlots.slotAt(pager.getCurrentItem(), pagerSlots) : -1;
             if (adPages) ads.reader(item, state.stories().size(), onAd);

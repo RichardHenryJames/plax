@@ -27,13 +27,31 @@ import com.google.android.gms.ads.nativead.NativeAdView;
  */
 final class NativeAdPage {
     /** The picture is never smaller than this: Google's minimum for the media of a native ad is 120 dp each way. */
-    private static final int MIN_MEDIA_DP = 140;
+    static final int MIN_MEDIA_DP = 120;
     /** Wide, as most ad pictures are, when the ad does not say its shape. */
     private static final float DEFAULT_ASPECT = 1.91f;
+    /** The most lines of the headline and of the text: what the page is planned for (see {@link AdSlots#pageFits}). */
+    static final int HEADLINE_LINES = 2, BODY_LINES = 2;
 
     private NativeAdPage() { }
 
-    static NativeAdView build(Context context, Ui ui, NativeAd ad) {
+    /**
+     * The card, or an empty page when the ad cannot be drawn. An ad is something Google's library hands over at its own time and in
+     * its own shape, so whatever goes wrong in drawing one must cost the reader one blank page and never the app.
+     */
+    static View safe(Context context, Ui ui, NativeAd ad) {
+        try {
+            return build(context, ui, ad, true);
+        } catch (RuntimeException unusable) {
+            return new View(context);
+        }
+    }
+
+    /**
+     * The card for this ad. {@code bind} is false only in the tests, whose stand-in ads are not Google's and cannot be handed to its
+     * library; everything else (every view, its place and size) is built the same.
+     */
+    static NativeAdView build(Context context, Ui ui, NativeAd ad, boolean bind) {
         NativeAdView card = new NativeAdView(context);
         card.setBackground(ui.outline(ui.surface, ui.border, 20));
 
@@ -79,7 +97,7 @@ final class NativeAdPage {
         TextView headline = ui.text(ad.getHeadline(), 19, ui.text, "serif");
         headline.setTypeface(Typeface.create("serif", Typeface.BOLD));
         headline.setLineSpacing(0, 1.15f);
-        headline.setMaxLines(3); headline.setEllipsize(TextUtils.TruncateAt.END);
+        headline.setMaxLines(HEADLINE_LINES); headline.setEllipsize(TextUtils.TruncateAt.END);
         words.addView(headline);
         TextView advertiser = null;
         if (ad.getAdvertiser() != null && !ad.getAdvertiser().isBlank()) {
@@ -97,7 +115,7 @@ final class NativeAdPage {
         if (ad.getBody() != null && !ad.getBody().isBlank()) {
             body = ui.text(ad.getBody(), 15, ui.text, false);
             body.setAlpha(.88f); body.setLineSpacing(0, 1.3f);
-            body.setMaxLines(3); body.setEllipsize(TextUtils.TruncateAt.END);
+            body.setMaxLines(BODY_LINES); body.setEllipsize(TextUtils.TruncateAt.END);
             LinearLayout.LayoutParams bodySize = new LinearLayout.LayoutParams(-1, -2);
             bodySize.topMargin = ui.dp(8);
             column.addView(body, bodySize);
@@ -120,7 +138,7 @@ final class NativeAdPage {
         if (body != null) card.setBodyView(body);
         if (action != null) card.setCallToActionView(action);
         // The ad is bound last, once every asset view is registered.
-        card.setNativeAd(ad);
+        if (bind) card.setNativeAd(ad);
         return card;
     }
 

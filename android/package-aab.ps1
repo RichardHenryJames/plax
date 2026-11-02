@@ -23,6 +23,17 @@ $tools = Join-Path $root '.tools'
 $package = 'com.plaxlabs.news'
 # Everything else (location, contacts, storage, notifications, install packages) is refused.
 $allowedPermissions = @('android.permission.INTERNET', "$package.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION")
+# What Google's Mobile Ads SDK adds, named so that anything else still fails: the advertising id and its Privacy Sandbox forms, the
+# connection state (all play-services-ads-api), and WAKE_LOCK and FOREGROUND_SERVICE, which androidx.work brings with it. The SDK is
+# in every build, so a build given no ad unit ids shows no ads and still carries them: the Play Console's ads and advertising id
+# declarations apply to every release (see PLAY-CONSOLE-ANSWERS-ADS.txt).
+$adsPermissions = @(
+    'android.permission.ACCESS_NETWORK_STATE', 'android.permission.WAKE_LOCK', 'android.permission.FOREGROUND_SERVICE',
+    'com.google.android.gms.permission.AD_ID', 'android.permission.ACCESS_ADSERVICES_AD_ID',
+    'android.permission.ACCESS_ADSERVICES_ATTRIBUTION', 'android.permission.ACCESS_ADSERVICES_TOPICS')
+# The AdMob application id app\build.gradle writes when it is given none: Google's sample, which shows only test ads. With it the build
+# has no ad unit ids either, so it shows no ads at all.
+$sampleAdsAppId = 'ca-app-pub-3940256099942544~3347511713'
 
 if (-not $env:JAVA_HOME) { throw 'Set JAVA_HOME to a JDK (21 is used here).' }
 $java = Join-Path $env:JAVA_HOME 'bin\java.exe'
@@ -121,9 +132,15 @@ Check 'it is not debuggable' ($manifest -notmatch 'android:debuggable="true"')
 Check 'cleartext (http) traffic is off' ((Attribute 'android:usesCleartextTraffic') -eq 'false')
 Check 'automatic backups are off' ((Attribute 'android:allowBackup') -eq 'false')
 $permissions = @([regex]::Matches($manifest, '<uses-permission[^>]*android:name="([^"]+)"') | ForEach-Object { $_.Groups[1].Value } | Select-Object -Unique)
-$extra = @($permissions | Where-Object { $_ -notin $allowedPermissions })
-Check "it asks for no permission beyond $($allowedPermissions -join ', ')$(if ($extra) { " (also: $($extra -join ', '))" })" ($extra.Count -eq 0)
+$permitted = @($allowedPermissions) + @($adsPermissions)
+$extra = @($permissions | Where-Object { $_ -notin $permitted })
+Check "it asks for no permission beyond $($allowedPermissions -join ', ') and the ad SDK's$(if ($extra) { " (also: $($extra -join ', '))" })" ($extra.Count -eq 0)
 Check 'it does not ask to install packages (a store app may not update itself)' ($permissions -notcontains 'android.permission.REQUEST_INSTALL_PACKAGES')
+# The ad SDK stops the app at start-up without an AdMob application id in the manifest, so its absence is a bundle that cannot open.
+$adsApp = [regex]::Match($manifest, '<meta-data[^>]*android:name="com\.google\.android\.gms\.ads\.APPLICATION_ID"[^>]*>').Value
+$adsAppId = [regex]::Match($adsApp, 'android:value="([^"]*)"').Groups[1].Value
+Check 'the AdMob application id is in the manifest (without it the ad SDK stops the app at start-up)' ($adsAppId -match '^ca-app-pub-\d{16}~\d{10}$')
+$showsAds = $adsAppId -ne $sampleAdsAppId
 
 # The size and contents Google Play will see.
 $size = (Get-Item -LiteralPath $aab).Length
@@ -140,6 +157,7 @@ if (Test-Path -LiteralPath $mapping) { Copy-Item -LiteralPath $mapping -Destinat
 [ordered]@{
     file = "plax-$versionName.aab"; package = $package; versionName = $versionName; versionCode = $versionCode
     bytes = $size; sha256 = $sha256; signerSha256 = $uploadSha256; permissions = $permissions
+    adMobApplicationId = $adsAppId; showsAds = $showsAds
     bundletool = $bundletoolVersion; checkedAtUtc = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
 } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $artifacts 'aab-verification.json') -Encoding utf8
 
@@ -147,3 +165,5 @@ Write-Output ''
 Write-Output "Ready for Google Play: $target"
 Write-Output "  $versionName (code $versionCode), $size bytes, sha256 $sha256"
 Write-Output "  signed by the Plax upload key $uploadSha256"
+if ($showsAds) { Write-Output "  shows ads: AdMob application id $adsAppId (answer yes to 'contains ads' and declare the advertising id)" }
+else { Write-Output "  shows no ads: it carries Google's sample AdMob id, so no ad unit ids were given at build time (the ads and advertising id declarations still apply, because the SDK and its permissions are in the bundle)" }

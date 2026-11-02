@@ -244,8 +244,21 @@ public class AdsDeviceTest {
 
     private int modelPosition(ActivityScenario<MainActivity> scenario) {
         int[] position = new int[1];
-        scenario.onActivity(activity -> position[0] = new ViewModelProvider(activity).get(FeedViewModel.class).current().position());
+        scenario.onActivity(activity -> position[0] = new ViewModelProvider(activity).get(FeedViewModel.class).position());
         return position[0];
+    }
+
+    /** The text of the About dialog, once it is open. */
+    private String aboutText(ActivityScenario<MainActivity> scenario) {
+        String[] text = new String[1];
+        await("the About dialog", () -> {
+            scenario.onActivity(activity -> {
+                if (activity.openDialog != null && activity.openDialog.isShowing())
+                    text[0] = ((TextView) activity.openDialog.findViewById(android.R.id.message)).getText().toString();
+            });
+            return text[0] != null;
+        });
+        return text[0];
     }
 
     private Rect bounds(String text) {
@@ -457,15 +470,18 @@ public class AdsDeviceTest {
             assertTrue(shown(headline(1)));
             openMenu();
             device.wait(Until.findObject(By.text(text(R.string.about))), 5_000).click();
-            assertTrue("About says the ads are from Google", device.wait(Until.hasObject(By.textContains("Plax shows ads from Google")), 5_000));
-            assertFalse("and no longer says there is no ad SDK", device.hasObject(By.textContains("no ad or analytics SDK")));
+            String about = aboutText(scenario);
+            assertTrue("About says the ads are from Google: " + about, about.contains("Plax shows ads from Google"));
+            assertFalse("and no longer says there is no ad SDK", about.contains("no ad or analytics SDK"));
         }
         Ads.network = NoAds.INSTANCE;
         try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
             assertTrue(shown(headline(1)));
             openMenu();
             device.wait(Until.findObject(By.text(text(R.string.about))), 5_000).click();
-            assertTrue("with no ads About says so", device.wait(Until.hasObject(By.textContains("no ad or analytics SDK")), 5_000));
+            String about = aboutText(scenario);
+            assertTrue("with no ads About says so: " + about, about.contains("no ad or analytics SDK"));
+            assertFalse(about.contains("Plax shows ads"));
         }
     }
 }

@@ -49,6 +49,31 @@ public class AdSlotsTest {
         assertThrows(IllegalArgumentException.class, () -> AdSlots.after(10, -2));
     }
 
+    @Test public void anAdPageNeedsMoreRoomTheLargerTheText() {
+        assertEquals(450, AdSlots.pageNeededDp(1f));
+        assertEquals(540, AdSlots.pageNeededDp(2f));
+        assertEquals("smaller text does not shrink the picture", AdSlots.pageNeededDp(1f), AdSlots.pageNeededDp(.85f));
+        int last = 0;
+        for (float scale : new float[]{1f, 1.15f, 1.3f, 1.5f, 1.75f, 2f}) {
+            assertTrue(scale + "x", AdSlots.pageNeededDp(scale) > last);
+            last = AdSlots.pageNeededDp(scale);
+        }
+    }
+
+    @Test public void aScreenShowsAdPagesOnlyWhereTheCardFits() {
+        // A usual phone has the room at every text size, a phone on its side or a small window has none.
+        for (float scale : new float[]{1f, 1.3f, 2f}) assertTrue(scale + "x", AdSlots.pageFits(780, scale));
+        assertFalse(AdSlots.pageFits(393, 1f));
+        assertFalse(AdSlots.pageFits(500, 1f));
+        // The pager is the screen less the strip, and the edge is exact.
+        int needed = AdSlots.pageNeededDp(1.3f);
+        assertTrue(AdSlots.pageFits(needed + 60, 1.3f));
+        assertFalse(AdSlots.pageFits(needed + 59, 1.3f));
+        // The same screen has room for the card at normal text and not at the largest.
+        assertTrue(AdSlots.pageFits(560, 1f));
+        assertFalse(AdSlots.pageFits(560, 2f));
+    }
+
     @Test public void interleavePutsAnAdInFrontOfTheStoryEachShownSlotNames() {
         List<String> list = AdSlots.interleave(stories(12), new int[]{5, 10}, ordinal -> "ad-" + ordinal);
         assertEquals(List.of(
