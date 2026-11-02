@@ -37,8 +37,8 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     }
 
     private static final int STORY = 0, CAUGHT_UP = 1, AD = 2;
-    /** The emoji on the poster of a story with no picture; the page shrinks it to fit a small picture. */
-    private static final float POSTER_SP = 64;
+    /** The size the poster's masthead starts at; the page sets the real one from the size of its tile. */
+    private static final float POSTER_SP = 28;
 
     private final Ui ui;
     private final ImageLoader images;
@@ -213,8 +213,11 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         ImageView placeholder = ui.icon(R.drawable.ic_image, ui.text2, 40);
         placeholder.setAlpha(.45f);
         hero.addView(placeholder, new FrameLayout.LayoutParams(ui.dp(40), ui.dp(40), Gravity.CENTER));
-        TextView poster = ui.text("", POSTER_SP, ui.text, false);
+        TextView poster = ui.text("", POSTER_SP, ui.text, "serif");
+        poster.setTypeface(Typeface.create("serif", Typeface.BOLD));
         poster.setGravity(Gravity.CENTER);
+        poster.setLineSpacing(0, 1.12f);
+        poster.setPadding(ui.dp(20), 0, ui.dp(20), 0);
         poster.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         hero.addView(poster, new FrameLayout.LayoutParams(-1, -1));
 
@@ -247,7 +250,7 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
         // Nothing on the page scrolls: it shares its height out so that all of it is in view, and a swipe changes story.
         StoryPage page = new StoryPage(context, ui, hero, poster, meta, title, content, ui.menuButton(() -> actions.menu()),
-                titleSp, bodySp, POSTER_SP);
+                titleSp, bodySp);
         page.setLayoutParams(new ViewGroup.LayoutParams(-1, -1));
         return new Holder(page, hero, image, placeholder, poster, imageBackground, posterBackground, category, credit,
                 title, content, brief, save, share);
@@ -261,7 +264,8 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         boolean hasImage = story.hasImage();
         holder.hero.setBackground(hasImage ? holder.imageBackground : holder.posterBackground);
         holder.poster.setVisibility(hasImage ? View.GONE : View.VISIBLE);
-        holder.poster.setText(emoji(story));
+        Locale posterLocale = context.getResources().getConfiguration().getLocales().get(0);
+        holder.poster.setText(poster(story, label(context, story).toUpperCase(posterLocale)));
         holder.placeholder.setVisibility(hasImage ? View.VISIBLE : View.GONE);
         if (hasImage) {
             boolean[] immediate = {true};
@@ -309,17 +313,46 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         holder.brief.setOnClickListener(view -> actions.brief(story));
     }
 
-    static String emoji(Story story) {
-        String key = story.section().isEmpty() ? story.category() : story.section();
-        switch (key) {
-            case "india": return "\uD83C\uDDEE\uD83C\uDDF3";
-            case "world": return "\uD83C\uDF0D";
-            case "tech": return Topic.TECHNOLOGY.emoji;
-            case "business": return Topic.BUSINESS.emoji;
-            case "science": return Topic.SCIENCE.emoji;
-            default:
-                for (Topic topic : Topic.values()) if (topic.id.equals(key)) return topic.emoji;
-                return "\u2728";
+    /**
+     * What stands in for the picture of a story that has none: the name of its outlet, set like a masthead, a short rule and its
+     * section under that, small (as on the website: see src/lib/poster.ts). It used to be a sign: the flag of India, a globe for the world.
+     * The page sets the size of the whole from the size of its tile; the section is a third of the name's size.
+     */
+    CharSequence poster(Story story, String section) {
+        String name = story.source().replaceAll("\\s+", " ").trim();
+        android.text.SpannableStringBuilder text = new android.text.SpannableStringBuilder();
+        if (!name.isEmpty()) {
+            text.append(name).append('\n');
+            text.setSpan(new android.text.style.ForegroundColorSpan(ui.text), 0, name.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        int rule = text.length();
+        text.append('\u200b').append('\n');
+        text.setSpan(new RuleSpan(ui.dp(40), ui.dp(2), (ui.accent & 0x00ffffff) | 0xb3000000), rule, rule + 1, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        text.setSpan(new android.text.style.RelativeSizeSpan(.5f), rule, rule + 2, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        int label = text.length();
+        text.append(section);
+        text.setSpan(new android.text.style.RelativeSizeSpan(.32f), label, text.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        text.setSpan(new android.text.style.TypefaceSpan("sans-serif"), label, text.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        text.setSpan(new android.text.style.ForegroundColorSpan(ui.accentText), label, text.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        return text;
+    }
+
+    /** A short horizontal rule standing in a line of text, centred on the line. */
+    private static final class RuleSpan extends android.text.style.ReplacementSpan {
+        private final int width, thickness, color;
+
+        RuleSpan(int width, int thickness, int color) { this.width = width; this.thickness = thickness; this.color = color; }
+
+        @Override public int getSize(@NonNull android.graphics.Paint paint, CharSequence text, int start, int end, android.graphics.Paint.FontMetricsInt fm) {
+            return width;
+        }
+
+        @Override public void draw(@NonNull android.graphics.Canvas canvas, CharSequence text, int start, int end, float x, int top, int y,
+                                   int bottom, @NonNull android.graphics.Paint paint) {
+            android.graphics.Paint line = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+            line.setColor(color);
+            float middle = (top + bottom) / 2f;
+            canvas.drawRoundRect(x, middle - thickness / 2f, x + width, middle + thickness / 2f, thickness / 2f, thickness / 2f, line);
         }
     }
 
