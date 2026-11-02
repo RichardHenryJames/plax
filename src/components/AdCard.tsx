@@ -1,12 +1,16 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AdSlot, type AdShape } from './AdSlot'
 import { ads } from '@/lib/ads-config'
 import { useT } from '@/lib/i18n'
 
-/** Room to scroll above and below the page, in px: what a scroll over the ad's frame has to move through (see below). */
-const SLACK = 160
+/**
+ * Room to scroll above and below the page, in px. It is far more than any gesture can cover, so a long swipe, or the tail of a
+ * trackpad push, never runs the box to its end: a box at its end goes silent, which looks just like a box that has stopped, and the
+ * rest of the tail would then be taken for a new swipe.
+ */
+const SLACK = 20000
 /** How far such a scroll has to go before the page moves on: the same 72 px that a swipe on a story needs. */
 const TRIGGER = 72
 /** The scroll has to be still this long (ms) before a new one counts, so the tail of the gesture that brought the reader here is not read as a new one. */
@@ -27,6 +31,8 @@ const TALL_FROM = 632
  * scrolling box around it, so the page is one: the box scrolls (the page stays where it is, held by `sticky`), and the scroll is the
  * gesture. It moves on when it has gone as far as a swipe on a story has to, in the direction it went, and, like the wheel on a story,
  * only once it has been still since the page came up, so the tail of the gesture that brought the reader here does not carry them past.
+ * The whole page is that box (`data-no-feed-scroll` keeps the feed's own wheel and touch handlers off it), so every gesture on it goes
+ * the one way and none can move the page twice.
  *
  * With no ad to show (none served, or a blocker) it tells the feed, which drops the card, so a reader is never left on an empty page.
  */
@@ -48,8 +54,6 @@ export function AdCard({
   const [shape, setShape] = useState<AdShape | null>(null)
   const scroller = useRef<HTMLDivElement>(null)
   const area = useRef<HTMLDivElement>(null)
-  const still = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const armed = useRef(false)
   const hand = useRef({ onNext, onPrev, onHold })
   hand.current = { onNext, onPrev, onHold }
   const hindi = lang === 'hi' ? 'lang-hi' : ''
@@ -59,52 +63,65 @@ export function AdCard({
     setShape((area.current?.clientHeight ?? 0) >= TALL_FROM ? 'tall' : 'rectangle')
   }, [])
 
-  const centre = useCallback(() => {
-    if (scroller.current) scroller.current.scrollTop = SLACK
-  }, [])
-  // Every scroll starts the wait again; when it has been still, the page is centred and a new scroll counts.
-  const wait = useCallback(
-    (ms: number) => {
-      if (still.current) clearTimeout(still.current)
-      still.current = setTimeout(() => {
-        centre()
-        armed.current = true
-      }, ms)
-    },
-    [centre]
-  )
+  // The box starts in the middle of its range, and starts not counting: whatever arrives in the first moments is the tail of the gesture
+  // that brought the reader here. Every scroll starts the wait again; once it has been still the box is put back in the middle and from
+  // then on a scroll counts. A scroll that stopped short of a swipe is taken back the same way.
   useEffect(() => {
+    const box = scroller.current
+    if (!box) return
+    let counting = false
+    let seen = 0
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const centre = () => {
+      box.scrollTop = SLACK
+      seen = box.scrollTop
+    }
+    const wait = (ms: number) => {
+      clearTimeout(timer)
+      timer = setTimeout(settle, ms)
+    }
+    const settle = () => {
+      // A page that is busy tells of a scroll late, and the box has already moved: that is not a box at rest.
+      if (box.scrollTop !== seen) {
+        seen = box.scrollTop
+        wait(QUIET_MS)
+        return
+      }
+      centre()
+      counting = true
+    }
+    const onScroll = () => {
+      seen = box.scrollTop
+      if (counting) {
+        const moved = seen - SLACK
+        if (Math.abs(moved) >= TRIGGER) {
+          counting = false
+          hand.current.onHold()
+          if (moved > 0) hand.current.onNext()
+          else hand.current.onPrev()
+          wait(RETRY_MS)
+          return
+        }
+      }
+      wait(QUIET_MS)
+    }
     centre()
     wait(QUIET_MS)
+    box.addEventListener('scroll', onScroll, { passive: true })
     return () => {
-      if (still.current) clearTimeout(still.current)
+      clearTimeout(timer)
+      box.removeEventListener('scroll', onScroll)
     }
-  }, [centre, wait])
-
-  const onScroll = useCallback(() => {
-    const el = scroller.current
-    if (!el) return
-    if (!armed.current) {
-      wait(QUIET_MS)
-      return
-    }
-    const moved = el.scrollTop - SLACK
-    if (Math.abs(moved) < TRIGGER) return
-    armed.current = false
-    hand.current.onHold()
-    if (moved > 0) hand.current.onNext()
-    else hand.current.onPrev()
-    wait(RETRY_MS)
-  }, [wait])
+  }, [])
 
   return (
     <div
       ref={scroller}
       data-ad-card
+      data-no-feed-scroll
       role="complementary"
       aria-label={t('adLabel')}
-      onScroll={onScroll}
-      className="absolute inset-0 overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="absolute inset-0 overflow-y-auto overscroll-contain [overflow-anchor:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       <div style={{ height: `calc(100% + ${2 * SLACK}px)` }}>
         <div
