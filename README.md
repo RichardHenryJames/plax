@@ -197,6 +197,7 @@ plax/
 │       ├── app-redirect.ts            # Builds the redirect back into the Android app
 │       ├── blurb.ts                   # A missing summary, taken from the article's own description; the picture a page names; where a sentence ends (server side); unit-tested
 │       ├── lead.ts                    # More text for a short news story (the opening of its article) and a picture for one that has none, cleaned of datelines and junk (server side); unit-tested
+│       ├── dateline.ts                # Takes "KOCHI", "New Delhi, Nov 2 (PTI)" off the front of a story only when it can be nothing else or the page's own paragraphs show it; unit-tested
 │       ├── lead-cache.ts              # What a page gave, kept 12 hours across server instances (Next's data cache)
 │       ├── news-enrich.ts             # The feed route's step that adds the openings and pictures after the pool
 │       ├── layout-guard.ts            # Keeps the page's window-sized boxes at their heights when Google's ad script sets them to auto; unit-tested

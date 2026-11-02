@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { articleLead, leadFor, leadFrom, extendSummaries, forgetLeads, stripDateline, NoPage, LEAD_MAX_CHARS, LEAD_BELOW_CHARS } from './lead.ts'
+import { articleLead, leadFor, leadFrom, extendSummaries, fetchPageInfo, forgetLeads, NoPage, LEAD_MAX_CHARS, LEAD_BELOW_CHARS } from './lead.ts'
 
 const SENTENCE = (n) => `Officials said on Sunday that the review of case number ${n} would take several weeks and that every district would be asked for figures.`
 const page = (body, head = '') => `<!doctype html><html><head><title>x</title>${head}</head><body>${body}</body></html>`
@@ -225,20 +225,107 @@ const STORY = [
 ]
 const withHead = (head, ...paragraphs) => page(`<article>${paragraphs.map((p) => `<p>${p}</p>`).join('')}</article>`, head)
 
-test('the line that says where a story was written is taken off the front', () => {
-  const body = 'Tata Trusts board member Darius Khambata has alleged that directors of Tata Sons sullied the image of the company.'
-  for (const written of [
-    'Mumbai: ', 'MUMBAI: ', 'Mumbai - ', '( for web) Our Bureau Mumbai:  ', 'Hyderabad, Nov 2: ', 'New Delhi, Nov 2 (PTI) ', 'LONDON (Reuters) - ',
-    'KOCHI ', 'New Delhi ', 'CHENNAI ', 'PUDUKOTTAI ', 'KOTTAYAM ',
-  ]) assert.equal(stripDateline(written + body), body, written)
-  // What only looks like one is kept: a name, a country's possessive, an acronym, a plain first word.
-  for (const kept of [
-    'Hemanth, the 21-year-old accused in the chainsaw attack, was related to the minor victim, sources told India Today.',
-    "Tamil Nadu's economic performance under the new government has come under attack from the opposition on Monday.",
-    'NASA scientists said on Monday that the cluster is among the oldest known stellar remnants in the galaxy.',
-    'UNICEF Executive Director Catherine Russell said on Monday that children in the region are at risk of famine.',
-    'Sources said the minister would resign on Monday, and that a successor had already been chosen by the party.',
-  ]) assert.equal(stripDateline(kept), kept)
+// The line that says where a story was written: the rules are in dateline.test.mjs; here is what a page does with them.
+const FISHERMEN = [
+  'Fishermen from the island said on Monday that the catch had fallen by half since the ban began in April, and that many boats had not gone out.',
+  'The Fisheries Department said that compensation would be paid within two weeks to all registered boat owners, and that the list was now final.',
+  'Officials of the district administration said that a team would visit the harbour on Wednesday to count the boats and to hear the complaints.',
+  'The fishermen, who met the Collector on Monday, said that the relief of Rs 7,500 for each family did not cover even a month of lost earnings.',
+]
+const markupOf = (paragraphs) => `<article>${paragraphs.map((p) => `<p>${p}</p>`).join('')}</article>`
+const withDateline = (place, paragraphs) => [`${place} ${paragraphs[0]}`, ...paragraphs.slice(1)]
+
+test('the page that says where a story was written is read for the story: the markup begins without the dateline', () => {
+  const html = page(markupOf(FISHERMEN), ld({ '@type': 'NewsArticle', articleBody: withDateline('RAMESWARAM', FISHERMEN).join('\n') }))
+  const lead = articleLead(html)
+  assert.ok(lead.startsWith('Fishermen from the island said'), lead.slice(0, 40))
+  assert.ok(!lead.includes('RAMESWARAM'))
+  // A place that is on the list needs no page to be taken off, and one that is not is left when the page does not say.
+  assert.ok(articleLead(page('', ld({ '@type': 'NewsArticle', articleBody: withDateline('KOCHI', FISHERMEN).join('\n') }))).startsWith('Fishermen from the island said'))
+  assert.ok(articleLead(page('', ld({ '@type': 'NewsArticle', articleBody: withDateline('RAMESWARAM', FISHERMEN).join('\n') }))).startsWith('RAMESWARAM Fishermen'))
+})
+
+test('a name that begins like a dateline is kept, with the page confirming it or not', () => {
+  const police = FISHERMEN.map((p, i) => (i === 0 ? 'Delhi Police said on Monday that the accused had been arrested from a hotel near the airport after a two-day search, officials said.' : p))
+  assert.ok(articleLead(page(markupOf(police), ld({ '@type': 'NewsArticle', articleBody: police.join('\n') }))).startsWith('Delhi Police said'))
+  assert.ok(articleLead(page('', ld({ '@type': 'NewsArticle', articleBody: police.join('\n') }))).startsWith('Delhi Police said'))
+})
+
+test("what the page's markup carries and its structured body does not, a widget before the story, is left out", () => {
+  const widget = 'Zen Technologies stock trades at a trailing P/E of 46.2 against a sector median of 38.1, with a market cap of Rs 21,000 crore.'
+  const html = page(markupOf([widget, ...FISHERMEN]), ld({ '@type': 'NewsArticle', articleBody: withDateline('Delhi', FISHERMEN).join('\n') }))
+  const lead = articleLead(html)
+  assert.ok(!lead.includes('Zen Technologies'), lead.slice(0, 60))
+  assert.ok(lead.startsWith('Fishermen from the island said'))
+})
+
+// ── Reading a page: as far as it needs, and no further
+const encoder = new TextEncoder()
+/** A fetch that serves a page in parts of 16 KB, only as far as it is read, and says how many were read. */
+function servePage(html, { hangAfter = false } = {}) {
+  const parts = []
+  for (let at = 0; at < html.length; at += 16_384) parts.push(html.slice(at, at + 16_384))
+  const served = { parts: parts.length, read: 0 }
+  const fetchPage = async (_link, init) => {
+    const body = new ReadableStream(
+      {
+        start(controller) {
+          init.signal.addEventListener('abort', () => controller.error(new Error('aborted')))
+        },
+        pull(controller) {
+          if (served.read < parts.length) controller.enqueue(encoder.encode(parts[served.read++]))
+          else if (hangAfter) return new Promise(() => {})
+          else controller.close()
+        },
+      },
+      { highWaterMark: 0 },
+    )
+    return new Response(body, { headers: { 'content-type': 'text/html; charset=utf-8' } })
+  }
+  return { fetchPage, served }
+}
+const padding = (chars) => `<div>${'<!-- padding -->'.repeat(Math.ceil(chars / 16))}</div>`
+const bigPage = (structured, markup, before = 90_000) =>
+  page(`${padding(before)}${markup}${padding(120_000)}`, ld({ '@type': 'NewsArticle', articleBody: structured.join('\n') }))
+
+async function readWith(html, options) {
+  const { fetchPage, served } = servePage(html, options)
+  const realFetch = globalThis.fetch
+  globalThis.fetch = fetchPage
+  try {
+    return { info: await fetchPageInfo('https://news.example/story', 'test-agent', options?.pageMs ?? 5_000), served }
+  } finally {
+    globalThis.fetch = realFetch
+  }
+}
+
+test('a page that opens plainly is not read past its first look', async () => {
+  const plain = ["The Centre has notified rules for grievance redressal under the new employment law, the Ministry said on Monday.", ...FISHERMEN]
+  const { info, served } = await readWith(bigPage(plain, markupOf(plain)))
+  assert.ok(info.lead.startsWith('The Centre has notified'))
+  assert.ok(served.read <= 5, `read ${served.read} of ${served.parts}`)
+})
+
+test("a page whose opening may be a dateline is read on until its own paragraphs confirm it, and no further", async () => {
+  const { info, served } = await readWith(bigPage(withDateline('RAMESWARAM', FISHERMEN), markupOf(FISHERMEN)))
+  assert.ok(info.lead.startsWith('Fishermen from the island said'), info.lead.slice(0, 40))
+  assert.ok(served.read > 5, `read only ${served.read} parts`)
+  assert.ok(served.read < served.parts - 2, `read ${served.read} of ${served.parts} parts`)
+})
+
+test('a page that cannot confirm its opening is read to a limit, and its opening is used', async () => {
+  const police = FISHERMEN.map((p, i) => (i === 0 ? 'Delhi Police said on Monday that the accused had been arrested from a hotel near the airport after a two-day search, officials said.' : p))
+  const { info, served } = await readWith(page(`${padding(400_000)}`, ld({ '@type': 'NewsArticle', articleBody: police.join('\n') })))
+  assert.ok(info.lead.startsWith('Delhi Police said'))
+  assert.ok(served.read >= 16 && served.read <= 18, `read ${served.read} of ${served.parts} parts`)
+})
+
+test('a page that stops answering after it gave its opening is used, not thrown away', async () => {
+  const plain = ["The Centre has notified rules for grievance redressal under the new employment law, the Ministry said on Monday.", ...FISHERMEN]
+  const head = page('', ld({ '@type': 'NewsArticle', articleBody: withDateline('RAMESWARAM', plain).join('\n') }))
+  const { info } = await readWith(head + padding(20_000), { hangAfter: true, pageMs: 400 })
+  assert.ok(info.lead.startsWith('RAMESWARAM The Centre has notified'), info.lead.slice(0, 50))
+  await assert.rejects(readWith('<html><head><title>x</title>', { hangAfter: true, pageMs: 300 }))
 })
 
 test("another story linked inside a structured body, a widget's counter or a sentence given twice send the reading to the markup", () => {

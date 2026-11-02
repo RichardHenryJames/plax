@@ -8,6 +8,7 @@
 // when it gives clearly more than the feed did. Everything here fails quietly: a story without more is shown as it was.
 import { bodyWithoutHeadline } from './story-body.ts'
 import { decodeEntities, endsSentence, isPublicWebUrl, pageImage, shortSummary, stems } from './blurb.ts'
+import { holds, indexBody, mayBeDateline, stripDateline } from './dateline.ts'
 
 /** The most text kept for a card: about a hundred words, more than a screen holds. The card cuts it where its room ends. */
 export const LEAD_MAX_CHARS = 600
@@ -18,13 +19,17 @@ const MIN_LEAD_CHARS = 140
 const MIN_GAIN_CHARS = 80
 const MIN_PARAGRAPH_CHARS = 50
 const MAX_PARAGRAPHS = 8
+/** How many of a page's paragraphs are looked through for the story's own: a page has hundreds with its links to more. */
+const MAX_SCANNED = 150
 /** A little more than the limit is joined, so that taking out a dateline or a stray line still leaves the limit. */
 const JOIN_CHARS = LEAD_MAX_CHARS + 300
 /** How much of a page is read (some are well over half a megabyte before the story begins), how often what has come so far is
- * looked at, and how much text is enough to stop reading. */
+ * looked at, how much text is enough to stop reading, and how much of a page is read to confirm that its opening is not a
+ * dateline (the markup of a page can come well after its structured body). */
 const MAX_PAGE_CHARS = 786_432
 const LOOK_EVERY_CHARS = 65_536
 const ENOUGH_CHARS = 480
+const CONFIRM_CHARS = 4 * LOOK_EVERY_CHARS
 /** As many stories of one outlet as the feed shows on a page. */
 const PER_SOURCE = 6
 /** A picture shared by more stories than this is the site's own (a banner), not theirs. */
@@ -123,16 +128,17 @@ function findBody(node: unknown, depth: number): string {
   return ''
 }
 
-/** The paragraphs of the story as the page's markup has them: those of its article element, else of the page. */
-function markupParagraphs(html: string): string[] {
+/** The paragraphs of the story as the page's markup has them: those of its article element, else of the page, as many as `keep` lets through. */
+function markupParagraphs(html: string, keep: (paragraph: string) => boolean = () => true): string[] {
   let page = html.replace(/<(script|style|noscript|template|svg|nav|header|footer|aside|form|figure|figcaption|button|select|iframe)\b[\s\S]*?<\/\1\s*>/gi, ' ')
   const start = page.search(/<article\b/i)
   if (start >= 0) page = page.slice(start)
   const found: string[] = []
+  let scanned = 0
   for (const paragraph of page.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p\s*>/gi)) {
     const text = textOf(paragraph[1])
-    if (isProse(text)) found.push(text)
-    if (found.length >= MAX_PARAGRAPHS) break
+    if (isProse(text) && keep(text)) found.push(text)
+    if (found.length >= MAX_PARAGRAPHS || ++scanned >= MAX_SCANNED) break
   }
   return found
 }
@@ -149,7 +155,7 @@ function joined(paragraphs: string[]): string {
 // What a page's structured body carries that is not the story's own words: the address of another story linked inside it, a
 // counter a widget of the page leaves behind ("opinion 1", "storyline 2"), and a sentence given twice. The text is read from the
 // page's markup instead, or is cut where the first of them begins.
-const EMBEDDED = /\bhttps?:\/\/\S+|\bwww\.\S+|\b(?:opinion|storyline|explainer|premium)\s+\d{1,2}\b/i
+const EMBEDDED = /\bhttps?:\/\/\S+|\bwww\.\S+|\b(?:opinion|storyline|explainer)\s+\d{1,2}\b/i
 const REPEAT_WORDS = 14
 
 /** Where a run of words that was said before begins again, or -1. */
@@ -180,78 +186,42 @@ function endAtSentence(text: string): string {
   return trimmed.replace(/[\s,;:\u2013\u2014-]+$/, '') + '\u2026'
 }
 
-// The line a newspaper puts before a story to say where it was written, which a card does not need: "KOCHI", "New Delhi, Nov 2
-// (PTI)", "Mumbai:", "( for web) Our Bureau Mumbai:". A place with no mark after it is taken off only when it is a known one.
-const PLACE = "[A-Z][A-Za-z.'\u2019-]*(?: [A-Z][A-Za-z.'\u2019-]*){0,2}"
-const DATE_LINE = '(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\\.?\\s+\\d{1,2}'
-const AGENCY = '\\((?:PTI|IANS|ANI|AFP|AP|UNI|Reuters|Bloomberg)\\)'
-// Group 1 is what follows the place: a date, an agency or a mark. A place with none of them is just words.
-const MARKED_DATELINE = new RegExp(`^${PLACE}((?:,\\s*${DATE_LINE})?(?:\\s*${AGENCY})?\\s*[:\\u2013\\u2014-]?\\s+)`)
-const CREDIT_LINE = /^(?:Our|Special|Staff|Senior)\s+(?:Bureau|Correspondent|Reporter|Representative)\b(?:\s+[A-Z][a-z]+(?: [A-Z][a-z]+)?)?\s*[:\u2013\u2014-]\s*/
-// A place in capitals that is not on the list, and a word in capitals that is an organisation's name.
-const CAPITALS_PLACE = /^[A-Z]{5,}(?: [A-Z]{3,})?(?=\s+[A-Z][a-z])/
-const ORGANISATIONS = new Set(['UNICEF', 'UNESCO', 'ASEAN', 'BRICS', 'NABARD', 'NASSCOM', 'CRISIL', 'UNHCR', 'INTERPOL', 'MERCOSUR', 'EUROPOL', 'AUKUS', 'SAARC', 'OPEC'])
-const PLACES = new Set(
-  (
-    'new delhi,delhi,mumbai,chennai,kolkata,bengaluru,bangalore,hyderabad,pune,ahmedabad,jaipur,lucknow,bhopal,chandigarh,patna,ranchi,' +
-    'bhubaneswar,thiruvananthapuram,kochi,kozhikode,kannur,kollam,thrissur,malappuram,palakkad,madurai,coimbatore,tiruchi,salem,' +
-    'tirunelveli,vellore,thanjavur,puducherry,pudukottai,visakhapatnam,vijayawada,guwahati,shillong,imphal,agartala,aizawl,kohima,' +
-    'itanagar,gangtok,srinagar,jammu,dehradun,shimla,raipur,nagpur,indore,surat,vadodara,rajkot,mangaluru,mangalore,mysuru,mysore,' +
-    'hubballi,belagavi,panaji,noida,gurugram,gurgaon,ghaziabad,faridabad,kanpur,varanasi,prayagraj,agra,meerut,amritsar,ludhiana,' +
-    'jalandhar,patiala,london,new york,washington,beijing,shanghai,tokyo,seoul,moscow,kyiv,kiev,paris,berlin,brussels,rome,madrid,' +
-    'lisbon,vienna,geneva,dubai,abu dhabi,doha,riyadh,tehran,baghdad,damascus,beirut,jerusalem,tel aviv,gaza,cairo,islamabad,karachi,' +
-    'lahore,kabul,dhaka,colombo,kathmandu,thimphu,canberra,sydney,melbourne,toronto,ottawa,singapore,jakarta,manila,bangkok,hanoi,' +
-    'nairobi,lagos,johannesburg,khartoum,addis ababa'
-  ).split(','),
-)
-
-/** How much of the start of the text is a place written as a dateline (in capitals, or in capitalised words when it is a known one), or 0. */
-function knownPlaceLength(text: string): number {
-  const words = text.split(' ')
-  for (let count = Math.min(3, words.length); count >= 1; count--) {
-    const written = words.slice(0, count).join(' ')
-    const capitalised = written === written.toUpperCase() || words.slice(0, count).every((word) => /^\p{Lu}/u.test(word))
-    if (capitalised && PLACES.has(written.toLowerCase())) return written.length
-  }
-  const capitals = CAPITALS_PLACE.exec(text)?.[0] ?? ''
-  return capitals !== '' && !ORGANISATIONS.has(capitals.split(' ')[0]) ? capitals.length : 0
+/** What a page opens with, and whether that is settled: nothing in it waits for the page's own paragraphs to say if it begins with a dateline. */
+interface Opening {
+  text: string
+  settled: boolean
 }
 
-const startsLikeSentence = (text: string) => text.length >= 40 && /^[A-Z\u201c"\u2018']/.test(text)
-
-/** The text without the line that says where it was written, when it begins with one. */
-export function stripDateline(text: string): string {
-  const credit = text.trim().replace(/^\(\s*for web\s*\)\s*/i, '').replace(CREDIT_LINE, '')
-  const marked = MARKED_DATELINE.exec(credit)
-  if (marked && /\S/.test(marked[1])) {
-    const rest = credit.slice(marked[0].length)
-    if (startsLikeSentence(rest)) return rest
+function openingOf(html: string): Opening {
+  const structured = structuredBody(html)
+  const own = joined(structured)
+  const long = (text: string) => [...text].length >= ENOUGH_CHARS
+  // A structured body that begins like a dateline might be one, and might begin with a name ("Delhi Police said"): the page's
+  // paragraphs say, for they are the story without the line that says where it was written.
+  const doubtful = own !== '' && mayBeDateline(own)
+  if (long(own) && junkAt(own) < 0 && !doubtful) return { text: own, settled: true }
+  // The structured body has the story's own words most of the time, and sometimes the page's furniture or that line as well: the
+  // page's paragraphs that it also holds are the story as the page shows it, and nothing else.
+  if (structured.length > 0) {
+    const index = indexBody(structured)
+    const agreed = joined(markupParagraphs(html, (paragraph) => holds(index, paragraph)))
+    if (long(agreed) && junkAt(agreed) < 0) return { text: agreed, settled: true }
   }
-  const place = knownPlaceLength(credit)
-  if (place > 0) {
-    const rest = credit.slice(place).replace(/^\s+/, '')
-    if (rest.length < credit.length - place && startsLikeSentence(rest)) return rest
-  }
-  return credit
+  // Otherwise the one of the two that says more of the story, cut where any furniture begins.
+  const options = [own, joined(markupParagraphs(html))]
+    .filter((candidate) => candidate !== '')
+    .map((candidate) => {
+      const at = junkAt(candidate)
+      return at < 0 ? candidate : endAtSentence(candidate.slice(0, at))
+    })
+  return { text: options.sort((a, b) => [...b].length - [...a].length)[0] ?? '', settled: !doubtful }
 }
+
+const finish = (text: string) => shortSummary(stripDateline(text).trim(), LEAD_MAX_CHARS)
 
 /** The opening of the article on this page, as plain text of up to about LEAD_MAX_CHARS; empty when the page gives none. */
 export function articleLead(html: string): string {
-  const own = joined(structuredBody(html))
-  let text = ''
-  if (own !== '' && [...own].length >= ENOUGH_CHARS && junkAt(own) < 0) text = own
-  else {
-    // The page's structured body has the story's own words most of the time, and sometimes the page's furniture as well: then the
-    // markup is read too, and what says more of the story, cut where any furniture begins, is taken.
-    const options = [own, joined(markupParagraphs(html))]
-      .filter((candidate) => candidate !== '')
-      .map((candidate) => {
-        const at = junkAt(candidate)
-        return at < 0 ? candidate : endAtSentence(candidate.slice(0, at))
-      })
-    text = options.sort((a, b) => [...b].length - [...a].length)[0] ?? ''
-  }
-  return shortSummary(stripDateline(text).trim(), LEAD_MAX_CHARS)
+  return finish(openingOf(html).text)
 }
 
 /** A page of the day's running updates, or of a list of names: not a story that a card can sum up. */
@@ -338,8 +308,18 @@ export function forgetLeads() {
 }
 
 /**
- * A page, read from its start until it has said enough (and its head, which names the picture, is over) or MAX_PAGE_CHARS have
- * come. A refusal or an overloaded site throws.
+ * Whether what has come of a page is enough: its head is over and it gives an opening; and an opening that might begin with a dateline
+ * is confirmed by the page's own paragraphs, or has had CONFIRM_CHARS of the page to be.
+ */
+function enoughRead(html: string): boolean {
+  if (!/<\/head>/i.test(html)) return false
+  const opening = openingOf(html)
+  return [...finish(opening.text)].length >= ENOUGH_CHARS && (opening.settled || html.length >= CONFIRM_CHARS)
+}
+
+/**
+ * A page, read from its start until it has said enough (see enoughRead) or MAX_PAGE_CHARS have come. A refusal or an overloaded
+ * site throws; so does a page that stops answering before it has given anything, but one that has given its opening is used.
  */
 async function readArticle(link: string, signal: AbortSignal, userAgent: string): Promise<string> {
   const response = await fetch(link, {
@@ -364,9 +344,12 @@ async function readArticle(link: string, signal: AbortSignal, userAgent: string)
       html += decoder.decode(value, { stream: true })
       if (html.length - looked >= LOOK_EVERY_CHARS) {
         looked = html.length
-        if (/<\/head>/i.test(html) && [...articleLead(html)].length >= ENOUGH_CHARS) break
+        if (enoughRead(html)) break
       }
     }
+  } catch (error) {
+    // The time ran out while a page that had given its opening was read on to confirm it: what came is used.
+    if (finish(openingOf(html).text) === '') throw error
   } finally {
     await reader.cancel().catch(() => {})
   }
