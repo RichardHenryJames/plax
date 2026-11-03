@@ -49,6 +49,7 @@ public class AdsDeviceTest {
     private File cacheDir, seenDir;
     private FakeAds ads;
     private int themeBefore;
+    private long servedBefore;
 
     /** A banner and a full-page ad of the plainest kind, answering when the test says. */
     private static final class FakeAds implements AdNetwork {
@@ -56,8 +57,11 @@ public class AdsDeviceTest {
 
         final Handler main = new Handler(Looper.getMainLooper());
         volatile Mode mode = Mode.FILL;
+        /** What the banner's ad does: arrives at once, is none, or waits for the test. */
+        volatile Mode bannerMode = Mode.FILL;
         volatile boolean banner = true, page = true, options, consentAtOnce = true;
         final AtomicInteger bannerLoads = new AtomicInteger(), pageRequests = new AtomicInteger(), optionsShown = new AtomicInteger();
+        final List<Banner.Listener> heldBanners = Collections.synchronizedList(new ArrayList<>());
         final List<Held> held = Collections.synchronizedList(new ArrayList<>());
         final List<FakePage> pages = Collections.synchronizedList(new ArrayList<>());
         private Runnable pendingConsent;
@@ -129,7 +133,11 @@ public class AdsDeviceTest {
             view.setText(BANNER); view.setGravity(Gravity.CENTER);
             view.setBackgroundColor(0xFFD0D8E0); view.setTextColor(Color.BLACK);
             int height = Math.round(50 * context.getResources().getDisplayMetrics().density);
-            main.post(listener::loaded);
+            switch (bannerMode) {
+                case FILL: main.post(listener::loaded); break;
+                case NOFILL: main.post(listener::failed); break;
+                default: heldBanners.add(listener);
+            }
             return new Banner() {
                 @Override public View view() { return view; }
                 @Override public int heightPx() { return height; }
@@ -138,6 +146,11 @@ public class AdsDeviceTest {
                 @Override public void destroy() { if (view.getParent() instanceof android.view.ViewGroup parent) parent.removeView(view); }
             };
         }
+
+        /** The ad of a banner that was held arrives, or is found to be none. */
+        void bannerArrives() { for (Banner.Listener listener : new ArrayList<>(heldBanners)) main.post(listener::loaded); heldBanners.clear(); }
+
+        void bannerMisses() { for (Banner.Listener listener : new ArrayList<>(heldBanners)) main.post(listener::failed); heldBanners.clear(); }
 
         @Override public Cancelable loadPage(Context context, Page.Listener listener) {
             Held request = new Held(listener, pageRequests.incrementAndGet());
@@ -160,6 +173,9 @@ public class AdsDeviceTest {
         seenDir = new File(context.getCacheDir(), "ads-seen-" + UUID.randomUUID());
         assertTrue(cacheDir.mkdirs()); assertTrue(seenDir.mkdirs());
         themeBefore = Prefs.theme(context);
+        // A strip that has never been served an ad waits for its ad (AdRoom); each test says what the phone remembers.
+        servedBefore = Prefs.bannerServedAt(context);
+        Prefs.bannerServedAt(context, 0L);
         FeedViewModel.caches = base -> new FeedCache(cacheDir);
         FeedViewModel.histories = base -> new SeenFile(seenDir);
         // Nothing counts as read while the test pages around, so no story vanishes from under it.
@@ -179,6 +195,7 @@ public class AdsDeviceTest {
         Ads.network = null;
         try { device.setOrientationNatural(); device.unfreezeRotation(); } catch (Exception ignored) { }
         InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> Prefs.theme(context, themeBefore));
+        Prefs.bannerServedAt(context, servedBefore);
         FeedViewModel.sources = FeedApi::new;
         FeedViewModel.caches = FeedCache::new;
         FeedViewModel.histories = SeenFile::new;
@@ -272,6 +289,94 @@ public class AdsDeviceTest {
         assertNotNull("the menu button is on the screen", button);
         button.click();
         assertTrue("the menu opens", device.wait(Until.hasObject(By.desc(text(R.string.close_menu))), 5_000));
+    }
+
+    /** Where the pager of stories ends on the screen: the foot of the screen when no strip is there, the strip's top when one is. */
+    private int pagerBottom() {
+        UiObject2 pager = device.wait(Until.findObject(By.clazz("androidx.recyclerview.widget.RecyclerView")), 10_000);
+        assertNotNull("the pager is on the screen", pager);
+        return pager.getVisibleBounds().bottom;
+    }
+
+    private int dp(int value) { return Math.round(value * context.getResources().getDisplayMetrics().density); }
+
+    @Test public void aStripWhoseAdNeverComesTakesNoRoomAndShowsNothingNotEvenForAMoment() {
+        ads.bannerMode = FakeAds.Mode.NOFILL;
+        try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
+            assertTrue(shown(headline(1)));
+            await("the banner to be asked for", () -> ads.bannerLoads.get() >= 1);
+            device.waitForIdle();
+            assertFalse("no empty strip", device.hasObject(By.text(BANNER)));
+            assertTrue("the story has the screen down to its foot: pager ends at " + pagerBottom(), pagerBottom() >= device.getDisplayHeight() - dp(60));
+            assertEquals("and it asked only once, the retry being a minute away", 1, ads.bannerLoads.get());
+        }
+    }
+
+    @Test public void aStripTakesNoRoomWhileItsAdIsOnTheWayAndMakesRoomWhenItArrives() {
+        ads.bannerMode = FakeAds.Mode.HOLD;
+        try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
+            assertTrue(shown(headline(1)));
+            await("the banner to be asked for", () -> ads.bannerLoads.get() >= 1);
+            device.waitForIdle();
+            assertFalse("nothing on the way is shown", device.hasObject(By.text(BANNER)));
+            int before = pagerBottom();
+            assertTrue("no room is taken for it: pager ends at " + before, before >= device.getDisplayHeight() - dp(60));
+            ads.bannerArrives();
+            assertTrue("the strip comes with its ad", shown(BANNER));
+            Rect strip = bounds(BANNER);
+            assertEquals("the story made room for exactly the strip", before - dp(51), pagerBottom(), dp(3));
+            assertTrue("the story ends above it", bounds(headline(1)).bottom <= strip.top);
+        }
+    }
+
+    @Test public void aStripServedAnAdLatelyKeepsItsRoomFromTheStartSoTheStoryDoesNotJump() {
+        Prefs.bannerServedAt(context, System.currentTimeMillis() - 24L * 60 * 60 * 1000);
+        ads.bannerMode = FakeAds.Mode.HOLD;
+        try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
+            assertTrue(shown(headline(1)));
+            assertTrue("its room is there before its ad has come", shown(BANNER));
+            int before = pagerBottom();
+            assertTrue("the story already ends above it: pager ends at " + before, before <= bounds(BANNER).top + dp(3));
+            ads.bannerArrives();
+            device.waitForIdle();
+            assertTrue("still there", device.hasObject(By.text(BANNER)));
+            assertEquals("and the story did not move when the ad came", before, pagerBottom(), dp(2));
+        }
+    }
+
+    @Test public void aStripNotServedAnAdForAWeekWaitsForItsAdAgain() {
+        Prefs.bannerServedAt(context, System.currentTimeMillis() - 8L * 24 * 60 * 60 * 1000);
+        ads.bannerMode = FakeAds.Mode.HOLD;
+        try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
+            assertTrue(shown(headline(1)));
+            await("the banner to be asked for", () -> ads.bannerLoads.get() >= 1);
+            device.waitForIdle();
+            assertFalse("no room kept", device.hasObject(By.text(BANNER)));
+            ads.bannerArrives();
+            assertTrue("it comes with its ad", shown(BANNER));
+        }
+    }
+
+    @Test public void aStripKeptWithoutAnAdThatDoesNotComeGivesItsRoomBackAndDoesNotShowItAgainOnTheRetry() {
+        Prefs.bannerServedAt(context, System.currentTimeMillis() - 60L * 60 * 1000);
+        ads.bannerMode = FakeAds.Mode.HOLD;
+        try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
+            assertTrue(shown(headline(1)));
+            assertTrue("its room is kept while the ad is on the way", shown(BANNER));
+            ads.bannerMisses();
+            assertTrue("no ad came: the room is given back", gone(BANNER));
+            assertTrue("and the story has the foot of the screen again", pagerBottom() >= device.getDisplayHeight() - dp(60));
+        }
+    }
+
+    @Test public void anAdThatArrivesInTheStripIsRememberedSoThatTheNextStartKeepsItsRoom() {
+        assertEquals("nothing was remembered", 0L, Prefs.bannerServedAt(context));
+        try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
+            assertTrue(shown(headline(1)));
+            assertTrue(shown(BANNER));
+            long at = Prefs.bannerServedAt(context);
+            assertTrue("the time of the ad is kept: " + at, Math.abs(System.currentTimeMillis() - at) < 60_000L);
+        }
     }
 
     @Test public void theStripStandsUnderTheStoryAtTheFootOfTheScreenAndTheStoryEndsAboveIt() {

@@ -306,8 +306,9 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
         spinnerParams.setMargins(0, ui.dp(12), ui.dp(16), 0);
         content.addView(spinner, spinnerParams);
 
-        // The ad strip stands last, under the story; it is there only where a story is and the build has an ad for it.
-        adBar = new AdBar(this, ui, network);
+        // The ad strip stands last, under the story; it is there only where a story is and the build has an ad for it. It is not made to
+        // appear while the pager is moving, so that the story is not made smaller under a swipe.
+        adBar = new AdBar(this, ui, network, () -> pager.getScrollState() == ViewPager2.SCROLL_STATE_IDLE);
         root.addView(adBar.view(), new LinearLayout.LayoutParams(-1, -2));
     }
 

@@ -4,16 +4,21 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import androidx.appcompat.app.AppCompatDelegate;
 
-/** Settings kept on the device: the colour theme and which feed the reader was last in. */
+/** Settings kept on the device: the colour theme, which feed the reader was last in, and when an ad last arrived in the strip (a time, nothing about the reader). */
 final class Prefs {
     static final int SYSTEM = 0, LIGHT = 1, DARK = 2;
-    private static final String FILE = "plax", THEME = "theme", FOR_YOU = "for_you";
+    private static final String FILE = "plax", THEME = "theme", FOR_YOU = "for_you", BANNER_SERVED = "banner_served_at";
 
     private Prefs() { }
 
     private static SharedPreferences store(Context context) {
         return context.getApplicationContext().getSharedPreferences(FILE, Context.MODE_PRIVATE);
     }
+
+    /** When an ad last arrived in the strip at the foot of the screen (ms since 1970), or 0 if none ever did: see {@link AdRoom}. */
+    static long bannerServedAt(Context context) { return store(context).getLong(BANNER_SERVED, 0L); }
+
+    static void bannerServedAt(Context context, long at) { store(context).edit().putLong(BANNER_SERVED, at).apply(); }
 
     /** True when the reader last used For you, so the app opens there again. */
     static boolean forYou(Context context) { return store(context).getBoolean(FOR_YOU, false); }

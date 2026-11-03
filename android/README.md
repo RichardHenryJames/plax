@@ -10,6 +10,30 @@ exists (see *Updates from inside the app*), except in the Google Play build, whi
 which need the two small routes and the one small file listed under *Backend changes*,
 the app works against the backend as it was before this version.
 
+## What is in 1.6.1 (versionCode 15): no empty ad while the ads are not served
+
+The 1.6.0 bundle and the website showed empty places where ads were meant to be, because the owner's AdMob app and AdSense site had not
+been approved yet: their units answer *no fill* to every request. In the app the strip at the foot reserved its room the moment ads may be
+shown, so a reader saw an empty bar until the request failed, the story shrinking and growing back, and again at each retry (60, 120 and
+180 s). On the website a first-time visitor saw a page of "ADVERTISEMENT" and a button over a blank for about a second after the fifth
+story, a labelled blank at the top of the desktop panel for 1.5 s that then collapsed, and a blank strip for a moment. Nothing else
+changes: the full-page native ad was never affected (it is loaded off screen and put in the pager only once it has arrived).
+
+- **The strip takes room only for an ad that has come** (`AdBar`, `AdRoom`, `Prefs.bannerServedAt`). The ad is asked for with the strip
+  hidden and no room taken; when it arrives the story is made smaller once. Only where an ad arrived in the strip within the last week
+  (a time in the app's preferences, nothing about the reader) is its room kept from the start, so that the story does not jump when the
+  ad comes there. A retry never takes room, and the strip is never made to appear while the pager is moving.
+- **The website** learns the same in the browser (`lib/ads-verdict.ts`; see `TECH.md`, "Nothing shows before an ad has come"): nothing
+  is shown before an ad has come, a place that is never served rests for six hours, and the card is not put in on a first visit once the
+  strip, which asks at load, has found that nothing is served.
+- **The version is 1.6.1 (15), not 1.6.0 (14)**, so that a Play upload cannot be refused for a version code that was already used if the
+  1.6.0 bundle (`artifacts\plax-1.6.0.aab`, now superseded) was uploaded. Nothing else differs in what the build declares: the same
+  permissions, the same ad ids, the same [`PLAY-CONSOLE-ANSWERS-ADS.txt`](PLAY-CONSOLE-ANSWERS-ADS.txt).
+- **Tests.** `AdRoomTest` (5, JVM) and six new `AdsDeviceTest`s with a fake network whose banner can arrive, be none, or be held: a strip whose
+  ad never comes takes no room and shows nothing, not even for a moment; one whose ad is on the way takes none until it arrives; one served
+  within a week keeps its room and the story does not move; one not served for a week waits again; one that kept its room gives it back
+  when the ad does not come; and an ad that arrives is remembered. See *Verification performed for 1.6.1*.
+
 ## What is in 1.6.0 (versionCode 14), part 1: full-screen stories, and a menu in place of the header and the bottom bar
 
 A reader asked for the app to be "like Inshorts": the header (the Plax mark and the English | हिन्दी switch) and the bottom bar took a
@@ -85,8 +109,14 @@ Play Console's ads and advertising-id answers change for every release built fro
 lists them; `PLAY-CONSOLE-ANSWERS-1.5.5.txt` stays what it was for 1.5.5, which has no ads. The website has the same ads (see `TECH.md`, "Ads").
 
 - **What a reader sees.** An adaptive banner under the story at the foot of the screen, on a screen at least 500 dp tall (a phone on its
-  side has none), on the Feed and For you screens while they have stories. It gives its room back to the story when no ad comes (it asks
-  again after 60 s, up to three times). After every fifth story a full-page *native* ad stands in the pager as a page of its own: the
+  side has none), on the Feed and For you screens while they have stories. **It takes room only for an ad that has come** (`AdBar`,
+  `AdRoom`): the ad is asked for with the strip hidden and no room taken, and the story is made smaller (once) when the ad arrives, never
+  under a swipe (the strip waits for the pager to stop). Only where an ad arrived in the strip within the last week (a time kept in the
+  app's preferences, nothing about the reader) is its room kept from the start, so that the story does not jump. So while an AdMob app
+  has not been approved and serves nothing, as with the owner's new app ("Requires review"), nothing is ever shown: no empty bar, and
+  no story that shrinks for a second and grows back (1.6.0 reserved the room the moment the ad was asked for, which did that
+  at the start and again at 60, 120 and 180 s; 1.6.1 fixed it, see above). If no ad comes it asks again after 60 s, up to three times, and a retry takes no room
+  either. After every fifth story a full-page *native* ad stands in the pager as a page of its own: the
   ad's headline, picture or video (at least 120 dp, never cropped), text and button, an "Ad" badge and Google's AdChoices mark. It is
   never the last page, it is not a story (not read, not saved, not in the reader's history), and a swipe leaves it like any other page.
   The page is shown only where its card fits whole: it needs about 360 dp plus 90 dp for each step of the text size (450 dp of page at
@@ -129,11 +159,16 @@ lists them; `PLAY-CONSOLE-ANSWERS-1.5.5.txt` stays what it was for 1.5.5, which 
 - **Native ad rules kept.** An "Ad" badge on every ad; AdChoices in the top-right corner; every asset (headline, text, picture or video,
   icon, button) inside the `NativeAdView` and registered with it; no click listener of ours on an ad asset and nothing of ours that can
   be pressed near it; the media view at least 120 dp and not cropped.
-- **Tests.** `AdSlotsTest` (15, two of them for the room an ad page needs) and `AdControllerTest` (24) on the JVM. `AdsDeviceTest` (12) drives the whole thing on an emulator with
-  a fake network (`Ads.network`, a test seam): nothing is asked for before consent; an ad page stands after the fifth story and not
+- **Tests.** `AdSlotsTest` (15, two of them for the room an ad page needs), `AdControllerTest` (24) and `AdRoomTest` (5, when the strip keeps its
+  room from the start) on the JVM. `AdsDeviceTest` (18) drives the whole thing on an emulator with
+  a fake network (`Ads.network`, a test seam; its banner can arrive at once, be none, or be held until the test lets it go): nothing is asked for before consent; an ad page stands after the fifth story and not
   before, and is not counted as a story; an ad that arrives while the reader is reading joins ahead of them and nothing moves; one that
   arrives after its slot has passed is never shown; an ad that does not come leaves no gap; going back to an ad shows the same page; the
-  strip stands under the story, the story ends above it, and it goes with the stories and comes back; a phone on its side has no strip
+  strip stands under the story, the story ends above it, and it goes with the stories and comes back; **a strip whose ad never comes takes
+  no room and shows nothing, not even for a moment; one whose ad is on the way takes no room until it arrives and then the story makes room
+  for exactly the strip; one served an ad within a week keeps its room from the start and the story does not move when the ad comes; one not
+  served for a week waits again; one that kept its room and whose ad does not come gives it back; and an ad that arrives is remembered for the
+  next start**; a phone on its side has no strip
   and no ad page, and they return when it is upright; the menu's ad choices are there only where they apply; About says there are ads
   only when there are. **A bug it found:** after an ad arrived the screen was drawn from the position last *published* by the feed
   model, which paging does not update, so the pager jumped back to where the reader had been; `FeedViewModel.position()` is the live
@@ -147,8 +182,12 @@ lists them; `PLAY-CONSOLE-ANSWERS-1.5.5.txt` stays what it was for 1.5.5, which 
 - **With the real ads library** (an API 36 emulator, a debug build with `-PtestAds=true`, Google's demo units; nothing was tapped).
   The banner loads and the story is laid out above it. With `-PadsConsentTest=eea` Google's consent form comes before any ad, *Do not
   consent* lets (limited) ads go ahead, and **Privacy and ad choices** is in the menu and opens the form again. A build with the owner's
-  live ids is accepted by the library; while AdMob has not reviewed the app both units answer *no fill* (error 3) and the screen keeps its
-  whole height. **Not seen yet: a native ad page filled by a real ad.** Both of Google's demo native units fail on this emulator with
+  live ids is accepted by the library; while AdMob has not reviewed the app both units answer *no fill* (error 3), and the strip, which
+  takes no room for an ad that has not come, never appears at all (the screen has its whole height from the first frame to the last).
+  The strip with Google's real banner (demo unit) was looked at on a fresh install and on a second start, one screenshot every 3 to 5 s:
+  both times the story had the whole screen at first (the ads library takes several seconds to start), and the strip came with Google's
+  test ad in it, the story making room once, by the strip's height. The frames are too far apart to show whether a kept-but-empty strip
+  was on the screen for a moment on the second start; that case (room kept, ad on its way) is `AdsDeviceTest`'s, with a held banner. **Not seen yet: a native ad page filled by a real ad.** Both of Google's demo native units fail on this emulator with
   error 0, "Incorrect native ad response. Click actions were not properly specified" (loading the ad on an Activity context instead of
   the application's made no difference; Google staff have called this a problem of the demo unit), and the live native unit has no fill
   until the app is reviewed. Look at the page once a live unit serves test ads, or on a phone with a `-PtestAds=true` debug build.
@@ -942,6 +981,56 @@ project is back:
 - Not covered: Google's consent screen, the Authorized redirect URI in the Google console, the Redirect URLs list in
   Supabase, the Custom Tab path with a real code, and a real hosted project (its key formats, defaults and rate
   limits). Those are the one manual sign-in the runbook ends with.
+
+## Verification performed for 1.6.1 (3 November 2026)
+
+On the isolated Android 16 (API 36, x86_64) `Plax_News_Test` emulator, the development machine, a real browser (Microsoft Edge, headless,
+driven by Playwright) and the deployed site; no physical phone, no Play Console, no live ad clicked.
+
+- **What was found first.** The live site, Google's real script and the owner's AdSense account (which had not approved the site), a fresh
+  browser at 390 x 844 with touch: the ad card stood after the fifth story (present at 500 ms, gone by 1.5 s) with its "ADVERTISEMENT" label
+  and its button over a blank; at 1440 x 900 the panel showed a labelled blank for 1.5 s and then jumped up. The app's strip reserved its room
+  the moment its ad was asked for (read from `AdBar`, not measured on a phone).
+- **The bundle** `artifacts\plax-1.6.1.aab` (7,475,040 bytes, SHA-256 `7ff1214cd56d45dac023b41b956b6d999df53c0033ede55f2dba0308178ad33b`;
+  mapping file `plax-1.6.1-mapping.txt`), built with the owner's three public AdMob ids as `ORG_GRADLE_PROJECT_*` variables (nothing
+  committed): the 16 checks of `package-aab.ps1` pass (bundletool 1.18.3; one signer, the Plax upload key `dade46fd…de1219`; package
+  `com.plaxlabs.news`, 1.6.1 (15), min SDK 26, target SDK 36, not debuggable, no cleartext, no backups, the same permissions as 1.6.0, under
+  200 MB). The banner unit, the native unit and the new strip code (`banner_served_at`) are in the dex once each, the app id is in the
+  manifest, and no demo id is in the bundle. **Not uploaded.** `plax-1.6.0.aab` (code 14) is superseded and was left as it was.
+- **Tests.** **239 JVM tests** (234 + 5 `AdRoomTest`), 0 failing, 14 opt-in skipped; lint **0 errors** and 1 warning (a newer Gradle exists)
+  for debug and preview; the website `tsc` clean, **300 unit tests** and a production build. **The 119 device tests pass**, run one class at
+  a time (`PlaxDeviceTest` 18, `FeedFlowTest` 31, `AccountDeviceTest` 7, `UpdateDeviceTest` 9, `ShareDeviceTest` 7, `ContactDeviceTest` 6,
+  `FitDeviceTest` 5, `MenuDeviceTest` 4, `MenuEntriesDeviceTest` 9, `AdsDeviceTest` 18, `NativeAdPageDeviceTest` 5). Two earlier full runs
+  did not pass and are not a result for the app: the first had one failure, `PlaxDeviceTest.appNeedsNoLoginAndSupportsTopicsSavedAndRotation`
+  ("Missing the menu button" the instant after launch, while git and a push were using the machine), which passed alone 3 times in 3 and
+  passes in the per-class run; in the second the development machine was suspended for hours in the middle (the guest clock jumped 5.4 h,
+  JUnit reported "Time: 20,098"), System UI answered with an "isn't responding" dialog that took the focus, and 48 later tests failed with
+  "the screen is up". An emulator that has just booted can show that dialog as well; it is cleared with *Wait* before a run.
+- **The bundle as Google Play installs it** (bundletool, split APKs for the emulator). *Over 1.5.5 (code 13), data kept:* code 15, opens in
+  1.7 s, the story saved on 1.5.5 is still saved, no crash, no ANR. *Fresh install:* the feed loads, no page has a scroll view, the full-page
+  native test ad stands after every fifth story ("Test Ad : Siberian Shamanism" at swipes 6 and 12, the first swipe after a cold start having been
+  taken by the test-ad validator popup, as in 1.6.0), the menu has no "Check for updates", Contact us, About (names 1.6.1, says the app shows
+  ads), Continue with Google reaches Google's sign-in page (the app is in front again after one Back), no crash, no ANR, no cleartext, no card
+  body ending on a word that needs the next. Three checks of the script said FAIL and are the script's: it did not recognise the native ad page
+  (it looks for a label the dump does not carry), it counted the dropped first swipe, and it asked for the app to be in front before the sign-in
+  page had finished loading on a machine at load 3.4.
+- **The real ads library in this bundle when the ad does not come** (the live ids; an emulator is an AdMob test device and is always served a
+  test ad, so the request is made to fail by switching the network off, which reaches the same `onAdFailedToLoad` an AdMob *no fill* does). A
+  never-served install (the first launch was stopped before its ad could come), the network off, relaunched: the stories were on the screen
+  for 90 s, through the retry at 60 s, **the strip never appeared and the story ended at the same pixel (2252) in all 12 samples**: no empty bar,
+  no shrink. With the network back the next retry brought the test ad in after 27 s, the strip appeared and the story made room once (2252 to
+  2082 px). *Not seen:* Google's own no-fill answer to an unapproved app on a phone.
+- **The website.** With Google's script stood in for (a local production build with test ids; unfilled, filled, no answer, blocked), on a phone
+  and a desktop, first and second visit: *unfilled* leaves the strip at 0 px, no ad card in 7 swipes on the first visit (after the strip's answer;
+  the card alone, before that rule, stood 0.9 s with no label or button) and nothing asked on the second; *filled* gives the strip (the story
+  makes room once, 820 to 762 px), the label and button with the ad, and the strip's room kept from the first frame on the second visit;
+  *no answer* shows the card's label and button only after 2.5 s and remembers nothing; *blocked* shows nothing; a finger drag from the middle of
+  a filled ad moves on (a synthesized scroll gesture does not move an ad's frame). **On the live site with Google's real script and the
+  unapproved account:** the strip took 0 px, **0 ad cards in 7 swipes on the first visit and in 7 on the second**, the story stayed 820 px tall.
+
+**Not verified**: a physical phone (nothing is claimed about any device); a live ad, none having been served (the AdMob app and the AdSense
+site are not approved yet, and every ad seen here was a test ad); Google's no-fill answer on a phone; a browser other than Edge; the Play Console
+and Google Play review; finishing a Google sign-in.
 
 ## Verification performed for 1.6.0 (2 November 2026)
 

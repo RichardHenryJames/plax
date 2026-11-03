@@ -7,11 +7,18 @@ import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import androidx.appcompat.app.AppCompatActivity;
+import java.util.function.BooleanSupplier;
 
 /**
- * The ad strip at the foot of the screen, under the story. Its room is kept from the moment ads may be shown, so that the story does
- * not jump when the ad arrives; if no ad comes the strip gives its room back, and asks again a little later (a few times, then it
- * leaves the reader alone). It is shown only where a story is, and only on a screen tall enough to spare the room.
+ * The ad strip at the foot of the screen, under the story. It is shown only where a story is, and only on a screen tall enough to spare
+ * the room.
+ *
+ * <p><b>Room.</b> The strip takes room for an ad that has arrived, and keeps its room from the start only where an ad was served in it
+ * within the last week ({@link AdRoom}), so that the story does not jump as that ad arrives. Anywhere else (a first run, or an AdMob app
+ * that has not been approved yet, which is never served an ad) the ad is asked for with no room taken and nothing on the screen: no empty
+ * bar, and no story that shrinks for a second and grows back. If no ad comes the strip asks again a little later (a few times, then it
+ * leaves the reader alone), and a retry takes no room either. The strip is never made to appear while the pager is moving: the screen is
+ * not made smaller under a swipe.
  */
 final class AdBar {
     /** A screen shorter than this (a phone on its side, a window split in two) gets no strip: the story needs the height. */
@@ -20,25 +27,33 @@ final class AdBar {
     static final int MAX_WIDTH_DP = 640;
     static final long RETRY_MS = 60_000L;
     static final int MAX_RETRIES = 3;
+    /** How long to wait for the pager to stop before looking again. */
+    private static final long SETTLE_MS = 250L;
 
     private final AppCompatActivity activity;
     private final Ui ui;
     private final AdNetwork network;
+    private final BooleanSupplier still;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final FrameLayout strip;
     private final View divider;
     private final int widthDp;
     private final boolean enabled;
+    /** An ad was served in the strip lately: its room is kept from the start. */
+    private final boolean keepsRoom;
     private AdNetwork.Banner banner;
     private boolean ready, wanted, resumed, filled, destroyed;
     private int retries;
     private final Runnable retry = this::reload;
+    private final Runnable settle = this::update;
 
-    AdBar(AppCompatActivity activity, Ui ui, AdNetwork network) {
-        this.activity = activity; this.ui = ui; this.network = network;
+    /** {@code still} says whether the pager is at rest, so that the screen is not made smaller under a swipe. */
+    AdBar(AppCompatActivity activity, Ui ui, AdNetwork network, BooleanSupplier still) {
+        this.activity = activity; this.ui = ui; this.network = network; this.still = still;
         var config = activity.getResources().getConfiguration();
         widthDp = Math.min(config.screenWidthDp, MAX_WIDTH_DP);
         enabled = network.banner() && config.screenHeightDp >= MIN_SCREEN_HEIGHT_DP;
+        keepsRoom = enabled && AdRoom.keepsRoom(Prefs.bannerServedAt(activity), System.currentTimeMillis());
         strip = new FrameLayout(activity);
         strip.setBackgroundColor(ui.bg);
         divider = new View(activity);
@@ -73,29 +88,43 @@ final class AdBar {
     void destroy() {
         destroyed = true;
         main.removeCallbacks(retry);
+        main.removeCallbacks(settle);
         if (banner != null) banner.destroy();
         banner = null;
     }
 
-    /** The strip is on screen: it has asked for an ad (or has one) and a story is shown. */
+    /** The strip may be on the screen: ads may be asked for and a story is shown. */
     private boolean live() { return ready && wanted && !destroyed; }
 
     private void update() {
+        main.removeCallbacks(settle);
         if (!live()) {
             strip.setVisibility(View.GONE);
             if (banner != null) banner.pause();
             return;
         }
         if (banner == null && retries <= MAX_RETRIES) load();
-        boolean room = banner != null;
+        // Room for an ad that has come, or from the start where one was served here lately, and not on a retry: an ad that did not come
+        // this time is no reason to show an empty bar again. Otherwise the ad is asked for with nothing shown and no room taken.
+        boolean room = banner != null && (filled || (keepsRoom && retries == 0));
+        if (room && strip.getVisibility() != View.VISIBLE && !still.getAsBoolean()) {
+            main.postDelayed(settle, SETTLE_MS);
+            return;
+        }
         strip.setVisibility(room ? View.VISIBLE : View.GONE);
-        if (room && resumed) banner.resume();
+        if (banner != null && resumed) banner.resume();
     }
 
     private void load() {
         banner = network.loadBanner(activity, widthDp, new AdNetwork.Banner.Listener() {
             // A banner that has shown an ad keeps it when a refresh finds none; only one that never had an ad gives its room back.
-            @Override public void loaded() { filled = true; retries = 0; }
+            @Override public void loaded() {
+                if (destroyed) return;
+                // Remembered once for the session: the next start keeps the room from the start (see AdRoom).
+                if (!filled) Prefs.bannerServedAt(activity, System.currentTimeMillis());
+                filled = true; retries = 0;
+                if (banner != null) update();
+            }
 
             @Override public void failed() {
                 if (filled || destroyed) return;

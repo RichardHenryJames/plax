@@ -47,8 +47,8 @@ android {
         applicationId 'com.plaxlabs.news'
         minSdk 26
         targetSdk 36
-        versionCode 14
-        versionName '1.6.0'
+        versionCode 15
+        versionName '1.6.1'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         // The browser returns to the app on this scheme after Google sign-in; each build type has its own. The AdMob app id is
         // required in the manifest by the ads library; with no ad shown it is the demo id, which is tied to no account and asks for nothing.
