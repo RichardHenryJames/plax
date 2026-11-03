@@ -28,6 +28,33 @@ test('an ask that came back empty rests the unit for six hours, and then it is a
   assert.equal(resting(readVerdicts(store), 'page', NOW + HOUR), true)
 })
 
+test('a place that has not been asked rests too where nothing has been served and another place was asked in vain: the account serves nothing', () => {
+  const known = noteUnfilled(memory(), 'strip', NOW)
+  // The strip asks at load; by the time a reader is at the fifth story the card knows what the strip found out.
+  assert.equal(resting(known, 'page', NOW + HOUR), true)
+  assert.equal(resting(known, 'rail', NOW + HOUR), true)
+  assert.equal(resting(known, 'strip', NOW + HOUR), true)
+  // It lasts as long as the verdict it rests on.
+  assert.equal(resting(known, 'page', NOW + REST_MS - 1), true)
+  assert.equal(resting(known, 'page', NOW + REST_MS), false)
+})
+
+test('an ad of any kind that came lately shows the account serves: a place that has not been asked is asked, and one that was asked in vain still rests', () => {
+  const store = memory()
+  noteFilled(store, 'strip', NOW)
+  const known = noteUnfilled(store, 'page', NOW + HOUR)
+  assert.equal(resting(known, 'page', NOW + HOUR), true, 'its own empty answer still rests it')
+  assert.equal(resting(known, 'rail', NOW + HOUR), false, 'a place with no answer of its own is asked, the account being known to serve')
+  assert.equal(resting(known, 'strip', NOW + HOUR), false)
+  // A week on, the strip's ad is old news: the account is taken to serve nothing again and the page, asked in vain, still rests.
+  assert.equal(resting(noteUnfilled(store, 'page', NOW + SERVED_MS + HOUR), 'rail', NOW + SERVED_MS + HOUR), true)
+})
+
+test('a verdict from a clock that was set back rests no other place either', () => {
+  const known = noteUnfilled(memory(), 'strip', NOW + 10 * HOUR)
+  assert.equal(resting(known, 'page', NOW), false)
+})
+
 test('the kinds of ad are learned apart: a strip that filled says nothing about the page', () => {
   const store = memory()
   noteUnfilled(store, 'page', NOW)

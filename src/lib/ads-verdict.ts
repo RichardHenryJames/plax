@@ -4,7 +4,9 @@
 // through the same empty moment again: a card of nothing after the fifth story, a labelled blank where the panel's ad is meant to be.
 // So an ad unit that has been asked and has never been served rests for a while, in this browser, and is not asked for again until
 // the rest is over; then one ask finds out whether anything has changed. A unit that has filled lately is only between ads, as every
-// account is now and then, and is never put to rest by one that did not come.
+// account is now and then, and is never put to rest by one that did not come. And a place that has not been asked yet rests too when
+// nothing has been served here and another place has been asked in vain (see `resting`): the account serves nothing, and the strip, which
+// asks at load, has already said so.
 //
 // Pure: the storage is passed in, so that it can be tested without a browser.
 
@@ -62,13 +64,27 @@ export function servedRecently(verdicts: Verdicts, kind: AdKind, now: number): b
   return age >= 0 && age < SERVED_MS
 }
 
-/** Whether this kind is to be left alone now: it came back empty lately and has not been served for a good while, if ever. */
-export function resting(verdicts: Verdicts, kind: AdKind, now: number): boolean {
+/** Whether an ask of this kind came back empty within the rest. */
+function askedInVain(verdicts: Verdicts, kind: AdKind, now: number): boolean {
   const unfilledAt = verdicts[kind]?.unfilledAt
-  if (unfilledAt === undefined || servedRecently(verdicts, kind, now)) return false
+  if (unfilledAt === undefined) return false
   const age = now - unfilledAt
-  // A time in the future is a clock that was set back: it rests nothing.
+  // A time in the future is a clock that was set back: it counts for nothing.
   return age >= 0 && age < REST_MS
+}
+
+/**
+ * Whether this kind is to be left alone now. It is when an ask of its own came back empty lately and it has not been served for a good
+ * while, if ever; and it is when it has not been asked at all but the account serves nothing here: no ad of any kind has come lately and
+ * another place has just been asked in vain. The strip asks at load, seconds before a reader is at the fifth story, so a first-time
+ * visitor is not taken to an empty card to find out what the strip already knows (an account that has not been approved serves none of
+ * its units). One ad of any kind that comes ends that, and every kind is asked on its own merits again.
+ */
+export function resting(verdicts: Verdicts, kind: AdKind, now: number): boolean {
+  if (servedRecently(verdicts, kind, now)) return false
+  if (askedInVain(verdicts, kind, now)) return true
+  const servesNothing = AD_KINDS.every((other) => !servedRecently(verdicts, other, now))
+  return servesNothing && AD_KINDS.some((other) => other !== kind && askedInVain(verdicts, other, now))
 }
 
 function save(store: VerdictStore | null, verdicts: Verdicts) {
