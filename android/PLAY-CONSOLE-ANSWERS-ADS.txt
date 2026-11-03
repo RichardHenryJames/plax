@@ -64,6 +64,18 @@ look at the pre-launch report. READY, but only a Console run can show how Play t
   Advertising ID ....... YES. READY. Purposes to tick, the ones Google lists for its ads library: Advertising or marketing; Analytics;
                          Fraud prevention, security, and compliance. If this is answered No while the manifest holds
                          com.google.android.gms.permission.AD_ID, Play refuses the release.
+                         Seen on 3 November 2026, creating the production release of 1.6.1 (code 15): "Your advertising ID declaration says
+                         that your app uses advertising ID. A manifest file in one of your active artifacts doesn't include the
+                         com.google.android.gms.permission.AD_ID permission", with two buttons, "Update declaration" and "Release without
+                         permission". It is not the new bundle: bundletool shows AD_ID in the manifest of plax-1.6.1.aab (15) and of
+                         plax-1.6.0.aab (14), and none in plax-1.5.5.aab (13); the 1.5.x builds have no ads and no advertising ID, and one of
+                         them is still active on a track (Play checks every active artifact of every track, which the Console's list of
+                         artifacts for the release, or App bundle explorer, shows by version code). So: do NOT "Update declaration" to No
+                         (1.6.1 shows ads and does use the advertising ID); "Release without permission" is the button for it (it
+                         acknowledges that the artifact without the permission has its advertising ID zeroed out, which an ad-free build
+                         never reads). The message goes away once the old build is no longer active: when 1.6.1 replaces it on its track,
+                         or when the same bundle is released on the other tracks that still hold a 1.5.x build. That button's exact effect was
+                         read from the Console's own wording, not tried.
   Target audience ...... Unchanged, 13 and over, not children. Ads for an audience that includes children would need the Families
                          policy and a certified ad network; Plax is not that. In AdMob also set the maximum ad content rating and
                          block the categories you do not want next to news (for example gambling, dating, sensitive categories).
