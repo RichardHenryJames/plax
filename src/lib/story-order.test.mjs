@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { FULL_BODY_CHARS, bodyChars, isFull, richness, richestFirst, capPerSource, newsOrder } from './story-order.ts'
+import { FULL_BODY_CHARS, bodyChars, isFull, richness, richestFirst, capPerSource, diverse, newsOrder } from './story-order.ts'
 
 const text = (n) => 'x'.repeat(n)
 const card = (id, over = {}) => ({ id, title: `Headline ${id}`, content: text(FULL_BODY_CHARS), source: 'S', category: 'news', publishedAt: 1000 - id, ...over })
@@ -31,6 +31,25 @@ test('the telling with the most to show leads, and the rest keep their order', (
 test('no more than so many stories of one outlet, in the order they come', () => {
   const list = [card(1), card(2), card(3, { source: 'B' }), card(4), card(5, { source: 'B' })]
   assert.deepEqual(ids(capPerSource(list, 2)), [1, 2, 3, 5])
+})
+
+test('a page of headlines is not filled by one busy outlet, and a section with few outlets still fills its page', () => {
+  // a busy outlet (A, ten stories, the newest) beside five quieter ones (one story each): a page of 8 keeps A to its even share
+  const busy = Array.from({ length: 10 }, (_, i) => card(i + 1, { source: 'A' }))
+  const quiet = ['B', 'C', 'D', 'E', 'F'].map((source, i) => card(100 + i, { source }))
+  const page = diverse([...busy, ...quiet], 8)
+  assert.equal(page.length, 8)
+  assert.deepEqual(ids(page).filter((id) => id < 100), [1, 2, 3], 'A has the least a source may have (3), not all eight places')
+  assert.equal(new Set(page.map((s) => s.source)).size, 6, 'every outlet is on the page')
+  // few outlets: two outlets, ten stories each, a page of 8 is full, each outlet its even share of 4
+  const two = [...Array.from({ length: 10 }, (_, i) => card(i + 1, { source: 'A' })), ...Array.from({ length: 10 }, (_, i) => card(i + 21, { source: 'B' }))]
+  assert.equal(diverse(two, 8).length, 8)
+  assert.equal(diverse(two, 8).filter((s) => s.source === 'A').length, 4)
+  // a page the stories cannot fill is what there is, and nothing gives an empty page
+  assert.equal(diverse([card(1)], 8).length, 1)
+  assert.deepEqual(diverse([], 8), [])
+  // the order is the order they came in (newest first)
+  assert.deepEqual(ids(diverse([card(1), card(2, { source: 'B' }), card(3)], 8)), [1, 2, 3])
 })
 
 test('the news stream is newest first, and what fills a card comes before what does not', () => {

@@ -6,6 +6,8 @@ import { SITE_URL } from '@/lib/seo'
 import { SiteLinks } from '@/components/SiteLinks'
 import { fetchGeneralNews } from '@/lib/sources'
 import { NEWS_SECTIONS } from '@/lib/types'
+import { NEWS_SECTION_SEO } from '@/lib/news-section-seo'
+import { diverse } from '@/lib/story-order'
 import type { RawContent } from '@/lib/types'
 
 export const revalidate = 900
@@ -21,34 +23,6 @@ const getCachedNews = unstable_cache(
   { revalidate: 900, tags: ['news'] }
 )
 
-const SECTION_COPY: Record<string, { title: string; desc: string; kw: string[] }> = {
-  india: {
-    title: 'India News Today — Latest Headlines',
-    desc: 'The latest India news today — top national headlines, politics, and current affairs, summarized clearly and updated continuously on Plax.',
-    kw: ['India news', 'India news today', 'national news', 'latest India headlines', 'current affairs India'],
-  },
-  world: {
-    title: 'World News Today — Global Headlines',
-    desc: 'The latest world news today — global headlines and international affairs, summarized clearly and updated continuously on Plax.',
-    kw: ['world news', 'international news', 'global headlines', 'world news today'],
-  },
-  tech: {
-    title: 'Technology News Today — Latest Tech Headlines',
-    desc: 'The latest technology news today — AI, gadgets, startups and the companies shaping the future, summarized clearly on Plax.',
-    kw: ['technology news', 'tech news today', 'AI news', 'gadget news', 'startup news'],
-  },
-  business: {
-    title: 'Business News Today — Markets & Economy',
-    desc: 'The latest business news today — markets, economy, companies and finance, summarized clearly and updated continuously on Plax.',
-    kw: ['business news', 'market news', 'economy news', 'finance news today'],
-  },
-  science: {
-    title: 'Science News Today — Latest Discoveries',
-    desc: 'The latest science news today — research, discoveries and breakthroughs, explained simply and updated continuously on Plax.',
-    kw: ['science news', 'science news today', 'research news', 'scientific discoveries'],
-  },
-}
-
 function cleanText(s: string, max = 240): string {
   const t = (s || '').replace(/\s+/g, ' ').trim()
   return t.length > max ? t.slice(0, max).trim() + '…' : t
@@ -58,7 +32,7 @@ type Params = { params: Promise<{ section: string }> }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { section } = await params
-  const meta = SECTION_COPY[section]
+  const meta = NEWS_SECTION_SEO[section]
   const s = NEWS_SECTIONS.find((x) => x.id === section)
   if (!meta || !s) return {}
   const url = `${SITE_URL}/headlines/${section}`
@@ -75,16 +49,17 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 export default async function NewsSectionPage({ params }: Params) {
   const { section } = await params
   const s = NEWS_SECTIONS.find((x) => x.id === section)
-  const meta = SECTION_COPY[section]
+  const meta = NEWS_SECTION_SEO[section]
   if (!s || !meta) notFound()
 
   const raw = await getCachedNews().catch(() => [] as RawContent[])
   const seen = new Set<string>()
-  const items = raw
+  const newest = raw
     .filter((i) => i.section === section && i.title)
     .filter((i) => { const k = i.title.toLowerCase().trim(); if (seen.has(k)) return false; seen.add(k); return true })
     .sort((a, b) => (b.publishedAt ?? 0) - (a.publishedAt ?? 0))
-    .slice(0, 25)
+  // The newest 25, with no one outlet taking the page (a feed of a hundred items would).
+  const items = diverse(newest, 25)
 
   const url = `${SITE_URL}/headlines/${section}`
   const jsonLd = {
@@ -97,7 +72,7 @@ export default async function NewsSectionPage({ params }: Params) {
         name: meta.title,
         description: meta.desc,
         isPartOf: { '@id': `${SITE_URL}/#website` },
-        inLanguage: 'en',
+        inLanguage: meta.language,
       },
       {
         '@type': 'ItemList',
@@ -157,7 +132,7 @@ export default async function NewsSectionPage({ params }: Params) {
               <p className="text-sm text-dark-muted leading-relaxed mb-2">{cleanText(it.content)}</p>
               <div className="text-xs text-dark-subtle">
                 {it.source}
-                {it.publishedAt ? ` · ${new Date(it.publishedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}` : ''}
+                {it.publishedAt ? ` · ${new Date(it.publishedAt).toLocaleDateString(meta.dates.locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: meta.dates.timeZone, timeZoneName: meta.dates.timeZoneName })}` : ''}
               </div>
             </li>
           ))}
@@ -165,7 +140,7 @@ export default async function NewsSectionPage({ params }: Params) {
       )}
 
       <footer className="mt-12 pt-8 border-t border-white/[0.06] text-sm text-dark-subtle">
-        <Link href="/?topic=news" className="text-[color:var(--signal)] hover:underline">Open the live news feed →</Link>
+        <Link href={`/?topic=news&section=${section}`} className="text-[color:var(--signal)] hover:underline">Open the live {s.label} news feed →</Link>
         <SiteLinks className="mt-4" />
       </footer>
     </main>

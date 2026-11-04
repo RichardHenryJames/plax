@@ -21,7 +21,7 @@ export async function GET() {
   // Each entry: url, publication name, language, title. News pages update
   // continuously, so publication_date = now (within Google's 48h window).
   const entries: { url: string; lang: string; title: string }[] = [
-    { url: `${SITE_URL}/headlines`, lang: 'en', title: 'Latest News Today — India & World Headlines' },
+    { url: `${SITE_URL}/headlines`, lang: 'en', title: 'Latest News Today — US, India & World Headlines' },
     ...NEWS_SECTIONS.map((s) => ({
       url: `${SITE_URL}/headlines/${s.id}`,
       lang: 'en',

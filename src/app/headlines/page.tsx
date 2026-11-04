@@ -4,6 +4,7 @@ import { unstable_cache } from 'next/cache'
 import { SITE_URL } from '@/lib/seo'
 import { SiteLinks } from '@/components/SiteLinks'
 import { fetchGeneralNews } from '@/lib/sources'
+import { diverse } from '@/lib/story-order'
 import { NEWS_SECTIONS } from '@/lib/types'
 import type { RawContent } from '@/lib/types'
 
@@ -39,18 +40,18 @@ function prepare(items: RawContent[]): RawContent[] {
 export async function generateMetadata(): Promise<Metadata> {
   const url = `${SITE_URL}/headlines`
   return {
-    title: 'Latest News Today — India & World Headlines',
+    title: 'Latest News Today — US, India & World Headlines',
     description:
-      'The latest news today from India and around the world — top headlines in technology, business, science and world affairs, summarized clearly. Updated continuously on Plax.',
+      'The latest news today from the US, India and around the world — top headlines in politics, technology, business, science and world affairs, summarized clearly. Updated continuously on Plax.',
     keywords: [
-      'latest news', 'news today', 'India news', 'world news', 'breaking news',
+      'latest news', 'news today', 'US news', 'India news', 'world news', 'breaking news',
       'top headlines', 'technology news', 'business news', 'science news', 'Plax news',
     ],
     alternates: { canonical: '/headlines', languages: { 'en-IN': '/headlines', 'hi-IN': '/samachar' } },
     openGraph: {
-      title: 'Latest News Today — India & World Headlines | Plax',
+      title: 'Latest News Today — US, India & World Headlines | Plax',
       description:
-        'Top headlines from India and the world — tech, business, science and world affairs, summarized. Updated continuously.',
+        'Top headlines from the US, India and the world — politics, tech, business, science and world affairs, summarized. Updated continuously.',
       url,
       type: 'website',
     },
@@ -62,7 +63,7 @@ export default async function NewsHubPage() {
   const raw = await getCachedNews().catch(() => [] as RawContent[])
   const items = prepare(raw)
   const url = `${SITE_URL}/headlines`
-  const bySection = (id: string) => items.filter((i) => i.section === id).slice(0, 8)
+  const bySection = (id: string) => diverse(items.filter((i) => i.section === id), 8)
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -71,9 +72,9 @@ export default async function NewsHubPage() {
         '@type': 'CollectionPage',
         '@id': `${url}/#page`,
         url,
-        name: 'Latest News Today — India & World | Plax',
+        name: 'Latest News Today — US, India & World | Plax',
         description:
-          'Top news headlines from India and the world, summarized and updated continuously.',
+          'Top news headlines from the US, India and the world, summarized and updated continuously.',
         isPartOf: { '@id': `${SITE_URL}/#website` },
         inLanguage: 'en',
       },
@@ -105,10 +106,10 @@ export default async function NewsHubPage() {
       </nav>
 
       <header className="mb-8">
-        <h1 className="headline text-3xl sm:text-4xl text-white mb-3">Latest News Today — India &amp; World</h1>
+        <h1 className="headline text-3xl sm:text-4xl text-white mb-3">Latest News Today — US, India &amp; World</h1>
         <p className="text-dark-muted leading-relaxed max-w-2xl">
-          Top headlines from India and across the world, summarized clearly and updated continuously.
-          Browse the latest in technology, business, science and world affairs — or{' '}
+          Top headlines from the US, India and across the world, summarized clearly and updated continuously.
+          Browse the latest in politics, technology, business, science and world affairs — or{' '}
           <Link href="/?topic=news" className="text-[color:var(--signal)] hover:underline">open the live news feed</Link>.
           Prefer Hindi? <Link href="/samachar" className="text-[color:var(--signal)] hover:underline">आज की ताज़ा खबरें पढ़ें</Link>.
         </p>

@@ -9,7 +9,7 @@ export interface RawContent {
   category: string
   publishedAt?: number // epoch ms — set for time-sensitive sources (news/RSS)
   image?: string // hero image URL (news/RSS thumbnails)
-  section?: string // news sub-section (india/world/tech/business/science)
+  section?: string // news sub-section (us/india/world/tech/business/science)
   /** What the feed itself said, kept when `content` is replaced by the opening of the article (lib/lead.ts): a story's id is made
    * from it, so that finding more of the text later does not make the story a new one. */
   idText?: string
@@ -32,7 +32,7 @@ export interface ProcessedCard {
   aiEnhanced?: boolean
   publishedAt?: number // epoch ms — original publish time for news cards (relative timestamp)
   image?: string // hero image URL (news cards)
-  section?: string // news sub-section (india/world/tech/business/science)
+  section?: string // news sub-section (us/india/world/tech/business/science)
   /** `content` is the opening of the article itself (see RawContent.lead). */
   lead?: boolean
   /** The server's signature over the card (lib/share.ts). Lets a shared story be trusted; absent when signing is off. */
@@ -195,10 +195,18 @@ export const TOPIC_RSS_FEEDS: Record<string, [string, string][]> = {
   ],
 }
 
-// General/world news feeds — reputable, India-first + global. Used by the
+// General/world news feeds — reputable, with a US, an India and a world desk. Used by the
 // dedicated "News" topic to build a broad latest-headlines stream. Third element
-// is the sub-section (powers the News filter bar: India / World / Tech / Business).
+// is the sub-section (powers the News filter bar: US / India / World / Tech / Business / Science).
+// The US feeds are the US desks of public and national outlets (each answered with fresh items, a description and a picture or a
+// page to take one from when this was added); an outlet's own US feed, not its front page, so a story filed under US is about the US.
 export const GENERAL_NEWS_FEEDS: [string, string, string][] = [
+  ['NPR', 'https://feeds.npr.org/1003/rss.xml', 'us'],
+  ['PBS NewsHour', 'https://www.pbs.org/newshour/feeds/rss/nation', 'us'],
+  ['CBS News', 'https://www.cbsnews.com/latest/rss/us', 'us'],
+  ['NBC News', 'https://feeds.nbcnews.com/nbcnews/public/us-news', 'us'],
+  ['ABC News', 'https://abcnews.go.com/abcnews/usheadlines', 'us'],
+  ['The Hill', 'https://thehill.com/feed/', 'us'],
   ['The Hindu', 'https://www.thehindu.com/news/national/feeder/default.rss', 'india'],
   ['NDTV', 'https://feeds.feedburner.com/ndtvnews-top-stories', 'india'],
   ['India Today', 'https://www.indiatoday.in/rss/1206578', 'india'],
@@ -216,6 +224,7 @@ export const GENERAL_NEWS_FEEDS: [string, string, string][] = [
 
 // News sub-sections for the filter bar (id + label). 'all' is implicit.
 export const NEWS_SECTIONS: { id: string; label: string; labelHi: string }[] = [
+  { id: 'us', label: 'US', labelHi: 'अमेरिका' },
   { id: 'india', label: 'India', labelHi: 'भारत' },
   { id: 'world', label: 'World', labelHi: 'विश्व' },
   { id: 'tech', label: 'Tech', labelHi: 'तकनीक' },

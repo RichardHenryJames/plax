@@ -53,6 +53,17 @@ export function capPerSource<T extends Story>(stories: T[], maxPerSource: number
 }
 
 /**
+ * The newest `limit` stories with no outlet crowding out the rest: an outlet that publishes often (a feed of a hundred items) would
+ * otherwise fill a page of headlines alone. The most one outlet may have is an even share of the page, at least `minPerSource`, so a
+ * section with few outlets still fills its page. `stories` are newest first.
+ */
+export function diverse<T extends Story>(stories: T[], limit: number, minPerSource = 3): T[] {
+  const outlets = new Set(stories.map((story) => story.source || 'other')).size
+  if (outlets === 0) return []
+  return capPerSource(stories, Math.max(minPerSource, Math.ceil(limit / outlets))).slice(0, limit)
+}
+
+/**
  * The news stream: the newest first, no more than `perSource` of one outlet, and the stories that fill a card before those that do
  * not. The stories that do not fill one are shown after all that do, so that a feed that has enough full ones never shows a card
  * with a hole in it, and one that has not still shows what it has.

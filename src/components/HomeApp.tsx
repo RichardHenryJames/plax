@@ -18,6 +18,7 @@ import { ads, adPlacement } from '@/lib/ads-config'
 import { useRailVisible } from '@/lib/ads-state'
 import { TOPICS, usePlaxStore } from '@/lib/store'
 import { useUIStore } from '@/lib/ui-store'
+import { NEWS_SECTIONS } from '@/lib/types'
 import { useEffect, useState } from 'react'
 import { withBase } from '@/lib/base-path'
 import { BrandMark } from '@/components/BrandMark'
@@ -44,6 +45,7 @@ export function HomeApp({ seed }: { seed?: Record<string, string>[] }) {
     const topic = params.get('topic')
     const lang = params.get('lang')
     const card = params.get('card')
+    const section = params.get('section')
     const store = usePlaxStore.getState()
     if (lang === 'hi' || lang === 'en') store.setLanguage(lang)
     if (card) {
@@ -54,8 +56,10 @@ export function HomeApp({ seed }: { seed?: Record<string, string>[] }) {
     } else if (store.startOnForYou && store.selectedTopics.length > 0) {
       useUIStore.getState().setFeedFilter(null)
     }
+    // /?topic=news&section=us (from a news section's page, /headlines/us) opens the news on that section.
+    if (!card && section && NEWS_SECTIONS.some((x) => x.id === section)) useUIStore.getState().setNewsSection(section)
     // Clean the URL so a refresh doesn't re-apply it.
-    if (topic || lang || card) window.history.replaceState({}, '', withBase('/'))
+    if (topic || lang || card || section) window.history.replaceState({}, '', withBase('/'))
   }, [mounted])
 
   if (!mounted) {
