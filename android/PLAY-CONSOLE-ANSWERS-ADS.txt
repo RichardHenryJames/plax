@@ -44,7 +44,8 @@ look at the pre-launch report. READY, but only a Console run can show how Play t
             2026, after the four NEXT_PUBLIC_ADSENSE_* variables were set in Vercel and the site rebuilt. Auto ads is Off for the
             site (so Google places nothing of its own over the stories); AdSense's "Auto optimise" is On, which is its default.
             The site shows "Requires review" until Google decides, which can take days or weeks; until then every ad request is
-            unfilled, the strip stays closed and the page after the fifth story is dropped (two in a row, and no more that session).
+            unfilled, the strip stays closed and the page after the fifth story is dropped (two in a row, and the next two slots are
+            passed over before the site asks again).
   5. READY  Give the build the three ids (they are not secret, every APK holds them). In android\gradle.properties, or
             %USERPROFILE%\.gradle\gradle.properties, or as -P on the command line:
                 admobAppId=ca-app-pub-0000000000000000~0000000000

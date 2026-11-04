@@ -46,6 +46,34 @@ export function withAds<T>(stories: T[], make: (slot: AdSlot) => T | null, every
 /** The id of the card that stands in a slot. */
 export const adCardId = (ordinal: number) => `__ad_${ordinal}__`
 
+/** Slots in a row that could not be served, after which the feed rests. */
+export const MAX_AD_MISSES = 2
+/** The slots a resting feed passes over before it asks again. */
+export const SLOTS_RESTED = 2
+
+/**
+ * Whether the slot with this number may be asked for, given how the slots before it went. A slot that was asked for and could not be
+ * served is a miss, and a served one ends the run of misses. After {@link MAX_AD_MISSES} in a row the feed passes over the next
+ * {@link SLOTS_RESTED} slots and then asks again, so a short gap on Google's side (a site still in review, a poor connection) costs the
+ * ads of a few slots, not all the ads of the visit, and a reader is not shown an empty page at every slot while there is nothing to serve.
+ * A slot that was never asked for (passed over, or behind the reader) neither counts as a miss nor ends the run.
+ */
+export function slotMayAsk(ordinal: number, served: ReadonlySet<number>, missed: ReadonlySet<number>): boolean {
+  let misses = 0
+  let rest = 0
+  for (let before = 1; before < ordinal; before++) {
+    if (rest > 0) {
+      rest--
+    } else if (served.has(before)) {
+      misses = 0
+    } else if (missed.has(before) && ++misses >= MAX_AD_MISSES) {
+      misses = 0
+      rest = SLOTS_RESTED
+    }
+  }
+  return rest === 0
+}
+
 /** Whether a card is an ad slot and not a story. */
 export const isAdCardId = (id: string) => /^__ad_\d+__$/.test(id)
 

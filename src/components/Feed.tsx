@@ -15,7 +15,7 @@ import { NEWS_SECTIONS } from '@/lib/types'
 import { withBase } from '@/lib/base-path'
 import { SeenStore, replace, append, EARLIER_LIMIT } from '@/lib/story-engine'
 import { loadSeen, saveSeen } from '@/lib/seen-storage'
-import { withAds, adSlots, adCardId, isAdCardId, adOrdinal } from '@/lib/ad-slots'
+import { withAds, adSlots, adCardId, isAdCardId, adOrdinal, slotMayAsk } from '@/lib/ad-slots'
 import { ads, adPlacement } from '@/lib/ads-config'
 import { useAdsBlocked, useAdsResting, useRailVisible } from '@/lib/ads-state'
 
@@ -36,7 +36,6 @@ const PLACE_KEEP_MS = 2 * 60 * 1000 // a feed left this recently (for Topics or 
 const PLACES_KEPT = 6
 const HINT_KEY = 'plax-swipe-hint' // set once the reader has swiped: the hint has done its job
 const AD_PAGE_MIN_HEIGHT = 520 // a full-page ad (the unit, the label and the button under it) needs a page about this tall
-const MAX_AD_FAILURES = 2 // after this many slots that could not be served, no more are put in: the service is not answering
 const AD_HOLD_MS = 700 // the wheel is held back this long after the ad page moved on by scroll: its tail is still coming (the page takes 300 ms to leave)
 export const CAUGHT_UP_ID = '__caught_up__'
 
@@ -528,13 +527,17 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
       if (focusCard && !base.some((c) => c.id === focusCard.id)) base = [focusCard, ...base]
       if (!pageAds || !roomForAd) return base
       // The caught-up card is not a story: it stays last, and an ad is never put between the last story and it. An ad that was
-      // asked for and could not be served is left out for good, so the reader never lands on an empty page. Where ads are blocked,
-      // resting, or two in a row could not be served, no more are put in; the ones already shown stay, so nothing moves under the reader.
+      // asked for and could not be served is left out for good, so the reader never lands on an empty page. Where ads are blocked or
+      // resting no more are put in; two misses in a row make the feed rest for a few slots and then ask again (see slotMayAsk).
+      // The ones already shown stay, so nothing moves under the reader.
       const stories = base.filter((c) => !isMarker(c))
       const ended = base.filter(isMarker)
-      const giveUp = adsBlockedHere || pageResting || unfilledAds.size >= MAX_AD_FAILURES
       return [
-        ...withAds(stories, (slot) => (unfilledAds.has(slot.ordinal) || (giveUp && !filledAds.has(slot.ordinal)) ? null : adCard(slot.ordinal))),
+        ...withAds(stories, (slot) => {
+          if (unfilledAds.has(slot.ordinal)) return null
+          if (!filledAds.has(slot.ordinal) && (adsBlockedHere || pageResting || !slotMayAsk(slot.ordinal, filledAds, unfilledAds))) return null
+          return adCard(slot.ordinal)
+        }),
         ...ended,
       ]
     },
