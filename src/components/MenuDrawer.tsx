@@ -10,6 +10,7 @@ import { useUIStore } from '@/lib/ui-store'
 import { usePlaxStore } from '@/lib/store'
 import { useT } from '@/lib/i18n'
 import { NEWS_SECTIONS } from '@/lib/types'
+import { feedHasNews, isGeneralNews } from '@/lib/news-chips'
 import type { ThemeMode } from '@/lib/theme'
 
 type Tab = 'feed' | 'foryou' | 'topics' | 'saved'
@@ -63,6 +64,7 @@ export function MenuDrawer() {
   const themeMode = usePlaxStore((s) => s.themeMode)
   const setThemeMode = usePlaxStore((s) => s.setThemeMode)
   const setStartOnForYou = usePlaxStore((s) => s.setStartOnForYou)
+  const selectedTopics = usePlaxStore((s) => s.selectedTopics)
   const savedCount = usePlaxStore((s) => s.bookmarkedIds.length)
   const { user } = useAuth()
   const { t, lang } = useT()
@@ -71,8 +73,9 @@ export function MenuDrawer() {
   const hindi = lang === 'hi' ? 'lang-hi' : ''
 
   const active: Tab = screen === 'topics' ? 'topics' : screen === 'saved' ? 'saved' : feedFilter === null ? 'foryou' : 'feed'
-  // The sections narrow the news, so they are offered where news is being read.
-  const showSections = screen === 'feed' && (feedFilter === 'news' || newsSection !== null || currentCard?.category === 'news')
+  // The sections narrow the general news, so they are offered where it is being read (not on the Stocks topic, whose stories are news cards too).
+  const showSections =
+    screen === 'feed' && feedHasNews(feedFilter ? [feedFilter] : selectedTopics) && (feedFilter === 'news' || newsSection !== null || isGeneralNews(currentCard))
 
   // Closing is also what happens when the window grows into a desktop, which has the rail instead.
   const close = () => setOpen(false)

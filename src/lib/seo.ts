@@ -43,6 +43,8 @@ export const SITE = {
 export interface TopicSeo {
   id: string
   label: string
+  /** The page's title, where "<label> — Bite-Sized <label> Insights" would read badly. */
+  title?: string
   emoji: string
   /** ~150-char meta description */
   description: string
@@ -146,6 +148,22 @@ export const TOPIC_SEO: TopicSeo[] = [
       'How economic shifts affect your everyday life',
     ],
     keywords: ['finance', 'investing basics', 'personal finance', 'financial literacy'],
+  },
+  {
+    id: 'stocks',
+    label: 'Stocks',
+    title: 'Stock Market News from Around the World',
+    emoji: '📊',
+    description:
+      'Stock market news from around the world: Wall Street, India, Europe, Asia and more. Fresh headlines from markets desks, newest first, in bite-sized cards on Plax.',
+    intro:
+      'The markets never sleep, and neither does this feed. Stocks gathers headlines from the markets and business desks of outlets in the United States, India, the United Kingdom, Europe, Asia and beyond, newest first, so one swipe takes you from Wall Street to Mumbai to Hong Kong.',
+    discover: [
+      'What is moving the markets right now, from New York to Mumbai to Hong Kong',
+      'Company results, earnings, IPOs and dividends as they are reported',
+      'Central banks, interest rates, oil and inflation: the news behind the moves',
+    ],
+    keywords: ['stock market news', 'stocks today', 'Wall Street news', 'share market news', 'market headlines', 'earnings news'],
   },
   {
     id: 'space',

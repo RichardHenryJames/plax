@@ -22,7 +22,7 @@ final class ShareLinks implements ShareSource {
     /** The site's own link-making service and the pages it makes live in the same place as the feed. */
     static final String ENDPOINT = FeedApi.SITE + "/api/share";
 
-    /** Replaced by tests, as BriefSheet.source is. */
+    /** Replaced by tests, as DeeperSheet.source is. */
     static ShareSource source = new ShareLinks();
 
     private static final int MAX_BYTES = 8 * 1024;

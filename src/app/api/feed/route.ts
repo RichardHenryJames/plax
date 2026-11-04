@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { unstable_cache } from 'next/cache'
-import { fetchAllContent } from '@/lib/sources'
+import { fetchAllContent, fetchStocksPool } from '@/lib/sources'
 import { getCached, setCache } from '@/lib/cache'
 import { ProcessedCard, EMOJI_MAP, RawContent } from '@/lib/types'
 import { signCard, signingKey } from '@/lib/share-sign'
 import { newsOrder, richestFirst } from '@/lib/story-order'
 import { enrichNews } from '@/lib/news-enrich'
+import { STOCKS_SECTION } from '@/lib/news-chips'
+import { STOCK_AGE_STEPS_MS, STOCK_PER_PAGE_OUTLET } from '@/lib/stocks'
 
 // Use Node.js runtime for reliable external API fetches
 export const runtime = 'nodejs'
@@ -30,6 +32,19 @@ const getPooledContent = unstable_cache(
   { revalidate: 180, tags: ['feed'] }
 )
 
+// The Stocks topic has a pool of its own (around a thousand stories from sixty feeds), cached once for every combination of topics a
+// reader may have: inside the pool above it would be kept again for each of them, and would come near what the cache can hold.
+// An empty answer is not kept (a throw is not cached): the feeds had a bad minute, and the next request asks them again.
+const getStocksPool = unstable_cache(
+  async () => {
+    const stories = await fetchStocksPool()
+    if (stories.length === 0) throw new Error('No stocks stories')
+    return stories
+  },
+  ['stocks-pool'],
+  { revalidate: 180, tags: ['feed'] }
+)
+
 // Edge-cacheable for a minute, then served stale while it refreshes in the background.
 function sharedCacheHeaders(shareable: boolean): HeadersInit | undefined {
   return shareable ? { 'Cache-Control': 'public, max-age=0, s-maxage=60, stale-while-revalidate=300' } : undefined
@@ -46,17 +61,62 @@ function stableHash(str: string): string {
   return Math.abs(hash).toString(36)
 }
 
+interface FeedRequest {
+  categories: string[]
+  refresh: boolean
+  limit: number
+  lang: 'en' | 'hi'
+  /** IDs the client already has — we skip those. */
+  exclude: string[]
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
-  const categories = searchParams.get('categories')?.split(',') || []
-  const refresh = searchParams.get('refresh') === 'true'
-  const limit = parseInt(searchParams.get('limit') || '30')
-  const lang = searchParams.get('lang') === 'hi' ? 'hi' : 'en'
-  // Client sends IDs it already has — we skip those
-  const excludeIds = new Set((searchParams.get('exclude') || '').split(',').filter(Boolean))
+  return serve({
+    categories: searchParams.get('categories')?.split(',') || [],
+    refresh: searchParams.get('refresh') === 'true',
+    limit: parseInt(searchParams.get('limit') || '30'),
+    lang: searchParams.get('lang') === 'hi' ? 'hi' : 'en',
+    exclude: (searchParams.get('exclude') || '').split(',').filter(Boolean),
+  })
+}
+
+// The same request with its parameters in the body. A reader who has gone far down a long feed (the Stocks topic is a thousand
+// stories) has a list of stories to leave out that does not fit in an address, which a server accepts to about 14 KB. Never shared
+// by a CDN: what it answers is for that reader.
+const MAX_BODY_CHARS = 200_000
+const MAX_EXCLUDED = 3000
+
+function listOf(value: unknown, most: number, longest: number, pattern?: RegExp): string[] | null {
+  if (value === undefined) return []
+  if (!Array.isArray(value) || value.length > most) return null
+  return value.every((item) => typeof item === 'string' && item.length > 0 && item.length <= longest && (!pattern || pattern.test(item))) ? (value as string[]) : null
+}
+
+export async function POST(request: NextRequest) {
+  let body: Record<string, unknown>
+  try {
+    const text = await request.text()
+    if (text.length > MAX_BODY_CHARS) return NextResponse.json({ cards: [], error: 'Request too large' }, { status: 413 })
+    const parsed: unknown = JSON.parse(text)
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) throw new Error('not an object')
+    body = parsed as Record<string, unknown>
+  } catch {
+    return NextResponse.json({ cards: [], error: 'Invalid request' }, { status: 400 })
+  }
+  const categories = listOf(body.categories, 40, 40, /^[a-z0-9_-]+$/)
+  const exclude = listOf(body.exclude, MAX_EXCLUDED, 200)
+  if (!categories || !exclude) return NextResponse.json({ cards: [], error: 'Invalid request' }, { status: 400 })
+  const limit = typeof body.limit === 'number' && Number.isFinite(body.limit) ? Math.min(60, Math.max(1, Math.floor(body.limit))) : 30
+  return serve({ categories, refresh: body.refresh === true, limit, lang: body.lang === 'hi' ? 'hi' : 'en', exclude }, false)
+}
+
+async function serve(input: FeedRequest, mayBeShared = true) {
+  const { categories, refresh, limit, lang } = input
+  const excludeIds = new Set(input.exclude)
   // Without a per-reader exclude list or a forced refresh the answer is identical
   // for everyone, so the CDN may serve it and refresh it in the background.
-  const shareable = !refresh && excludeIds.size === 0
+  const shareable = mayBeShared && !refresh && excludeIds.size === 0
 
   try {
     // Check cache first (only for non-refresh requests)
@@ -80,9 +140,18 @@ export async function GET(request: NextRequest) {
     // Pass the user's categories so Reddit pulls topic-relevant subreddits.
     // Non-refresh → persistent pooled cache (fast, cross-instance). refresh=true
     // (pull-to-refresh / news auto-refresh) → always a live fetch.
-    const rawContents = refresh
-      ? await fetchAllContent(categories, lang, { leads: false })
-      : await getPooledContent([...categories].sort(), lang)
+    // The Stocks topic is not one of the topics of that pool: it has its own (above), and a feed of nothing else asks no other source.
+    const wantsStocks = categories.includes('stocks')
+    const topics = categories.filter((topic) => topic !== 'stocks')
+    const [others, stocks] = await Promise.all([
+      wantsStocks && topics.length === 0
+        ? Promise.resolve<RawContent[]>([])
+        : refresh
+          ? fetchAllContent(topics, lang, { leads: false })
+          : getPooledContent([...topics].sort(), lang),
+      wantsStocks ? (refresh ? fetchStocksPool() : getStocksPool().catch((): RawContent[] => [])) : Promise.resolve<RawContent[]>([]),
+    ])
+    const rawContents = [...stocks, ...others]
     console.log(`[Plax API] Fetched ${rawContents.length} raw items`)
 
     if (rawContents.length === 0) {
@@ -297,6 +366,11 @@ function filterAndLimit(
     return newsOrder(cards, 6, limit)
   }
 
+  // The Stocks topic alone reads the same way: its stories are news cards (filed under its own section), newest first, by age group.
+  if (categories.length === 1 && categories[0] === 'stocks') {
+    return newsOrder(cards.filter((c) => c.section === STOCKS_SECTION), STOCK_PER_PAGE_OUTLET, limit, STOCK_AGE_STEPS_MS)
+  }
+
   if (categories.length === 0) {
     return shuffle(cards).slice(0, limit)
   }
@@ -315,7 +389,8 @@ function filterAndLimit(
   //   3. everything else — ONLY as a last resort if the first two tiers are
   //      empty (prevents an empty feed for very niche topic picks, but never
   //      lets unrelated content jump ahead of what the user asked for).
-  const exact = shuffle(cards.filter((c) => exactSet.has(c.category)))
+  // A story of the Stocks topic is a news card, so it is matched by its section as well as by its category.
+  const exact = shuffle(cards.filter((c) => exactSet.has(c.category) || (c.section === STOCKS_SECTION && exactSet.has(STOCKS_SECTION))))
   const related = shuffle(cards.filter((c) => relatedSet.has(c.category)))
 
   // If we already have enough EXACT matches, show ONLY those — never dilute a

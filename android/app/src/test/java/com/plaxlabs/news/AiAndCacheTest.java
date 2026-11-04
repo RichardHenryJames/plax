@@ -29,28 +29,31 @@ public class AiAndCacheTest {
         assertNull(Network.keepImages(image(404, null)).header("Cache-Control"));
     }
 
-    @Test public void briefRequestsSendOnlyTheStoryTextLanguageAndCategory() {
+    @Test public void deeperRequestsSendOnlyTheStoryHeadlineTextAndLanguage() {
         Story story = new Story("secret-id", "A headline", "x".repeat(5000), "science", "", "BBC",
                 "https://example.com/story", "https://example.com/i.jpg", "1 min", 1L);
-        JsonObject body = JsonParser.parseString(BriefApi.requestBody(story, "hi")).getAsJsonObject();
-        assertEquals(java.util.Set.of("content", "title", "type", "lang", "category"), body.keySet());
-        assertEquals(2200, body.get("content").getAsString().length());
-        assertEquals("hi", body.get("lang").getAsString()); assertEquals("science", body.get("category").getAsString());
+        JsonObject body = JsonParser.parseString(DeeperApi.requestBody(story, "hi")).getAsJsonObject();
+        assertEquals(java.util.Set.of("title", "content", "lang"), body.keySet());
+        assertEquals(1500, body.get("content").getAsString().length());
+        assertEquals("A headline", body.get("title").getAsString());
+        assertEquals("hi", body.get("lang").getAsString());
         assertFalse(body.toString().contains("secret-id")); assertFalse(body.toString().contains("example.com"));
+        assertFalse(body.toString().contains("science")); assertFalse(body.toString().contains("BBC"));
     }
 
-    @Test public void briefResponsesAreValidatedStrictly() throws Exception {
-        Brief brief = BriefApi.parse("{\"title\":\" T \",\"content\":\" Body **bold**. \",\"type\":\"microessay\",\"translated\":true}");
-        assertEquals(new Brief("T", "Body **bold**."), brief);
-        assertEquals("", BriefApi.parse("{\"content\":\"Only body\"}").title());
-        for (String invalid : java.util.List.of("{\"content\":\"\"}", "{\"title\":\"x\"}", "{\"content\":5}", "[]", "not json",
-                "{\"content\":\"" + "y".repeat(8001) + "\"}"))
-            assertThrows(invalid, IOException.class, () -> BriefApi.parse(invalid));
+    @Test public void deeperResponsesAreValidatedStrictly() throws Exception {
+        assertEquals(new Deeper(java.util.List.of("One.", "Two **bold**.", "Three.")),
+                DeeperApi.parse("{\"insights\":[\" One. \",\"Two **bold**.\",\"\",\"Three.\"],\"cached\":true}"));
+        assertEquals("a few more than three are kept, no more than five", 5,
+                DeeperApi.parse("{\"insights\":[\"1\",\"2\",\"3\",\"4\",\"5\",\"6\",\"7\"]}").insights().size());
+        for (String invalid : java.util.List.of("{\"insights\":[]}", "{\"insights\":[\"\",\"  \"]}", "{\"insights\":\"text\"}", "{\"insights\":[5]}",
+                "{\"insights\":[null]}", "{\"insights\":null}", "{}", "[]", "not json", "{\"insights\":[\"" + "y".repeat(1001) + "\"]}"))
+            assertThrows(invalid, IOException.class, () -> DeeperApi.parse(invalid));
     }
 
     @Test public void cacheKeysSeparateStoriesAndLanguages() {
         Story story = new Story("a", "t", "c", "news", "", "", "", "", "", 0);
-        assertNotEquals(BriefApi.key(story, "en"), BriefApi.key(story, "hi"));
+        assertNotEquals(DeeperApi.key(story, "en"), DeeperApi.key(story, "hi"));
     }
 
     @Test public void languageFollowsTheChosenLocale() {

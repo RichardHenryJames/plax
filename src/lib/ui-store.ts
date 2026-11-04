@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { CardData } from './sample-data'
 import { rememberSectionChosen } from './us-reader'
+import { sectionAfterTopicChange } from './news-chips'
 
 // Lightweight, searchable projection of a loaded card (published by the Feed)
 export interface SearchItem {
@@ -71,7 +72,14 @@ export const useUIStore = create<UIState>((set) => ({
 
   feedFilter: 'news',
   feedTopic: 'news',
-  setFeedFilter: (category) => set((s) => ({ feedFilter: category, feedTopic: category ?? s.feedTopic, screen: 'feed' })),
+  setFeedFilter: (category) =>
+    set((s) => ({
+      feedFilter: category,
+      feedTopic: category ?? s.feedTopic,
+      screen: 'feed',
+      // A News chip chosen in one feed does not follow the reader into another: it would hide every story of that feed.
+      newsSection: sectionAfterTopicChange(s.newsSection, s.feedFilter, category),
+    })),
 
   accountOpen: false,
   setAccountOpen: (open) => set({ accountOpen: open }),

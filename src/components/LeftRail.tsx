@@ -143,8 +143,9 @@ export function LeftRail() {
         </div>
       </div>
 
-      {/* Topic filters */}
-      <div className="mt-6 px-2 flex-1 min-h-0 flex flex-col">
+      {/* Topic filters. The rail scrolls as a whole (the aside), so on a short window every topic can still be reached; the account
+          below stays at the foot of the window. */}
+      <div className="mt-6 px-2 pb-3">
         <div className="flex items-center justify-between px-3 mb-2.5">
           <span className={`text-[11px] font-semibold uppercase tracking-wider text-dark-subtle ${lang === 'hi' ? 'lang-hi' : ''}`}>{t('yourTopics')}</span>
           <button
@@ -154,7 +155,7 @@ export function LeftRail() {
             {t('edit')}
           </button>
         </div>
-        <div className="overflow-y-auto thin-scrollbar space-y-0.5 pr-1">
+        <div className="space-y-0.5 pr-1">
           {topics.map((topic) => {
             const active = feedFilter === topic.id
             return (
@@ -204,8 +205,9 @@ export function LeftRail() {
         </div>
       </div>
 
-      {/* Account — optional; the same sheet as on the phone */}
-      <div className="px-2 py-4 border-t border-dark-border">
+      {/* Account — optional; the same sheet as on the phone. It sticks to the foot of the window, and follows the topics when they are
+          longer than the window. */}
+      <div className="mt-auto sticky bottom-0 bg-dark-card px-2 py-4 border-t border-dark-border">
         <button
           onClick={() => setAccountOpen(true)}
           className="focus-ring w-full flex items-center gap-2.5 px-2 py-2 rounded-xl text-left hover:bg-white/5 transition-colors"

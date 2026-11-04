@@ -82,7 +82,7 @@ public class MenuEntriesDeviceTest {
             context.getSystemService(android.app.LocaleManager.class).setApplicationLocales(android.os.LocaleList.forLanguageTags(Language.ENGLISH));
         await("the interface to be English again",
                 () -> Language.ENGLISH.equals(context.getResources().getConfiguration().getLocales().get(0).getLanguage()));
-        BriefSheet.source = new BriefApi();
+        DeeperSheet.source = new DeeperApi();
         FeedViewModel.sources = FeedApi::new;
         FeedViewModel.caches = FeedCache::new;
         FeedViewModel.histories = SeenFile::new;
@@ -306,9 +306,9 @@ public class MenuEntriesDeviceTest {
         } finally { InstrumentationRegistry.getInstrumentation().removeMonitor(monitor); }
     }
 
-    @Test public void saveOnTheSourceLineTogglesAndTheBriefButtonOpensTheBrief() {
-        // The brief never answers, so its sheet stays as it opens, and no request leaves the phone.
-        BriefSheet.source = (story, lang, result) -> () -> { };
+    @Test public void saveOnTheSourceLineTogglesAndTheGoDeeperButtonOpensTheSheet() {
+        // The answer never comes, so the sheet stays as it opens, and no request leaves the phone.
+        DeeperSheet.source = (story, lang, result) -> () -> { };
         try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
             assertTrue(titleShown(INDIA));
             UiObject2 save = device.wait(Until.findObject(By.desc(text(R.string.save_description)).enabled(true)), 10_000);
@@ -318,11 +318,11 @@ public class MenuEntriesDeviceTest {
             device.findObject(By.desc(text(R.string.unsave_description))).click();
             assertTrue("a second press takes it off again", device.wait(Until.hasObject(By.desc(text(R.string.save_description))), 10_000));
 
-            device.findObject(By.desc(text(R.string.brief_description))).click();
-            assertTrue("the brief opens", device.wait(Until.hasObject(By.text(text(R.string.brief_loading))), 10_000));
-            assertTrue("with its note", device.hasObject(By.text(text(R.string.brief_note))));
+            device.findObject(By.desc(text(R.string.go_deeper_description))).click();
+            assertTrue("Go deeper opens", device.wait(Until.hasObject(By.text(text(R.string.deeper_loading))), 10_000));
+            assertTrue("with its note", device.hasObject(By.text(text(R.string.deeper_note))));
             device.findObject(By.desc(text(R.string.close))).click();
-            assertTrue("and its cross closes it", device.wait(Until.gone(By.text(text(R.string.brief_loading))), 5_000));
+            assertTrue("and its cross closes it", device.wait(Until.gone(By.text(text(R.string.deeper_loading))), 5_000));
             assertTrue("leaving the story as it was", titleShown(INDIA));
         }
     }

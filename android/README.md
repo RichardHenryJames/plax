@@ -3,7 +3,7 @@
 Standalone native Android news/reading app. This is not a WebView wrapper, and
 it does not depend on Vanishr or its signing keys, relay, account data or code.
 It reads the Plax public feed (`https://plax-rouge.vercel.app/news`) and, for the
-optional AI brief, the summarize endpoint. It works without an account; signing in
+optional Go deeper, the go-deeper endpoint (`/api/deeper`). It works without an account; signing in
 with Google is optional and only syncs your topics and saved stories (see
 *Optional sign-in*), and can be deleted again from the app (see *What is in 1.5.0*). About once a day it also asks the website whether a newer build
 exists (see *Updates from inside the app*), except in the Google Play build, which Google Play updates (see *Publishing to Google Play*). Apart from sign-in and that update check,
@@ -51,7 +51,7 @@ full-screen change adds no permission, library or backend change (the ads below 
   progress, as the header's did. `MainActivity` lost `header()`, `navigation()`, `sections()` and the ⋮ `PopupMenu`; the menu's
   actions are the old ones.
 - **The buttons are on the source line, and the headline is the link.** The row under the summary is gone (the "Read full story"
-  button with the publisher's host, and the brief, Save and Share buttons), so the 60 dp it took go to the story. The brief (✨),
+  button with the publisher's host, and the Go deeper, Save and Share buttons), so the 60 dp it took go to the story. Go deeper (✨),
   Save and Share are three 36 dp circles in 44 by 48 dp touch targets (`Ui.lineButton`) at the right end of the tag and source
   line. The headline opens the story at the publisher: a press ripples on it, TalkBack announces "Read full story" as its action, and
   a story with no usable link has a headline that cannot be pressed. The source and its age may take a second line beside the
@@ -86,8 +86,8 @@ full-screen change adds no permission, library or backend change (the ads below 
   spacing a `TextView` uses, so Devanagari lines came out shorter than they are, and a summary was thought to fit beside a picture when
   it did not (5 cases in `FitDeviceTest`'s sweep, all in Hindi). The layout used for counting is now built as the view builds its own, and a
   summary is costed at its average line times its lines, not the first three lines times the rest.
-- **Go deeper (the AI brief sheet)** keeps its title bar and cross outside the part that scrolls; looked at on the emulator with a
-  long brief. (On the website the cross was inside the scrolling part and scrolled away, and the sheet could run past the card: fixed there.)
+- **Go deeper (the sheet of the ✨ button)** keeps its title bar and cross outside the part that scrolls; looked at on the emulator with a
+  long text. (On the website the cross was inside the scrolling part and scrolled away, and the sheet could run past the card: fixed there.)
 - **Tests.** `CardFitTest`: 14 JVM tests (a sweep of over 10,000 combinations asserts nothing is planned beyond the page). `FitDeviceTest`
   (5): the pages are the whole screen now (360 x 600, 392 x 780, 412 x 850, 600 x 1000, 851 x 340 and 360 x 300 dp, at three text sizes, English
   and Hindi), with checks that the menu button touches no text and stands inside the picture, and that a picture on the page never comes with a
@@ -240,7 +240,7 @@ the TLS handshake). Neither screen names the domain, so it looked like a connect
   response" and, on Continue with Google, "Sign-in is temporarily unavailable". The same screens with 1.5.4, installed over 1.5.3 the way
   Play updates a phone, load real stories and open Google's sign-in page.
 - **The fix is one constant.** `FeedApi.SITE` is now `https://plax-rouge.vercel.app/news`, the project's own Vercel domain, and every address
-  the app uses is built from it: the feed, the AI brief, the update feed, the sign-in return page, the privacy and contact pages. The website
+  the app uses is built from it: the feed, Go deeper, the update feed, the sign-in return page, the privacy and contact pages. The website
   has the same address in `src\lib\site.ts` (`SITE_URL`): its canonical and Open Graph addresses, sitemap, robots.txt, policy pages, share
   cards, the copied and shared text and the user agent it sends to the news sources all come from it. It is a constant and not an
   environment variable, so that a stale setting cannot put an old address back. Nothing else is served at the domain root, so
@@ -595,14 +595,16 @@ Speed
 
 Experience
 - Redesigned cards (picture or poster, category, source and age, serif headline,
-  body without the repeated headline, a headline that opens the full story, AI brief, bookmark,
+  body without the repeated headline, a headline that opens the full story, Go deeper, bookmark,
   share), skeleton loading, a menu (☰) instead of a header and a bottom bar, topic tiles, light/dark/
   system theme, large-text and tablet-width handling, and light haptics.
 - **English and Hindi** (the language switch is at the top of the ☰ menu): the native Hindi feed plus a
   fully translated interface (the interface follows the Android per-app language).
-- **AI brief** (sparkle button): a bottom sheet with an AI-written brief of the story
-  and an English/Hindi switch, with a loading state, retry and a "can contain
-  mistakes" notice. The story text is sent to Plax Labs, which uses AI services.
+- **Go deeper** (sparkle button): a bottom sheet with three short AI-written facts that build on the story (the website's Go deeper,
+  `/api/deeper`), each in a numbered card, with an English/Hindi switch, a loading state, retry and a "can contain mistakes" notice.
+  The story's headline and text are sent to Plax Labs, which uses AI services. Until 4 November 2026 this button opened an AI brief
+  of the story (`/api/summarize`); it was replaced so that the app and the website have the same extra, and the app no longer
+  calls `/api/summarize` (older installed apps still do, so the route keeps answering them).
 - Publisher links open in Chrome Custom Tabs, falling back to the browser.
 
 Fixes found while auditing
@@ -807,7 +809,7 @@ the account id (Identifiers), the topics chosen and the stories saved (the
 Android app) and, on the website only, reading activity. Purpose: app functionality and account management. Encrypted in transit
 (HTTPS). Users can ask for deletion, in the app and at the web resource above. No data is sold, and none is shared for advertising (that is 1.5.5;
 a build with Google's ads library also has the data it collects and shares automatically, listed in [`PLAY-CONSOLE-ANSWERS-ADS.txt`](PLAY-CONSOLE-ANSWERS-ADS.txt));
-story text sent for an AI brief goes to AI services acting for Plax and carries no account.
+story text sent for Go deeper goes to AI services acting for Plax and carries no account.
 
 ## Tests
 
@@ -913,8 +915,8 @@ find the empty Saved tab.
 
 ## Data and limits
 
-Only the public feed, publisher images and (for an AI brief you ask for) the story
-text, title, category and language are sent. No website server key, AI key or analytics
+Only the public feed, publisher images and (for a Go deeper you ask for) the story
+headline, text and language are sent. No website server key, AI key or analytics
 is sent, and nothing identifies you until you sign in. The update check (once a day while
 you use the app, or when you choose Check for updates) fetches `/news/updates.json` from
 the same website: a plain GET that carries no account, device identifier or cookie, only
@@ -940,9 +942,9 @@ disk cache 50 MB, the memory cache one eighth of the heap (at most 48 MB), one f
 session 180 stories, a cached page 100 stories, and cached news older than two hours
 (other topics seven days) is not shown as current. At most 400 changes are queued
 while signed in, and the account is synchronised again when you return to the app if the
-last sync was over 10 minutes ago. Requests time out after 25 s (AI brief 45 s). The
+last sync was over 10 minutes ago. Requests time out after 25 s (Go deeper 45 s). The
 backend can return no stories or be unavailable; the app never replaces that with
-sample articles or claims editorial verification. AI briefs can be wrong and are
+sample articles or claims editorial verification. Go deeper's text can be wrong and is
 labelled as such.
 
 Inshorts describes the requested interaction style only; Plax is not affiliated with

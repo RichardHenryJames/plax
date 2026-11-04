@@ -93,6 +93,12 @@ public class FitDeviceTest {
         return text.substring(0, characters).strip();
     }
 
+    /** A story with a photograph. It never loads here: the address cannot be reached, which leaves the picture's box as it is. */
+    private static Story photo(String id, String title, String body) {
+        return new Story(id, title, body, "news", "india", "Publisher", "https://example.com/" + id, "https://example.invalid/" + id + ".jpg", "20s",
+                1_791_621_638_608L);
+    }
+
     private static List<Story> english() {
         return List.of(
                 story("typical", "Telangana spotlight: Women blast through the mining barriers",
@@ -128,7 +134,7 @@ public class FitDeviceTest {
             public void save(Story story) { }
             public void share(Story story) { }
             public void source(Story story) { }
-            public void brief(Story story) { }
+            public void deeper(Story story) { }
             public void check() { }
             public void earlier() { }
         };
@@ -146,6 +152,12 @@ public class FitDeviceTest {
     }
 
     private static boolean shown(View view) { return view.getVisibility() != View.GONE && view.getWidth() > 0 && view.getHeight() > 0; }
+
+    /** The tallest a picture is given on a page this tall, in a column this wide (px): 4:5 of the column, and 60% of the page less its padding. */
+    private static int mostPicture(Ui ui, int columnWidth, int pageHeight) {
+        int box = pageHeight - ui.dp(StoryPage.TOP_DP) - ui.dp(StoryPage.BOTTOM_DP);
+        return Math.min((int) (columnWidth * StoryPage.HERO_MAX_WIDTH), (int) (box * StoryPage.HERO_MAX_HEIGHT));
+    }
 
     /**
      * How many lines this view's text takes at its width and size, uncut, asked of the view itself: its own layout is what the page
@@ -165,6 +177,35 @@ public class FitDeviceTest {
         return lines;
     }
 
+    /**
+     * What is wrong with the way a page spends its room, as sentences: the parts stand one under the other from the top with only their
+     * own small spaces between them, never spread apart, and the picture takes what room there is (up to its most), so that what a
+     * very short story still leaves is empty at the bottom, under the text, and never anywhere else.
+     */
+    private static List<String> spreadProblems(String name, StoryPage page, int height, boolean roomy) {
+        List<String> found = new ArrayList<>();
+        Ui ui = new Ui(page.getContext());
+        List<View> column = new ArrayList<>();
+        if (page.pictureAbove()) column.add(page.hero);
+        column.add(page.meta);
+        if (shown(page.title)) column.add(page.title);
+        if (shown(page.body)) column.add(page.body);
+        for (int index = 1; index < column.size(); index++) {
+            View above = column.get(index - 1), below = column.get(index);
+            // Only the source line under a picture has space above it.
+            int allowed = above == page.hero ? ui.dp(StoryPage.META_TOP_DP) : 0;
+            int gap = below.getTop() - above.getBottom();
+            if (Math.abs(gap - allowed) > 1)
+                found.add(name + ": " + gap + " px between two parts of the page (" + above.getBottom() + " to " + below.getTop() + "), not " + allowed);
+        }
+        int under = height - ui.dp(StoryPage.BOTTOM_DP) - column.get(column.size() - 1).getBottom();
+        // A summary line of room is not a gap: the text is whole lines, and the picture is whole pixels.
+        if (roomy && page.pictureAbove() && under > Math.max(2, shown(page.body) ? page.body.getLineHeight() : 2)
+                && page.hero.getHeight() < mostPicture(ui, page.hero.getWidth(), height) - 1)
+            found.add(name + ": " + under + " px are left under the text though the picture is not at its most");
+        return found;
+    }
+
     /** What is wrong with one laid-out page, as sentences; none when it is right. */
     private static List<String> problems(String name, StoryPage page, int width, int height, boolean roomy) {
         List<String> found = new ArrayList<>();
@@ -181,6 +222,7 @@ public class FitDeviceTest {
                 if (Rect.intersects(box, second)) found.add(name + ": the " + names[index] + " " + box + " overlaps the " + names[other] + " " + second);
             }
         }
+        found.addAll(spreadProblems(name, page, height, roomy));
         // The menu button floats over the picture's corner, or stands at the start of the first line; it touches no text.
         View menu = page.menu;
         Rect button = new Rect(menu.getLeft(), menu.getTop(), menu.getRight(), menu.getBottom());
@@ -206,10 +248,10 @@ public class FitDeviceTest {
             Rect picture = new Rect(page.hero.getLeft(), page.hero.getTop(), page.hero.getRight(), page.hero.getBottom());
             if (!picture.contains(drawn)) found.add(name + ": the menu button " + drawn + " is not inside the picture " + picture);
         }
-        // The source line holds the tag, the source, and the brief, save and share buttons at its right end: each whole inside the line,
+        // The source line holds the tag, the source, and the Go deeper, save and share buttons at its right end: each whole inside the line,
         // none on another, and the menu button (which stands at the start of the page when there is no picture) on none of them.
         if (shown(page.meta) && page.meta instanceof ViewGroup line) {
-            String[] members = {"tag", "source", "brief button", "save button", "share button"};
+            String[] members = {"tag", "source", "go deeper button", "save button", "share button"};
             if (line.getChildCount() != members.length) {
                 found.add(name + ": the source line holds " + line.getChildCount() + " views, not the tag, the source and three buttons");
             } else {
@@ -298,6 +340,59 @@ public class FitDeviceTest {
                 problems.isEmpty());
     }
 
+    @Test public void aStoryWithAPhotographFillsItsPageWithNothingSpreadBetweenItsPartsWhateverItsSummary() {
+        // A summary that is cut to fit ends at a sentence, up to two lines short of its room, and a short one leaves room: the picture takes
+        // it, up to its most, and what it cannot take is empty under the text. These are the stories with a photograph, which stays while
+        // the summary is cut (a poster goes first), so the room the cut gives back is the picture's to take.
+        int[][] pages = {{360, 640}, {392, 780}, {412, 915}, {600, 1000}};
+        float[] scales = {1f, 1.3f};
+        List<String> problems = new ArrayList<>();
+        AtomicInteger laidOut = new AtomicInteger(), withPhoto = new AtomicInteger();
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+            for (boolean inHindi : new boolean[]{false, true}) {
+                for (float scale : scales) {
+                    Context themed = themed(scale, inHindi ? new Locale("hi", "IN") : Locale.US);
+                    Ui ui = new Ui(themed);
+                    ImageLoader images = new ImageLoader(themed, 1080);
+                    try {
+                        List<Story> stories = new ArrayList<>();
+                        String hindiBody = hindi().get(0).body();
+                        if (inHindi) {
+                            stories.add(photo("hi-photo-long", hindi().get(1).title(), hindiBody + hindiBody));
+                            stories.add(photo("hi-photo-short", "दिल्ली में लोक अदालत", hindiBody.substring(0, 110)));
+                        } else {
+                            stories.add(photo("photo-long", "Trade-margin cap on cancer drugs may push up costs elsewhere in the supply chain", words(900)));
+                            stories.add(photo("photo-medium", "Telangana spotlight: Women blast through the mining barriers", words(330)));
+                            stories.add(photo("photo-short", "Short and sweet", "A short summary of one sentence, a line or two of text."));
+                            stories.add(photo("photo-no-body", "A headline that has nothing under it", ""));
+                        }
+                        for (int[] size : pages) {
+                            StoryAdapter adapter = new StoryAdapter(ui, images, noActions(), size[0], size[1] + 60);
+                            for (Story story : stories) {
+                                adapter.submit(List.of(story), Set.of(), false, true, 0);
+                                var holder = (StoryAdapter.Holder) adapter.onCreateViewHolder(new FrameLayout(themed), adapter.getItemViewType(0));
+                                adapter.onBindViewHolder(holder, 0);
+                                int width = ui.dp(size[0]), height = ui.dp(size[1]);
+                                holder.page.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                                        View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY));
+                                holder.page.layout(0, 0, width, height);
+                                String name = story.id() + " on " + size[0] + "x" + size[1] + " at " + scale + "x" + (inHindi ? " in Hindi" : "");
+                                if (!holder.page.pictureAbove()) problems.add(name + ": a photograph is on the story but the page shows no picture");
+                                else withPhoto.incrementAndGet();
+                                problems.addAll(spreadProblems(name, holder.page, height, true));
+                                laidOut.incrementAndGet();
+                            }
+                        }
+                    } finally { images.close(); }
+                }
+            }
+        });
+        assertEquals(scales.length * pages.length * (4 + 2), laidOut.get());
+        assertTrue("the photograph stays on most pages", withPhoto.get() >= laidOut.get() * 3 / 4);
+        assertTrue(problems.size() + " problems, for example:\n" + String.join("\n", problems.subList(0, Math.min(40, problems.size()))),
+                problems.isEmpty());
+    }
+
     @Test public void anOrdinaryPhoneShowsThePictureAndTheWholeSummaryOfAStoryThatFits() {
         InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
             Context themed = themed(1f, Locale.US);
@@ -317,7 +412,7 @@ public class FitDeviceTest {
                     assertFalse(story.id(), holder.page.sideBySide());
                     int picture = holder.hero.getHeight();
                     assertTrue(story.id() + ": a picture is either absent or worth showing", picture == 0 || picture >= ui.dp(96));
-                    assertTrue(story.id() + ": the picture does not take over the page", picture <= height * .4f + 1);
+                    assertTrue(story.id() + ": the picture does not take over the page", picture <= height * StoryPage.HERO_MAX_HEIGHT + 1);
                     if (!story.body().isEmpty()) {
                         int shown = holder.content.getLayout().getLineCount();
                         // A cut summary is a cut of the text itself, ending at a sentence or a word, not an ellipsis the view draws.
@@ -331,9 +426,10 @@ public class FitDeviceTest {
                     if (story.id().equals("typical")) {
                         typicalSize = holder.content.getTextSize();
                         assertTrue("an ordinary story has its picture", picture >= ui.dp(96));
-                        assertTrue("and a short summary does not make it grow past its most, so that pictures look alike",
-                                picture <= ui.dp(392 - 32) * .75f + 1);
-                        assertTrue("and the summary ends at the bottom of the page, not halfway down it", height - holder.content.getBottom() <= ui.dp(8) + 2);
+                        assertTrue("and a short summary does not make it grow past its most (4:5)",
+                                picture <= ui.dp(392 - 32) * StoryPage.HERO_MAX_WIDTH + 1);
+                        assertTrue("and the page is full: the summary ends at the bottom of it, unless the picture is at its most",
+                                height - holder.content.getBottom() <= ui.dp(8) + 2 || picture >= mostPicture(ui, 392 - 32, height) - 1);
                         assertEquals("and its summary, whole", story.body(), holder.content.getText().toString());
                     }
                     if (story.id().equals("long-body")) {
@@ -344,9 +440,10 @@ public class FitDeviceTest {
                         int last = holder.content.getLayout().getLineCount() - 1;
                         assertEquals(story.id() + ": a short summary is shown whole", 0, holder.content.getLayout().getEllipsisCount(last));
                         assertEquals(story.body(), holder.content.getText().toString());
-                        assertTrue(story.id() + ": and a short story still fills the page", height - holder.content.getBottom() <= ui.dp(8) + 2);
+                        assertTrue(story.id() + ": and a short story still fills the page, unless the picture is at its most",
+                                height - holder.content.getBottom() <= ui.dp(8) + 2 || picture >= mostPicture(ui, 392 - 32, height) - 1);
                     }
-                    if (story.body().isEmpty()) assertTrue(story.id() + ": with nothing to read the picture is at its most", picture > height * .31f);
+                    if (story.body().isEmpty()) assertTrue(story.id() + ": with nothing to read the picture is at its most", picture >= mostPicture(ui, 392 - 32, height) - 1);
                 }
             } finally { images.close(); }
         });

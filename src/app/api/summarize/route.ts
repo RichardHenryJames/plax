@@ -50,7 +50,8 @@ export async function POST(request: NextRequest) {
     }
 
     // The website asks for a card's text (`card: true`) and a news card has to leave room for its picture, so it gets a short brief;
-    // the app's on-demand AI brief and every other topic keep their longer forms (see summary-prompt.ts).
+    // everything else keeps its longer form: the on-demand brief that versions of the app before Go deeper ask for (they send no
+    // `card` flag, and are still installed) and every other topic (see summary-prompt.ts).
     const shortBrief = wantsShortBrief(category, card)
 
     // Cache: AI enhancement/translation is deterministic per (content, lang), so a
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
     // Cache key includes a prompt VERSION + category so a prompt change (e.g. the
     // topic-aware rewrite that removed Hook/Takeaway labels) invalidates stale
     // entries instead of serving pre-fix summaries forever. The short news brief has a version of its own,
-    // so long briefs cached for the same story are never served in its place (and the app's briefs stay as they were). It was
+    // so long briefs cached for the same story are never served in its place (and the briefs older apps ask for stay as they were). It was
     // bumped to v3 when the brief grew from 35–60 to 55–85 words, so that the shorter ones cached before are not served.
     const ck = await cacheKey('summarize', shortBrief ? 'v3-brief' : 'v2', category || '', lang, title, (content as string).slice(0, 2200))
     const cached = await getCachedAI<{ title: string; content: string; type: string }>(ck)

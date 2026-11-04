@@ -7,6 +7,7 @@ import { getTopicSeo } from '@/lib/seo'
 import { PTile } from '@/lib/brand-tile'
 import { SITE_DISPLAY } from '@/lib/site'
 import { NEWS_SECTIONS } from '@/lib/types'
+import { STOCKS_SECTION, STOCKS_TAG } from '@/lib/news-chips'
 
 // The picture a chat app shows when a Plax story link is pasted: the headline set large on the brand colours. It is
 // drawn, not copied from the publisher, and kept small so every app will show it. Hindi headlines are not drawn
@@ -47,7 +48,7 @@ export default async function Image({ params }: Params) {
     if (record) {
       final = true
       const section = NEWS_SECTIONS.find((s) => s.id === record.section)
-      chip = section?.label ?? getTopicSeo(record.category)?.label ?? 'News'
+      chip = section?.label ?? (record.section === STOCKS_SECTION ? STOCKS_TAG.label : getTopicSeo(record.category)?.label) ?? 'News'
       const drawn = latinCardText(record.title || record.content)
       headline = drawn === null ? null : excerpt(drawn, 170)
       source = latinCardText(record.source)

@@ -66,3 +66,38 @@ test('only news, and no more than so many of one outlet, but a thin one is still
   assert.deepEqual(ids(newsOrder([], 6, 30)), [])
   assert.deepEqual(ids(newsOrder([card(1, { publishedAt: undefined }), card(2, { publishedAt: 5 })], 6, 30)), [2, 1], 'a story with no time sinks')
 })
+
+test('a stream that goes back days is grouped by age: what fills a card first within a group, and an older group never goes ahead of a newer one', () => {
+  const HOUR = 3600 * 1000
+  const NOW = 100 * HOUR
+  const steps = [6 * HOUR, 24 * HOUR]
+  const at = (hoursAgo, id, over = {}) => card(id, { publishedAt: NOW - hoursAgo * HOUR, ...over })
+  const thin = { content: text(100) }
+  const list = [
+    at(1, 1, thin), // this morning, thin
+    at(2, 2), // this morning, full
+    at(5, 3, thin), // this morning, thin
+    at(10, 4), // yesterday, full
+    at(12, 5, thin), // yesterday, thin
+    at(50, 6), // older, full
+    at(60, 7, thin), // older, thin
+  ]
+  assert.deepEqual(ids(newsOrder(list, 10, 30, steps, NOW)), [2, 1, 3, 4, 5, 6, 7], 'full first inside each group, newest group first')
+  // without the groups the old full stories would lead: that is the order the News feed keeps
+  assert.deepEqual(ids(newsOrder(list, 10, 30)), [2, 4, 6, 1, 3, 5, 7])
+  assert.deepEqual(ids(newsOrder(list, 10, 3, steps, NOW)), [2, 1, 3])
+  // a story with no time is the oldest, a story that claims to be from the future is the newest, and only news is kept
+  const odd = [card(1, { publishedAt: undefined }), at(-3, 2, thin), at(30, 3), card(4, { category: 'science', publishedAt: NOW })]
+  assert.deepEqual(ids(newsOrder(odd, 10, 30, steps, NOW)), [2, 3, 1])
+})
+
+test('with groups by age, an outlet is still held to its share of a page, and a quiet group does not leave the page short', () => {
+  const HOUR = 3600 * 1000
+  const NOW = 100 * HOUR
+  const steps = [6 * HOUR]
+  const list = [
+    ...Array.from({ length: 5 }, (_, i) => card(i + 1, { source: 'A', publishedAt: NOW - (i + 1) * 0.5 * HOUR })), // five new ones from one outlet
+    card(10, { source: 'B', publishedAt: NOW - 20 * HOUR }), // an older one from another
+  ]
+  assert.deepEqual(ids(newsOrder(list, 2, 30, steps, NOW)), [1, 2, 10], 'two of A, and B comes in from the older group')
+})

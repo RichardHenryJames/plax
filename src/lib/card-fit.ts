@@ -2,11 +2,11 @@
 // which means everything on it has to fit, and the card is always full: the source line and the row at the bottom are always
 // there, then the headline; the picture keeps at least its minimum (a story with a picture is not left without one, nor with a
 // stamp of one), and the summary takes the rest, cut to a whole line with an ellipsis, never through the middle of one, where
-// its room ends, as in Inshorts. The picture takes whatever the lines leave, up to the tallest it may be, which is not much more
-// than its least: pictures that grew with a short summary made cards unlike each other, so a short summary is a matter for the
-// text (the server finds more of it, and shows a story with little of it last), and what room is still left is spread between
-// the parts of the card by the caller. Only a card too short for the minimum picture and a few lines of summary has no picture,
-// and before the summary is cut below three lines the headline gives up lines, but never below two.
+// its room ends, as in Inshorts. The picture takes whatever the lines leave, up to the tallest it may be (a square, and 60% of the
+// card: see useCardFit), so that the card is full whatever the story: the parts stand one under the other with only their own small
+// spaces between them, never spread apart, and what a very short story still leaves is empty at the bottom, under the text. Only a
+// card too short for the minimum picture and a few lines of summary has no picture, and before the summary is cut below three lines
+// the headline gives up lines, but never below two.
 //
 // Pure arithmetic in pixels, so it can be tested without a browser. A port of CardFit.java in the Android app
 // (android/app/src/main/java/com/plaxlabs/news/CardFit.java), so both lay a story out alike; useCardFit measures the
@@ -77,6 +77,16 @@ export function planFit(input: FitInput): FitPlan {
 /** Room short of a line by less than this is taken as enough: see spend. */
 const LINE_TOLERANCE = 0.5
 
+/**
+ * The picture's height once the text is placed. The summary may end short of its room (it is cut at a sentence when one is close), and
+ * a short story leaves room too: the picture takes what the text did not use, up to the tallest it may be, so that the card is full
+ * and nothing is left under the text unless the picture cannot grow. The parts are never spread apart instead. A card with no picture
+ * has nothing to grow, and a picture never shrinks here.
+ */
+export function grownHero(hero: number, spare: number, tallest: number): number {
+  return hero > 0 && spare > 0 ? Math.max(hero, Math.min(tallest, hero + spare)) : hero
+}
+
 /** The plan for a headline of this many lines, and the room it leaves (negative when the headline itself does not fit). */
 function spend(input: FitInput, titleLines: number): { plan: FitPlan; room: number } {
   const title = titleLines === 0 ? 0 : input.titleTop + titleLines * input.titleLine
@@ -94,7 +104,7 @@ function spend(input: FitInput, titleLines: number): { plan: FitPlan; room: numb
   const line = Math.max(1, input.bodyLine)
   // The picture keeps at least its minimum, and the summary takes the rest: all of it when it fits there, else as many whole
   // lines as do, and the picture takes whatever the lines leave (less than a line more than its minimum, when the summary is
-  // cut; up to the tallest it may be, when the summary is short, and the room that is still left is the caller's to spread).
+  // cut; up to the tallest it may be, when the summary is short, and what is still left stays under the text).
   // Line heights are fractions of a pixel in a browser: room left
   // for exactly two lines can come out as 1.9999999999999998 of one, and would lose a line (and, through the readable test, a
   // line of the headline). Half a pixel is not a line, and is not seen; the arithmetic is otherwise the same as the app's, which

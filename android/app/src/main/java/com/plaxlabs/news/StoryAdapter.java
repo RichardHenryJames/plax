@@ -25,7 +25,7 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         void save(Story story);
         void share(Story story);
         void source(Story story);
-        void brief(Story story);
+        void deeper(Story story);
         /** The caught-up card: look for newer stories. */
         void check();
         /** The caught-up card: go back over stories already seen. */
@@ -234,10 +234,10 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         credit.setPadding(ui.dp(10), 0, ui.dp(4), 0);
         meta.addView(credit, new LinearLayout.LayoutParams(0, -2, 1));
         // The three buttons stand at the right end of the same line.
-        ImageButton brief = ui.lineButton(R.drawable.ic_sparkle, R.string.brief_description, ui.accentSoft, ui.accentText);
+        ImageButton deeper = ui.lineButton(R.drawable.ic_sparkle, R.string.go_deeper_description, ui.accentSoft, ui.accentText);
         ImageButton save = ui.lineButton(R.drawable.ic_bookmark, R.string.save_description, ui.surfaceAlt, ui.text);
         ImageButton share = ui.lineButton(R.drawable.ic_share, R.string.share, ui.surfaceAlt, ui.text);
-        for (ImageButton button : List.of(brief, save, share)) meta.addView(button);
+        for (ImageButton button : List.of(deeper, save, share)) meta.addView(button);
 
         // The headline is the link to the full story. The background is set before the padding, which a background may replace.
         TextView title = ui.text("", titleSp, ui.text, "serif");
@@ -253,7 +253,7 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 titleSp, bodySp);
         page.setLayoutParams(new ViewGroup.LayoutParams(-1, -1));
         return new Holder(page, hero, image, placeholder, poster, imageBackground, posterBackground, category, credit,
-                title, content, brief, save, share);
+                title, content, deeper, save, share);
     }
 
     private void bindStory(Holder holder, int index) {
@@ -310,7 +310,7 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             actions.save(story);
         });
         holder.share.setOnClickListener(view -> actions.share(story));
-        holder.brief.setOnClickListener(view -> actions.brief(story));
+        holder.deeper.setOnClickListener(view -> actions.deeper(story));
     }
 
     /**
@@ -423,16 +423,16 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         final StoryPage page; final FrameLayout hero; final ImageView image, placeholder;
         final TextView poster, category, credit, title, content;
         final android.graphics.drawable.Drawable imageBackground, posterBackground;
-        final ImageButton brief, save, share;
+        final ImageButton deeper, save, share;
         String storyId = "";
         Holder(StoryPage page, FrameLayout hero, ImageView image, ImageView placeholder, TextView poster,
                android.graphics.drawable.Drawable imageBackground, android.graphics.drawable.Drawable posterBackground,
                TextView category, TextView credit, TextView title, TextView content,
-               ImageButton brief, ImageButton save, ImageButton share) {
+               ImageButton deeper, ImageButton save, ImageButton share) {
             super(page); this.page = page; this.hero = hero; this.image = image; this.placeholder = placeholder;
             this.poster = poster; this.imageBackground = imageBackground; this.posterBackground = posterBackground;
             this.category = category; this.credit = credit; this.title = title; this.content = content;
-            this.brief = brief; this.save = save; this.share = share;
+            this.deeper = deeper; this.save = save; this.share = share;
         }
     }
 }

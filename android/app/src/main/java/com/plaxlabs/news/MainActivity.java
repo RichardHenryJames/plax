@@ -78,7 +78,7 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
     private TextView retry;
     private View skeleton;
     private ObjectAnimator skeletonPulse;
-    private BriefSheet sheet;
+    private DeeperSheet sheet;
     private InterestsSheet interestsSheet;
     private AccountSheet accountSheet;
     private ContactSheet contactSheet;
@@ -732,9 +732,9 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
 
     @Override public void source(Story story) { open(story.sourceUrl()); }
 
-    @Override public void brief(Story story) {
+    @Override public void deeper(Story story) {
         if (sheet != null && sheet.isShowing()) return;
-        sheet = BriefSheet.show(this, ui, story, model.current().lang());
+        sheet = DeeperSheet.show(this, ui, story, model.current().lang());
     }
 
     private void open(String link) {

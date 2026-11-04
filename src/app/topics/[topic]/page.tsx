@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { topic } = await params
   const t = getTopicSeo(topic)
   if (!t) return {}
-  const title = `${t.label} — Bite-Sized ${t.label} Insights`
+  const title = t.title ?? `${t.label} — Bite-Sized ${t.label} Insights`
   const url = `${SITE_URL}/topics/${t.id}`
   return {
     title,

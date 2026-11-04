@@ -9,7 +9,7 @@ A short-form reading platform that delivers personalized microessays, quotes, ex
 The independent [Android project](android/README.md) (version 1.4.1 preview)
 provides native swipeable Plax news cards in English or Hindi, topics, a **For you**
 feed built from topics you choose, light and dark themes (following the phone by default), an on-device feed cache for
-instant start and offline reading, an AI brief with English/Hindi translation,
+instant start and offline reading, Go deeper with English/Hindi translation,
 bookmarks, sharing and publisher links. **Share sends a link to Plax's own page for the story**, which previews well in chat apps
 and is found through the site's sitemap (see *Share a story* below). Stories you have already looked at do not come
 back when you reopen the app, and the same event reported by several outlets is shown
@@ -20,11 +20,10 @@ itself): the feed and APK are served by this website, see *Android update feed* 
 signing in with Google is optional and only syncs your
 topics and saved stories with the same account the website uses (see
 [SUPABASE_SETUP.md](SUPABASE_SETUP.md): the account service is currently down, so that
-part is unverified end to end). It uses the public feed and summarize endpoints plus two
+part is unverified end to end). It uses the public feed and go-deeper endpoints plus two
 small routes added for sign-in, `/news/api/auth-config` and `/news/auth/app`, and the
-static update feed. The AI brief is
-fast once the backend changes described under *AI Summarization & Translation* below are
-deployed; the app works against the current backend without them.
+static update feed. Go deeper (the ✨ button) asks `/api/deeper`, the same endpoint the website uses; the app has no
+AI brief any more. The app works against the current backend.
 Open `android` in Android Studio or run `android\build.ps1` on Windows.
 This is a debug-signed preview, not a published Play Store release.
 
@@ -42,7 +41,7 @@ The site moved here when its first domain, plaxlabs.com, expired. The address is
 - **🧭 Four places, one menu** — **Feed** (news, or one topic), **For you** (a mix of the topics you chose), **Topics** and **Saved**. On a phone there is no header and no bottom bar: a story has the whole screen, and a round ☰ button on it opens a menu with the places, the language, the news sections, the account and the theme. Desktop keeps a side rail. The Android app works the same way
 - **✅ No repeats** — A story you have already looked at does not come back when you reload or return later, and one event reported by several outlets appears once. When everything new has been seen, a "You're all caught up" card offers to check again or to read the earlier stories
 - **🧠 Personalized feed** — Learns your interests from engagement (time spent, bookmarks, completion rate)
-- **🎯 16 topic categories** — Science, Technology, Philosophy, Psychology, History, Finance, Space, Programming, Books, Health, Math, Nature, Art, Physics, Business, Language
+- **🎯 17 topics** — Stocks, Science, Technology, Philosophy, Psychology, History, Finance, Space, Programming, Books, Health, Math, Nature, Art, Physics, Business, Language, beside the public News feed. **Stocks** is stock-market news from around the world (the US, India, the UK and Ireland, Europe, Asia and the Pacific, Canada, Africa, Latin America), newest first, in a feed of about a thousand stories (see [TECH.md](TECH.md#the-stocks-topic))
 - **🔖 Bookmarks** — Save cards with instant animated feedback; they live in the Saved tab and, when signed in, in your account
 - **♾️ Infinite scroll** — Auto-fetches more content as you approach the end of your card stack
 - **🌙 Dark and light themes** — Warm marigold on near-black, or on paper. **System** is the default, like the app; Light and Dark are one tap away
@@ -283,7 +282,7 @@ User opens app
     ├─ Anyone, first visit or not → public News feed (no sign-up wall, no topic quiz)
     │     Topics → pick some → For you opens;  Account → optional Google sign-in
     │
-    └─ Load cached cards for this feed instantly (news ≤ 2 h old, other topics ≤ 24 h),
+    └─ Load cached cards for this feed instantly (news and stocks ≤ 2 h old, other topics ≤ 24 h),
        minus what the reader has already seen
                      │
                      └─ Background fetch: GET /api/feed?categories=...   (first page: no exclude list)

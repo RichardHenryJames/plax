@@ -5,11 +5,11 @@ package com.plaxlabs.news;
  * which means everything on it has to fit, and the page is always full: the source line and the Read full story row are always
  * there, then the headline; the picture keeps at least its minimum (a story with a picture is not left without one, nor with a
  * stamp of one), and the summary takes the rest, cut to a whole line with an ellipsis, never through the middle of one, where
- * its room ends, as in Inshorts. The picture takes whatever the lines leave, up to the tallest it may be, which is not much more
- * than its least: pictures that grew with a short summary made pages unlike each other, so a short summary is a matter for the
- * text (the server finds more of it, and shows a story with little of it last), and what room is still left is spread between the
- * parts of the page by the caller. Only a page too short for the minimum picture and a few lines of summary has no picture, and
- * before the summary is cut below three lines the headline gives up lines, but never below two.
+ * its room ends, as in Inshorts. The picture takes whatever the lines leave, up to the tallest it may be (4:5, and 60% of the page:
+ * see {@link StoryPage}), so that the page is full whatever the story: the parts stand one under the other with only their own small
+ * spaces between them, never spread apart, and what a very short story still leaves is empty at the bottom, under the text. Only a
+ * page too short for the minimum picture and a few lines of summary has no picture, and before the summary is cut below three lines
+ * the headline gives up lines, but never below two.
  *
  * <p>Pure arithmetic in pixels, so that it can be tested without a screen. {@link StoryPage} measures the text and applies it.
  * The website does the same, in src/lib/card-fit.ts, with the same test cases.
@@ -54,6 +54,16 @@ final class CardFit {
 
     private CardFit() { }
 
+    /**
+     * The picture's height once the text is placed. The summary may end short of its room (it is cut at a sentence when one is close),
+     * and a short story leaves room too: the picture takes what the text did not use, up to the tallest it may be, so that the page is
+     * full and nothing is left under the text unless the picture cannot grow. The parts are never spread apart instead. A page with no
+     * picture has nothing to grow, and a picture never shrinks here.
+     */
+    static int grownHero(int hero, int spare, int tallest) {
+        return hero > 0 && spare > 0 ? Math.max(hero, Math.min(tallest, hero + spare)) : hero;
+    }
+
     static Plan plan(Input in) {
         int titleLines = Math.min(in.titleNatural(), in.titleMax());
         while (true) {
@@ -85,7 +95,7 @@ final class CardFit {
         int line = Math.max(1, in.bodyLine());
         // The picture keeps at least its minimum, and the summary takes the rest: all of it when it fits there, else as many whole
         // lines as do, and the picture takes whatever the lines leave (less than a line more than its minimum, when the summary
-        // is cut; up to the tallest it may be, when the summary is short, and the room still left is the caller's to spread).
+        // is cut; up to the tallest it may be, when the summary is short, and what is still left stays under the text).
         if (picture) {
             int beside = Math.floorDiv(roomWith - in.heroMinimum() - in.bodyTop(), line);
             // A photograph is kept with a few lines of summary beside it; a poster only with all of it.

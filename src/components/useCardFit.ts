@@ -1,7 +1,7 @@
 'use client'
 
 import { useLayoutEffect, type RefObject } from 'react'
-import { planFit, MIN_BODY_LINES } from '@/lib/card-fit'
+import { planFit, grownHero, MIN_BODY_LINES } from '@/lib/card-fit'
 import { fitText } from '@/lib/text-fit'
 
 // Fits one story card into its box, as the Android app's StoryPage does: nothing on a card scrolls, so a single swipe
@@ -22,11 +22,11 @@ const LONG_HEADLINE_LINES = 5
 const HEADLINE_SCALES = [1, 0.9, 0.8]
 /** The summary is always set at its own size, so that stories look alike; a longer one is cut at a whole line instead. */
 const BODY_SCALES = [1]
-/** The picture takes what the text leaves, but not much more than its least: at most three quarters of the width and 40% of the box, so
- * that the pictures of cards look alike. (It used to grow to 1.4 times the width when there was little to read; a short story is now a
- * matter for the text: see lib/card-fit.ts.) */
-const HERO_MAX_WIDTH = 0.75
-const HERO_MAX_HEIGHT = 0.4
+/** The picture takes what the text leaves, so that the card is full and nothing has to be spread between its parts: at most 4:5 (a
+ * portrait photograph, as tall as a picture goes before the subject is cropped away) and 60% of the box, so that it never crowds the
+ * text out. What a very short story still leaves is under the text. The same numbers as StoryPage in the app (a test keeps them so). */
+const HERO_MAX_WIDTH = 1.25
+const HERO_MAX_HEIGHT = 0.6
 /** A photograph is given at least 60% of the width and 30% of the box before the summary is cut instead (as in Inshorts, a story
  * with a picture has one, and not a stamp of one); a poster, which only stands in for a picture, a third of that, and is dropped
  * when the text needs the room. */
@@ -242,6 +242,18 @@ export function fitCard(box: HTMLElement) {
     else break
     release(hero, 'height', 'display', '--hero-h')
     apply()
+  }
+
+  // The summary may end a line or two short of its room (it is cut at a sentence when one is close: see lib/text-fit.ts), and a short
+  // story leaves room too: the picture takes it, up to its most, so that the card is full (see grownHero). The parts are never
+  // spread apart instead.
+  if (hero && heroHeight > 0) {
+    const grown = grownHero(heroHeight, Math.floor(box.clientHeight - contentBottom(box)), heroMaximum)
+    if (grown !== heroHeight) {
+      heroHeight = grown
+      hero.style.height = `${heroHeight}px`
+      hero.style.setProperty('--hero-h', `${heroHeight}px`)
+    }
   }
 
   // How much room a sheet (Go deeper and the like) has above the row it opens from, so that it never reaches past the card.

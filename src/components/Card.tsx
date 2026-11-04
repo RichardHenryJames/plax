@@ -9,6 +9,7 @@ import { useT } from '@/lib/i18n'
 import { withBase } from '@/lib/base-path'
 import { bodyWithoutHeadline } from '@/lib/story-body'
 import { NEWS_SECTIONS } from '@/lib/types'
+import { STOCKS_SECTION, STOCKS_TAG } from '@/lib/news-chips'
 import { posterName, wantsPoster } from '@/lib/poster'
 import { useCardFit } from './useCardFit'
 import { CardActions } from './CardActions'
@@ -66,8 +67,8 @@ export function Card({ card, isActive, translating = false }: CardProps) {
   // Relative "2h ago" for time-sensitive news cards (only when a publish time is
   // known and reasonably recent — stale timestamps aren't worth showing).
   const relativeTime = relativeTimeLabel(card.publishedAt, isHindi)
-  // The tag on a news card is its section ("India"), as in the app; without one it is plain "News".
-  const newsSection = NEWS_SECTIONS.find((s) => s.id === card.section)
+  // The tag on a news card is its section ("India", or "Stocks" for that topic), as in the app; without one it is plain "News".
+  const newsSection = NEWS_SECTIONS.find((s) => s.id === card.section) ?? (card.section === STOCKS_SECTION ? STOCKS_TAG : undefined)
   const sectionLabel = newsSection ? (isHindi ? newsSection.labelHi : newsSection.label) : categoryLabel
   // "Breaking" for very fresh news (published within the last 30 minutes).
   const isBreaking = !!card.publishedAt && Date.now() - card.publishedAt < 30 * 60 * 1000 && Date.now() - card.publishedAt >= 0
@@ -87,7 +88,7 @@ export function Card({ card, isActive, translating = false }: CardProps) {
   const hasCredit = !!card.author || (!!card.source && !isNews)
   const hasActions = hasDeeper || hasQuiz || hasBooks || hasCredit
   // Nothing on a card scrolls, so that one swipe always moves to the next story: the picture, the headline and the summary
-  // share the card's height instead (see useCardFit), and the row under them is pinned to the bottom.
+  // share the card's height instead (see useCardFit), and the row stands right under the summary.
   useCardFit(boxRef, [card.id, card.title, card.content, card.image, translating, isHindi, hasHero, hasActions])
 
   return (
@@ -96,13 +97,13 @@ export function Card({ card, isActive, translating = false }: CardProps) {
     } ${isHindi ? 'lang-hi' : ''}`}>
       {/* No header, no bottom bar and no action bar: the padding only clears the status bar and the home indicator, so a story
           has the whole screen. Short cards that are not news centre vertically on a desktop; a news card and a long one start
-          at the top, and so does every card on a phone, where the menu button stands at the start of the first line. What room
-          is left on a news card (a short summary, once the picture is at its tallest) is spread evenly between its parts, and
-          the row at the bottom stays at the bottom, so the card has no hole under its text. */}
+          at the top, and so does every card on a phone, where the menu button stands at the start of the first line. The parts
+          always stand one under the other with only their own small spaces between them: the picture takes what room there is
+          (useCardFit), and what a very short story still leaves is empty at the bottom, never spread between the parts. */}
       <div
         ref={boxRef}
-        className={`card-fit story-column relative z-10 flex-1 min-h-0 flex flex-col w-full max-w-xl lg:max-w-2xl mx-auto ${
-          isNews || isLong ? 'justify-between' : 'justify-start lg:justify-center'
+        className={`card-fit story-column relative z-10 flex-1 min-h-0 flex flex-col justify-start w-full max-w-xl lg:max-w-2xl mx-auto ${
+          isNews || isLong ? '' : 'lg:justify-center'
         }`}
       >
             {/* Hero image — a news card carries the publisher's picture, and it leads the card as in the app. Its height is

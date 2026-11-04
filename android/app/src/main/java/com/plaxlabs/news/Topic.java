@@ -2,6 +2,7 @@ package com.plaxlabs.news;
 
 enum Topic {
     NEWS("news", R.string.topic_news, "\uD83D\uDCF0"),
+    STOCKS("stocks", R.string.topic_stocks, "\uD83D\uDCCA"),
     SCIENCE("science", R.string.topic_science, "\uD83D\uDD2C"),
     TECHNOLOGY("technology", R.string.topic_technology, "\uD83D\uDCBB"),
     PHILOSOPHY("philosophy", R.string.topic_philosophy, "\uD83E\uDDE0"),

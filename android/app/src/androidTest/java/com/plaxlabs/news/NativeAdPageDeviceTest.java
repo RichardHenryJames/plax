@@ -142,7 +142,7 @@ public class NativeAdPageDeviceTest {
             public void save(Story story) { }
             public void share(Story story) { }
             public void source(Story story) { }
-            public void brief(Story story) { }
+            public void deeper(Story story) { }
             public void check() { }
             public void earlier() { }
             @Override public AdNetwork.Page ad(int ordinal) { return page; }

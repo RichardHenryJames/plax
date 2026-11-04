@@ -1,10 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { planFit, MIN_BODY_LINES, MIN_TITLE_LINES } from './card-fit.ts'
+import { planFit, grownHero, MIN_BODY_LINES, MIN_TITLE_LINES } from './card-fit.ts'
 
 // The cases mirror CardFitTest.java in the Android app: the same numbers give the same plan on both. They are the pixels of a
 // phone page of 744 high: a 40 source line, a 58 action row, headline lines of 32 under 10 of space, summary lines of 28 under
-// 12 of space, a picture of between 117 and 262 (262 is the most it is ever given, however little there is to read).
+// 12 of space, a picture of between 117 and 262 (262 is the most it is given in these cases; the real most, 4:5 and 60% of the
+// card, is in useCardFit and StoryPage, and a test keeps the two alike).
 
 const page = (height, titleNatural, bodyNatural) => ({
   height, meta: 40, metaBare: 40, actions: 58, titleTop: 10, titleLine: 32, titleNatural, titleMax: 4,
@@ -25,12 +26,37 @@ test('a roomy page shows the whole summary and lets the picture grow, up to the 
   assert.ok(used(input, plan) <= 744)
 })
 
-test('a little to read does not make the picture grow past its most: pictures look alike, and the room left is the caller\'s to spread', () => {
+test('a little to read does not make the picture grow past its most, and the room left stays under the text', () => {
   const input = page(744, 2, 2)
   const plan = planFit(input)
   assert.equal(plan.hero, input.heroMaximum)
   assert.equal(plan.bodyLines, 2)
-  assert.ok(used(input, plan) < 744 - 100, 'a good deal of room is left for the caller')
+  assert.ok(used(input, plan) < 744 - 100, 'a good deal of room is left under the text, not between its parts')
+})
+
+test('the picture takes the room the text did not use, up to its most', () => {
+  assert.equal(grownHero(200, 60, 437), 260, 'a summary that ended a line or two short of its room gives it to the picture')
+  assert.equal(grownHero(200, 600, 437), 437, 'and the picture stops at its most')
+  assert.equal(grownHero(437, 80, 437), 437, 'a picture at its most does not grow')
+})
+
+test('nothing grows without a picture or without room, and a picture never shrinks', () => {
+  assert.equal(grownHero(0, 120, 437), 0, 'no picture, nothing to grow')
+  assert.equal(grownHero(200, 0, 437), 200, 'no room left')
+  assert.equal(grownHero(200, -5, 437), 200, 'a card a little over is not the picture\'s to fix here')
+  assert.equal(grownHero(500, 50, 437), 500, 'a picture already past the most is left as it is')
+})
+
+test('a card whose summary was cut short of its room is filled by the picture, so that no room is left', () => {
+  // A summary of 20 lines is cut to the 14 that fit beside the least picture, but ends at a sentence 2 lines early: it shows 12.
+  const input = page(744, 3, 20)
+  const plan = planFit(input)
+  assert.equal(plan.bodyLines, 14)
+  assert.equal(used(input, plan), 744, 'the plan fills the card')
+  const early = 2 * input.bodyLine
+  const hero = grownHero(plan.hero, early, input.heroMaximum)
+  assert.equal(hero, plan.hero + early)
+  assert.equal(used(input, { ...plan, hero, bodyLines: plan.bodyLines - 2 }), 744, 'and so does the picture, once the text is shorter')
 })
 
 test('a long summary is shown whole and the picture shrinks to what is left', () => {

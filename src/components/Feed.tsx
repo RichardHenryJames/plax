@@ -12,6 +12,7 @@ import { usePlaxStore } from '@/lib/store'
 import { useUIStore } from '@/lib/ui-store'
 import { translate } from '@/lib/i18n'
 import { NEWS_SECTIONS } from '@/lib/types'
+import { feedHasNews, feedIsTimely, isGeneralNews } from '@/lib/news-chips'
 import { withBase } from '@/lib/base-path'
 import { SeenStore, replace, append, EARLIER_LIMIT } from '@/lib/story-engine'
 import { loadSeen, saveSeen } from '@/lib/seen-storage'
@@ -25,7 +26,8 @@ const CARD_CACHE_NEWS_AGE = 2 * 60 * 60 * 1000 // news goes stale fast: an older
 const CARD_CACHE_EVERGREEN_AGE = 24 * 60 * 60 * 1000
 const CARD_CACHE_ENTRIES = 4 // the last few feeds, so switching back to one is instant
 const SEEN_IDS_CAP = 1500 // bound the in-session seen-id set (memory safety)
-const EXCLUDE_LIMIT = 200 // ids sent to the server so paging skips what is already loaded or read
+const EXCLUDE_LIMIT = 1200 // ids sent to the server so paging skips what is already loaded or read (the Stocks topic is about a thousand stories)
+const EXCLUDE_IN_ADDRESS = 200 // this many fit in the address; more go in the body of a POST, as an address is limited (to about 14 KB)
 const MORE_ATTEMPTS = 3 // pages tried before concluding nothing new is left
 const DWELL_MS = 1200 // a story on screen this long counts as read
 const GLANCE_MS = 500 // a shorter glance still counts when the reader moves on
@@ -71,11 +73,11 @@ function rememberPlace(sig: string, place: Place) {
 // Root-relative URLs are sent through withBase() here rather than at each call
 // site: this app is proxied at /news, and a bare /api/... would leave the zone
 // and 404 against the app that owns the domain root.
-async function fetchWithTimeout(url: string, ms = 12000): Promise<Response> {
+async function fetchWithTimeout(url: string, ms = 12000, init: RequestInit = {}): Promise<Response> {
   const ctrl = new AbortController()
   const t = setTimeout(() => ctrl.abort(), ms)
   try {
-    return await fetch(url.startsWith('/') ? withBase(url) : url, { signal: ctrl.signal })
+    return await fetch(url.startsWith('/') ? withBase(url) : url, { ...init, signal: ctrl.signal })
   } finally {
     clearTimeout(t)
   }
@@ -123,7 +125,7 @@ function readCache(): Record<string, CacheEntry> {
 function getCachedCards(sig: string): CardData[] {
   const entry = readCache()[sig]
   if (!entry || !Array.isArray(entry.cards)) return []
-  const limit = sig.split(',').includes('news') ? CARD_CACHE_NEWS_AGE : CARD_CACHE_EVERGREEN_AGE
+  const limit = feedIsTimely(sig.split(',')) ? CARD_CACHE_NEWS_AGE : CARD_CACHE_EVERGREEN_AGE
   return Date.now() - entry.ts > limit ? [] : withoutMarker(entry.cards)
 }
 
@@ -183,6 +185,9 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
   // for a moment, the history survives reloads (bounded, on this device only), and another outlet's version of
   // an event the reader has seen is held back too. Held-back stories are not lost: the caught-up card offers them.
   const catKey = categories.join(',')
+  // The News chips (US, India, ...) narrow the general news, so they belong to a feed that has it; a chip chosen elsewhere is not
+  // allowed to hide the stories of a feed without news.
+  const hasNews = feedHasNews(categories)
   const sig = feedSig(categories)
   const seenRef = useRef<SeenStore | null>(null)
   const seen = useCallback(() => (seenRef.current ??= loadSeen()), [])
@@ -268,10 +273,20 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
 
   // One page from the server, always in the base language (English): the article set is then the same
   // whatever language the reader uses, and the AI step translates each card in place. Null = it failed.
+  // A long list of stories to leave out (a reader far down the Stocks feed) does not fit in an address: it goes in the body of a POST,
+  // and if that is refused the page is asked for as before, with the first few of them.
   const requestPage = useCallback(async (exclude: string[], live: boolean): Promise<CardData[] | null> => {
     try {
-      const query = `categories=${catKey}&limit=30&refresh=${live}&lang=en` + (exclude.length ? `&exclude=${encodeURIComponent(exclude.join(','))}` : '')
-      const res = await fetchWithTimeout(`/api/feed?${query}`)
+      const asked = (ids: string[]) => `categories=${catKey}&limit=30&refresh=${live}&lang=en` + (ids.length ? `&exclude=${encodeURIComponent(ids.join(','))}` : '')
+      let res: Response | null = null
+      if (exclude.length > EXCLUDE_IN_ADDRESS) {
+        res = await fetchWithTimeout('/api/feed', 12000, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ categories: catKey.split(','), limit: 30, refresh: live, lang: 'en', exclude }),
+        }).catch(() => null)
+      }
+      if (!res || !res.ok) res = await fetchWithTimeout(`/api/feed?${asked(exclude.slice(0, EXCLUDE_IN_ADDRESS))}`)
       if (!res.ok) return null
       const data = await res.json()
       return rankByEngagement(mapApiCards(data.cards || []), usePlaxStore.getState().getCategoryScore)
@@ -522,7 +537,7 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
       // News sub-section filter (India / World / Tech / …). Works whenever news is
       // part of the feed (single OR multi-interest). Picking a section focuses the
       // feed on that news section.
-      if (newsSection) base = base.filter((c) => c.category === 'news' && c.section === newsSection)
+      if (newsSection && hasNews) base = base.filter((c) => c.category === 'news' && c.section === newsSection)
       // A saved card is pinned to the FRONT (deduped) so the reader lands on it
       // regardless of when the live feed finishes loading.
       if (focusCard && !base.some((c) => c.id === focusCard.id)) base = [focusCard, ...base]
@@ -542,7 +557,7 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
         ...ended,
       ]
     },
-    [cards, focusCard, newsSection, unfilledAds, filledAds, adsBlockedHere, pageResting, roomForAd, pageAds]
+    [cards, focusCard, newsSection, hasNews, unfilledAds, filledAds, adsBlockedHere, pageResting, roomForAd, pageAds]
   )
   const dropAd = useCallback((id: string) => {
     const ordinal = adOrdinal(id)
@@ -1121,7 +1136,7 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
           feed), or a section filter is already active. News cards reserve top
           space for these pills so they never overlap content. Desktop only: on a phone or a tablet the sections are in the
           menu, so that a story has the whole screen. */}
-      {(currentCard?.category === 'news' || !!newsSection) && (
+      {hasNews && (isGeneralNews(currentCard) || !!newsSection) && (
         <div className="hidden lg:block absolute lg:top-5 left-0 right-0 z-30 pointer-events-none">
           <div className="flex gap-2 overflow-x-auto hide-scrollbar px-4 justify-start lg:justify-center pointer-events-auto">
             <button

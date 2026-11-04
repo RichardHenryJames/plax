@@ -6,8 +6,8 @@ import static org.junit.Assert.*;
 /**
  * How a story page shares out its height. The cases mirror card-fit.test.mjs on the website: the same numbers give the same
  * plan on both. They are the pixels of a phone page of 744 high: a 40 source line, a 58 action row, headline lines of 32 under
- * 10 of space, summary lines of 28 under 12 of space, a picture of between 117 and 262 (262 is the most it is ever given, however
- * little there is to read).
+ * 10 of space, summary lines of 28 under 12 of space, a picture of between 117 and 262 (262 is the most it is given in these
+ * cases; the real most, 4:5 and 60% of the page, is in StoryPage and the website's useCardFit, and a test there keeps the two alike).
  */
 public class CardFitTest {
     private static CardFit.Input page(int height, int titleNatural, int bodyNatural) {
@@ -29,12 +29,38 @@ public class CardFitTest {
         assertTrue(used(input, plan) <= 744);
     }
 
-    @Test public void aLittleToReadDoesNotMakeThePictureGrowPastItsMostSoPicturesLookAlike() {
+    @Test public void aLittleToReadDoesNotMakeThePictureGrowPastItsMostAndTheRoomLeftStaysUnderTheText() {
         CardFit.Input input = page(744, 2, 2);
         CardFit.Plan plan = CardFit.plan(input);
         assertEquals(input.heroMaximum(), plan.hero());
         assertEquals(2, plan.bodyLines());
-        assertTrue("a good deal of room is left for the caller to spread", used(input, plan) < 744 - 100);
+        assertTrue("a good deal of room is left under the text, not between its parts", used(input, plan) < 744 - 100);
+    }
+
+    @Test public void thePictureTakesTheRoomTheTextDidNotUseUpToItsMost() {
+        assertEquals("a summary that ended a line or two short of its room gives it to the picture", 260, CardFit.grownHero(200, 60, 437));
+        assertEquals("and the picture stops at its most", 437, CardFit.grownHero(200, 600, 437));
+        assertEquals("a picture at its most does not grow", 437, CardFit.grownHero(437, 80, 437));
+    }
+
+    @Test public void nothingGrowsWithoutAPictureOrWithoutRoomAndAPictureNeverShrinks() {
+        assertEquals("no picture, nothing to grow", 0, CardFit.grownHero(0, 120, 437));
+        assertEquals("no room left", 200, CardFit.grownHero(200, 0, 437));
+        assertEquals("a page a little over is not the picture's to fix here", 200, CardFit.grownHero(200, -5, 437));
+        assertEquals("a picture already past the most is left as it is", 500, CardFit.grownHero(500, 50, 437));
+    }
+
+    @Test public void aPageWhoseSummaryWasCutShortOfItsRoomIsFilledByThePictureSoThatNoRoomIsLeft() {
+        // A summary of 20 lines is cut to the 14 that fit beside the least picture, but ends at a sentence 2 lines early: it shows 12.
+        CardFit.Input input = page(744, 3, 20);
+        CardFit.Plan plan = CardFit.plan(input);
+        assertEquals(14, plan.bodyLines());
+        assertEquals("the plan fills the page", 744, used(input, plan));
+        int early = 2 * input.bodyLine();
+        int hero = CardFit.grownHero(plan.hero(), early, input.heroMaximum());
+        assertEquals(plan.hero() + early, hero);
+        assertEquals("and so does the picture, once the text is shorter", 744,
+                used(input, new CardFit.Plan(hero, plan.titleLines(), plan.bodyLines() - 2)));
     }
 
     @Test public void aLongSummaryIsShownWholeAndThePictureShrinksToWhatIsLeft() {

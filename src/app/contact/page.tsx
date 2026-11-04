@@ -103,8 +103,8 @@ export default function ContactPage() {
         <P>
           Plax is a news reader by {LEGAL.operator} for the Android app and the website. It shows short summaries of stories from
           publishers such as The Hindu, NDTV, BBC and Al Jazeera, in English and Hindi. Every story names its publisher and links to
-          the original. The stories, headlines and pictures belong to their publishers, and Plax is not affiliated with them. An AI
-          brief is written by AI on request, is labelled as AI and can contain mistakes.
+          the original. The stories, headlines and pictures belong to their publishers, and Plax is not affiliated with them. The
+          extra facts Go deeper shows are written by AI on request, are labelled as AI and can contain mistakes.
         </P>
       </Section>
 

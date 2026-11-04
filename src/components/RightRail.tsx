@@ -8,6 +8,7 @@ import { useAuth } from '@/components/AuthProvider'
 import { addBookmarkToCloud, removeBookmarkFromCloud } from '@/lib/cloud-sync'
 import { useT } from '@/lib/i18n'
 import { signedFields } from '@/lib/share-client'
+import { STOCKS_SECTION } from '@/lib/news-chips'
 import { RailAd } from '@/components/RailAd'
 
 /**
@@ -54,7 +55,9 @@ export function RightRail() {
     }
   }
 
-  const cardTopic = currentCard ? TOPICS.find((t) => t.id === currentCard.category) : undefined
+  // A story of the Stocks topic is a news card, but the panel names it by its topic.
+  const topicKey = currentCard ? (currentCard.section === STOCKS_SECTION ? STOCKS_SECTION : currentCard.category) : ''
+  const cardTopic = currentCard ? TOPICS.find((t) => t.id === topicKey) : undefined
 
   return (
     <aside className="hidden xl:flex flex-col w-80 shrink-0 h-full border-l border-dark-border bg-dark-card overflow-y-auto overscroll-contain thin-scrollbar">
@@ -71,7 +74,7 @@ export function RightRail() {
           >
             <div className="flex items-center gap-2 mb-3">
               <span className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider border border-[color:var(--hair-strong)] bg-dark-card text-dark-text">
-                {currentCard.emoji} {cardTopic ? tp(currentCard.category, cardTopic.label) : (currentCard.category === 'general' ? tp('general', 'Discover') : currentCard.category)}
+                {currentCard.section === STOCKS_SECTION && cardTopic ? cardTopic.emoji : currentCard.emoji} {cardTopic ? tp(topicKey, cardTopic.label) : (currentCard.category === 'general' ? tp('general', 'Discover') : currentCard.category)}
               </span>
               <span className="text-dark-subtle text-[11px]">{currentCard.readTime} {t('read')}</span>
             </div>

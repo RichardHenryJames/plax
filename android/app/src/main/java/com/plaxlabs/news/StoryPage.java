@@ -16,13 +16,14 @@ import android.widget.TextView;
 
 /**
  * One story, laid out so that all of it is in view at once. The page has nothing that scrolls, so a single swipe always
- * moves to the next story; to make that possible the picture, the tag and source line (with the brief, save and share buttons at
+ * moves to the next story; to make that possible the picture, the tag and source line (with the Go deeper, save and share buttons at
  * its right end), the headline and the summary are measured together and share the page's height ({@link CardFit}). The headline
  * and the summary are measured together and share the page's height ({@link CardFit}). The page is always full: the picture
  * keeps at least its minimum, the summary takes the rest and is cut where its room ends, at the end of a sentence when one is close
- * to it and else after the last word that fits, with an ellipsis ({@link TextFit}), and a long headline is set a little smaller. A
- * short summary does not make the picture grow: the picture stays within a little of its least so that pages look alike, and the room
- * that is still left is spread between the parts. The headline is the link to the full story.
+ * to it and else after the last word that fits, with an ellipsis ({@link TextFit}), and a long headline is set a little smaller. The
+ * picture then takes whatever room the text leaves, up to the tallest it may be, so that the page is full; the parts stand one under
+ * the other from the top with only their own small spaces between them, never spread apart, and what a very short story still leaves
+ * is empty at the bottom. The headline is the link to the full story.
  *
  * <p>There is no header, no bottom bar and no row of buttons under the text: the page has the whole screen. The menu button that
  * holds what they held floats over the picture's top-left corner; with no picture it stands at the start of the source line, which
@@ -36,12 +37,13 @@ final class StoryPage extends ViewGroup {
     private static final float[] HEADLINE_SCALES = {1f, .9f, .8f};
     /** The summary is always set at its own size, so that stories look alike; a longer one is cut where its room ends instead. */
     private static final float[] BODY_SCALES = {1f};
-    private static final int TOP_DP = 8, BOTTOM_DP = 8, SIDE_DP = 16, GUTTER_DP = 16, TEXT_WIDTH_DP = 640, WIDE_WIDTH_DP = 840;
+    static final int TOP_DP = 8, BOTTOM_DP = 8, SIDE_DP = 16, GUTTER_DP = 16, TEXT_WIDTH_DP = 640, WIDE_WIDTH_DP = 840;
     private static final int HERO_FLOOR_DP = 96, WIDE_AT_DP = 480;
-    /** The picture takes what the text leaves, but not much more than its least: at most three quarters of the width and 40% of the
-     *  page, so that the pictures of pages look alike. (It used to grow to 1.4 times the width when there was little to read; a short
-     *  story is now a matter for the text: see {@link CardFit}.) */
-    private static final float HERO_MAX_WIDTH = .75f, HERO_MAX_HEIGHT = .4f;
+    /** The picture takes what the text leaves, so that the page is full and nothing has to be spread between its parts: at most 4:5 (a
+     *  portrait photograph, as tall as a picture goes before the subject is cropped away) and 60% of the page, so that it never crowds
+     *  the text out. What a very short story still leaves is under the text. The same numbers as the website's useCardFit (a test keeps
+     *  them so). */
+    static final float HERO_MAX_WIDTH = 1.25f, HERO_MAX_HEIGHT = .6f;
     /** A photograph is given at least 60% of the width and 30% of the page before the summary is cut instead (as in Inshorts, a story
      *  with a picture has one, and not a stamp of one); a poster, which only stands in for a picture, a third of that, and is dropped
      *  when the text needs the room. */
@@ -49,7 +51,7 @@ final class StoryPage extends ViewGroup {
     /** The poster's name is set between these sizes, in sp, and grows with its tile. */
     private static final float POSTER_MIN_SP = 18f, POSTER_MAX_SP = 36f;
     /** The space above the source line when a picture is above it. */
-    private static final int META_TOP_DP = 16;
+    static final int META_TOP_DP = 16;
     /** The menu button: the circle drawn, the gap after it, and how far inside the picture's corner it stands. */
     static final int MENU_DP = 40, MENU_GAP_DP = 8, MENU_INSET_DP = 8;
     /** The button is a bigger touch target than the circle drawn on it. */
@@ -207,6 +209,11 @@ final class StoryPage extends ViewGroup {
             if (lines == 0) bodyHeight = 0;
         } else showBody(bodyFull);
 
+        // The summary may end a line or two short of its room (it is cut at a sentence when one is close: see TextFit), and a short
+        // story leaves room too: the picture takes it, up to its most, so that the page is full (see CardFit.grownHero). The parts
+        // are never spread apart instead.
+        if (pictureAbove) heroHeight = CardFit.grownHero(heroHeight, boxHeight - (metaWith + heroHeight + titleHeight + bodyHeight), heroMaximum);
+
         int heroWidth = wide ? sideWidth : columnWidth;
         // The poster's name grows with its tile: a little under a sixth of it, not under 18 sp and not over 36 sp (the website's
         // 1.25 to 2.75 rem); the section under it is a third of that size.
@@ -232,17 +239,6 @@ final class StoryPage extends ViewGroup {
         meta.measure(exactly(metaBox.width()), exactly(metaBox.height()));
         titleBox.set(columnLeft, y, columnLeft + columnWidth, y + titleHeight); y += titleHeight;
         bodyBox.set(columnLeft, y, columnLeft + columnWidth, y + bodyHeight);
-
-        // The room left over (a short summary on a tall page, once the picture is at its tallest) is spread evenly between the parts,
-        // as on the website, rather than left as a gap under the text; the first part stays where the page begins.
-        Rect[] column = new Rect[4];
-        int count = 0;
-        if (pictureAbove) column[count++] = heroBox;
-        column[count++] = metaBox;
-        if (hasTitle) column[count++] = titleBox;
-        if (bodyHeight > 0) column[count++] = bodyBox;
-        int spare = top + boxHeight - column[count - 1].bottom;
-        if (spare > 0) for (int index = 1; index < count; index++) column[index].offset(0, spare * index / (count - 1));
 
         // The button stands inside the picture's corner, or, with no picture, where the page begins.
         int touch = ui.dp(MENU_TOUCH_DP), pad = (touch - circle) / 2, inset = ui.dp(MENU_INSET_DP);

@@ -8,7 +8,7 @@ const CATEGORIES = ['news', 'science', 'physics', 'space', 'health', 'nature', '
 
 test('only the website\'s news card asks for the short brief', () => {
   assert.equal(wantsShortBrief('news', true), true)
-  // The app's on-demand AI brief sends no flag, and the flag must be the boolean itself.
+  // The on-demand brief that versions of the app before Go deeper ask for sends no flag, and the flag must be the boolean itself.
   assert.equal(wantsShortBrief('news', undefined), false)
   assert.equal(wantsShortBrief('news', false), false)
   assert.equal(wantsShortBrief('news', 'true'), false)
@@ -17,7 +17,7 @@ test('only the website\'s news card asks for the short brief', () => {
   for (const category of CATEGORIES.filter((c) => c !== 'news')) assert.equal(wantsShortBrief(category, true), false, category)
 })
 
-test('the short news brief fills a card, the usual brief and the app\'s are unchanged', () => {
+test('the short news brief fills a card, the usual brief and the one older apps ask for are unchanged', () => {
   assert.match(topicGuidance('news', true).words, /^55–85 words/)
   assert.match(topicGuidance('news', true).words, /never pad a thin source/)
   assert.equal(topicGuidance('news').words, '70–110 words, 2–3 tight paragraphs')
@@ -59,12 +59,17 @@ test('the route sends the flag only through wantsShortBrief and keeps its own ca
   assert.match(route, /buildPrompt\(category, content, type, undefined, shortBrief\)/)
 })
 
-test('the website asks for a card\'s text, the app\'s brief does not', () => {
+test('the website asks for a card\'s text with the card flag, and the app no longer asks for a brief at all', () => {
   const feed = fs.readFileSync(here('../components/Feed.tsx'), 'utf8')
   const requests = feed.match(/JSON\.stringify\(\{ content: baseContent[^}]*\}\)/g) ?? []
   // enhanceCard and prewarmOppositeLang: the warm-up must hit the same cache entry as the card that is shown later.
   assert.equal(requests.length, 2)
   for (const request of requests) assert.match(request, /card: true/)
-  const brief = fs.readFileSync(here('../../android/app/src/main/java/com/plaxlabs/news/BriefApi.java'), 'utf8')
-  assert.doesNotMatch(brief, /"card"/)
+  // The app has Go deeper, not an AI brief: it asks /api/deeper, and nothing in it asks /api/summarize (older installed apps still do,
+  // which is why the route keeps the longer form for a request without the flag).
+  const folder = here('../../android/app/src/main/java/com/plaxlabs/news/')
+  const files = fs.readdirSync(folder).filter((name) => name.endsWith('.java'))
+  assert.ok(files.includes('DeeperApi.java'))
+  for (const name of files) assert.doesNotMatch(fs.readFileSync(new URL(name, folder), 'utf8'), /api\/summarize/, `${name} must not ask for a brief`)
+  assert.match(fs.readFileSync(new URL('DeeperApi.java', folder), 'utf8'), /\/api\/deeper/)
 })

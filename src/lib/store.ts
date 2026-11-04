@@ -5,6 +5,7 @@ import { themeModeOf, type ThemeMode } from './theme'
 // ─── Topic Categories ───
 export const TOPICS = [
   { id: 'news', label: 'News', emoji: '📰', color: 'from-red-500 to-orange-500' },
+  { id: 'stocks', label: 'Stocks', emoji: '📊', color: 'from-emerald-500 to-cyan-500' },
   { id: 'science', label: 'Science', emoji: '🔬', color: 'from-cyan-500 to-blue-500' },
   { id: 'technology', label: 'Technology', emoji: '💻', color: 'from-blue-500 to-indigo-500' },
   { id: 'philosophy', label: 'Philosophy', emoji: '🤔', color: 'from-violet-500 to-purple-500' },

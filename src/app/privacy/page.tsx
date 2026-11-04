@@ -63,7 +63,7 @@ export default function PrivacyPage() {
           the service and keep it secure. We do not use them to build a profile of you.
         </P>
         <P>
-          <strong>AI briefs, translations and quizzes.</strong> When you open an AI brief, ask Plax to go deeper, take a quiz or read
+          <strong>Go deeper, translations and quizzes.</strong> When you ask Plax to go deeper on a story, take a quiz or read
           a story in Hindi on the website, the text of that story (its headline and summary) is sent to Plax&apos;s servers and from
           there to the AI and translation services that write the result. Depending on availability these can be Google (Gemini),
           Groq, OpenRouter, Microsoft (Azure Translator) and MyMemory. The request does not carry your name, email or account. The

@@ -1,8 +1,9 @@
 // What /api/summarize asks the model for.
 //
 // A story on the website has to fit one screen together with its picture (see card-fit.ts), so a NEWS card asks for a short brief:
-// about as long as an Inshorts card. Everything that is not a card of the website keeps its longer form: the app's on-demand
-// "AI brief" sends no `card` flag, and every other topic is a micro-essay by design.
+// about as long as an Inshorts card. Everything that is not a card of the website keeps its longer form: the on-demand brief that
+// versions of the app before Go deeper ask for (they send no `card` flag, and are still installed), and every other topic, which is a
+// micro-essay by design.
 
 /** True when the request is the website's text for a news card, which has to leave room for its picture. */
 export function wantsShortBrief(category: string, card: unknown): boolean {

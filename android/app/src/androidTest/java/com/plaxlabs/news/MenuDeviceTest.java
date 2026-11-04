@@ -116,7 +116,7 @@ public class MenuDeviceTest {
             var source = device.findObjects(By.textStartsWith("Publisher")).stream().map(object -> object.getVisibleBounds())
                     .min(java.util.Comparator.comparingInt(bounds -> bounds.height())).orElseThrow();
             assertTrue("the source line is above the headline " + source + " " + title, source.bottom <= title.top + 4);
-            for (int label : new int[]{R.string.brief_description, R.string.save_description, R.string.share}) {
+            for (int label : new int[]{R.string.go_deeper_description, R.string.save_description, R.string.share}) {
                 var buttonBounds = device.findObject(By.desc(text(label))).getVisibleBounds();
                 assertTrue(text(label) + " is on the source line " + buttonBounds + " beside " + source,
                         buttonBounds.centerY() >= source.top - 40 && buttonBounds.centerY() <= source.bottom + 40);

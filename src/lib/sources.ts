@@ -5,6 +5,8 @@ import { decodeRss } from './rss-text'
 import { extendSummaries } from './lead'
 import { isDisambiguationPage } from './wikipedia-quality'
 import { SITE_DISPLAY, SITE_URL } from './site'
+import { STOCK_FEEDS, STOCK_FEED_ITEMS, STOCK_FEED_TIMEOUT_MS, pickStocks, settled, type StockFeed } from './stocks'
+import { STOCKS_SECTION } from './news-chips'
 
 // How this server introduces itself to the sources it reads; Wikimedia, Open Library, arXiv and others ask for a way
 // to reach the operator, so it carries the website's address.
@@ -1179,23 +1181,24 @@ function parseRss(xml: string, limit = 6): { title: string; desc: string; link: 
 }
 
 // Fetch + parse one feed, error-safe, with a timeout so a slow feed can't stall
-// the whole request.
+// the whole request. The time allowed covers the answer and its body: a feed that answers and
+// then trickles its text is as slow as one that does not answer.
 async function fetchOneFeed(
   name: string,
   url: string,
   category: string,
   perFeed: number,
-  section?: string
+  section?: string,
+  timeoutMs = 7000
 ): Promise<RawContent[]> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs)
   try {
-    const ctrl = new AbortController()
-    const timer = setTimeout(() => ctrl.abort(), 7000)
     const r = await fetch(url, {
       cache: 'no-store',
       signal: ctrl.signal,
       headers: { 'User-Agent': `Mozilla/5.0 (compatible; PlaxReader/1.0; +${SITE_URL})`, Accept: 'application/rss+xml, application/xml, text/xml, */*' },
     })
-    clearTimeout(timer)
     if (!r.ok) return []
     const xml = await r.text()
     const items = parseRss(xml, perFeed)
@@ -1219,6 +1222,8 @@ async function fetchOneFeed(
       .filter(Boolean) as RawContent[]
   } catch {
     return []
+  } finally {
+    clearTimeout(timer)
   }
 }
 
@@ -1300,6 +1305,73 @@ export async function fetchGeneralNews(perFeed = 15, leads = true): Promise<RawC
     if (res.status === 'fulfilled') out.push(...res.value)
   })
   return withSummaries(out, startedAt, leads)
+}
+
+// The Stocks topic: stock-market news from the markets and business desks of outlets in every region (lib/stocks.ts), as one pool
+// with the newest first. Each story is a news card (category 'news') filed under the Stocks section, so that the order, the layout and
+// the article openings that serve the news serve it too. The feeds are read together, each within STOCK_FEED_TIMEOUT_MS, and the pool
+// does not wait for the stragglers (see settled): some feeds hang for a minute at a time, and would otherwise hold every cold pool.
+// A feed that is late, or fails this time, is in the pool with what it last answered (feedMemory), so that an outlet does not come
+// and go between one refresh and the next.
+const feedMemory = new Remembered<RawContent>(30 * 60 * 1000, 100)
+
+export async function fetchStocksNews(leads = false): Promise<RawContent[]> {
+  const startedAt = Date.now()
+  const answers: { feed: StockFeed; stories: RawContent[] }[] = []
+  const reads = STOCK_FEEDS.map(async (feed) => {
+    const stories = await feedMemory.track(feed.url, fetchOneFeed(feed.name, feed.url, 'news', feed.max ?? STOCK_FEED_ITEMS, STOCKS_SECTION, STOCK_FEED_TIMEOUT_MS))
+    answers.push({ feed, stories })
+  })
+  let poll: ReturnType<typeof setInterval> | undefined
+  const enough = new Promise<void>((resolve) => {
+    poll = setInterval(() => {
+      if (settled(answers.length, STOCK_FEEDS.length, Date.now() - startedAt)) resolve()
+    }, 100)
+  })
+  try {
+    await Promise.race([Promise.all(reads), enough])
+  } finally {
+    clearInterval(poll)
+  }
+  const read = STOCK_FEEDS.map((feed) => {
+    const live = answers.find((answer) => answer.feed === feed)?.stories ?? []
+    return { feed, live: live.length > 0, stories: live.length > 0 ? live : feedMemory.recall(feed.url) }
+  })
+  const pool = pickStocks(read)
+  const fresh = read.filter((entry) => entry.live).length
+  const remembered = read.filter((entry) => !entry.live && entry.stories.length > 0).length
+  const none = [...new Set(read.filter((entry) => entry.stories.length === 0).map((entry) => entry.feed.name))]
+  console.log(
+    `[Plax Stocks] ${pool.length} stories from ${fresh} of ${STOCK_FEEDS.length} feeds` +
+      (remembered > 0 ? ` and ${remembered} remembered` : '') +
+      ` in ${Date.now() - startedAt} ms` +
+      (none.length > 0 ? `; nothing from ${none.join(', ')}` : '')
+  )
+  return withSummaries(pool, startedAt, leads)
+}
+
+// The Stocks pool as the feed route asks for it: held to the sources' deadline like every other source, and with its last good
+// answer standing in while it is late or has none, so that a slow minute of the feeds does not leave the topic empty. Readers who ask
+// while a pool is being built share that build: sixty feeds are read for it, and a burst of requests (a cold start, or the moment the
+// cache expires) would otherwise read them all again for each reader.
+let stocksBuild: Promise<RawContent[]> | null = null
+
+export function fetchStocksPool(): Promise<RawContent[]> {
+  stocksBuild ??= buildStocksPool().finally(() => {
+    stocksBuild = null
+  })
+  return stocksBuild
+}
+
+async function buildStocksPool(): Promise<RawContent[]> {
+  const key = 'Stocks|en'
+  let live: RawContent[] = []
+  try {
+    live = await within('Stocks', lastGood.track(key, fetchStocksNews()), SOURCE_DEADLINE_MS)
+  } catch (error) {
+    console.error('[Plax Sources] Stocks failed:', error)
+  }
+  return live.length > 0 ? live : lastGood.recall(key)
 }
 
 

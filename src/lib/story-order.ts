@@ -67,10 +67,26 @@ export function diverse<T extends Story>(stories: T[], limit: number, minPerSour
  * The news stream: the newest first, no more than `perSource` of one outlet, and the stories that fill a card before those that do
  * not. The stories that do not fill one are shown after all that do, so that a feed that has enough full ones never shows a card
  * with a hole in it, and one that has not still shows what it has.
+ *
+ * A stream that goes back days (the Stocks topic holds a week) would put a week-old story that fills a card ahead of this morning's
+ * that does not. With `ageSteps` (ages in ms, shortest first) the stories are grouped by how old they are: in each group the ones
+ * that fill a card go first, and no group goes ahead of a newer one. A story with no time belongs to the oldest group.
  */
-export function newsOrder<T extends Story>(cards: T[], perSource: number, limit: number): T[] {
+export function newsOrder<T extends Story>(cards: T[], perSource: number, limit: number, ageSteps: readonly number[] = [], now = Date.now()): T[] {
   const newest = cards.filter((card) => card.category === 'news').sort((a, b) => (b.publishedAt ?? 0) - (a.publishedAt ?? 0))
+  if (ageSteps.length > 0) return byAge(newest, perSource, limit, ageSteps, now)
   const full = capPerSource(newest.filter(isFull), perSource)
   if (full.length >= limit) return full.slice(0, limit)
   return [...full, ...capPerSource(newest.filter((card) => !isFull(card)), perSource)].slice(0, limit)
+}
+
+function byAge<T extends Story>(newest: T[], perSource: number, limit: number, steps: readonly number[], now: number): T[] {
+  const groups: T[][] = Array.from({ length: steps.length + 1 }, () => [])
+  for (const story of newest) {
+    const at = story.publishedAt
+    const group = at === undefined ? -1 : steps.findIndex((step) => now - at < step)
+    groups[group === -1 ? steps.length : group].push(story)
+  }
+  const ordered = groups.flatMap((group) => [...group.filter(isFull), ...group.filter((story) => !isFull(story))])
+  return capPerSource(ordered, perSource).slice(0, limit)
 }

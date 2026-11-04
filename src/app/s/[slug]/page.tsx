@@ -4,6 +4,7 @@ import { cache } from 'react'
 import { notFound, permanentRedirect } from 'next/navigation'
 import { SITE, SITE_URL, getTopicSeo } from '@/lib/seo'
 import { NEWS_SECTIONS } from '@/lib/types'
+import { STOCKS_SECTION, STOCKS_TAG } from '@/lib/news-chips'
 import { bodyWithoutHeadline } from '@/lib/story-body'
 import { excerpt, isHindi, parseShareSegment, sharePath, slugify } from '@/lib/share'
 import { loadShare } from '@/lib/share-store'
@@ -64,6 +65,8 @@ function webLink(url: string | undefined): string {
 function label(record: { section?: string; category: string }, hindi: boolean): { text: string; section?: string; topic?: string } {
   const section = NEWS_SECTIONS.find((s) => s.id === record.section)
   if (section) return { text: hindi ? section.labelHi : section.label, section: section.id }
+  // A story of the Stocks topic is a news card too: it is tagged Stocks and leads to that topic's page.
+  if (record.section === STOCKS_SECTION && getTopicSeo(STOCKS_SECTION)) return { text: hindi ? STOCKS_TAG.labelHi : STOCKS_TAG.label, topic: STOCKS_SECTION }
   const topic = getTopicSeo(record.category)
   if (topic) return { text: topic.label, topic: topic.id }
   return { text: hindi ? 'खबर' : 'News' }

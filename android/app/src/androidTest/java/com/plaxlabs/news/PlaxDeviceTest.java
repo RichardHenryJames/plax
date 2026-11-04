@@ -25,11 +25,11 @@ import static org.junit.Assert.*;
 
 @RunWith(AndroidJUnit4.class)
 public class PlaxDeviceTest {
-    private static final class FakeBriefs implements BriefSource {
+    private static final class FakeDeepers implements DeeperSource {
         record Call(Story story, String lang, Result result, AtomicBoolean cancelled) { }
         final List<Call> calls = Collections.synchronizedList(new ArrayList<>());
 
-        @Override public Cancelable brief(Story story, String lang, Result result) {
+        @Override public Cancelable deeper(Story story, String lang, Result result) {
             AtomicBoolean cancelled = new AtomicBoolean();
             calls.add(new Call(story, lang, result, cancelled));
             return () -> cancelled.set(true);
@@ -45,12 +45,12 @@ public class PlaxDeviceTest {
         assertTrue(Build.MODEL.contains("sdk_gphone") || Build.FINGERPRINT.contains("generic"));
         directory = new File(context.getCacheDir(), "test-" + UUID.randomUUID());
         assertTrue(directory.mkdir());
-        BriefApi.CACHE.clear();
+        DeeperApi.CACHE.clear();
         QuietUpdates.install();
     }
 
     @After public void cleanupFixtureOnly() {
-        BriefSheet.source = new BriefApi();
+        DeeperSheet.source = new DeeperApi();
         QuietUpdates.remove();
         if (directory == null) return;
         delete(directory);
@@ -172,7 +172,7 @@ public class PlaxDeviceTest {
                     public void save(Story story) { calls[0]++; }
                     public void share(Story story) { calls[1]++; }
                     public void source(Story story) { calls[2]++; }
-                    public void brief(Story story) { calls[3]++; }
+                    public void deeper(Story story) { calls[3]++; }
                     public void check() { }
                     public void earlier() { }
                 }, 360, 800);
@@ -192,7 +192,7 @@ public class PlaxDeviceTest {
                 assertTrue("headed by the outlet's name: " + posterText, posterText.startsWith("Fixture publisher\n"));
                 assertTrue("with the section under it, small: " + posterText, posterText.endsWith("\nWORLD"));
                 assertFalse("and no sign", posterText.contains("\uD83C\uDF0D"));
-                holder.save.performClick(); holder.share.performClick(); holder.title.performClick(); holder.brief.performClick();
+                holder.save.performClick(); holder.share.performClick(); holder.title.performClick(); holder.deeper.performClick();
                 assertArrayEquals(new int[]{1, 1, 1, 1}, calls);
                 adapter.onBindViewHolder(holder, 1);
                 assertEquals("A repeated headline is not shown twice", View.GONE, holder.content.getVisibility());
@@ -268,7 +268,7 @@ public class PlaxDeviceTest {
                     public void save(Story story) { }
                     public void share(Story story) { }
                     public void source(Story story) { }
-                    public void brief(Story story) { }
+                    public void deeper(Story story) { }
                     public void check() { calls[0]++; }
                     public void earlier() { calls[1]++; }
                 }, 360, 800);
@@ -366,45 +366,48 @@ public class PlaxDeviceTest {
                 false, false, error, 0, 0, 0, 2, interests);
     }
 
-    @Test public void briefSheetShowsLoadingThenTheBriefAndSwitchesLanguageWithoutRefetching() {
-        FakeBriefs briefs = new FakeBriefs();
-        BriefSheet.source = briefs;
+    @Test public void deeperSheetShowsLoadingThenTheInsightsAndSwitchesLanguageWithoutRefetching() {
+        FakeDeepers deepers = new FakeDeepers();
+        DeeperSheet.source = deepers;
         try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
-            BriefSheet[] sheet = new BriefSheet[1];
-            scenario.onActivity(activity -> sheet[0] = BriefSheet.show(activity, new Ui(activity), fixture(), "en"));
-            await("the first brief request", () -> briefs.calls.size() == 1);
-            assertEquals("en", briefs.calls.get(0).lang());
-            assertNotNull("A loading state is visible", findInDialog(sheet[0], "Writing your brief\u2026"));
-            briefs.calls.get(0).result().done(new Brief("AI title", "Body with **key** phrase."));
-            await("the brief", () -> findInDialog(sheet[0], "Body with key phrase.") != null);
-            assertNotNull(findInDialog(sheet[0], "AI title"));
+            DeeperSheet[] sheet = new DeeperSheet[1];
+            scenario.onActivity(activity -> sheet[0] = DeeperSheet.show(activity, new Ui(activity), fixture(), "en"));
+            await("the first request", () -> deepers.calls.size() == 1);
+            assertEquals("en", deepers.calls.get(0).lang());
+            assertNotNull("A loading state is visible", findInDialog(sheet[0], "Finding more\u2026"));
+            deepers.calls.get(0).result().done(new Deeper(List.of("First fact with **key** phrase.", "Second fact.", "Third fact.")));
+            await("the insights", () -> findInDialog(sheet[0], "First fact with key phrase.") != null);
+            assertNotNull("each insight is in a card of its own", findInDialog(sheet[0], "Second fact."));
+            assertNotNull(findInDialog(sheet[0], "Third fact."));
+            assertNotNull("and numbered", findInDialog(sheet[0], "3"));
+            assertNull("the loading state is gone", findInDialog(sheet[0], "Finding more\u2026"));
 
             InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> findInDialog(sheet[0], "\u0939\u093f\u0928\u094d\u0926\u0940").performClick());
-            await("the Hindi request", () -> briefs.calls.size() == 2);
-            assertEquals("hi", briefs.calls.get(1).lang());
-            briefs.calls.get(1).result().done(new Brief("\u0936\u0940\u0930\u094d\u0937\u0915", "\u0939\u093f\u0928\u094d\u0926\u0940 \u092a\u093e\u0920"));
-            await("the Hindi brief", () -> findInDialog(sheet[0], "\u0939\u093f\u0928\u094d\u0926\u0940 \u092a\u093e\u0920") != null);
+            await("the Hindi request", () -> deepers.calls.size() == 2);
+            assertEquals("hi", deepers.calls.get(1).lang());
+            deepers.calls.get(1).result().done(new Deeper(List.of("\u0939\u093f\u0928\u094d\u0926\u0940 \u092a\u093e\u0920")));
+            await("the Hindi insights", () -> findInDialog(sheet[0], "\u0939\u093f\u0928\u094d\u0926\u0940 \u092a\u093e\u0920") != null);
 
             InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> findInDialog(sheet[0], "English").performClick());
-            await("the cached English brief", () -> findInDialog(sheet[0], "Body with key phrase.") != null);
-            assertEquals("Switching back must reuse the written brief", 2, briefs.calls.size());
+            await("the cached English insights", () -> findInDialog(sheet[0], "First fact with key phrase.") != null);
+            assertEquals("Switching back must reuse the insights already written", 2, deepers.calls.size());
             InstrumentationRegistry.getInstrumentation().runOnMainSync(sheet[0]::dismiss);
         }
     }
 
-    @Test public void briefFailureOffersRetryAndDismissingCancelsTheRequest() {
-        FakeBriefs briefs = new FakeBriefs();
-        BriefSheet.source = briefs;
+    @Test public void deeperFailureOffersRetryAndDismissingCancelsTheRequest() {
+        FakeDeepers deepers = new FakeDeepers();
+        DeeperSheet.source = deepers;
         try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
-            BriefSheet[] sheet = new BriefSheet[1];
-            scenario.onActivity(activity -> sheet[0] = BriefSheet.show(activity, new Ui(activity), fixture(), "en"));
-            await("the request", () -> briefs.calls.size() == 1);
-            briefs.calls.get(0).result().failed(R.string.brief_error);
-            await("the error", () -> findInDialog(sheet[0], context.getString(R.string.brief_error)) != null);
+            DeeperSheet[] sheet = new DeeperSheet[1];
+            scenario.onActivity(activity -> sheet[0] = DeeperSheet.show(activity, new Ui(activity), fixture(), "en"));
+            await("the request", () -> deepers.calls.size() == 1);
+            deepers.calls.get(0).result().failed(R.string.deeper_error);
+            await("the error", () -> findInDialog(sheet[0], context.getString(R.string.deeper_error)) != null);
             InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> findInDialog(sheet[0], "Try again").performClick());
-            await("the retry", () -> briefs.calls.size() == 2);
+            await("the retry", () -> deepers.calls.size() == 2);
             InstrumentationRegistry.getInstrumentation().runOnMainSync(sheet[0]::dismiss);
-            await("the abandoned request to be cancelled", () -> briefs.calls.get(1).cancelled().get());
+            await("the abandoned request to be cancelled", () -> deepers.calls.get(1).cancelled().get());
         }
     }
 
@@ -427,8 +430,8 @@ public class PlaxDeviceTest {
         hindi.setLocale(new Locale("hi"));
         android.content.res.Resources localized = context.createConfigurationContext(hindi).getResources();
         int[] translated = {R.string.feed, R.string.topics, R.string.saved, R.string.about_text, R.string.retry,
-                R.string.network_error, R.string.topic_news, R.string.brief, R.string.theme_dark, R.string.read_in_hindi,
-                R.string.new_stories, R.string.empty_saved, R.string.read_full_story, R.string.brief_note,
+                R.string.network_error, R.string.topic_news, R.string.go_deeper, R.string.theme_dark, R.string.read_in_hindi,
+                R.string.new_stories, R.string.empty_saved, R.string.read_full_story, R.string.deeper_note,
                 R.string.for_you, R.string.caught_up, R.string.caught_up_detail, R.string.check_new, R.string.no_new_stories,
                 R.string.for_you_title, R.string.for_you_detail, R.string.choose_interests, R.string.interests_detail,
                 R.string.account_intro, R.string.account_upload_note, R.string.sign_in_google, R.string.account_unavailable,
@@ -460,7 +463,7 @@ public class PlaxDeviceTest {
         fail("Timed out waiting for: " + what);
     }
 
-    private static View findInDialog(BriefSheet sheet, String text) {
+    private static View findInDialog(DeeperSheet sheet, String text) {
         return find(sheet.dialog.getWindow().getDecorView(), text);
     }
 
