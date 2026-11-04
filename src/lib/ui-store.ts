@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { CardData } from './sample-data'
+import { rememberSectionChosen } from './us-reader'
 
 // Lightweight, searchable projection of a loaded card (published by the Feed)
 export interface SearchItem {
@@ -33,9 +34,12 @@ interface UIState {
   pinnedCardId: string | null
   pinCard: (id: string | null) => void
 
-  // News sub-section filter (india/world/tech/business/science; null = All)
+  // News sub-section filter (us/india/world/tech/business/science; null = All)
   newsSection: string | null
   setNewsSection: (section: string | null) => void
+  // The same, for a section the reader chose themselves (a chip): it is remembered, so that the start on the US of a reader in the US
+  // (lib/us-reader.ts) is only ever a first start.
+  pickNewsSection: (section: string | null) => void
 
   // ⌘K command palette
   commandOpen: boolean
@@ -77,6 +81,10 @@ export const useUIStore = create<UIState>((set) => ({
 
   newsSection: null,
   setNewsSection: (section) => set({ newsSection: section }),
+  pickNewsSection: (section) => {
+    rememberSectionChosen()
+    set({ newsSection: section })
+  },
 
   commandOpen: false,
   setCommandOpen: (open) => set({ commandOpen: open }),

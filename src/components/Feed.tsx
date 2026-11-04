@@ -162,6 +162,7 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
   const language = usePlaxStore((s) => s.language)
   const newsSection = useUIStore((s) => s.newsSection)
   const setNewsSection = useUIStore((s) => s.setNewsSection)
+  const pickNewsSection = useUIStore((s) => s.pickNewsSection)
   const setCurrentCard = useUIStore((s) => s.setCurrentCard)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [direction, setDirection] = useState(0)
@@ -1124,7 +1125,7 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
         <div className="hidden lg:block absolute lg:top-5 left-0 right-0 z-30 pointer-events-none">
           <div className="flex gap-2 overflow-x-auto hide-scrollbar px-4 justify-start lg:justify-center pointer-events-auto">
             <button
-              onClick={() => setNewsSection(null)}
+              onClick={() => pickNewsSection(null)}
               aria-pressed={newsSection === null}
               className={`shrink-0 px-4 py-1.5 rounded-full text-[13px] font-semibold whitespace-nowrap transition ${
                 newsSection === null
@@ -1137,7 +1138,7 @@ export function Feed({ categories, seed }: { categories: string[]; seed?: Record
             {NEWS_SECTIONS.map((s) => (
               <button
                 key={s.id}
-                onClick={() => setNewsSection(s.id)}
+                onClick={() => pickNewsSection(s.id)}
                 aria-pressed={newsSection === s.id}
                 className={`shrink-0 px-4 py-1.5 rounded-full text-[13px] font-semibold whitespace-nowrap transition ${
                   newsSection === s.id

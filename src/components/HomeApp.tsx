@@ -19,6 +19,7 @@ import { useRailVisible } from '@/lib/ads-state'
 import { TOPICS, usePlaxStore } from '@/lib/store'
 import { useUIStore } from '@/lib/ui-store'
 import { NEWS_SECTIONS } from '@/lib/types'
+import { browserStartSection } from '@/lib/us-reader'
 import { useEffect, useState } from 'react'
 import { withBase } from '@/lib/base-path'
 import { BrandMark } from '@/components/BrandMark'
@@ -57,7 +58,13 @@ export function HomeApp({ seed }: { seed?: Record<string, string>[] }) {
       useUIStore.getState().setFeedFilter(null)
     }
     // /?topic=news&section=us (from a news section's page, /headlines/us) opens the news on that section.
-    if (!card && section && NEWS_SECTIONS.some((x) => x.id === section)) useUIStore.getState().setNewsSection(section)
+    if (!card && section && NEWS_SECTIONS.some((x) => x.id === section)) {
+      useUIStore.getState().setNewsSection(section)
+    } else if (!card && !section && usePlaxStore.getState().language === 'en' && useUIStore.getState().feedFilter === 'news') {
+      // A reader in the US starts on the US news, until they have chosen a section themselves (lib/us-reader.ts).
+      const start = browserStartSection()
+      if (start) useUIStore.getState().setNewsSection(start)
+    }
     // Clean the URL so a refresh doesn't re-apply it.
     if (topic || lang || card || section) window.history.replaceState({}, '', withBase('/'))
   }, [mounted])

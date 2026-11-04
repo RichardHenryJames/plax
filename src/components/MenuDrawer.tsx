@@ -54,7 +54,7 @@ export function MenuDrawer() {
   const setFeedFilter = useUIStore((s) => s.setFeedFilter)
   const setScreen = useUIStore((s) => s.setScreen)
   const newsSection = useUIStore((s) => s.newsSection)
-  const setNewsSection = useUIStore((s) => s.setNewsSection)
+  const pickNewsSection = useUIStore((s) => s.pickNewsSection)
   const currentCard = useUIStore((s) => s.currentCard)
   const setCommandOpen = useUIStore((s) => s.setCommandOpen)
   const setAccountOpen = useUIStore((s) => s.setAccountOpen)
@@ -244,11 +244,11 @@ export function MenuDrawer() {
                 <div className="mt-4">
                   <p className={`px-3 ${label}`}>{t('sections')}</p>
                   <div className="flex flex-wrap gap-2 px-3">
-                    <button type="button" onClick={then(() => setNewsSection(null))} aria-pressed={newsSection === null} className={chip(newsSection === null)}>
+                    <button type="button" onClick={then(() => pickNewsSection(null))} aria-pressed={newsSection === null} className={chip(newsSection === null)}>
                       {language === 'hi' ? 'सभी' : 'All'}
                     </button>
                     {NEWS_SECTIONS.map((s) => (
-                      <button key={s.id} type="button" onClick={then(() => setNewsSection(s.id))} aria-pressed={newsSection === s.id} className={chip(newsSection === s.id)}>
+                      <button key={s.id} type="button" onClick={then(() => pickNewsSection(s.id))} aria-pressed={newsSection === s.id} className={chip(newsSection === s.id)}>
                         {language === 'hi' ? s.labelHi : s.label}
                       </button>
                     ))}
