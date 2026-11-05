@@ -105,9 +105,20 @@ test('the website shows a publisher\'s name exactly when the file the app reads 
   const website = /export const SHOW_SOURCE_NAME = (true|false)/.exec(read('src/lib/app-features.ts'))?.[1]
   assert.ok(website, 'SHOW_SOURCE_NAME not found in app-features.ts')
   assert.equal(website, String(features.get('sourceName')), 'SHOW_SOURCE_NAME in app-features.ts differs from features.sourceName in app-config.json: change both')
-  // The name is on: Google Play asks an aggregator for clear information about its publishing sources, and the declaration in Play
-  // Console says each card shows its source. If it is ever switched off on purpose, change this test and the declaration with it.
-  assert.equal(features.get('sourceName'), true)
+  // The places that print a story's outlet in the app itself (the card, the saved list) ask the same constant, so that one switch
+  // takes the name off all of them.
+  assert.match(read('src/components/Card.tsx'), /const showSource = SHOW_SOURCE_NAME && !!card\.source/, 'the card does not ask SHOW_SOURCE_NAME')
+  assert.match(read('src/components/SavedScreen.tsx'), /SHOW_SOURCE_NAME && card\.source/, 'the saved list does not ask SHOW_SOURCE_NAME')
+})
+
+test('the Google Play build names the publisher whatever the file says', () => {
+  // Google Play's News policy asks an aggregator for clear information about the publishing sources of what it shows, and Plax's
+  // declaration says each card shows its source. The website and the website's build follow features.sourceName; the Google Play build
+  // does not (AppConfig.Features.namesSource, run by AppConfigTest). If this is ever changed on purpose, change the declaration too.
+  const library = read('android/app/src/main/java/com/plaxlabs/news/AppConfig.java')
+  assert.match(library, /boolean namesSource\(boolean playBuild\) \{ return playBuild \|\| sourceName; \}/, 'the Google Play build no longer always names the publisher')
+  const adapter = read('android/app/src/main/java/com/plaxlabs/news/StoryAdapter.java')
+  assert.match(adapter, /features\(\)\.namesSource\(MainActivity\.playBuild\)/, 'the credit line does not ask namesSource')
 })
 
 test('the news sections the file lists are the ones the website has, in the same order', () => {

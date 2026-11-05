@@ -5,9 +5,12 @@
 // shows are set here as well, and app-config.test.mjs fails if the two differ.
 
 /**
- * Whether a card names its publisher in the line above the headline (small, as in the app). Google Play's News policy asks an
- * aggregator to give users clear information about the publishing sources of what it shows, and the declaration in Play Console says
- * each card shows its source, so this is on. Turning it off (here and in app-config.json, `features.sourceName`) is a decision that
- * needs that declaration changed too.
+ * Whether a card names its publisher in the line above the headline. It does not: the headline is the link to the story at the
+ * publisher, and a card does not advertise the site it links to. The same goes for the website's Android build, which follows
+ * `features.sourceName` in app-config.json.
+ *
+ * The Android app from Google Play is the exception and always names the publisher, whatever the file says: Google Play's News policy
+ * asks an aggregator for "clear information about the publishing sources of third-party content", Plax is declared one, and the
+ * declaration in Play Console says each card shows its source (see android/PLAY-CONSOLE-ANSWERS-ADS.txt, section 8).
  */
-export const SHOW_SOURCE_NAME = true
+export const SHOW_SOURCE_NAME = false

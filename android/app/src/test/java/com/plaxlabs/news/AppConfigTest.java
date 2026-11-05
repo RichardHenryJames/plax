@@ -140,6 +140,19 @@ public class AppConfigTest {
         try { AppConfig.parse(limit); } catch (IOException refused) { fail("the limit itself"); }
     }
 
+    @Test public void theGooglePlayBuildAlwaysNamesItsPublisherAndTheWebsitesBuildFollowsTheFile() throws IOException {
+        // Google Play's News policy asks an aggregator for clear information about the publishing sources of third-party content, and Plax's
+        // declaration says each card shows its source: the Google Play build does, whatever the file says.
+        AppConfig.Features off = parse("{\"schemaVersion\":1,\"features\":{\"sourceName\":false}}").config().features();
+        assertFalse(off.sourceName());
+        assertTrue("Google Play: always", off.namesSource(true));
+        assertFalse("the website's build: as the file says", off.namesSource(false));
+        AppConfig.Features on = AppConfig.defaults().features();
+        assertTrue(on.sourceName());
+        assertTrue(on.namesSource(true));
+        assertTrue(on.namesSource(false));
+    }
+
     @Test public void aNameThatIsOnlyANameIsNotSpecial() throws IOException {
         assertEquals(List.of(), parse("{\"schemaVersion\":1,\"__proto__\":{\"features\":{\"ads\":false}},\"constructor\":1}").rejected());
         assertTrue(parse("{\"schemaVersion\":1,\"__proto__\":{\"features\":{\"ads\":false}}}").config().features().ads());

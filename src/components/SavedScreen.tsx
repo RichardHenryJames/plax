@@ -7,6 +7,7 @@ import { useUIStore } from '@/lib/ui-store'
 import { useAuth } from '@/components/AuthProvider'
 import { removeBookmarkFromCloud } from '@/lib/cloud-sync'
 import { useT } from '@/lib/i18n'
+import { SHOW_SOURCE_NAME } from '@/lib/app-features'
 
 /**
  * The Saved tab: the stories the reader bookmarked, newest first. They live in this browser, and in the
@@ -58,7 +59,7 @@ export function SavedScreen() {
                     <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-[color:var(--signal-text)]">
                       <span aria-hidden>{topic?.emoji ?? card.emoji ?? '✨'}</span>
                       <span>{topic ? tp(topic.id, topic.label) : card.category}</span>
-                      {card.source && <span className="normal-case tracking-normal font-medium text-dark-muted">· {card.source}</span>}
+                      {SHOW_SOURCE_NAME && card.source && <span className="normal-case tracking-normal font-medium text-dark-muted">· {card.source}</span>}
                     </div>
                     {card.title && (
                       <h2 className="headline mt-2 text-xl text-white">

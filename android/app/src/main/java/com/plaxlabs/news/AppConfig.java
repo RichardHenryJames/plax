@@ -42,12 +42,19 @@ record AppConfig(List<Topic> topics, List<Section> sections, Features features, 
             "www.youtube.com", "youtube.com", "youtu.be", "t.me", "chat.whatsapp.com", "www.linkedin.com", "github.com");
 
     /**
-     * A switch is on unless the file says it is off. {@code sourceName} is whether a story's line names its publisher: Google Play's News
-     * policy asks an aggregator for clear information about the publishing sources of what it shows, so it is on, and turning it off is a
-     * decision that needs the declaration in Play Console to say the same.
+     * A switch is on unless the file says it is off. {@code sourceName} is whether a story's line names its publisher; see
+     * {@link #namesSource}, which is what the app asks.
      */
     record Features(boolean deeper, boolean shareLinks, boolean ads, boolean adPages, boolean sourceName) {
         static final Features ALL = new Features(true, true, true, true, true);
+
+        /**
+         * Whether a story's line names its publisher in this build. The Google Play build always does, whatever the file says: Google
+         * Play's News policy asks an aggregator for clear information about the publishing sources of third-party content, Plax is
+         * declared one (and Google has sent it a policy notice once already), and the declaration says each card shows its source. The
+         * website's build follows the file, which is how the website's own cards go without the name.
+         */
+        boolean namesSource(boolean playBuild) { return playBuild || sourceName; }
     }
 
     /**

@@ -140,12 +140,15 @@ export function Card({ card, isActive, translating = false }: CardProps) {
               </motion.div>
             )}
 
-            {/* Tag, origin and the round buttons. A news card reads "INDIA  The Hindu ↗ / 20m ago" under its picture (the name over
-                the age, on a phone), and Listen, Save and Share stand at the right end of the same line, as in the app: with no
-                bar at the bottom the story has the whole screen. The line never wraps: on a phone the age stands under the name, so
-                that the name (which was cut to "The Hi…" beside the age and the buttons) keeps the width, and each is cut with an
-                ellipsis only as a last resort; from 540 px they stand in one line, with the read time, as before; the word
-                "Breaking" (just its dot below 540 px) gives way on anything narrower than 540 px. */}
+            {/* Tag, age and the round buttons. A news card reads "INDIA  20m ago" under its picture, and Listen, Save and Share stand
+                at the right end of the same line, as in the app: with no bar at the bottom the story has the whole screen. The age
+                starts right after the tag (and the Breaking badge): the text is set at the start of its room, not centred in it,
+                which left a gap of a few dozen pixels from 540 px up, where the line is a row. The publisher's name is not on the
+                card (lib/app-features.ts, SHOW_SOURCE_NAME): the headline is the link to the story at the publisher, and says
+                where it goes to a screen reader and in a tooltip. When the name is on it stands first, with the age under it on a
+                phone, so that the name keeps the width, and each is cut with an ellipsis only as a last resort; from 540 px they
+                stand in one line, with the read time; the word "Breaking" (just its dot below 540 px) gives way on anything
+                narrower than 540 px. The line never wraps. */}
             <motion.div
               data-fit="meta"
               initial={{ opacity: 0, y: 6 }}
@@ -170,7 +173,7 @@ export function Card({ card, isActive, translating = false }: CardProps) {
                 </span>
               )}
               {isNews ? (
-                <span className="min-w-0 flex-1 flex flex-col justify-center leading-tight text-dark-muted text-[13px] font-medium min-[540px]:flex-row min-[540px]:items-center min-[540px]:gap-1">
+                <span className="min-w-0 flex-1 flex flex-col justify-center leading-tight text-dark-muted text-[13px] font-medium min-[540px]:flex-row min-[540px]:justify-start min-[540px]:items-center min-[540px]:gap-1">
                   {showSource && (
                     <span className="min-w-0 flex items-center gap-0.5">
                       <span className="truncate">{card.source}</span>

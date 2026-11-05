@@ -465,6 +465,15 @@ public class ConfigDeviceTest {
         }
     }
 
+    @Test public void theGooglePlayBuildNamesItsPublisherWhateverTheWebsiteSays() {
+        MainActivity.playBuild = true;
+        website("\"features\":{\"sourceName\":false}");
+        try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
+            waitForFirstStory();
+            assertTrue("Google Play asks an aggregator to say where its stories come from: the name is on the card", device.hasObject(By.textStartsWith("Publisher")));
+        }
+    }
+
     @Test public void theWebsiteCanAskForABiggerPictureAndTheStoryIsStillOneView() {
         website("\"layout\":{\"heroMaxHeight\":0.7,\"heroMaxWidth\":1.6}");
         try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {

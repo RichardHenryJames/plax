@@ -1,5 +1,5 @@
 PLAX - GOOGLE PLAY CONSOLE: WHAT CHANGES FOR A RELEASE THAT CONTAINS GOOGLE ADS
-Prepared: 1 and 2 November 2026, for version 1.6.0 (code 14), the first with ads (1.6.1, code 15, is the same bundle with the empty-ad fix, 1.6.2, code 16, the same with the 4 November changes, and 1.7.0, code 17, the same again with the website's settings file, below: the permissions and ad ids are unchanged, so every answer below holds for them). Nothing here has been submitted. In AdMob and AdSense
+Prepared: 1 and 2 November 2026, for version 1.6.0 (code 14), the first with ads (1.6.1, code 15, is the same bundle with the empty-ad fix, 1.6.2, code 16, the same with the 4 November changes, and 1.7.1, code 18, the same again with the website's settings file, below: the permissions and ad ids are unchanged, so every answer below holds for them; 1.7.0, code 17, was superseded by 1.7.1 the same day and should not be uploaded). Nothing here has been submitted. In AdMob and AdSense
 the app, the ad units and the consent messages were created on 1 and 2 November in the owner's logged-in browser (section 1 says which);
 nothing was changed in the Play Console: that is your account. The official Google pages used are listed at the end.
 
@@ -148,18 +148,23 @@ demo units); and what any real ad looks like or earns. No ad has been served or 
 checked live on 2 Nov, with AdSense not yet approving the site) were all "unfilled".
 
 
-8. VERSION 1.7.0 (code 17): THE WEBSITE'S SETTINGS FILE, AND THE PUBLISHER'S NAME
-=================================================================================
+8. VERSIONS 1.7.0 AND 1.7.1 (codes 17 and 18): THE WEBSITE'S SETTINGS FILE, AND THE PUBLISHER'S NAME
+====================================================================================================
 Added 5 November 2026. The bundle is the same as 1.6.2 in everything this file declares (the same seven permissions, the same ad ids,
 no new library), so sections 2 to 6 stand. Two things you may be asked about:
 
-  a. NEWS AND MAGAZINES DECLARATION (the aggregator answer). It says "each card shows the source name", and that is still true: a card
-     names its publisher, small, in the line above the headline, in 1.7.0 as in 1.6.2. Do NOT change the answer, and do not take the
-     name off the cards: Google's News policy for aggregators says they "must provide users with clear information about the publishing
-     sources of third-party content" (support.google.com/googleplay/android-developer/answer/16189314), and some publishers' feed terms
-     ask for a credit too. What changed is that a story with no picture of its own is headed by "Plax" on its poster instead of by its
-     outlet's name, so the outlet is named once, small, not twice. features.sourceName in app-config.json can take the name off the app
-     without a new bundle; it is on, and it should stay on unless you first change the declaration and are sure Google accepts it.
+  a. NEWS AND MAGAZINES DECLARATION (the aggregator answer). It says "each card shows the source name", and that is still true of the
+     Google Play app: a card names its publisher, small, in the line above the headline, in 1.7.x as in 1.6.2. Do NOT change the
+     answer, and do not take the name off the cards of the Google Play app: Google's News policy for aggregators says they "must provide
+     users with clear information about the publishing sources of third-party content"
+     (support.google.com/googleplay/android-developer/answer/16189314), Google has already sent Plax one News-policy notice, and some
+     publishers' feed terms ask for a credit too. What changed is (1) that a story with no picture of its own is headed by "Plax" on its
+     poster instead of by its outlet's name, so the outlet is named once, small, not twice; and (2) that the WEBSITE, and the app built
+     for the website (the one that updates itself, package com.plaxlabs.news.preview, which is not on Google Play), no longer print the
+     publisher's name on a card: there the headline is the link to the story at its publisher. The Google Play build ignores the switch
+     features.sourceName in app-config.json and always names the publisher (AppConfig.Features.namesSource), so no file pushed to the
+     website can take the name off the Play app. If you ever want it off the Play app as well, change the declaration first, be sure
+     Google accepts it, and only then change the code and ship a new bundle.
      (The sentence in the 1.5.5 file about the "Read full story" button is out of date since 1.6.0: the headline is the link, and its
      tooltip and its description for a screen reader give the publisher's domain.)
 

@@ -28,7 +28,7 @@
     { "id": "business", "en": "Business", "hi": "कारोबार" },
     { "id": "science", "en": "Science", "hi": "विज्ञान" }
   ],
-  "features": { "deeper": true, "shareLinks": true, "ads": true, "adPages": true, "sourceName": true },
+  "features": { "deeper": true, "shareLinks": true, "ads": true, "adPages": true, "sourceName": false },
   "ads": { "pageEvery": 5 },
   "layout": { "heroMaxWidth": 1.25, "heroMaxHeight": 0.6, "photoMinWidth": 0.6, "photoMinHeight": 0.3 },
   "notice": null,

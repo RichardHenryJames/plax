@@ -10,7 +10,7 @@ exists (see *Updates from inside the app*), except in the Google Play build, whi
 which need the two small routes and the one small file listed under *Backend changes*,
 the app works against the backend as it was before this version.
 
-## What is in 1.7.0 (versionCode 17): the website can change most things without a new app
+## What is in 1.7.1 (versionCode 18) and 1.7.0 (versionCode 17): the website can change most things without a new app
 
 Until 1.6.2 almost everything the reader sees was fixed in the app: which topics there are, the news chips, how often an ad page comes, how
 big a story's picture may be. Changing any of them, or adding a topic such as Stocks, meant a new bundle on Google Play, which reached readers
@@ -34,17 +34,28 @@ with the screens it has, in **both builds** (Google Play's and the website's). S
   each start until the reader says Done. **A Google Play build** below the newest version the website names is told that a newer version is on
   Google Play (Later is remembered for a day; below the least supported version it is asked at every start); the website's build never sees
   it, it has its own update feed.
-- **The publisher is still named, small, in the line above the headline** (`features.sourceName`, on). Google Play's News policy asks an
-  aggregator to give users "clear information about the publishing sources of third-party content", and the declaration in Play Console says
-  each card shows its source. What is gone is the large outlet name that stood over every story with no picture (the poster): it is *Plax*
-  now, on the website and in the app. The switch exists so that the name can be taken off without a new bundle if the declaration is
-  changed to match; `app-config.test.mjs` insists that it is on until that test is changed on purpose.
+- **The publisher's name.** The card of the **website**, and of the **website's Android build**, no longer names the publisher ("The Hindu
+  ↗" over every story): the headline is the link to the story at the publisher, and a card does not advertise the site it links to
+  (`features.sourceName` is `false` in the file, and `SHOW_SOURCE_NAME` is `false` in `src/lib/app-features.ts`; a test keeps the two equal).
+  **The Android app from Google Play always names the publisher, small, in the line above the headline, whatever the file says**
+  (`AppConfig.Features.namesSource`): Google Play's News policy asks an aggregator for "clear information about the publishing sources of
+  third-party content", Plax is declared an aggregator (Google has already sent it one policy notice, see 1.5.1), and the declaration says
+  each card shows its source. A Play build that showed only "1h ago" would contradict that declaration and could be flagged or removed.
+  This is a decision for the owner, not a technical limit: to take the name off the Play build too, change `namesSource` (and the test
+  that insists on it), and change the Play Console declaration first. Separately, the large outlet name that stood over every story with
+  no picture (the poster) is **Plax** now, on the website and in the app.
+- **The age starts right after the tag.** On the website, from 540 px up, the age (and the read time) were centred in the room between the
+  tag or the Breaking badge and the round buttons, which left a gap after the badge; the text is now set at the start of its room.
 - **Fixed on the way:** a section the website does not list is ignored instead of throwing (the menu may be open while a new list arrives).
-- **The version is 1.7.0 (17).** Nothing in what the build declares changed: the same permissions and ad ids, and no new library.
+- **The version is 1.7.1 (18).** 1.7.0 (17) came first, the same day, with the settings file. 1.7.1 adds one rule, `namesSource`: the
+  Google Play app names the publisher whatever the file says (above), and it corrects the Contact text, which said that every story names
+  its publisher. The 1.7.0 bundle was built but is **superseded and must not be uploaded**: it takes the publisher's name from the file
+  in the Play build too, so a file with `sourceName` `false` would take the name off the Play app. Nothing in what the build declares
+  changed: the same permissions and ad ids, and no new library.
 - **Tests.** `AppConfigTest` (14), `AppConfigStoreTest` (14), `ConfigPromptsTest` (8), a case for the other ad spacing in `AdSlotsTest`, and
   the 20 device tests of `ConfigDeviceTest` (topics, sections, switches, notices, the Google Play message, links, picture numbers, the
   publisher's name); `FitDeviceTest` also lays every story out at the largest and the smallest picture the website may ask for.
-  See *Verification performed for 1.7.0*.
+  See *Verification performed for 1.7.0 and 1.7.1*.
 
 ## What is in 1.6.2 (versionCode 16): the 4 November changes, and the update published over the air
 
@@ -818,7 +829,7 @@ did. From 1.7.0 on only: an installed 1.6.2 or older ignores the file.
 |---|---|---|
 | `topics` | The topics offered on the Topics screen and in the choice for For you, in this order, with their emoji and names in English and Hindi. Listing a topic already in the app under another name renames it; listing a new one adds it. | 1 to 40; `news` must be there; ids `a-z0-9`, 2 to 24; names up to 24 characters; the id must be one the feed serves (`app-config.test.mjs` checks it against `TOPICS`) |
 | `sections` | The chips of the Headlines topic (All is always first) and the tag a story of that section carries. The website's `NEWS_SECTIONS` and this list must be the same (a test checks it). | 0 to 12; ids `a-z0-9`, 2 to 16; names up to 16 characters |
-| `features` | `deeper` (the Go deeper button), `shareLinks` (Share makes a Plax page for the story; off shares the publisher's link), `ads` (all ads), `adPages` (the full-page ad), `sourceName` (the publisher's name in the line above the headline; **leave it on**, see 1.7.0) | a switch is on unless it is `false`; text or a number is refused |
+| `features` | `deeper` (the Go deeper button), `shareLinks` (Share makes a Plax page for the story; off shares the publisher's link), `ads` (all ads), `adPages` (the full-page ad), `sourceName` (the publisher's name in the line above the headline of the website's build; **the Google Play build names the publisher whatever this says**, see 1.7.1) | a switch is on unless it is `false`; text or a number is refused |
 | `ads.pageEvery` | How many stories one full-page ad stands for (the website's `STORIES_PER_AD` must be the same: a test checks it) | whole number 3 to 20 |
 | `layout` | How big a story's picture may be: `heroMaxWidth` 1 to 1.6 (of the column's width), `heroMaxHeight` 0.4 to 0.7 (of the page), and the least it is given, `photoMinWidth` 0.4 to 0.7 and `photoMinHeight` 0.2 to 0.35. The website's `useCardFit` must say the same (a test checks it). | the ranges keep the least below the most, and small enough that a long story keeps its photograph on a 360 x 640 page at a 1.3 text size: `FitDeviceTest` lays every story out at both ends of every range (a first, wider range for the least, up to 0.9 and 0.5, dropped the photograph of a long story on that page, so it was narrowed) |
 | `notice` | One message, shown once per `id` (a new id shows again). `level` `important` comes back at each start until the reader says Done. Optional `url`, `build` (`all`, `play`, `direct`), `minVersionCode`, `maxVersionCode`, `until` (`2026-12-01T00:00:00Z`). `null` for none. | title 60, body 400 characters and at most 6 line breaks, plain text; the link rules below |

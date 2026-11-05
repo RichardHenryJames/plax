@@ -103,7 +103,10 @@ public class LiveFeedTest {
         assertTrue(config.topics().contains(Topic.NEWS));
         assertTrue("Stocks is offered", config.topics().contains(Topic.STOCKS));
         assertTrue("the website's US section is a chip", config.hasSection("us"));
-        assertTrue("the publisher is named", config.features().sourceName());
+        // The website's cards and the website's build go without the publisher's name; the Google Play build always has it.
+        assertFalse(config.features().sourceName());
+        assertTrue(config.features().namesSource(true));
+        assertFalse(config.features().namesSource(false));
         // The same bytes the repository holds: what the site serves is what was committed.
         android.util.Log.i("PlaxLive", "app-config.json: " + bytes.length + " bytes, " + config.topics().size() + " topics, "
                 + config.sections().size() + " sections");

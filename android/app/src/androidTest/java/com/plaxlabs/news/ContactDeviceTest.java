@@ -88,7 +88,7 @@ public class ContactDeviceTest {
             assertTrue(device.hasObject(By.text("Open the contact page")));
             assertTrue("the website page is named in words, not only behind a button",
                     device.hasObject(By.textContains(Contact.PAGE_URL)));
-            assertTrue("the publishers are credited", device.hasObject(By.textContains("names its publisher")));
+            assertTrue("the stories' links to their publishers are described", device.hasObject(By.textContains("links to the original at its publisher")));
         }
     }
 

@@ -373,9 +373,10 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     private String credit(Context context, Story story, Locale locale) {
         List<String> parts = new ArrayList<>();
-        // The publisher is named here, small: Google Play asks an aggregator for clear information about where its stories come from.
-        // The website may switch the name off (AppConfig.Features.sourceName); the age stays.
-        if (AppConfigStore.active().features().sourceName()) parts.add(story.source().isEmpty() ? context.getString(R.string.source_unknown) : story.source());
+        // The publisher is named here, small, in the Google Play build whatever the website says (Google Play asks an aggregator for clear
+        // information about where its stories come from); the website's build follows the file (AppConfig.Features.namesSource). The age stays.
+        if (AppConfigStore.active().features().namesSource(MainActivity.playBuild))
+            parts.add(story.source().isEmpty() ? context.getString(R.string.source_unknown) : story.source());
         // Each part after the source is kept whole, so a line never breaks inside "3h ago".
         String age = age(context, story.publishedAt(), locale);
         if (!age.isEmpty()) parts.add(whole(age));
