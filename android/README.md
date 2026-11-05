@@ -52,9 +52,10 @@ with the screens it has, in **both builds** (Google Play's and the website's). S
   its publisher. The 1.7.0 bundle was built but is **superseded and must not be uploaded**: it takes the publisher's name from the file
   in the Play build too, so a file with `sourceName` `false` would take the name off the Play app. Nothing in what the build declares
   changed: the same permissions and ad ids, and no new library.
-- **Tests.** `AppConfigTest` (14), `AppConfigStoreTest` (14), `ConfigPromptsTest` (8), a case for the other ad spacing in `AdSlotsTest`, and
-  the 20 device tests of `ConfigDeviceTest` (topics, sections, switches, notices, the Google Play message, links, picture numbers, the
-  publisher's name); `FitDeviceTest` also lays every story out at the largest and the smallest picture the website may ask for.
+- **Tests.** `AppConfigTest` (15), `AppConfigStoreTest` (14), `ConfigPromptsTest` (8), a case for the other ad spacing in `AdSlotsTest`, and
+  the 21 device tests of `ConfigDeviceTest` (topics, sections, switches, notices, the Google Play message, links, picture numbers, the
+  publisher's name, and that the Google Play build names it whatever the file says); `FitDeviceTest` also lays every story out at the largest
+  and the smallest picture the website may ask for.
   See *Verification performed for 1.7.0 and 1.7.1*.
 
 ## What is in 1.6.2 (versionCode 16): the 4 November changes, and the update published over the air
@@ -1122,6 +1123,55 @@ project is back:
 - Not covered: Google's consent screen, the Authorized redirect URI in the Google console, the Redirect URLs list in
   Supabase, the Custom Tab path with a real code, and a real hosted project (its key formats, defaults and rate
   limits). Those are the one manual sign-in the runbook ends with.
+
+## Verification performed for 1.7.0 and 1.7.1 (5 November 2026)
+
+On the isolated Android 16 (API 36, x86_64) `Plax_News_Test` emulator, the development machine, a real browser (Microsoft Edge, headless,
+driven by Playwright) and the deployed site; no physical phone, no Play Console, no live ad. 1.7.0 was built, verified and published, and
+replaced the same day by 1.7.1, which takes the publisher's name off the website's cards and keeps it in the Google Play app; what follows is
+1.7.1 unless it says 1.7.0.
+
+- **Tests.** **280 JVM tests**, 0 failing, 14 opt-in skipped; lint **0 errors** and 1 warning (a newer Gradle exists); the website `tsc` clean
+  and **532 unit tests**. **The 143 device tests pass**, run one class at a time (`PlaxDeviceTest` 18, `FeedFlowTest` 31,
+  `AccountDeviceTest` 7, `UpdateDeviceTest` 9, `ShareDeviceTest` 7, `ContactDeviceTest` 6, `FitDeviceTest` 8, `MenuDeviceTest` 4,
+  `MenuEntriesDeviceTest` 9, `AdsDeviceTest` 18, `NativeAdPageDeviceTest` 5, `ConfigDeviceTest` 21). The opt-in live tests
+  (`-LiveFeed`, 5 of 5) pass against production, among them the real `app-config.json` read whole by the app (18 topics, 6 sections, nothing
+  refused, `sourceName` false, and the Google Play build still naming the publisher).
+- **1.7.0's first full run of the device suite failed twice**, and both were dealt with before it was published: `FitDeviceTest` at the largest
+  picture settings (a long story lost its photograph on a 360 x 640 page at a 1.3 text size, so the ranges of `layout` were narrowed: see
+  *What the website can change without a new app*), and one `MenuEntriesDeviceTest` case (the Go deeper cross), which passed 3 of 3 on its
+  own and in the rerun of its class: a one-off under load.
+- **The website's card.** Measured in Edge against `next start` of this source, on seven window sizes (1280 x 800, 1024 x 768, 700 x 900,
+  540 x 900, 539 x 900, 390 x 844, 360 x 640), 35 cards: the age begins **10 px** after the tag or the Breaking badge (8 px under 400 px, the
+  row's own gap) at every size, and no outlet name or arrow stands in the line. The same script against the production site *before* the
+  change measured **47 to 93 px** between the badge and the age, with "The Hindu ↗" or another outlet in that room: the screenshot that
+  prompted the change.
+- **The update, end to end, on the live site.** `verify-update.ps1` against production: **19 of 19 checks** ("the site serves 1.7.1 (code 18) as
+  a valid update"). Then the published 1.7.0 website build (the saved copy, byte for byte the published one) installed on the emulator,
+  left to read the live feed itself: it showed "Update available: Plax 1.7.1 is ready" with *Later* and *Download*; *Download* handed the live
+  HTTPS address to Chrome; a plain GET of that address gave the size and SHA-256 of the feed; the file installed over 1.7.0 (`adb install -r`,
+  data kept), opened (4.5 s on the first start after an install), did not offer the update again, had no crash or ANR, and its card's line was
+  "7 min ago": the age, no outlet name.
+- **The bundle** `artifacts\plax-1.7.1.aab` (7,500,514 bytes, SHA-256 `c11cf4983b5749483795210f45cef978e6ac6473b6a60bcb94e68f21194653ea`; mapping
+  file `plax-1.7.1-mapping.txt`), built with the owner's three public AdMob ids as `ORG_GRADLE_PROJECT_*` variables (nothing committed): the 16
+  checks of `package-aab.ps1` pass; one signer, the Plax upload key `dade46fd…de1219`; package `com.plaxlabs.news`, 1.7.1 (18); the banner
+  unit, the native unit and `banner_served_at` are in the dex, the app id is in the manifest, no demo id is in the bundle. **Not uploaded.**
+  The 1.7.0 bundle was deleted from `artifacts` so that the superseded one cannot be uploaded by mistake.
+- **The bundle as Google Play installs it** (bundletool, split APKs), over 1.6.2 (code 16) with a story saved: code 18 opens in about 3.5 s,
+  the saved story is still saved, no crash, no ANR, and the card's line reads "ABC News · 15 min ago": **the Google Play build names the
+  publisher though the live settings file says `sourceName` false**, which is the point of `namesSource`. The run of the 1.7.1 bundle through
+  the Play smoke (the ads, About, Contact us, the menu without *Check for updates*, Continue with Google reaching Google's page, no crash,
+  no ANR, no bad-application-id stop) passed everything but the swipe count below.
+- **Paging.** `adb input swipe` on this emulator drops some swipes whatever the build, so the count is compared with the previous release on
+  the same script, both installed the way Google Play installs them: of 48 swipes **1.6.2 dropped 5 and 1.7.1 dropped 5** (1.7.1 dropped 3 of
+  12 in a shorter run). No regression in one swipe moving to the next story. In both an ad page appeared in the feed and never stood twice
+  in a row; where it stands is pinned by `AdsDeviceTest` (after every fifth story, not counted as one).
+
+**Not verified**: a physical phone; a live ad (the AdMob app and the AdSense site are not approved yet); the Play Console and Google Play
+review, in particular whether Google accepts a website and a website build that do not name the publisher, and what AdSense makes of it; the
+Play in-app updates interface (not used); how much time reading the settings file adds to a cold start (it is a few kilobytes read when the
+app starts; code 18 opened in about 3.5 s over 1.6.2 here, against about 3 s measured for 1.6.2 in its own verification, but the two were
+not timed back to back); a browser other than Edge for the card measurements.
 
 ## Verification performed for 1.6.2 (5 November 2026)
 
