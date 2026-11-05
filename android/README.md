@@ -66,9 +66,13 @@ full-screen change adds no permission, library or backend change (the ads below 
   under a two-line summary).** `CardFit` (and `src/lib/card-fit.ts`, with the same test cases) spends the height in this order: the
   source line (with its buttons) and the headline; a photograph gets at least 60% of the width and 30% of the page (never under 96 dp);
   the summary gets what remains, whole when it fits and otherwise cut at a whole line with an ellipsis ("abruptly", as in Inshorts);
-  and the picture takes whatever the lines leave. A short summary no longer lets the picture grow (it did, up to 1.4 times its width, until
-  2 November 2026; that made pages unlike each other): the picture is at most 75% of the width and 40% of the page, and the room still
-  left is spread evenly between the parts. The summary ends where its room ends, at a sentence when one is within two lines of the end
+  and the picture takes whatever the lines leave, and then whatever room the text did not use (a summary that ends a line or two short
+  of its room, or a short one): at most 4:5 (1.25 times the width) and 60% of the page, so the page is full (`CardFit.grownHero`, the
+  same rule as `grownHero` in `src/lib/card-fit.ts`). It was at most 75% of the width and 40% of the page, with the room left spread
+  evenly between the parts, which put holes of 30 to 60 dp between the picture, the source line, the headline and the text on a tall
+  screen (and, before 2 November 2026, the picture grew to 1.4 times its width). Now the parts stand one under the other from the top with
+  only their own small spaces between them, and what a very short story still leaves (a headline with nothing under it) is empty at
+  the bottom, never between the parts (4 November 2026). The summary ends where its room ends, at a sentence when one is within two lines of the end
   and else after the last whole word that fits and can end a text, with an ellipsis (`TextFit`, the port of `src/lib/text-fit.ts`, with the
   same test cases): not "and", "of the", an initial, a title, a number or a bracket never closed ("…Justices Joymalya Bagchi and V…" ends
   "…Justices Joymalya Bagchi…"; up to four words are taken off, never leaving fewer than four), and not through the middle of a word as
