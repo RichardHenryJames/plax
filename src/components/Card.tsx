@@ -11,6 +11,7 @@ import { bodyWithoutHeadline } from '@/lib/story-body'
 import { NEWS_SECTIONS } from '@/lib/types'
 import { STOCKS_SECTION, STOCKS_TAG } from '@/lib/news-chips'
 import { posterName, wantsPoster } from '@/lib/poster'
+import { SHOW_SOURCE_NAME } from '@/lib/app-features'
 import { useCardFit } from './useCardFit'
 import { CardActions } from './CardActions'
 import { MenuButton } from './MenuButton'
@@ -84,8 +85,10 @@ export function Card({ card, isActive, translating = false }: CardProps) {
   const hasDeeper = card.type !== 'quote' && (card.content?.length ?? 0) > 120
   const hasQuiz = card.type !== 'quote' && card.category !== 'news' && (card.content?.length ?? 0) > 160
   const hasBooks = card.category === 'books' && !!card.author
-  // Author / source credibility. A news card already names its source under the picture.
-  const hasCredit = !!card.author || (!!card.source && !isNews)
+  // Author / source credibility. A news card already names its source above the headline. The name is small there and the
+  // switch in lib/app-features.ts can turn it off; the author (of a book, say) is part of what the card is about, so it stays.
+  const showSource = SHOW_SOURCE_NAME && !!card.source
+  const hasCredit = !!card.author || (showSource && !isNews)
   const hasActions = hasDeeper || hasQuiz || hasBooks || hasCredit
   // Nothing on a card scrolls, so that one swipe always moves to the next story: the picture, the headline and the summary
   // share the card's height instead (see useCardFit), and the row stands right under the summary.
@@ -119,7 +122,7 @@ export function Card({ card, isActive, translating = false }: CardProps) {
               >
                 {hasPoster ? (
                   <div aria-hidden="true" className="poster-mark select-none">
-                    {posterName(card) && <span className="poster-name">{posterName(card)}</span>}
+                    <span className="poster-name">{posterName()}</span>
                     <span className="poster-rule" />
                     <span className="poster-label">{sectionLabel}</span>
                   </div>
@@ -168,7 +171,7 @@ export function Card({ card, isActive, translating = false }: CardProps) {
               )}
               {isNews ? (
                 <span className="min-w-0 flex-1 flex flex-col justify-center leading-tight text-dark-muted text-[13px] font-medium min-[540px]:flex-row min-[540px]:items-center min-[540px]:gap-1">
-                  {card.source && (
+                  {showSource && (
                     <span className="min-w-0 flex items-center gap-0.5">
                       <span className="truncate">{card.source}</span>
                       {card.sourceUrl && (
@@ -180,11 +183,11 @@ export function Card({ card, isActive, translating = false }: CardProps) {
                   )}
                   {relativeTime && (
                     <span className="min-w-0 truncate text-[12px] min-[540px]:text-[13px] min-[540px]:shrink-[0.2]">
-                      {card.source && <span className="hidden min-[540px]:inline">· </span>}
+                      {showSource && <span className="hidden min-[540px]:inline">· </span>}
                       {relativeTime}
                     </span>
                   )}
-                  {card.readTime && <span className="hidden min-[540px]:inline shrink-0 whitespace-nowrap">{card.source || relativeTime ? '· ' : ''}{card.readTime}</span>}
+                  {card.readTime && <span className="hidden min-[540px]:inline shrink-0 whitespace-nowrap">{showSource || relativeTime ? '· ' : ''}{card.readTime}</span>}
                 </span>
               ) : (
                 <>
@@ -346,7 +349,7 @@ export function Card({ card, isActive, translating = false }: CardProps) {
                     {card.author && (
                       <p className="text-dark-text/90 text-xs font-medium truncate">{card.author}</p>
                     )}
-                    {card.source && (
+                    {showSource && (
                       card.sourceUrl ? (
                         <a
                           href={card.sourceUrl}

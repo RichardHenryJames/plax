@@ -87,6 +87,21 @@ public class AdSlotsTest {
         assertSame(list, AdSlots.interleave(list, new int[0], ordinal -> "ad"));
     }
 
+    @Test public void anAdStandsAfterWhateverNumberOfStoriesTheWebsiteSets() {
+        // One ad after every seventh story: the slots are 7 and 14, and the ads are numbered 1 and 2 as before.
+        int[] slots = AdSlots.after(16, 7);
+        assertArrayEquals(new int[]{7, 14}, slots);
+        List<String> list = AdSlots.interleave(stories(16), slots, 7, ordinal -> "ad-" + ordinal);
+        assertEquals("ad-1", list.get(7));
+        assertEquals("story-7", list.get(6));
+        assertEquals("story-8", list.get(8));
+        assertEquals("ad-2", list.get(15));
+        assertEquals(18, list.size());
+        assertEquals("the number of the slot", 2, AdSlots.ordinal(14, 7));
+        // What the number of stories is not set to is five, as it was.
+        assertEquals(List.of("story-1", "story-2", "story-3", "story-4", "story-5", "ad-1", "story-6"), AdSlots.interleave(stories(6), new int[]{5}, 5, ordinal -> "ad-" + ordinal));
+    }
+
     @Test public void onlyTheSlotsWhoseAdIsReadyAreShownAndTheOthersAreSimplySkipped() {
         // The first slot has no ad, the second has.
         List<String> list = AdSlots.interleave(stories(12), new int[]{10}, ordinal -> "ad-" + ordinal);

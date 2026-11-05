@@ -10,6 +10,42 @@ exists (see *Updates from inside the app*), except in the Google Play build, whi
 which need the two small routes and the one small file listed under *Backend changes*,
 the app works against the backend as it was before this version.
 
+## What is in 1.7.0 (versionCode 17): the website can change most things without a new app
+
+Until 1.6.2 almost everything the reader sees was fixed in the app: which topics there are, the news chips, how often an ad page comes, how
+big a story's picture may be. Changing any of them, or adding a topic such as Stocks, meant a new bundle on Google Play, which reached readers
+only after Google's review and each reader's update. From 1.7.0 the app asks the website for a small settings file and does what it says
+with the screens it has, in **both builds** (Google Play's and the website's). See *What the website can change without a new app*, below.
+
+- **The file** is `public/app-config.json`, served at `/news/app-config.json`. It is data: it never holds code, so it cannot fix a bug or add a
+  screen (Google Play does not allow an app to download code). It holds the **topics** (and their order, emoji and names in English and
+  Hindi), the **news sections** (the chips of the Headlines topic: the website already had *US*, which the app did not, because the chips
+  were fixed in the app), four **switches** (Go deeper, links to a story's own Plax page, ads, full-page ads) and a fifth for naming the
+  publisher, how often a **full-page ad** comes, the four numbers of how big a **picture** may be, one **notice**, whether a newer version is
+  **on Google Play**, and up to four **links** for the menu.
+- **What a build that has not read it does is what 1.6.2 did**, except for two things that are new in the built-in values: the News chips
+  now include *US* (as on the website), and a story with no picture of its own is headed by **Plax** where it was headed by its outlet's name.
+- **The app asks when it comes to the front, at most every 3 hours** (30 minutes after a failed ask), without a cookie, an account or an
+  identifier, and keeps the last file it read on the phone, so the next start has it at once. A file it cannot read changes nothing; a
+  part of a file that breaks a rule is refused on its own and the app keeps its built-in value for that part (a typing mistake in a notice
+  cannot undo a switch that was meant to be off). `AppConfigTest` runs the website's own list of 168 cases through the app's reader, and the
+  website's check runs the same list through its copy of the rules, so a file that passes `npm test` is a file the app takes whole.
+- **A notice** is shown once for each id, to the build and versions it names, until the time it names; one marked `important` comes back at
+  each start until the reader says Done. **A Google Play build** below the newest version the website names is told that a newer version is on
+  Google Play (Later is remembered for a day; below the least supported version it is asked at every start); the website's build never sees
+  it, it has its own update feed.
+- **The publisher is still named, small, in the line above the headline** (`features.sourceName`, on). Google Play's News policy asks an
+  aggregator to give users "clear information about the publishing sources of third-party content", and the declaration in Play Console says
+  each card shows its source. What is gone is the large outlet name that stood over every story with no picture (the poster): it is *Plax*
+  now, on the website and in the app. The switch exists so that the name can be taken off without a new bundle if the declaration is
+  changed to match; `app-config.test.mjs` insists that it is on until that test is changed on purpose.
+- **Fixed on the way:** a section the website does not list is ignored instead of throwing (the menu may be open while a new list arrives).
+- **The version is 1.7.0 (17).** Nothing in what the build declares changed: the same permissions and ad ids, and no new library.
+- **Tests.** `AppConfigTest` (14), `AppConfigStoreTest` (14), `ConfigPromptsTest` (8), a case for the other ad spacing in `AdSlotsTest`, and
+  the 20 device tests of `ConfigDeviceTest` (topics, sections, switches, notices, the Google Play message, links, picture numbers, the
+  publisher's name); `FitDeviceTest` also lays every story out at the largest and the smallest picture the website may ask for.
+  See *Verification performed for 1.7.0*.
+
 ## What is in 1.6.2 (versionCode 16): the 4 November changes, and the update published over the air
 
 Version 1.6.2 is the app as it stood after the owner's six commits of 4 November 2026 (68 files), pulled and released. The changes are the
@@ -748,16 +784,64 @@ by a different key (APK key rotation exists but is not set up here).
 | What changed | Website build (`com.plaxlabs.news.preview`) | Google Play build (`com.plaxlabs.news`) |
 |---|---|---|
 | The server: the feed, its text, pictures and order, `/api/deeper`, the Stocks and US content | at once, when `main` is pushed (Vercel deploys it) | at once |
+| The app's **settings** (`public/app-config.json`): topics, news sections, switches, ad spacing, picture size, a notice, a newer version on Google Play, menu links | **from 1.7.0**: when `main` is pushed, and in the app within a few hours of its next coming to the front | **from 1.7.0**, the same |
 | The app's own code, layout, text or resources | after `publish-update.ps1`, a commit and a push: the app finds the new build within a day (or at *Check for updates*), asks, downloads and installs it | **only with a new bundle** uploaded to Google Play |
 
-The reason for the second row is Google Play's: an app it distributes may not fetch and install code from anywhere else, so the Play build
-has no updater (`PLAY_STORE = true`; the menu has no *Check for updates*) and the feed is not read there. Google Play's own in-app
-updates interface would only prompt a Google Play update; it is not used here (it needs a new dependency and cannot be tried except on
-Google Play). The website build can update itself because it is installed from the website, and only to a build signed by the pinned key
-(`update-signer.sha256`) that the feed's size and SHA-256 describe.
+The reason for the last row is Google Play's: an app it distributes may not fetch and install code from anywhere else, so the Play build
+has no updater (`PLAY_STORE = true`; the menu has no *Check for updates*), and Google Play's own in-app updates interface (which would
+only prompt a Google Play update) is not used: it needs a new dependency and cannot be tried except on Google Play. The website build can
+update itself because it is installed from the website, and only to a build signed by the pinned key (`update-signer.sha256`) that the
+feed's size and SHA-256 describe. What the Play build can do from 1.7.0 is be *told*, through the settings file, that a newer version is
+on Google Play, and be offered the listing.
 
-So for a change to the app: raise the version, run the steps of *Publishing an update* (this updates every website install), and build
-the bundle with `package-aab.ps1` if Google Play users need it too. For a change to the server alone, a push is the whole release.
+**Why not the way `refopen` does it.** The sibling project `refopen` is a React Native app (Expo, `expo-updates`): its screens and logic are
+a JavaScript bundle that runs in an interpreter, and `eas update --branch production` publishes a new bundle that the installed app, Google
+Play's build included, fetches at its next start. Google Play allows that because the code runs in an interpreter; it forbids the same for
+the compiled Java of a native app, which is what Plax is. A change to anything that is native there still needs a new bundle (its
+runtime version is a fingerprint of the native code, so an update is only offered to a binary it fits). Plax has no JavaScript layer, so
+the equivalent here is **data**: the settings file, which is also what the sibling project `vanishr` does, with a signed file (see its
+`ota/settings.source.json`). Plax's is not signed: it comes over HTTPS from the website's own address, so whoever can deploy the website
+could change it, as they could change the feed. The only way to push *code* to Google Play installs of Plax would be to write the app in
+React Native, which is a rewrite, not a setting.
+
+So for a change to the app's code: raise the version, run the steps of *Publishing an update* (this updates every website install), and
+build the bundle with `package-aab.ps1` if Google Play users need it too. For a change to the server alone, a push is the whole release,
+and for a change to what the settings file can say, so is a push of `public/app-config.json`.
+
+## What the website can change without a new app
+
+The file is `public/app-config.json` (read by the app at `https://plax-rouge.vercel.app/news/app-config.json`; served as JSON with
+`no-store`, as the update feed is). Every part is optional; one that is missing or refused leaves the built-in value, which is what 1.6.2
+did. From 1.7.0 on only: an installed 1.6.2 or older ignores the file.
+
+| Part | What it does | Rules |
+|---|---|---|
+| `topics` | The topics offered on the Topics screen and in the choice for For you, in this order, with their emoji and names in English and Hindi. Listing a topic already in the app under another name renames it; listing a new one adds it. | 1 to 40; `news` must be there; ids `a-z0-9`, 2 to 24; names up to 24 characters; the id must be one the feed serves (`app-config.test.mjs` checks it against `TOPICS`) |
+| `sections` | The chips of the Headlines topic (All is always first) and the tag a story of that section carries. The website's `NEWS_SECTIONS` and this list must be the same (a test checks it). | 0 to 12; ids `a-z0-9`, 2 to 16; names up to 16 characters |
+| `features` | `deeper` (the Go deeper button), `shareLinks` (Share makes a Plax page for the story; off shares the publisher's link), `ads` (all ads), `adPages` (the full-page ad), `sourceName` (the publisher's name in the line above the headline; **leave it on**, see 1.7.0) | a switch is on unless it is `false`; text or a number is refused |
+| `ads.pageEvery` | How many stories one full-page ad stands for (the website's `STORIES_PER_AD` must be the same: a test checks it) | whole number 3 to 20 |
+| `layout` | How big a story's picture may be: `heroMaxWidth` 1 to 1.6 (of the column's width), `heroMaxHeight` 0.4 to 0.7 (of the page), and the least it is given, `photoMinWidth` 0.4 to 0.7 and `photoMinHeight` 0.2 to 0.35. The website's `useCardFit` must say the same (a test checks it). | the ranges keep the least below the most, and small enough that a long story keeps its photograph on a 360 x 640 page at a 1.3 text size: `FitDeviceTest` lays every story out at both ends of every range (a first, wider range for the least, up to 0.9 and 0.5, dropped the photograph of a long story on that page, so it was narrowed) |
+| `notice` | One message, shown once per `id` (a new id shows again). `level` `important` comes back at each start until the reader says Done. Optional `url`, `build` (`all`, `play`, `direct`), `minVersionCode`, `maxVersionCode`, `until` (`2026-12-01T00:00:00Z`). `null` for none. | title 60, body 400 characters and at most 6 line breaks, plain text; the link rules below |
+| `update` | In Google Play builds only: `latestVersionCode`, `latestVersionName`, `minSupportedVersionCode`. A build below the newest is offered Google Play (Later is remembered for a day); below the least supported it is asked at every start. It never blocks the app. Set it **after** the new bundle is live on Google Play. `null` for none. | |
+| `links` | Up to four extra rows in the menu, each for `all`, `play` or `direct` builds. | label 30 characters in both languages; link rules below |
+
+A link (in a notice or the menu) must be `https` with no port, user name or fragment, and a page of the website (`/news...`), the Google Play
+page of an app (`/store/apps/details?id=...`) or one of: instagram.com, x.com, twitter.com, facebook.com, youtube.com, youtu.be, t.me,
+chat.whatsapp.com, linkedin.com, github.com. Text is plain: control, format (zero-width, bidirectional), line-separator, private-use and
+unassigned characters, and a space at either end, are refused.
+
+**To change something:** edit `public/app-config.json`, run `npm test` (the file is checked against the app's own rules and cases), and
+push `main`. Vercel serves it at once; an app that comes to the front asks if three hours have passed since the website last answered, so
+most readers have it within hours, and nobody needs to update. `.\verify-update.ps1`-style checking for it: fetch
+`https://plax-rouge.vercel.app/news/app-config.json` and compare it with the file you pushed. **To undo it,** push the earlier content.
+
+**What it cannot do:** a new screen, a new button, a change in how a feed is read, a new field in a story, a new language, a different ad
+network, a fix for a bug: those are code and need a new bundle. A topic added here must also be one the feed can serve; listing one the
+feed does not know shows an empty topic.
+
+**Privacy:** the request is a plain `GET` with no cookie, account or identifier; the website's host sees an IP address and a time, as for
+any request, and the privacy policy says so (updated 5 November 2026). Google Play's Data safety form needs no new answer: the request
+sends nothing about the reader and collects nothing; see `PLAY-CONSOLE-ANSWERS-ADS.txt`.
 
 ## Publishing an update
 

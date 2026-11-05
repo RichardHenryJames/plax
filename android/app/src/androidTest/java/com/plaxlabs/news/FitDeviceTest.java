@@ -153,10 +153,11 @@ public class FitDeviceTest {
 
     private static boolean shown(View view) { return view.getVisibility() != View.GONE && view.getWidth() > 0 && view.getHeight() > 0; }
 
-    /** The tallest a picture is given on a page this tall, in a column this wide (px): 4:5 of the column, and 60% of the page less its padding. */
+    /** The tallest a picture is given on a page this tall, in a column this wide (px): 4:5 of the column, and 60% of the page less its padding (or what the website has set). */
     private static int mostPicture(Ui ui, int columnWidth, int pageHeight) {
         int box = pageHeight - ui.dp(StoryPage.TOP_DP) - ui.dp(StoryPage.BOTTOM_DP);
-        return Math.min((int) (columnWidth * StoryPage.HERO_MAX_WIDTH), (int) (box * StoryPage.HERO_MAX_HEIGHT));
+        AppConfig.Layout layout = AppConfigStore.active().layout();
+        return Math.min((int) (columnWidth * layout.heroMaxWidth()), (int) (box * layout.heroMaxHeight()));
     }
 
     /**
@@ -302,7 +303,28 @@ public class FitDeviceTest {
         return found;
     }
 
-    @Test public void everyStoryFitsItsPageWhateverThePageTheTextSizeAndTheLanguage() {
+    @Test public void everyStoryFitsItsPageWhateverThePageTheTextSizeAndTheLanguage() { everyStoryFits(); }
+
+    /** The website may set how big a picture may be; at the largest it may ask for, every story still fits its page in one view. */
+    @Test public void everyStoryStillFitsWithTheLargestPictureTheWebsiteMayAskFor() {
+        AppConfigStore.force(parseLayout("{\"heroMaxWidth\":1.6,\"heroMaxHeight\":0.7,\"photoMinWidth\":0.7,\"photoMinHeight\":0.35}"));
+        everyStoryFits();
+        aStoryWithAPhotographFillsItsPage();
+    }
+
+    /** And at the smallest. */
+    @Test public void everyStoryStillFitsWithTheSmallestPictureTheWebsiteMayAskFor() {
+        AppConfigStore.force(parseLayout("{\"heroMaxWidth\":1,\"heroMaxHeight\":0.4,\"photoMinWidth\":0.4,\"photoMinHeight\":0.2}"));
+        everyStoryFits();
+        aStoryWithAPhotographFillsItsPage();
+    }
+
+    private static AppConfig parseLayout(String layout) {
+        try { return AppConfig.parse(("{\"schemaVersion\":1,\"layout\":" + layout + "}").getBytes(java.nio.charset.StandardCharsets.UTF_8)).config(); }
+        catch (java.io.IOException refused) { throw new AssertionError(refused); }
+    }
+
+    private void everyStoryFits() {
         // Pages are the whole screen between the system bars, with no header and no bottom bar: a small phone, an ordinary one, a
         // tall one, a tablet, a phone on its side, and a page too short for much.
         int[][] pages = {{360, 600}, {392, 780}, {412, 850}, {600, 1000}, {851, 340}, {360, 300}};
@@ -340,7 +362,9 @@ public class FitDeviceTest {
                 problems.isEmpty());
     }
 
-    @Test public void aStoryWithAPhotographFillsItsPageWithNothingSpreadBetweenItsPartsWhateverItsSummary() {
+    @Test public void aStoryWithAPhotographFillsItsPageWithNothingSpreadBetweenItsPartsWhateverItsSummary() { aStoryWithAPhotographFillsItsPage(); }
+
+    private void aStoryWithAPhotographFillsItsPage() {
         // A summary that is cut to fit ends at a sentence, up to two lines short of its room, and a short one leaves room: the picture takes
         // it, up to its most, and what it cannot take is empty under the text. These are the stories with a photograph, which stays while
         // the summary is cut (a poster goes first), so the room the cut gives back is the picture's to take.

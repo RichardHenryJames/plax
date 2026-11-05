@@ -1,12 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { posterName, wantsPoster } from './poster.ts'
+import { posterName, POSTER_NAME, wantsPoster } from './poster.ts'
 
-test('the poster of a story is headed by the name of its outlet, tidied, and by nothing when it names none', () => {
-  assert.equal(posterName({ source: 'Al Jazeera' }), 'Al Jazeera')
-  assert.equal(posterName({ source: '  The   Hindu \n Business ' }), 'The Hindu Business')
-  assert.equal(posterName({ source: '' }), '')
-  assert.equal(posterName({}), '')
+test('the poster of a story is headed by Plax, never by the name of the outlet it comes from', () => {
+  assert.equal(posterName(), 'Plax')
+  assert.equal(POSTER_NAME, 'Plax')
 })
 
 test('every story without a picture gets a poster, not only the news', () => {

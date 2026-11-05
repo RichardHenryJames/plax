@@ -46,8 +46,10 @@ final class StoryPage extends ViewGroup {
     static final float HERO_MAX_WIDTH = 1.25f, HERO_MAX_HEIGHT = .6f;
     /** A photograph is given at least 60% of the width and 30% of the page before the summary is cut instead (as in Inshorts, a story
      *  with a picture has one, and not a stamp of one); a poster, which only stands in for a picture, a third of that, and is dropped
-     *  when the text needs the room. */
-    private static final float PHOTO_MIN_WIDTH = .6f, PHOTO_MIN_HEIGHT = .3f, POSTER_MIN_WIDTH = .3f, POSTER_MIN_HEIGHT = .25f;
+     *  when the text needs the room. These four numbers are what the app is built with; the website may set them anew (see
+     *  {@link AppConfig.Layout}), within bounds. */
+    static final float PHOTO_MIN_WIDTH = .6f, PHOTO_MIN_HEIGHT = .3f;
+    private static final float POSTER_MIN_WIDTH = .3f, POSTER_MIN_HEIGHT = .25f;
     /** The poster's name is set between these sizes, in sp, and grows with its tile. */
     private static final float POSTER_MIN_SP = 18f, POSTER_MAX_SP = 36f;
     /** The space above the source line when a picture is above it. */
@@ -142,9 +144,11 @@ final class StoryPage extends ViewGroup {
         }
 
         boolean posterShown = poster.getVisibility() == VISIBLE;
-        float minWidth = posterShown ? POSTER_MIN_WIDTH : PHOTO_MIN_WIDTH, minHeight = posterShown ? POSTER_MIN_HEIGHT : PHOTO_MIN_HEIGHT;
+        // The website may set how big a picture may be (see AppConfig.Layout); what it sets is read each time a page is measured.
+        AppConfig.Layout layout = AppConfigStore.active().layout();
+        float minWidth = posterShown ? POSTER_MIN_WIDTH : layout.photoMinWidth(), minHeight = posterShown ? POSTER_MIN_HEIGHT : layout.photoMinHeight();
         int heroMinimum = Math.max(ui.dp(HERO_FLOOR_DP), Math.min((int) (columnWidth * minWidth), (int) (boxHeight * minHeight)));
-        int heroMaximum = wide ? 0 : Math.max(heroMinimum, Math.min((int) (columnWidth * HERO_MAX_WIDTH), (int) (boxHeight * HERO_MAX_HEIGHT)));
+        int heroMaximum = wide ? 0 : Math.max(heroMinimum, Math.min((int) (columnWidth * layout.heroMaxWidth()), (int) (boxHeight * layout.heroMaxHeight())));
 
         // The summary is measured at its own size; its lines are counted on a copy of its paint (Devanagari lines are taller than
         // Latin ones), and the plan cuts it to the lines that fit beside the picture's minimum.

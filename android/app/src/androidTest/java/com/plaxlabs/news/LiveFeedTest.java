@@ -93,6 +93,34 @@ public class LiveFeedTest {
         }
     }
 
+    @Test public void thePublishedSettingsFileIsReadByTheAppWholeAndNamesTheTopicsTheFeedServes() throws Exception {
+        optIn();
+        // The app's own request and reader, against the live site: what a phone would take.
+        byte[] bytes = AppConfigStore.web().fetch();
+        AppConfig.Parsed parsed = AppConfig.parse(bytes);
+        assertEquals("nothing in the published file is refused by the app", List.of(), parsed.rejected());
+        AppConfig config = parsed.config();
+        assertTrue(config.topics().contains(Topic.NEWS));
+        assertTrue("Stocks is offered", config.topics().contains(Topic.STOCKS));
+        assertTrue("the website's US section is a chip", config.hasSection("us"));
+        assertTrue("the publisher is named", config.features().sourceName());
+        // The same bytes the repository holds: what the site serves is what was committed.
+        android.util.Log.i("PlaxLive", "app-config.json: " + bytes.length + " bytes, " + config.topics().size() + " topics, "
+                + config.sections().size() + " sections");
+        // Each topic the file lists is one the feed can serve: a stories request for it answers, with stories.
+        for (String id : new String[]{"news", "stocks"}) {
+            CountDownLatch done = new CountDownLatch(1);
+            AtomicReference<List<Story>> stories = new AtomicReference<>();
+            new FeedApi().load(id, "en", List.of(), false, new FeedSource.Result() {
+                public void loaded(List<Story> result) { stories.set(result); done.countDown(); }
+                public void failed(int message) { done.countDown(); }
+            });
+            assertTrue("the feed answers for " + id, done.await(35, TimeUnit.SECONDS));
+            assertNotNull("stories for " + id, stories.get());
+            assertFalse("the live feed has stories for " + id, stories.get().isEmpty());
+        }
+    }
+
     @Test public void thePublishedUpdateFeedIsAcceptedByTheAppAndItsDownloadIsAnApk() throws Exception {
         optIn();
         AppUpdates.Release release;

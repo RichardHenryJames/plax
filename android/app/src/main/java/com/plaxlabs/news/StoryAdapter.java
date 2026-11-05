@@ -94,6 +94,9 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }, false).dispatchUpdatesTo(this);
     }
 
+    /** The website switched something that shows on every page (the Go deeper button): all the pages are drawn again. */
+    void refresh() { notifyItemRangeChanged(0, getItemCount()); }
+
     @Override public int getItemCount() { return stories.size(); }
 
     @Override public int getItemViewType(int index) {
@@ -265,7 +268,7 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         holder.hero.setBackground(hasImage ? holder.imageBackground : holder.posterBackground);
         holder.poster.setVisibility(hasImage ? View.GONE : View.VISIBLE);
         Locale posterLocale = context.getResources().getConfiguration().getLocales().get(0);
-        holder.poster.setText(poster(story, label(context, story).toUpperCase(posterLocale)));
+        holder.poster.setText(poster(context.getString(R.string.app_name), label(context, story).toUpperCase(posterLocale)));
         holder.placeholder.setVisibility(hasImage ? View.VISIBLE : View.GONE);
         if (hasImage) {
             boolean[] immediate = {true};
@@ -310,16 +313,20 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             actions.save(story);
         });
         holder.share.setOnClickListener(view -> actions.share(story));
+        // The website may switch Go deeper off (see AppConfig.Features); the page then has the two other buttons.
+        holder.deeper.setVisibility(AppConfigStore.active().features().deeper() ? View.VISIBLE : View.GONE);
         holder.deeper.setOnClickListener(view -> actions.deeper(story));
     }
 
     /**
-     * What stands in for the picture of a story that has none: the name of its outlet, set like a masthead, a short rule and its
-     * section under that, small (as on the website: see src/lib/poster.ts). It used to be a sign: the flag of India, a globe for the world.
+     * What stands in for the picture of a story that has none: the name of Plax, set like a masthead, a short rule and the story's
+     * section under that, small (as on the website: see src/lib/poster.ts). It used to be the name of the story's outlet, which put a
+     * publisher's name large over every card without a picture of its own; the publisher is named, small, in the line above the
+     * headline (see {@link #credit}), which is where Google Play asks an aggregator to say where a story comes from.
      * The page sets the size of the whole from the size of its tile; the section is a third of the name's size.
      */
-    CharSequence poster(Story story, String section) {
-        String name = story.source().replaceAll("\\s+", " ").trim();
+    CharSequence poster(String masthead, String section) {
+        String name = masthead.replaceAll("\\s+", " ").trim();
         android.text.SpannableStringBuilder text = new android.text.SpannableStringBuilder();
         if (!name.isEmpty()) {
             text.append(name).append('\n');
@@ -358,21 +365,17 @@ final class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     static String label(Context context, Story story) {
         String key = story.section().isEmpty() ? story.category() : story.section();
-        switch (key) {
-            case "india": return context.getString(R.string.section_india);
-            case "world": return context.getString(R.string.section_world);
-            case "tech": return context.getString(R.string.section_tech);
-            case "business": return context.getString(R.string.section_business);
-            case "science": return context.getString(R.string.section_science);
-            default:
-                for (Topic topic : Topic.values()) if (topic.id.equals(key)) return context.getString(topic.label);
-                return key.isEmpty() ? context.getString(R.string.topic_news) : key;
-        }
+        for (AppConfig.Section section : AppConfigStore.active().sections()) if (section.id().equals(key)) return section.label(context);
+        Topic topic = Topic.byId(key);
+        if (topic != null) return topic.label(context);
+        return key.isEmpty() ? context.getString(R.string.topic_news) : key;
     }
 
     private String credit(Context context, Story story, Locale locale) {
         List<String> parts = new ArrayList<>();
-        parts.add(story.source().isEmpty() ? context.getString(R.string.source_unknown) : story.source());
+        // The publisher is named here, small: Google Play asks an aggregator for clear information about where its stories come from.
+        // The website may switch the name off (AppConfig.Features.sourceName); the age stays.
+        if (AppConfigStore.active().features().sourceName()) parts.add(story.source().isEmpty() ? context.getString(R.string.source_unknown) : story.source());
         // Each part after the source is kept whole, so a line never breaks inside "3h ago".
         String age = age(context, story.publishedAt(), locale);
         if (!age.isEmpty()) parts.add(whole(age));

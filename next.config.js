@@ -31,10 +31,21 @@ const nextConfig = {
   // was stored by the shared cache in front of this site as if it were the whole file, and every later
   // download got those 2 bytes for an hour. Probe files showed that with "public, max-age" a ranged request
   // arriving first poisons later plain downloads, and that with no-store it does not (two samples).
+  // app-config.json is the same kind of file: data the app (both builds) reads at run time, so that a topic, a switch or a
+  // notice can change without a new bundle (see android/README.md, "What the website can change without a new app").
   async headers() {
     return [
       {
         source: '/updates.json',
+        headers: [
+          { key: 'Content-Type', value: 'application/json; charset=utf-8' },
+          { key: 'Cache-Control', value: 'no-store' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Robots-Tag', value: 'noindex' },
+        ],
+      },
+      {
+        source: '/app-config.json',
         headers: [
           { key: 'Content-Type', value: 'application/json; charset=utf-8' },
           { key: 'Cache-Control', value: 'no-store' },

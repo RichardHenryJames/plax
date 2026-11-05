@@ -189,7 +189,8 @@ public class PlaxDeviceTest {
                 assertEquals(View.VISIBLE, holder.hero.getVisibility());
                 assertEquals("A story without a picture gets a poster", View.VISIBLE, holder.poster.getVisibility());
                 String posterText = holder.poster.getText().toString();
-                assertTrue("headed by the outlet's name: " + posterText, posterText.startsWith("Fixture publisher\n"));
+                assertTrue("headed by Plax, not by the outlet's name: " + posterText, posterText.startsWith("Plax\n"));
+                assertFalse("the outlet is named small in the line above the headline, not on the poster", posterText.contains("Fixture publisher"));
                 assertTrue("with the section under it, small: " + posterText, posterText.endsWith("\nWORLD"));
                 assertFalse("and no sign", posterText.contains("\uD83C\uDF0D"));
                 holder.save.performClick(); holder.share.performClick(); holder.title.performClick(); holder.deeper.performClick();

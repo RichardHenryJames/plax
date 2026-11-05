@@ -234,7 +234,7 @@ public final class FeedViewModel extends AndroidViewModel {
         savePosition(); leave();
         screen = Screen.FEED; feed = Screen.FEED;
         Prefs.forYou(getApplication(), false);
-        if (topic != selected) { topic = selected; section = ""; }
+        if (!topic.equals(selected)) { topic = selected; section = ""; }
         Session next = topicSession();
         if (next != session) { session = next; open(); }
         else { restorePosition(); publish(); }
@@ -246,9 +246,9 @@ public final class FeedViewModel extends AndroidViewModel {
         savePosition(); leave(); lang = selected; section = ""; session = feedSession(); open();
     }
 
+    /** Narrows the news to one of the website's sections ("" is all). One the website no longer lists is ignored, as the menu may have been open while its list changed. */
     void section(String selected) {
-        if (!Set.of("", "india", "world", "tech", "business", "science").contains(selected))
-            throw new IllegalArgumentException("Unknown news section");
+        if (!AppConfigStore.active().hasSection(selected)) return;
         savePosition(); section = selected; restorePosition(); notice = 0; publish(); track();
     }
 

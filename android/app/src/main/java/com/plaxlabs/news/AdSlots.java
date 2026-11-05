@@ -89,15 +89,17 @@ final class AdSlots {
         return -1;
     }
 
-    /** The model's list with an ad item put in front of the item each shown slot names. */
-    static <T> List<T> interleave(List<T> items, int[] shown, IntFunction<T> ad) {
+    /** The model's list with an ad item put in front of the item each shown slot names; {@code every} is how many stories one ad stands for. */
+    static <T> List<T> interleave(List<T> items, int[] shown, int every, IntFunction<T> ad) {
         if (shown.length == 0) return items;
         List<T> out = new ArrayList<>(items.size() + shown.length);
         int next = 0;
         for (int index = 0; index < items.size(); index++) {
-            if (next < shown.length && shown[next] == index) { out.add(ad.apply(ordinal(shown[next]))); next++; }
+            if (next < shown.length && shown[next] == index) { out.add(ad.apply(ordinal(shown[next], every))); next++; }
             out.add(items.get(index));
         }
         return out;
     }
+
+    static <T> List<T> interleave(List<T> items, int[] shown, IntFunction<T> ad) { return interleave(items, shown, STORIES_PER_AD, ad); }
 }

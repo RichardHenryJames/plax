@@ -111,8 +111,8 @@ public class MenuDeviceTest {
             assertTrue("the headline is the way to the full story", device.findObject(By.text("The first story of the day")).isClickable());
             assertFalse("there is no Read full story row", device.hasObject(By.descContains(text(R.string.read_full_story))));
             var title = device.findObject(By.text("The first story of the day")).getVisibleBounds();
-            // The poster of a story with no picture is headed by the outlet's name too, and fills the picture: the source line is the
-            // shortest of the texts that begin with the name.
+            // The poster of a story with no picture is headed by Plax, not by the outlet, so the only text that begins with the outlet's
+            // name is the source line; it is still the shortest, in case a story's own text begins with it too.
             var source = device.findObjects(By.textStartsWith("Publisher")).stream().map(object -> object.getVisibleBounds())
                     .min(java.util.Comparator.comparingInt(bounds -> bounds.height())).orElseThrow();
             assertTrue("the source line is above the headline " + source + " " + title, source.bottom <= title.top + 4);

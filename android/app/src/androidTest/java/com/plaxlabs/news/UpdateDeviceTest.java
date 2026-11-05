@@ -71,10 +71,12 @@ public class UpdateDeviceTest {
         device.wakeUp();
         device.executeShellCommand("wm dismiss-keyguard");
         assertTrue(context.getSharedPreferences("updates", Context.MODE_PRIVATE).edit().clear().commit());
+        QuietUpdates.quietConfig();
     }
 
     @After public void restoreProductionWiring() {
         UpdateManager.use(null);
+        QuietUpdates.restoreConfig();
         context.getSharedPreferences("updates", Context.MODE_PRIVATE).edit().clear().commit();
     }
 

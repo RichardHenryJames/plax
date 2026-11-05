@@ -19,8 +19,8 @@ final class InterestsSheet {
     private final Ui ui;
     private final AppCompatActivity activity;
     private final Set<String> selected = new TreeSet<>();
-    private final Map<Topic, LinearLayout> tiles = new EnumMap<>(Topic.class);
-    private final Map<Topic, ImageView> ticks = new EnumMap<>(Topic.class);
+    private final Map<String, LinearLayout> tiles = new LinkedHashMap<>();
+    private final Map<String, ImageView> ticks = new HashMap<>();
     private final TextView count, save;
 
     private InterestsSheet(AppCompatActivity activity, Ui ui, Set<String> current, Done done) {
@@ -49,15 +49,15 @@ final class InterestsSheet {
         NestedScrollView scroll = new NestedScrollView(activity);
         scroll.setVerticalScrollBarEnabled(false);
         LinearLayout grid = ui.column();
-        Topic[] topics = Topic.values();
-        for (int index = 0; index < topics.length; index += 2) {
+        List<Topic> topics = Topic.all();
+        for (int index = 0; index < topics.size(); index += 2) {
             LinearLayout line = new LinearLayout(activity);
             for (int column = 0; column < 2; column++) {
                 LinearLayout.LayoutParams size = new LinearLayout.LayoutParams(0, ui.dp(56), 1);
                 size.bottomMargin = ui.dp(10);
                 if (column == 0) size.setMarginEnd(ui.dp(10));
-                if (index + column >= topics.length) { line.addView(new View(activity), size); break; }
-                line.addView(tile(topics[index + column]), size);
+                if (index + column >= topics.size()) { line.addView(new View(activity), size); break; }
+                line.addView(tile(topics.get(index + column)), size);
             }
             grid.addView(line);
         }
@@ -97,11 +97,11 @@ final class InterestsSheet {
         LinearLayout tile = ui.row();
         tile.setPadding(ui.dp(14), 0, ui.dp(12), 0);
         tile.setClickable(true); tile.setFocusable(true);
-        tile.setContentDescription(activity.getString(topic.label));
+        tile.setContentDescription(topic.label(activity));
         TextView emoji = ui.text(topic.emoji, 20, ui.text, false);
         emoji.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         tile.addView(emoji);
-        TextView label = ui.text(activity.getString(topic.label), 14, ui.text, true);
+        TextView label = ui.text(topic.label(activity), 14, ui.text, true);
         label.setSingleLine(); label.setEllipsize(android.text.TextUtils.TruncateAt.END);
         label.setPadding(ui.dp(10), 0, ui.dp(6), 0);
         tile.addView(label, new LinearLayout.LayoutParams(0, -2, 1));
@@ -111,13 +111,13 @@ final class InterestsSheet {
             if (!selected.remove(topic.id)) selected.add(topic.id);
             refresh();
         });
-        tiles.put(topic, tile); ticks.put(topic, tick);
+        tiles.put(topic.id, tile); ticks.put(topic.id, tick);
         return tile;
     }
 
     private void refresh() {
         for (var entry : tiles.entrySet()) {
-            boolean on = selected.contains(entry.getKey().id);
+            boolean on = selected.contains(entry.getKey());
             LinearLayout tile = entry.getValue();
             tile.setBackground(ui.touch(on ? ui.outline(ui.accentSoft, ui.accent, 16) : ui.outline(ui.surface, ui.border, 16), 16));
             tile.setSelected(on);

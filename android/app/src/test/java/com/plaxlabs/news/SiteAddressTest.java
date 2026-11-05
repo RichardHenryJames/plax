@@ -52,6 +52,7 @@ public class SiteAddressTest {
         assertEquals(FeedApi.SITE + "/privacy", FeedApi.PRIVACY_URL);
         assertEquals(FeedApi.SITE, AppUpdates.ORIGIN);
         assertEquals(FeedApi.SITE + "/updates.json", AppUpdates.FEED);
+        assertEquals(FeedApi.SITE + "/app-config.json", AppConfigStore.URL);
         assertEquals(FeedApi.SITE + "/auth/app", AccountManager.REDIRECT);
         assertEquals(FeedApi.SITE + "/contact", Contact.PAGE_URL);
         assertEquals(FeedApi.SITE + "/api/feed", FeedApi.url("news", "en", List.of(), false).newBuilder().query(null).build().toString());

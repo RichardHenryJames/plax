@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "topics": [
+    { "id": "news", "emoji": "📰", "en": "Headlines", "hi": "सुर्ख़ियाँ" },
+    { "id": "stocks", "emoji": "📊", "en": "Stocks", "hi": "शेयर बाज़ार" },
+    { "id": "science", "emoji": "🔬", "en": "Science", "hi": "विज्ञान" },
+    { "id": "technology", "emoji": "💻", "en": "Technology", "hi": "प्रौद्योगिकी" },
+    { "id": "philosophy", "emoji": "🧠", "en": "Philosophy", "hi": "दर्शन" },
+    { "id": "psychology", "emoji": "🧩", "en": "Psychology", "hi": "मनोविज्ञान" },
+    { "id": "history", "emoji": "🏛️", "en": "History", "hi": "इतिहास" },
+    { "id": "finance", "emoji": "📈", "en": "Finance", "hi": "वित्त" },
+    { "id": "space", "emoji": "🚀", "en": "Space", "hi": "अंतरिक्ष" },
+    { "id": "programming", "emoji": "⌨️", "en": "Programming", "hi": "प्रोग्रामिंग" },
+    { "id": "books", "emoji": "📚", "en": "Books", "hi": "किताबें" },
+    { "id": "health", "emoji": "🍎", "en": "Health", "hi": "स्वास्थ्य" },
+    { "id": "math", "emoji": "➗", "en": "Mathematics", "hi": "गणित" },
+    { "id": "nature", "emoji": "🌿", "en": "Nature", "hi": "प्रकृति" },
+    { "id": "art", "emoji": "🎨", "en": "Art & Design", "hi": "कला और डिज़ाइन" },
+    { "id": "physics", "emoji": "⚛️", "en": "Physics", "hi": "भौतिकी" },
+    { "id": "business", "emoji": "💼", "en": "Business", "hi": "व्यापार" },
+    { "id": "language", "emoji": "🗣️", "en": "Language", "hi": "भाषा" }
+  ],
+  "sections": [
+    { "id": "us", "en": "US", "hi": "अमेरिका" },
+    { "id": "india", "en": "India", "hi": "भारत" },
+    { "id": "world", "en": "World", "hi": "दुनिया" },
+    { "id": "tech", "en": "Tech", "hi": "टेक" },
+    { "id": "business", "en": "Business", "hi": "कारोबार" },
+    { "id": "science", "en": "Science", "hi": "विज्ञान" }
+  ],
+  "features": { "deeper": true, "shareLinks": true, "ads": true, "adPages": true, "sourceName": true },
+  "ads": { "pageEvery": 5 },
+  "layout": { "heroMaxWidth": 1.25, "heroMaxHeight": 0.6, "photoMinWidth": 0.6, "photoMinHeight": 0.3 },
+  "notice": null,
+  "update": null,
+  "links": []
+}

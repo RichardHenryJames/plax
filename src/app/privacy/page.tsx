@@ -81,6 +81,13 @@ export default function PrivacyPage() {
           The stories belong to their publishers.
         </P>
         <P>
+          <strong>The app&apos;s settings.</strong> The Android app (from {SITE_DISPLAY} and from Google Play alike) also asks {SITE_DISPLAY} now and
+          then, when it opens and at most every few hours, for a small settings file: which topics and news sections to offer, which features
+          are on, how often an ad page comes, a notice to show, whether a newer version is on Google Play, and a few menu links. The file
+          holds no code and nothing about you, and the request carries no account, cookie or identifier; the app keeps the last file it
+          read on your phone. Like any web request it shows your IP address and the time to our hosting provider (Vercel).
+        </P>
+        <P>
           The Android version downloaded from {SITE_DISPLAY} (not Google Play) also asks {SITE_DISPLAY} once a day whether a newer version
           exists. Nothing about you is sent. Versions from Google Play are updated by Google Play.
         </P>
@@ -90,7 +97,7 @@ export default function PrivacyPage() {
         <Section title="Ads" id="ads">
           <P>
             Plax is free and is paid for by ads from Google: Google AdSense on the website and Google AdMob in the Android app. An ad is
-            shown in a strip at the foot of the screen and, after every fifth story, on a page of its own. Each one is marked as an
+            shown in a strip at the foot of the screen and, every few stories, on a page of its own. Each one is marked as an
             advertisement, and you can swipe past it.
           </P>
           <P>

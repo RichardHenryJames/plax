@@ -72,8 +72,11 @@ final class AdController {
     }
 
     AdController(AdNetwork network, Context context) {
-        this(network, context, System::currentTimeMillis, AdSlots.STORIES_PER_AD);
+        this(network, context, System::currentTimeMillis, AppConfigStore.active().pageEvery());
     }
+
+    /** How many stories one full-page ad stands for: the website's setting when the screen was made, else {@link AdSlots#STORIES_PER_AD}. */
+    int every() { return every; }
 
     /** Whether full-page ads are shown at all in this build. */
     boolean enabled() { return network.page(); }

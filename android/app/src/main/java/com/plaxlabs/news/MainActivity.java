@@ -41,6 +41,8 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
     /** A share that takes longer than this to get its link says so, instead of leaving the tap unanswered. */
     private static final long PREPARING_HINT_MS = 700;
     private static final String HANDLED = "plax.callback.handled";
+    /** Whether this is the Google Play build, which is what the website's word about a newer version on Google Play is for. A test replaces it. */
+    static boolean playBuild = BuildConfig.PLAY_STORE;
 
     private final Handler main = new Handler(Looper.getMainLooper());
     /** No ad pages in the pager. */
@@ -90,7 +92,16 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
     /** The simple dialog on screen (theme, about, clear, update), so nothing else is drawn over it. */
     AlertDialog openDialog;
     private FeedViewModel.State shown;
-    private final Map<Topic, TopicTile> tiles = new EnumMap<>(Topic.class);
+    /** The tiles of the Topics screen by topic id, and the column they stand in: made again when the website's list of topics changes. */
+    private final Map<String, TopicTile> tiles = new LinkedHashMap<>();
+    private LinearLayout topicGrid;
+    private AppConfigStore configStore;
+    private ConfigPrompts prompts;
+    private final AppConfigStore.Listener configListener = this::configChanged;
+    /** The switches the screen was last drawn with, so that a change in them draws the pages again. */
+    private AppConfig.Features shownFeatures = AppConfigStore.active().features();
+    /** The ads library has been asked to start (consent first), so it is not asked twice. */
+    private boolean adsStarted;
     private boolean rendering, reportedDrawn;
 
     private record TopicTile(View view, TextView current) { }
@@ -100,6 +111,8 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
         super.onCreate(saved);
         accountManager = AccountManager.get(this);
         updates = UpdateManager.get(this);
+        configStore = AppConfigStore.get(this);
+        prompts = new ConfigPrompts(ConfigPrompts.remembered(this), playBuild, BuildConfig.VERSION_CODE);
         model = new ViewModelProvider(this).get(FeedViewModel.class);
         network = Ads.network();
         ads = new ViewModelProvider(this).get(AdsViewModel.class).controller;
@@ -126,9 +139,9 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
             return insets;
         });
 
-        // Ads wait for the reader's consent where the law asks for it; with no ad unit in the build nothing here runs at all.
+        // Ads wait for the reader's consent where the law asks for it; with no ad unit in the build, or the website's switch off, nothing here runs.
         ads.listen(this::adsChanged);
-        if (network.banner() || network.page()) network.start(this, this::adsReady);
+        startAds();
 
         String language = Language.current();
         if (!language.equals(model.current().lang())) model.language(language);
@@ -252,19 +265,9 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
         LinearLayout.LayoutParams cardSize = new LinearLayout.LayoutParams(-1, -2);
         cardSize.bottomMargin = ui.dp(16);
         topicContent.addView(interestsCard, cardSize);
-        Topic[] topics = Topic.values();
-        for (int index = 0; index < topics.length; index += 2) {
-            // A plain row: a centred row would shift each tile up by its bottom margin and clip its top edge.
-            LinearLayout line = new LinearLayout(this);
-            for (int column = 0; column < 2; column++) {
-                LinearLayout.LayoutParams size = new LinearLayout.LayoutParams(0, ui.dp(96), 1);
-                size.bottomMargin = ui.dp(10);
-                if (column == 0) size.setMarginEnd(ui.dp(10));
-                if (index + column >= topics.length) { line.addView(new View(this), size); break; }
-                line.addView(tile(topics[index + column]), size);
-            }
-            topicContent.addView(line);
-        }
+        topicGrid = ui.column();
+        topicContent.addView(topicGrid);
+        fillTopicGrid();
         topicScroll.addView(topicContent);
         content.addView(topicScroll, new FrameLayout.LayoutParams(-1, -1));
 
@@ -312,25 +315,44 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
         root.addView(adBar.view(), new LinearLayout.LayoutParams(-1, -2));
     }
 
+    /** The tiles of the topics on offer now (the website's list, or the built-in one), two to a row. Made again when the list changes. */
+    private void fillTopicGrid() {
+        topicGrid.removeAllViews();
+        tiles.clear();
+        List<Topic> topics = Topic.all();
+        for (int index = 0; index < topics.size(); index += 2) {
+            // A plain row: a centred row would shift each tile up by its bottom margin and clip its top edge.
+            LinearLayout line = new LinearLayout(this);
+            for (int column = 0; column < 2; column++) {
+                LinearLayout.LayoutParams size = new LinearLayout.LayoutParams(0, ui.dp(96), 1);
+                size.bottomMargin = ui.dp(10);
+                if (column == 0) size.setMarginEnd(ui.dp(10));
+                if (index + column >= topics.size()) { line.addView(new View(this), size); break; }
+                line.addView(tile(topics.get(index + column)), size);
+            }
+            topicGrid.addView(line);
+        }
+    }
+
     private View tile(Topic topic) {
         LinearLayout tile = ui.column();
         tile.setPadding(ui.dp(14), ui.dp(12), ui.dp(14), ui.dp(10));
         tile.setClickable(true); tile.setFocusable(true);
-        tile.setContentDescription(getString(topic.label));
+        tile.setContentDescription(topic.label(this));
         tile.setOnClickListener(view -> model.topic(topic));
         TextView emoji = ui.text(topic.emoji, 26, ui.text, false);
         emoji.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         tile.addView(emoji);
         View filler = new View(this);
         tile.addView(filler, new LinearLayout.LayoutParams(1, 0, 1));
-        TextView label = ui.text(getString(topic.label), 15, ui.text, true);
+        TextView label = ui.text(topic.label(this), 15, ui.text, true);
         label.setSingleLine(); label.setEllipsize(android.text.TextUtils.TruncateAt.END);
         tile.addView(label);
         TextView current = ui.text(getString(R.string.topic_current), 11, ui.accentText, true);
         current.setPadding(0, ui.dp(2), 0, 0);
         current.setVisibility(View.GONE);
         tile.addView(current);
-        tiles.put(topic, new TopicTile(tile, current));
+        tiles.put(topic.id, new TopicTile(tile, current));
         return tile;
     }
 
@@ -342,7 +364,7 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
             boolean feed = state.screen() == FeedViewModel.Screen.FEED, noStories = state.stories().isEmpty();
             boolean browsing = feed || state.screen() == FeedViewModel.Screen.FOR_YOU;
             for (var entry : tiles.entrySet()) {
-                boolean current = entry.getKey() == state.topic();
+                boolean current = entry.getKey().equals(state.topic().id);
                 entry.getValue().view().setBackground(ui.touch(current ? ui.outline(ui.accentSoft, ui.accent, 20)
                         : ui.outline(ui.surface, ui.border, 20), 20));
                 entry.getValue().current().setVisibility(current ? View.VISIBLE : View.GONE);
@@ -357,7 +379,7 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
             int onAd = adPages ? AdSlots.slotAt(pager.getCurrentItem(), pagerSlots) : -1;
             if (adPages) ads.reader(item, state.stories().size(), onAd);
             int[] slots = adPages ? ads.shown() : NO_SLOTS;
-            adapter.submit(AdSlots.interleave(state.stories(), slots, Story::ad), state.savedIds(), state.saving(), state.storageReady(), state.earlier());
+            adapter.submit(AdSlots.interleave(state.stories(), slots, ads.every(), Story::ad), state.savedIds(), state.saving(), state.storageReady(), state.earlier());
             pagerSlots = slots;
             if (!noStories) {
                 int target = pagerIndex(item, onAd, slots);
@@ -380,15 +402,23 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
             spinner.setVisibility(state.refreshing() ? View.VISIBLE : View.GONE);
             freshPill.setVisibility(state.fresh() ? View.VISIBLE : View.GONE);
             banner(state, item);
-            adBar.show(adBar.enabled() && browsing && !noStories);
+            adBar.show(adBar.enabled() && browsing && !noStories && AppConfigStore.active().features().ads());
             if (state.notice() != 0) { Toast.makeText(this, state.notice(), Toast.LENGTH_SHORT).show(); model.acknowledgeNotice(); }
         } finally { rendering = false; }
     }
 
-    /** Whether ad pages belong between the stories now: a feed with stories on a screen tall enough, in a build that has them. */
+    /** Whether ad pages belong between the stories now: a feed with stories on a screen tall enough, in a build that has them, and not switched off by the website. */
     private boolean adPagesOn(FeedViewModel.State state) {
         boolean browsing = state.screen() == FeedViewModel.Screen.FEED || state.screen() == FeedViewModel.Screen.FOR_YOU;
-        return browsing && !state.stories().isEmpty() && ads.enabled() && roomForAds;
+        AppConfig.Features features = AppConfigStore.active().features();
+        return browsing && !state.stories().isEmpty() && ads.enabled() && roomForAds && features.ads() && features.adPages();
+    }
+
+    /** Asks the ads library to start (after the reader's consent, where the law asks for it), once, if this build has ads and the website has them on. */
+    private void startAds() {
+        if (adsStarted || !(network.banner() || network.page()) || !AppConfigStore.active().features().ads()) return;
+        adsStarted = true;
+        network.start(this, this::adsReady);
     }
 
     /**
@@ -427,7 +457,10 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
             interestsCardAction.setText(R.string.interests_choose);
         } else {
             List<String> names = new ArrayList<>();
-            for (String id : chosen) names.add(getString(Topic.byId(id).label));
+            for (String id : chosen) {
+                Topic topic = Topic.byId(id);
+                if (topic != null) names.add(topic.label(this));
+            }
             interestsCardTitle.setText(R.string.interests_title);
             interestsCardDetail.setText(names.size() <= 2 ? String.join(", ", names)
                     : getString(R.string.interests_summary, String.join(", ", names.subList(0, 2)), names.size() - 2));
@@ -490,6 +523,7 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
             @Override public void about() { MainActivity.this.about(); }
             @Override public void contact() { MainActivity.this.contact(); }
             @Override public void privacy() { open(FeedApi.PRIVACY_URL); }
+            @Override public void link(String url) { open(url); }
             @Override public void adChoices() { network.showPrivacyOptions(MainActivity.this, () -> { }); }
             @Override public void update() { updates.check(true); }
             @Override public void clearSaved() { confirmClearSaved(); }
@@ -588,12 +622,16 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
         accountManager.addListener(accountListener);
         accountManager.resume();
         model.foreground();
+        configStore.listen(configListener);
     }
 
     @Override protected void onResume() {
         super.onResume();
         updates.attach(updateHost);
         adBar.resume();
+        // The website's word on topics, sections, switches and notices: asked for when it is time, and what is already known is acted on now.
+        configStore.refresh(false);
+        showPrompt();
     }
 
     @Override protected void onPause() {
@@ -604,8 +642,44 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
 
     @Override protected void onStop() {
         accountManager.removeListener(accountListener);
+        configStore.unlisten(configListener);
         model.background();
         super.onStop();
+    }
+
+    /** The website's configuration changed: what is built from it is built again, and what it says to show is shown. */
+    private void configChanged(AppConfig config) {
+        if (isFinishing() || isDestroyed()) return;
+        startAds();
+        fillTopicGrid();
+        if (!config.features().equals(shownFeatures)) { shownFeatures = config.features(); adapter.refresh(); }
+        if (shown != null) render(shown);
+        showPrompt();
+    }
+
+    /** Puts the website's notice, or its word that a newer version is on Google Play, in front of the reader if there is one and nothing else is open. */
+    private void showPrompt() {
+        if (!nothingOpen()) return;
+        ConfigPrompts.Prompt prompt = prompts.next(AppConfigStore.active(), System.currentTimeMillis());
+        if (prompt == null) return;
+        prompts.shown(prompt);
+        boolean[] acknowledged = {false};
+        if (prompt.notice() != null) {
+            AppConfig.Notice notice = prompt.notice();
+            String language = Language.current();
+            MaterialAlertDialogBuilder dialog = new MaterialAlertDialogBuilder(this).setTitle(notice.title(language)).setMessage(notice.body(language))
+                    .setPositiveButton(R.string.done, (view, which) -> acknowledged[0] = true)
+                    .setOnDismissListener(view -> prompts.closed(prompt, acknowledged[0], System.currentTimeMillis()));
+            if (!notice.url().isEmpty()) dialog.setNeutralButton(R.string.notice_more, (view, which) -> { acknowledged[0] = true; open(notice.url()); });
+            openDialog = dialog.show();
+        } else {
+            AppConfig.StoreUpdate update = prompt.update();
+            openDialog = new MaterialAlertDialogBuilder(this).setTitle(R.string.update_title)
+                    .setMessage(getString(prompt.required() ? R.string.update_play_required : R.string.update_play_message, update.latestVersionName()))
+                    .setNegativeButton(R.string.update_later, null)
+                    .setPositiveButton(R.string.update_play_button, (view, which) -> { acknowledged[0] = true; open(AppUpdates.PLAY_URL); })
+                    .setOnDismissListener(view -> prompts.closed(prompt, acknowledged[0], System.currentTimeMillis())).show();
+        }
     }
 
     private void chooseTheme() {
@@ -620,6 +694,8 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
         String text = getString(withAds ? R.string.about_text_ads : R.string.about_text, BuildConfig.VERSION_NAME, Contact.EMAIL);
         // Store builds are updated by Google Play and never look for updates, so they do not describe it.
         if (!updates.storeBuild()) text += "\n\n" + getString(R.string.about_updates);
+        // Both builds read the website's settings (topics, sections, notices), and say so.
+        text += "\n\n" + getString(R.string.about_settings);
         openDialog = new MaterialAlertDialogBuilder(this).setTitle(R.string.about)
                 .setMessage(text)
                 .setNeutralButton(R.string.privacy_policy, (dialog, which) -> open(FeedApi.PRIVACY_URL))
@@ -701,7 +777,7 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
             giveUpWaiting();
             if (sameStory) { send(story, ""); return; }
         }
-        if (!ShareLinks.eligible(story)) { send(story, ""); return; }
+        if (!ShareLinks.eligible(story) || !AppConfigStore.active().features().shareLinks()) { send(story, ""); return; }
         sharingStory = story;
         int generation = ++shareGeneration;
         main.postDelayed(preparingHint, PREPARING_HINT_MS);
@@ -733,7 +809,7 @@ public final class MainActivity extends AppCompatActivity implements StoryAdapte
     @Override public void source(Story story) { open(story.sourceUrl()); }
 
     @Override public void deeper(Story story) {
-        if (sheet != null && sheet.isShowing()) return;
+        if (!AppConfigStore.active().features().deeper() || sheet != null && sheet.isShowing()) return;
         sheet = DeeperSheet.show(this, ui, story, model.current().lang());
     }
 

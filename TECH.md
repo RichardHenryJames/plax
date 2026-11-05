@@ -1135,6 +1135,16 @@ The native app ([android/README.md](android/README.md), *Updates from inside the
 - **Rollback** is reverting the commit that changed `updates.json`. Installed apps never go back to a lower version code.
 - The files are in `public/`, so deleting or editing them by hand can strand or mislead every installed copy; change them only through the script.
 
+### Android app settings (`public/app-config.json`)
+
+From 1.7.0 the native app (both builds) reads one more static file that deploys with the website: `public/app-config.json` at `/news/app-config.json`, a small JSON document of **data** (never code): the topics, the news sections, a few switches, how often a full-page ad comes, four picture numbers, one notice, whether a newer version is on Google Play, and up to four menu links. The app asks for it when it comes to the front, at most every 3 hours, with no cookie or identifier, keeps the last good copy on the phone and, for anything it cannot read, keeps its built-in value. [android/README.md](android/README.md), *What the website can change without a new app*, has the whole table and the rules.
+
+- **One list of rules, two readers.** `src/lib/app-config-rules.ts` (the website's check) and `AppConfig.java` (the app) apply the same rules, and both run `src/lib/app-config-cases.json` (168 cases, written in ASCII so every character that matters is an escape): `npm test` (`app-config.test.mjs`) and the app's `AppConfigTest` fail if they disagree, so a file that passes `npm test` is a file the app takes whole. A document that is not strict JSON (comments, trailing commas, a name twice, a byte order mark, more than six levels), over 16 KB, or of another `schemaVersion` is refused whole; otherwise each part stands on its own.
+- **The same numbers on the website.** `heroMaxWidth`, `heroMaxHeight`, `photoMinWidth` and `photoMinHeight` are the constants of `useCardFit.ts`, `ads.pageEvery` is `STORIES_PER_AD` in `ad-slots.ts`, `sections` is `NEWS_SECTIONS` in `types.ts`, and `features.sourceName` is `SHOW_SOURCE_NAME` in `app-features.ts`: a test fails if the file and the website differ, so the website and the app change together. Topics are checked against `TOPICS` in `store.ts` (a topic the feed has no sources for would show nothing).
+- **Headers** come from `headers()` in `next.config.js`, as for the update feed: `application/json; charset=utf-8`, `Cache-Control: no-store`, `nosniff`, `X-Robots-Tag: noindex`.
+- **The publisher is named on every card** (small, above the headline) because Google Play's News policy asks an aggregator for clear information about the publishing sources of what it shows, and the Play Console declaration says each card shows its source. The poster of a story with no picture is headed by *Plax* (`POSTER_NAME` in `poster.ts`), not by the outlet. `features.sourceName` can take the name off the app without a new bundle; `app-config.test.mjs` insists it is on until that test is changed on purpose.
+- **Rollback** is pushing the earlier content. Installed apps that already took a file keep the last good one if the site cannot be reached.
+
 ### Environment Variables (Vercel Dashboard)
 
 | Variable | Required | Scope |

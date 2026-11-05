@@ -18,6 +18,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
+import java.util.List;
 
 /**
  * The menu: everything the header and the bottom bar used to hold, in one panel that slides in from the left when the menu
@@ -37,16 +38,14 @@ final class MenuSheet {
         void about();
         void contact();
         void privacy();
+        /** Opens a link the website added to the menu (see {@link AppConfig.Link}); the address has been checked. */
+        void link(String url);
         /** Opens the consent tool's choices (only offered where the law asks for them). */
         void adChoices();
         void update();
         void clearSaved();
     }
 
-    /** The news sections, as the story tags and the old header had them: id ("" is all) and its label. */
-    private static final String[] SECTION_IDS = {"", "india", "world", "tech", "business", "science"};
-    private static final int[] SECTION_LABELS = {R.string.all, R.string.section_india, R.string.section_world, R.string.section_tech,
-            R.string.section_business, R.string.section_science};
     private static final int WIDTH_DP = 320;
 
     final Dialog dialog;
@@ -94,19 +93,15 @@ final class MenuSheet {
         }
         list.addView(places, placesSize);
 
-        // Hindi cards carry no section tag, so the sections only apply to English headlines.
-        if (state.screen() == FeedViewModel.Screen.FEED && state.topic() == Topic.NEWS && Language.ENGLISH.equals(state.lang())) {
+        // Hindi cards carry no section tag, so the sections only apply to English headlines. The chips are the website's list of sections.
+        List<AppConfig.Section> sections = AppConfigStore.active().sections();
+        if (!sections.isEmpty() && state.screen() == FeedViewModel.Screen.FEED && Topic.NEWS.equals(state.topic())
+                && Language.ENGLISH.equals(state.lang())) {
             list.addView(heading(R.string.sections));
             Flow flow = new Flow(activity);
             flow.setPadding(ui.dp(8), 0, ui.dp(8), 0);
-            for (int index = 0; index < SECTION_IDS.length; index++) {
-                String id = SECTION_IDS[index];
-                TextView chip = ui.chip(activity.getString(SECTION_LABELS[index]), () -> { dismiss(); actions.section(id); });
-                chip.setSelected(id.equals(state.section()));
-                LinearLayout.LayoutParams gap = new LinearLayout.LayoutParams(-2, -2);
-                gap.setMarginEnd(ui.dp(2));
-                flow.addView(chip, gap);
-            }
+            chip(flow, "", activity.getString(R.string.all), state);
+            for (AppConfig.Section section : sections) chip(flow, section.id(), section.label(activity), state);
             list.addView(flow);
         }
 
@@ -118,6 +113,10 @@ final class MenuSheet {
         list.addView(row(R.drawable.ic_mail, activity.getString(R.string.contact_us), false, actions::contact));
         list.addView(row(R.drawable.ic_shield, activity.getString(R.string.privacy_policy), false, actions::privacy));
         if (adChoices) list.addView(row(R.drawable.ic_info, activity.getString(R.string.ad_choices), false, actions::adChoices));
+        // Rows the website added: a few links, for this build.
+        for (AppConfig.Link link : AppConfigStore.active().links()) {
+            if (link.appliesTo(storeBuild)) list.addView(row(R.drawable.ic_info, link.label(state.lang()), false, () -> actions.link(link.url())));
+        }
         list.addView(row(R.drawable.ic_download, activity.getString(storeBuild ? R.string.update_play : R.string.update_check), false, actions::update));
         list.addView(row(R.drawable.ic_trash, activity.getString(R.string.clear_saved), false, actions::clearSaved));
 
@@ -170,6 +169,15 @@ final class MenuSheet {
 
     boolean isShowing() { return dialog.isShowing(); }
     void dismiss() { dialog.dismiss(); }
+
+    /** One chip of the news sections: the id ("" is all) and its label; the one the reader is in is marked. */
+    private void chip(Flow flow, String id, String label, FeedViewModel.State state) {
+        TextView chip = ui.chip(label, () -> { dismiss(); actions.section(id); });
+        chip.setSelected(id.equals(state.section()));
+        LinearLayout.LayoutParams gap = new LinearLayout.LayoutParams(-2, -2);
+        gap.setMarginEnd(ui.dp(2));
+        flow.addView(chip, gap);
+    }
 
     private TextView heading(int label) {
         TextView view = ui.text(activity.getString(label).toUpperCase(activity.getResources().getConfiguration().getLocales().get(0)), 11, ui.text2, true);

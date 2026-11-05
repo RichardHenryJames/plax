@@ -4,11 +4,13 @@ import { readFileSync } from 'node:fs'
 
 // The topic list is kept in three places: the website (lib/store.ts, with the Hindi names in lib/i18n.ts) and the app (Topic.java, with
 // its names in res/values and res/values-hi). A topic in one and not another is a tile that opens an empty feed, or has no name.
+// Topic.java holds the topics the app was built with; from 1.7.0 the website's file (public/app-config.json) may list others, or the same
+// ones under other names, and app-config.test.mjs checks that every topic it lists is one the website has.
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8')
 const ids = (text, pattern) => [...text.matchAll(pattern)].map((match) => match[1])
 
 const web = ids(read('./store.ts'), /\{ id: '([a-z]+)', label: '/g)
-const app = ids(read('../../android/app/src/main/java/com/plaxlabs/news/Topic.java'), /^\s+[A-Z]+\("([a-z]+)", R\.string\.topic_/gm)
+const app = ids(read('../../android/app/src/main/java/com/plaxlabs/news/Topic.java'), /= builtIn\("([a-z]+)", R\.string\.topic_/g)
 
 test('the website and the app have the same topics', () => {
   assert.ok(web.length >= 18, `${web.length} topics read from store.ts`)
