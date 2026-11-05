@@ -10,6 +10,28 @@ exists (see *Updates from inside the app*), except in the Google Play build, whi
 which need the two small routes and the one small file listed under *Backend changes*,
 the app works against the backend as it was before this version.
 
+## What is in 1.6.2 (versionCode 16): the 4 November changes, and the update published over the air
+
+Version 1.6.2 is the app as it stood after the owner's six commits of 4 November 2026 (68 files), pulled and released. The changes are the
+ones described in their own sections (Go deeper, the picture taking the room the text leaves, Stocks); this section says only what the
+release did. No change was made to the app's code for it.
+
+- **What came in.** *Go deeper* in place of the AI brief (`DeeperApi`, `DeeperSheet`, `/api/deeper`; the app no longer calls
+  `/api/summarize`, which still answers older apps); the **Stocks** topic (`Topic.STOCKS`, a Stocks pool on the feed route); the picture
+  growing into the room the text leaves (`CardFit.grownHero`); on the website a US news section, a full-page ad that rests two slots
+  after two misses, and the Search Console file. New tests: `FitDeviceTest` (6), `AiAndCacheTest`, `CardFitTest`.
+- **The server side was checked before the version was raised**, because an installed app talks to it: `/api/summarize` answers the old
+  request as before; `/api/deeper` returned its three facts in about 3 s; the Stocks feed returned 30 cards in `en` and in `hi`; the News feed
+  that older apps read was unchanged.
+- **The version is 1.6.2 (16)**, above 1.6.1 (15), so that a Google Play upload is not refused for a used code and the in-app updater of
+  an older website build sees a newer build. Permissions, ad ids and
+  [`PLAY-CONSOLE-ANSWERS-ADS.txt`](PLAY-CONSOLE-ANSWERS-ADS.txt) are as for 1.6.1.
+- **Published over the air.** The feed (`public\updates.json`) had still named 1.5.5 (13). It now names 1.6.2 (16), with
+  `public\plax-1.6.2.apk` (3,955,285 bytes, SHA-256 `3cab26525ae8e54925b75c398525493e1fa991a179dbbdbe53960a3cfa3dc3b6`, signed by the pinned
+  key, built with no ad ids). See *What an installed app gets over the air*, below.
+- **The bundle for Google Play**, `artifacts\plax-1.6.2.aab`, was built and checked but **not uploaded**: Google Play builds never
+  update themselves, so a change to the app reaches them only through a new bundle. See *Verification performed for 1.6.2*.
+
 ## What is in 1.6.1 (versionCode 15): no empty ad while the ads are not served
 
 The 1.6.0 bundle and the website showed empty places where ads were meant to be, because the owner's AdMob app and AdSense site had not
@@ -719,6 +741,24 @@ history. Back the keystore up privately (never in the repository) and move to a 
 key before wider distribution; that move is itself a break, because Android refuses an update signed
 by a different key (APK key rotation exists but is not set up here).
 
+## What an installed app gets over the air
+
+"Over the air" is not one thing here. What a change reaches depends on what changed and on which build is installed:
+
+| What changed | Website build (`com.plaxlabs.news.preview`) | Google Play build (`com.plaxlabs.news`) |
+|---|---|---|
+| The server: the feed, its text, pictures and order, `/api/deeper`, the Stocks and US content | at once, when `main` is pushed (Vercel deploys it) | at once |
+| The app's own code, layout, text or resources | after `publish-update.ps1`, a commit and a push: the app finds the new build within a day (or at *Check for updates*), asks, downloads and installs it | **only with a new bundle** uploaded to Google Play |
+
+The reason for the second row is Google Play's: an app it distributes may not fetch and install code from anywhere else, so the Play build
+has no updater (`PLAY_STORE = true`; the menu has no *Check for updates*) and the feed is not read there. Google Play's own in-app
+updates interface would only prompt a Google Play update; it is not used here (it needs a new dependency and cannot be tried except on
+Google Play). The website build can update itself because it is installed from the website, and only to a build signed by the pinned key
+(`update-signer.sha256`) that the feed's size and SHA-256 describe.
+
+So for a change to the app: raise the version, run the steps of *Publishing an update* (this updates every website install), and build
+the bundle with `package-aab.ps1` if Google Play users need it too. For a change to the server alone, a push is the whole release.
+
 ## Publishing an update
 
 A bad feed, or a build signed with the wrong key, would leave every installed copy unable to update,
@@ -987,6 +1027,37 @@ project is back:
 - Not covered: Google's consent screen, the Authorized redirect URI in the Google console, the Redirect URLs list in
   Supabase, the Custom Tab path with a real code, and a real hosted project (its key formats, defaults and rate
   limits). Those are the one manual sign-in the runbook ends with.
+
+## Verification performed for 1.6.2 (5 November 2026)
+
+On the isolated Android 16 (API 36, x86_64) `Plax_News_Test` emulator, the development machine and the deployed site; no physical phone, no
+Play Console, no live ad.
+
+- **Tests.** **242 JVM tests**, 0 failing, 14 opt-in skipped; lint **0 errors** and 1 warning (a newer Gradle exists); the website `tsc`
+  clean and **350 unit tests**. **The 120 device tests pass**, run one class at a time (`PlaxDeviceTest` 18, `FeedFlowTest` 31,
+  `AccountDeviceTest` 7, `UpdateDeviceTest` 9, `ShareDeviceTest` 7, `ContactDeviceTest` 6, `FitDeviceTest` 6, `MenuDeviceTest` 4,
+  `MenuEntriesDeviceTest` 9, `AdsDeviceTest` 18, `NativeAdPageDeviceTest` 5). With the feed now at 16, the opt-in live tests
+  (`-LiveFeed`: the published feed accepted by the app and its download an APK, the English and the Hindi feeds, a shared story turned into a
+  served page) pass, 4 of 4.
+- **The update, end to end, on the live site.** `verify-update.ps1` against production: **19 of 19 checks** ("the site serves 1.6.2 (code 16)
+  as a valid update"). Then a 1.5.5 website build installed on the emulator, left to read the live feed itself: it showed "Update available:
+  Plax 1.6.2 is ready" with *Later* and *Download*; *Download* handed the live HTTPS address to the browser; a plain GET of that address gave
+  the size and SHA-256 of the feed; the file installed over 1.5.5 (`adb install -r`, data kept), opened, did not offer the update again and
+  had no crash or ANR. (The updater's "Plax is up to date." message is a toast, which UI Automator does not list; it was seen in the window
+  dump and in a screenshot.) The website APK shows no ads and says 1.6.2-preview in *About*.
+- **The bundle** `artifacts\plax-1.6.2.aab` (7,468,282 bytes, SHA-256 `134c10028d02e3fdfd61f7b390ffd4f9a48368d23219baccfd8586bdaaeef12a`;
+  mapping file `plax-1.6.2-mapping.txt`), built with the owner's three public AdMob ids as `ORG_GRADLE_PROJECT_*` variables (nothing
+  committed): the 16 checks of `package-aab.ps1` pass; one signer, the Plax upload key `dade46fd…de1219`; package `com.plaxlabs.news`,
+  1.6.2 (16); the banner unit, the native unit and `banner_served_at` are in the dex, the app id is in the manifest, no demo id is in the
+  bundle, and `AD_ID` is declared. **Not uploaded.**
+- **The bundle as Google Play installs it** (bundletool, split APKs). *Over 1.5.5 (code 13), data kept:* code 16 opens in about 3 s, the story
+  saved on 1.5.5 is still saved, no crash, no ANR. *Fresh install:* the feed loads, no card body ends on a word that needs the next, the
+  menu has no *Check for updates*, Contact us works, *About* names 1.6.2, Continue with Google reaches Google's sign-in page.
+- **Paging.** `adb input swipe` on this emulator drops some swipes whatever the build, so the picture-growing change was judged against the
+  previous build with the same script: of 48 swipes, 1.6.1 dropped 7 and 1.6.2 dropped 2. No regression in one swipe moving to the next story.
+
+**Not verified**: a physical phone; a live ad (the AdMob app and the AdSense site are not approved yet); the Play Console and Google Play
+review; the Play in-app updates interface (not used); a browser other than the ones used for the website in earlier releases.
 
 ## Verification performed for 1.6.1 (3 November 2026)
 

@@ -1,5 +1,5 @@
 PLAX - GOOGLE PLAY CONSOLE: WHAT CHANGES FOR A RELEASE THAT CONTAINS GOOGLE ADS
-Prepared: 1 and 2 November 2026, for version 1.6.0 (code 14), the first with ads (1.6.1, code 15, is the same bundle with the empty-ad fix; every answer below holds for it). Nothing here has been submitted. In AdMob and AdSense
+Prepared: 1 and 2 November 2026, for version 1.6.0 (code 14), the first with ads (1.6.1, code 15, is the same bundle with the empty-ad fix, and 1.6.2, code 16, the same with the 4 November changes: the permissions and ad ids are unchanged, so every answer below holds for them). Nothing here has been submitted. In AdMob and AdSense
 the app, the ad units and the consent messages were created on 1 and 2 November in the owner's logged-in browser (section 1 says which);
 nothing was changed in the Play Console: that is your account. The official Google pages used are listed at the end.
 
