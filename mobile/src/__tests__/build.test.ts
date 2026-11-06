@@ -27,7 +27,7 @@ describe('which build is running', () => {
     expect(adsBuild()).toBe('none')
   })
 
-  it('looks for a newer APK only in the website build (Google Play updates the Play build)', () => {
+  it('looks for a newer APK in the website build and the test build, never in the Google Play build (Google Play updates that)', () => {
     setVariant('play')
     expect(looksForApkUpdates()).toBe(false)
     expect(isPlayBuild()).toBe(true)
@@ -35,7 +35,8 @@ describe('which build is running', () => {
     expect(looksForApkUpdates()).toBe(true)
     expect(isPlayBuild()).toBe(false)
     setVariant('e2e')
-    expect(looksForApkUpdates()).toBe(false)
+    expect(looksForApkUpdates()).toBe(true)
+    expect(isPlayBuild()).toBe(false)
   })
 
   it('talks to the production website, and only the test build talks to the mock one', () => {

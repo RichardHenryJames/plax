@@ -601,7 +601,7 @@ describe('a check', () => {
 })
 
 describe('which builds look for updates', () => {
-  it('are the website\'s build only, decided when asked and not before', async () => {
+  it('are the website\'s build and the test build, not the Google Play build, decided when asked and not before', async () => {
     const manager = createUpdateManager({
       storage: memoryStorage(),
       clock: fakeClock(NOW),
@@ -619,8 +619,9 @@ describe('which builds look for updates', () => {
     expect(manager.storeBuild()).toBe(true)
     await manager.check(true)
     expect(shown.listings).toBe(1)
+    // The test build looks at its own website, as the website's build does at the real one.
     setVariant('e2e')
-    expect(manager.storeBuild()).toBe(true)
+    expect(manager.storeBuild()).toBe(false)
   })
 
   it('does not offer a release already known once the build is one that Google Play updates', async () => {

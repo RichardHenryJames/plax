@@ -1,7 +1,8 @@
 import { memo, useEffect, useMemo, useState } from 'react'
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
+import { PixelRatio, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { Image } from 'expo-image'
 import { bodyOf, hasImage as storyHasImage, hasSource, type Story } from '../../data/story'
+import { imageCandidates } from '../../data/image-sizing'
 import { Icon } from '../Icon'
 import { imageUri } from '../../platform/images'
 import { useT } from '../i18n-context'
@@ -10,6 +11,9 @@ import { useTheme } from '../theme'
 import { BREAKING, bodyTextStyle, titleTextStyle, useMeasured } from './measure'
 import { bodyCutter, computeStoryLayout, pageGeometry, typeSizes, type LayoutConfig } from './layout'
 import { Poster, PosterBackground } from './Poster'
+
+/** The widest a picture is asked for, in pixels: what the native app's ImageLoader decoded at most. */
+const MAX_PICTURE_PX = 1080
 
 export interface StoryPageProps {
   readonly story: Story
@@ -57,9 +61,12 @@ function StoryPageView(props: StoryPageProps) {
   // A picture that cannot be loaded is replaced by the poster, and the page is laid out again for it.
   const [imageFailed, setImageFailed] = useState(false)
   const [imageLoaded, setImageLoaded] = useState(false)
+  // The addresses to try, in order: a wider copy of the picture where the publisher serves one (see imageCandidates), then the one the feed named.
+  const [attempt, setAttempt] = useState(0)
   useEffect(() => {
     setImageFailed(false)
     setImageLoaded(false)
+    setAttempt(0)
   }, [story.id])
   const photo = storyHasImage(story) && !imageFailed
 
@@ -76,6 +83,9 @@ function StoryPageView(props: StoryPageProps) {
 
   const linked = hasSource(story)
   const menuBox = layout?.menu
+  const pixels = Math.min(MAX_PICTURE_PX, Math.round(PixelRatio.getPixelSizeForLayoutSize(layout?.hero.width ?? width)))
+  const candidates = useMemo(() => imageCandidates(story.image, pixels).map(imageUri), [story.image, pixels])
+  const picture = candidates[Math.min(attempt, candidates.length - 1)]
   return (
     <View style={{ width, height, backgroundColor: palette.bg }} testID={`story-${story.id}`}>
       {/* The button is first, for a screen reader (it is the first thing on every page), and above the rest, for the eye and the finger. */}
@@ -98,14 +108,14 @@ function StoryPageView(props: StoryPageProps) {
                     </View>
                   )}
                   <Image
-                    source={{ uri: imageUri(story.image) }}
+                    source={{ uri: picture }}
                     style={StyleSheet.absoluteFill}
                     contentFit="cover"
                     transition={160}
                     recyclingKey={story.id}
                     accessible={false}
                     onLoad={() => setImageLoaded(true)}
-                    onError={() => setImageFailed(true)}
+                    onError={() => (attempt + 1 < candidates.length ? setAttempt(attempt + 1) : setImageFailed(true))}
                   />
                 </>
               ) : (

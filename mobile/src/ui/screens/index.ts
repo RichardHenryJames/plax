@@ -23,7 +23,6 @@ export {
 export { InterestsSheet, type InterestsSheetProps } from './InterestsSheet'
 export { MENU_WIDTH, MenuPanel, isSwipeAway, type LinkBuild, type MenuLink, type MenuPanelProps, type MenuSection } from './MenuPanel'
 export { NoticeDialog, type NoticeDialogProps } from './NoticeDialog'
-export { SavedScreen, type SavedScreenProps } from './SavedScreen'
 export { ThemeDialog, type ThemeDialogProps } from './ThemeDialog'
 export { TopicsScreen, type TopicsScreenProps } from './TopicsScreen'
 export { StoreUpdateDialog, UpdateOfferDialog, type StoreUpdateDialogProps, type UpdateOfferDialogProps } from './UpdateDialogs'

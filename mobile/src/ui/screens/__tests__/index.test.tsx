@@ -6,7 +6,6 @@ describe('what the folder gives the shell', () => {
       'MenuPanel',
       'TopicsScreen',
       'InterestsSheet',
-      'SavedScreen',
       'DeeperSheet',
       'AccountSheet',
       'ContactSheet',

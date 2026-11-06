@@ -28,8 +28,8 @@ export function variant(): Variant {
 
 export const isPlayBuild = () => variant() === 'play'
 
-/** The Google Play build is updated by Google Play and never looks for an APK; the website's build looks at the website. */
-export const looksForApkUpdates = () => variant() === 'preview'
+/** The Google Play build is updated by Google Play and never looks for an APK; the website's build looks at the website, and so does the test build, at its mock one. */
+export const looksForApkUpdates = () => variant() !== 'play'
 
 /** Ads are shown by the Google Play build with the owner's units, and by the e2e build with Google's sample units. */
 export const adsBuild = (): 'live' | 'sample' | 'none' => {

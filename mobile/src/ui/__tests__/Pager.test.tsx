@@ -95,6 +95,66 @@ describe('the pager', () => {
     expect(onEndReached).toHaveBeenCalledTimes(1)
   })
 
+  it('says when it is moving and when it is at rest, once for each', () => {
+    const onMovingChange = jest.fn()
+    render(<Pager items={items} index={0} onIndexChange={jest.fn()} onMovingChange={onMovingChange} renderPage={(item) => <Text>{item.id}</Text>} testID="pager" />)
+    fireEvent(screen.getByTestId('pager'), 'layout', { nativeEvent: { layout: { x: 0, y: 0, width: 400, height: 800 } } })
+    const list = screen.UNSAFE_getByType(FlatList)
+    act(() => list.props.onScrollBeginDrag())
+    act(() => list.props.onScrollBeginDrag())
+    expect(onMovingChange.mock.calls).toEqual([[true]])
+    // A fast release is still gliding to its page: it is not at rest until the glide ends.
+    act(() => list.props.onScrollEndDrag({ nativeEvent: { contentOffset: { x: 0, y: 500 }, velocity: { x: 0, y: 2 } } }))
+    expect(onMovingChange.mock.calls).toEqual([[true]])
+    act(() => list.props.onMomentumScrollEnd({ nativeEvent: { contentOffset: { x: 0, y: 800 } } }))
+    expect(onMovingChange.mock.calls).toEqual([[true], [false]])
+  })
+
+  it('is at rest when a slow drag ends where it stands', () => {
+    const onMovingChange = jest.fn()
+    render(<Pager items={items} index={0} onIndexChange={jest.fn()} onMovingChange={onMovingChange} renderPage={(item) => <Text>{item.id}</Text>} testID="pager" />)
+    fireEvent(screen.getByTestId('pager'), 'layout', { nativeEvent: { layout: { x: 0, y: 0, width: 400, height: 800 } } })
+    const list = screen.UNSAFE_getByType(FlatList)
+    act(() => list.props.onScrollBeginDrag())
+    act(() => list.props.onScrollEndDrag({ nativeEvent: { contentOffset: { x: 0, y: 0 }, velocity: { x: 0, y: 0 } } }))
+    expect(onMovingChange.mock.calls).toEqual([[true], [false]])
+  })
+
+  it('waits for the list to grow to a page that is beyond what is laid out, then moves there', () => {
+    const onIndexChange = jest.fn()
+    const render3 = (count: number, index: number) => (
+      <Pager items={items.slice(0, count)} index={index} onIndexChange={onIndexChange} renderPage={(item) => <Text>{item.id}</Text>} testID="pager" />
+    )
+    const view = render(render3(3, 0))
+    fireEvent(screen.getByTestId('pager'), 'layout', { nativeEvent: { layout: { x: 0, y: 0, width: 400, height: 800 } } })
+    act(() => screen.UNSAFE_getByType(FlatList).props.onContentSizeChange(400, 2400))
+    const scroll = jest.spyOn(screen.UNSAFE_getByType(FlatList).instance as FlatList<unknown>, 'scrollToOffset')
+    view.rerender(render3(12, 7))
+    expect(scroll).not.toHaveBeenCalled()
+    act(() => screen.UNSAFE_getByType(FlatList).props.onContentSizeChange(400, 4000))
+    expect(scroll).not.toHaveBeenCalled()
+    act(() => screen.UNSAFE_getByType(FlatList).props.onContentSizeChange(400, 9600))
+    expect(scroll).toHaveBeenCalledTimes(1)
+    expect(scroll).toHaveBeenCalledWith({ offset: 5600, animated: false })
+    expect(onIndexChange).not.toHaveBeenCalled()
+  })
+
+  it('does not keep waiting for a page it was told to leave', () => {
+    const render3 = (count: number, index: number) => (
+      <Pager items={items.slice(0, count)} index={index} onIndexChange={jest.fn()} renderPage={(item) => <Text>{item.id}</Text>} testID="pager" />
+    )
+    const view = render(render3(3, 0))
+    fireEvent(screen.getByTestId('pager'), 'layout', { nativeEvent: { layout: { x: 0, y: 0, width: 400, height: 800 } } })
+    act(() => screen.UNSAFE_getByType(FlatList).props.onContentSizeChange(400, 2400))
+    const scroll = jest.spyOn(screen.UNSAFE_getByType(FlatList).instance as FlatList<unknown>, 'scrollToOffset')
+    view.rerender(render3(12, 9))
+    view.rerender(render3(12, 1))
+    expect(scroll).toHaveBeenCalledWith({ offset: 800, animated: false })
+    scroll.mockClear()
+    act(() => screen.UNSAFE_getByType(FlatList).props.onContentSizeChange(400, 9600))
+    expect(scroll).not.toHaveBeenCalled()
+  })
+
   it('has no page to go to when it has no items', () => {
     const { ref, onIndexChange } = setup({ count: 0 })
     act(() => ref.current?.scrollTo(2))

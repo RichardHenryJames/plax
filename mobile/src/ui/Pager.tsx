@@ -23,6 +23,8 @@ export interface PagerProps<T extends PagerItem> {
   readonly onIndexChange: (index: number) => void
   /** The reader is near the last pages: more can be asked for. */
   readonly onEndReached?: () => void
+  /** A finger is on the pager, or it is still gliding to its page (true), or it is at rest (false). Pages are put in and taken out only at rest. */
+  readonly onMovingChange?: (moving: boolean) => void
   readonly renderPage: (item: T, index: number, size: PageSize) => ReactElement
   readonly testID?: string
 }
@@ -30,11 +32,15 @@ export interface PagerProps<T extends PagerItem> {
 /** The page nearest to a scroll offset. */
 export const pageAt = (offset: number, height: number, count: number): number => (height <= 0 || count <= 0 ? 0 : Math.max(0, Math.min(count - 1, Math.round(offset / height))))
 
-function PagerInner<T extends PagerItem>({ items, index, onIndexChange, onEndReached, renderPage, testID }: PagerProps<T>, ref: Ref<PagerHandle>) {
+function PagerInner<T extends PagerItem>({ items, index, onIndexChange, onEndReached, onMovingChange, renderPage, testID }: PagerProps<T>, ref: Ref<PagerHandle>) {
   const [size, setSize] = useState<PageSize | null>(null)
   const list = useRef<FlatList<T>>(null)
   // The page the pager is showing, as far as it knows: what stops a change it reports from being taken as one that was asked for.
   const shown = useRef(index)
+  // How tall the list has been laid out, and a page asked for that it was not yet tall enough to reach (a longer list is on its way).
+  const content = useRef(0)
+  const pending = useRef<number | null>(null)
+  const moving = useRef(false)
 
   const onLayout = useCallback((event: LayoutChangeEvent) => {
     const { width, height } = event.nativeEvent.layout
@@ -46,11 +52,40 @@ function PagerInner<T extends PagerItem>({ items, index, onIndexChange, onEndRea
       if (!size || items.length === 0) return
       const clamped = Math.max(0, Math.min(items.length - 1, target))
       shown.current = clamped
-      list.current?.scrollToOffset({ offset: clamped * size.height, animated })
+      const offset = clamped * size.height
+      // A scroll past the end of what is laid out would stop at the end, so it waits for the list to grow to the page.
+      if (content.current > 0 && content.current < offset + size.height) {
+        pending.current = clamped
+        return
+      }
+      pending.current = null
+      list.current?.scrollToOffset({ offset, animated })
     },
     [size, items.length],
   )
   useImperativeHandle(ref, () => ({ scrollTo }), [scrollTo])
+
+  const onContentSizeChange = useCallback(
+    (_width: number, height: number) => {
+      content.current = height
+      const target = pending.current
+      if (target === null || !size) return
+      if (height >= (target + 1) * size.height) {
+        pending.current = null
+        list.current?.scrollToOffset({ offset: target * size.height, animated: false })
+      }
+    },
+    [size],
+  )
+
+  const setMoving = useCallback(
+    (next: boolean) => {
+      if (moving.current === next) return
+      moving.current = next
+      onMovingChange?.(next)
+    },
+    [onMovingChange],
+  )
 
   // Moves to the page the owner asks for, unless the pager is already there.
   useEffect(() => {
@@ -64,6 +99,7 @@ function PagerInner<T extends PagerItem>({ items, index, onIndexChange, onEndRea
 
   const settle = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      setMoving(false)
       if (!size) return
       const next = pageAt(event.nativeEvent.contentOffset.y, size.height, items.length)
       if (next !== shown.current) {
@@ -71,7 +107,7 @@ function PagerInner<T extends PagerItem>({ items, index, onIndexChange, onEndRea
         onIndexChange(next)
       }
     },
-    [size, items.length, onIndexChange],
+    [size, items.length, onIndexChange, setMoving],
   )
 
   return (
@@ -96,6 +132,8 @@ function PagerInner<T extends PagerItem>({ items, index, onIndexChange, onEndRea
           maxToRenderPerBatch={2}
           updateCellsBatchingPeriod={30}
           removeClippedSubviews={false}
+          onContentSizeChange={onContentSizeChange}
+          onScrollBeginDrag={() => setMoving(true)}
           onMomentumScrollEnd={settle}
           onScrollEndDrag={(event) => {
             // A drag that ends with no momentum (a slow, short one) stops where it stands.

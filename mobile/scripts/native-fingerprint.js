@@ -1,6 +1,6 @@
 // Keeps over-the-air updates safe: an update is JavaScript, and it may only reach apps whose native layer has what that JavaScript uses.
 // `runtimeVersion` in app.config.js is that promise. This computes a fingerprint of everything that decides what the native layer is (the
-// native packages and their versions, app.config.js without the version numbers, the config plugins), compares it with the one recorded in
+// native packages and their versions, app.config.js without the version numbers, the config plugins, the app's own native modules), compares it with the one recorded in
 // native-fingerprint.json, and fails when the native layer changed while runtimeVersion did not (an update would then reach apps that
 // cannot run it).
 //
@@ -38,6 +38,22 @@ function pluginSources() {
     .map((name) => `${name}\n${fs.readFileSync(path.join(folder, name), 'utf8').replace(/\r\n/g, '\n')}`)
 }
 
+/** The app's own native modules (modules/): every file that is built into the native layer, in a fixed order. */
+function moduleSources(folder = path.join(mobile, 'modules'), prefix = '') {
+  if (!fs.existsSync(folder)) return []
+  const parts = []
+  for (const entry of fs.readdirSync(folder, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
+    const name = `${prefix}${entry.name}`
+    if (entry.isDirectory()) {
+      if (entry.name === 'node_modules' || entry.name === 'build' || entry.name === '.cxx') continue
+      parts.push(...moduleSources(path.join(folder, entry.name), `${name}/`))
+    } else {
+      parts.push(`modules/${name}\n${fs.readFileSync(path.join(folder, entry.name), 'utf8').replace(/\r\n/g, '\n')}`)
+    }
+  }
+  return parts
+}
+
 /** app.config.js with the numbers that change with every release left out: they say nothing about the native layer. */
 function configSource() {
   return fs
@@ -54,7 +70,7 @@ function runtimeVersion() {
 
 function computeFingerprint() {
   const hash = crypto.createHash('sha256')
-  for (const part of [JSON.stringify(nativePackages()), configSource(), ...pluginSources()]) hash.update(part).update('\0')
+  for (const part of [JSON.stringify(nativePackages()), configSource(), ...pluginSources(), ...moduleSources()]) hash.update(part).update('\0')
   return hash.digest('hex')
 }
 
@@ -70,7 +86,7 @@ function check() {
   return { ok: false, current, recorded, reason: `RUNTIME_VERSION is now ${current.runtimeVersion} (it was ${recorded.runtimeVersion}): record the new fingerprint with \`node scripts/native-fingerprint.js --update\`.` }
 }
 
-module.exports = { computeFingerprint, nativePackages, check, RECORD }
+module.exports = { computeFingerprint, nativePackages, moduleSources, check, RECORD }
 
 if (require.main === module) {
   if (process.argv.includes('--update')) {

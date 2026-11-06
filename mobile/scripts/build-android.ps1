@@ -42,14 +42,50 @@ if ($Variant -eq 'play' -and $Format -eq 'aab') {
 
 Push-Location $mobile
 try {
+    $android = Join-Path $mobile 'android'
+    $marker = Join-Path $mobile 'android.variant'
+    $stash = Join-Path $mobile '.android-stash'
+    # What the last build made and the next one can reuse: Gradle's own state and the compiled native code. Nothing in them names the package.
+    $kept = @('.gradle', 'build', 'app\build', 'app\.cxx')
+    function Restore-Kept {
+        foreach ($rel in $kept) {
+            $from = Join-Path $stash $rel
+            if (-not (Test-Path $from)) { continue }
+            $to = Join-Path $android $rel
+            if (Test-Path $to) { Remove-Item $to -Recurse -Force }
+            New-Item -ItemType Directory -Force (Split-Path $to) | Out-Null
+            Move-Item $from $to
+        }
+        Remove-Item $stash -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    if (Test-Path $stash) { Restore-Kept }   # an earlier build was stopped between putting them aside and bringing them back
+
     if (-not $SkipPrebuild) {
+        $previous = if (Test-Path $marker) { (Get-Content $marker -Raw).Trim() } else { '' }
+        # `expo prebuild` adds to the project that is there, so a build for another variant would keep what the first one wrote (its package, its
+        # scheme). The project is made again from nothing, and the work of the last build is put back into it.
+        $switching = (Test-Path $android) -and -not $Clean -and $previous -ne $Variant
+        if ($switching) {
+            foreach ($rel in $kept) {
+                $from = Join-Path $android $rel
+                if (-not (Test-Path $from)) { continue }
+                $to = Join-Path $stash $rel
+                New-Item -ItemType Directory -Force (Split-Path $to) | Out-Null
+                Move-Item $from $to
+            }
+        }
         $arguments = @('expo', 'prebuild', '--platform', 'android', '--no-install')
-        if ($Clean) { $arguments += '--clean' }
+        if ($Clean -or $switching) { $arguments += '--clean' }
         & npx @arguments
-        if ($LASTEXITCODE -ne 0) { throw 'expo prebuild failed' }
+        if ($LASTEXITCODE -ne 0) { if ($switching) { Restore-Kept }; throw 'expo prebuild failed' }
+        if ($switching) { Restore-Kept }
+        Set-Content -Path $marker -Value $Variant -Encoding ascii
     }
     $sdkLine = 'sdk.dir=' + ($env:ANDROID_HOME -replace '\\', '\\')
-    Set-Content -Path (Join-Path $mobile 'android\local.properties') -Value $sdkLine -Encoding ascii
+    Set-Content -Path (Join-Path $android 'local.properties') -Value $sdkLine -Encoding ascii
+
+    # The generated entry point and the list of modules name the build's package, and Gradle does not notice when it changes: they are made again every time.
+    foreach ($generated in 'build\generated\autolinking', 'app\build\generated\autolinking') { Remove-Item (Join-Path $android $generated) -Recurse -Force -ErrorAction SilentlyContinue }
 
     Push-Location (Join-Path $mobile 'android')
     try {
