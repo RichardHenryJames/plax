@@ -2,7 +2,7 @@ name: plaxauth
 
 # A real Supabase auth + database stack on this machine only (127.0.0.1): the same GoTrue, PostgREST, Kong and Postgres
 # images Supabase runs, loaded with ../../supabase-schema.sql. It exists so the Android account code can be tested
-# against the real services instead of fakes (android/app/src/test/.../AccountLocalStackTest.java) and so the schema
+# against the real services instead of fakes (mobile/src/account/__tests__/account-local-stack.test.ts) and so the schema
 # can be proven before it is run on the live project. Start it with up.ps1; remove it with down.ps1.
 #
 # Two settings can be changed for one run, to see how a half-configured project behaves:

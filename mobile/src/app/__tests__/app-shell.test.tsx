@@ -32,6 +32,18 @@ describe('starting', () => {
     expect(screen.getAllByTestId('credit')[0]).not.toHaveTextContent('Publisher')
   })
 
+  it('tells the system once that the first stories are on the screen, and not before', async () => {
+    const rig = await mountApp({ stories: null })
+    await rig.settle()
+    expect(rig.host.drawn).toBe(0)
+    await rig.loadFirstPage(makeStories('s', 6))
+    expect(rig.host.drawn).toBe(1)
+    await swipeTo(2)
+    await chooseFromMenu('menu-topics')
+    await chooseFromMenu('menu-feed')
+    expect(rig.host.drawn).toBe(1)
+  })
+
   it('does not show a blank screen when the feed is slow: after the splash limit it shows the loading page', async () => {
     jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick', 'queueMicrotask'] })
     const rig = await mountApp({ stories: null })

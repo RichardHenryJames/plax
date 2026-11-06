@@ -91,6 +91,14 @@ export default function PrivacyPage() {
           The Android version downloaded from {SITE_DISPLAY} (not Google Play) also asks {SITE_DISPLAY} once a day whether a newer version
           exists. Nothing about you is sent. Versions from Google Play are updated by Google Play.
         </P>
+        <P>
+          <strong>Updates to the app&apos;s own code.</strong> The Android app (from {SITE_DISPLAY} and from Google Play alike) also asks
+          Expo&apos;s update service (expo.dev), when it opens, whether a newer version of its own code (its screens and wording, not a new
+          app) is ready, and downloads it in the background if so. The request carries the app&apos;s name and version, the fact that the
+          phone runs Android, and a random number that the update library makes for this installation, which the service uses to count
+          the installations that received an update and to release an update to some of them first. It carries no name, email, account,
+          advertising ID or anything you read or saved. Like any web request it shows your IP address and the time to Expo.
+        </P>
       </Section>
 
       {ADS_DISCLOSED && (

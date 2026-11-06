@@ -55,6 +55,7 @@ export interface FakeHost extends Host {
   exits: number
   ticks: number
   confirms: number
+  drawn: number
   /** What the phone answers: no browser, no mail app, no share sheet. */
   noBrowser: boolean
   noMailApp: boolean
@@ -71,6 +72,7 @@ export function fakeHost(): FakeHost {
     exits: 0,
     ticks: 0,
     confirms: 0,
+    drawn: 0,
     noBrowser: false,
     noMailApp: false,
     noShare: false,
@@ -95,6 +97,7 @@ export function fakeHost(): FakeHost {
     exit: () => void (host.exits += 1),
     tick: () => void (host.ticks += 1),
     confirm: () => void (host.confirms += 1),
+    fullyDrawn: () => void (host.drawn += 1),
   }
   return host
 }

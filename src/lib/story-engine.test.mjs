@@ -29,8 +29,8 @@ registerHooks({
 })
 const { SEEN_STORAGE_KEY, loadSeen, saveSeen } = await import('./seen-storage.ts')
 
-// The scenarios below mirror android/app/src/test/java/com/plaxlabs/news/DuplicatesTest.java:
-// same headlines, same expectations, so the website and the app agree on what is a repeat.
+// The scenarios below mirror the app's own test (mobile/src/data/__tests__/duplicates.test.ts, which came from DuplicatesTest.java of the
+// native app): same headlines, same expectations, so the website and the app agree on what is a repeat.
 const HOUR = 3600000
 const NOW = 1800000000000
 

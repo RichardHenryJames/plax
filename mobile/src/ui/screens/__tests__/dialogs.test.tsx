@@ -38,7 +38,7 @@ describe('the About dialog', () => {
 
   it('tells the website build the version, the address, how updates work and what it reads from the website', () => {
     show(about())
-    expect(text()).toBe(`${translate('en', 'about_text', '2.0.0-preview', Contact.EMAIL)}\n\n${en.about_updates}\n\n${en.about_settings}`)
+    expect(text()).toBe(`${translate('en', 'about_text', '2.0.0-preview', Contact.EMAIL)}\n\n${en.about_updates}\n\n${en.about_settings}\n\n${en.about_code}`)
     expect(text()).toContain('Version 2.0.0-preview.')
     // The address has a line to itself, so that it is never split across two.
     expect(text()).toContain(`\n${Contact.EMAIL}\n`)
@@ -46,13 +46,13 @@ describe('the About dialog', () => {
 
   it('does not describe the update check to the Google Play build, which Google Play updates', () => {
     show(about({ storeBuild: true, versionName: '2.0.0' }))
-    expect(text()).toBe(`${translate('en', 'about_text', '2.0.0', Contact.EMAIL)}\n\n${en.about_settings}`)
+    expect(text()).toBe(`${translate('en', 'about_text', '2.0.0', Contact.EMAIL)}\n\n${en.about_settings}\n\n${en.about_code}`)
     expect(text()).not.toContain('Check for updates')
   })
 
   it('tells of the ads, and of the choices the reader has, in a build that shows them', () => {
     show(about({ withAds: true, storeBuild: true }))
-    expect(text()).toBe(`${translate('en', 'about_text_ads', '2.0.0-preview', Contact.EMAIL)}\n\n${en.about_settings}`)
+    expect(text()).toBe(`${translate('en', 'about_text_ads', '2.0.0-preview', Contact.EMAIL)}\n\n${en.about_settings}\n\n${en.about_code}`)
     expect(text()).toContain('Plax shows ads from Google')
     expect(text()).toContain(`\n${Contact.EMAIL}\n`)
   })
@@ -90,7 +90,7 @@ describe('the About dialog', () => {
   it('is in Hindi, with the address on a line of its own', () => {
     show(about(), { lang: 'hi' })
     expect(screen.getByRole('header', { name: hi.about })).toBeTruthy()
-    expect(text()).toBe(`${translate('hi', 'about_text', '2.0.0-preview', Contact.EMAIL)}\n\n${hi.about_updates}\n\n${hi.about_settings}`)
+    expect(text()).toBe(`${translate('hi', 'about_text', '2.0.0-preview', Contact.EMAIL)}\n\n${hi.about_updates}\n\n${hi.about_settings}\n\n${hi.about_code}`)
     expect(text()).toContain(`\n${Contact.EMAIL}\n`)
     expect(screen.getByLabelText(hi.privacy_policy)).toBeTruthy()
     expect(screen.getByLabelText(hi.done)).toBeTruthy()

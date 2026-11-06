@@ -256,6 +256,14 @@ export function AppShell({ services, host = phoneHost, themeMode, onThemeMode }:
   const showFeed = !showTopics && !noStories
   const stripWanted = browsing && !noStories
   const overlayOpen = sheet !== null || dialog !== null
+  // The first stories are on the screen: said once, as the native app said it (reportFullyDrawn).
+  const drawn = useRef(false)
+  useEffect(() => {
+    if (showFeed && !drawn.current) {
+      drawn.current = true
+      host.fullyDrawn()
+    }
+  }, [showFeed, host])
   const storeBuild = apkUpdates.storeBuild()
   // The last prompt stays drawn while its dialog goes, as every other overlay does.
   const keptPrompts = useRef<{ notice: NoticePrompt | null; update: UpdatePrompt | null; release: Release | null }>({ notice: null, update: null, release: null })

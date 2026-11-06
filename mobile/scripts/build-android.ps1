@@ -66,6 +66,9 @@ try {
         # scheme). The project is made again from nothing, and the work of the last build is put back into it.
         $switching = (Test-Path $android) -and -not $Clean -and $previous -ne $Variant
         if ($switching) {
+            # Gradle's daemon holds on to the folders that are put aside.
+            $wrapper = Join-Path $android 'gradlew.bat'
+            if (Test-Path $wrapper) { & $wrapper --stop 2>&1 | Out-Null }
             foreach ($rel in $kept) {
                 $from = Join-Path $android $rel
                 if (-not (Test-Path $from)) { continue }

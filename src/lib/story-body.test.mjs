@@ -2,7 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { bodyWithoutHeadline } from './story-body.ts'
 
-// The cases mirror StoryTest.java in the Android app: the same inputs give the same body on both.
+// The cases are the ones of the Android app's own test of the same function (mobile/src/data/__tests__/story.test.ts): the same inputs
+// give the same body on both, because the app calls this very function.
 
 test('a headline repeated as the whole text leaves no body', () => {
   assert.equal(bodyWithoutHeadline('Markets rally', 'Markets rally'), '')

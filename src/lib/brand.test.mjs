@@ -54,18 +54,23 @@ test('the P has the proportions of the brand logo, not a squashed or stretched c
   assert.ok(Math.abs(P_BOX.width / P_BOX.height - LOGO_ASPECT) < 0.005, `the P is ${(P_BOX.width / P_BOX.height).toFixed(4)} wide per tall; the logo is ${LOGO_ASPECT.toFixed(4)}`)
 })
 
-test('the Android app draws exactly this outline, in exactly these colours', () => {
-  const files = ['drawable/ic_launcher_foreground.xml', 'drawable/ic_plax.xml', 'drawable/ic_splash.xml', 'drawable-night/ic_splash.xml']
-  for (const file of files) {
-    const xml = text(`android/app/src/main/res/${file}`)
-    const paths = [...xml.matchAll(/android:pathData="([^"]+)"/g)].map((m) => m[1])
-    assert.deepEqual(paths, [P_BOWL, P_STEM], `${file} draws a different P`)
+test('the app draws exactly this outline, in exactly these colours', () => {
+  // The app's icon set holds the P (drawn on screen), and its launcher, splash and store pictures are made from the same two paths
+  // by mobile/scripts/gen-assets.mjs.
+  const icons = text('mobile/src/ui/icons.ts')
+  const block = /plax: \{[\s\S]*?paths: \[([\s\S]*?)\n\s*\],/.exec(icons)
+  assert.ok(block, 'the P is not in the app\'s icon set')
+  assert.deepEqual([...block[1].matchAll(/d: "([^"]+)"/g)].map((m) => m[1]), [P_BOWL, P_STEM], 'the app draws a different P on screen')
+  const generator = text('mobile/scripts/gen-assets.mjs')
+  assert.deepEqual([...generator.matchAll(/^\s+'(M[^']+)',?\s*$/gm)].map((m) => m[1]), [P_BOWL, P_STEM], 'the launcher and splash pictures are made from a different P')
+  assert.ok(generator.includes(`fill="${BRAND.iconBackground.toUpperCase()}"`), 'the launcher icon is a different amber')
+  assert.ok(generator.includes(`mark('${BRAND.iconInk.toUpperCase()}')`), 'the launcher icon\'s P is a different colour')
+  assert.match(text('mobile/app.config.js'), new RegExp(`backgroundColor: '${BRAND.iconBackground}'`, 'i'), 'the adaptive icon\'s background is a different amber')
+  assert.match(text('mobile/src/ui/theme.ts'), new RegExp(`onAccent: '${BRAND.iconInk}'`, 'i'), 'the ink on the amber is a different colour')
+  for (const [file, size] of [['icon.png', 1024], ['adaptive-foreground.png', 1024], ['adaptive-monochrome.png', 1024], ['splash-icon.png', 1024], ['splash-icon-dark.png', 1024], ['favicon.png', 64]]) {
+    const { width, height } = header(`mobile/assets/${file}`)
+    assert.deepEqual([width, height], [size, size], `mobile/assets/${file} is ${width}x${height}`)
   }
-  const colors = text('android/app/src/main/res/values/colors.xml')
-  const background = colors.match(/<color name="launcher_background">(#[0-9A-Fa-f]{6})<\/color>/)?.[1]
-  assert.equal(background?.toUpperCase(), BRAND.iconBackground.toUpperCase(), 'the launcher icon is a different amber')
-  const inks = [...text('android/app/src/main/res/drawable/ic_launcher_foreground.xml').matchAll(/android:fillColor="(#[0-9A-Fa-f]{6})"/g)].map((m) => m[1].toUpperCase())
-  assert.deepEqual([...new Set(inks)], [BRAND.iconInk.toUpperCase()], 'the launcher icon\'s P is a different colour')
 })
 
 test('the icon files are the size their place needs, and the manifest says the truth about them', () => {

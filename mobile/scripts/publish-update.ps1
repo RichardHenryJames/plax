@@ -2,11 +2,11 @@
 <#
 Publishes a built Android APK as the website's update: copies it to public/plax-<version>.apk and writes
 public/updates.json, the feed the app reads. Last, it leaves a local, Git-ignored copy of the published file at
-android/artifacts/plax-<version>-preview.apk, the one to install by hand or give to someone. It only changes files.
+mobile/artifacts/plax-<version>-preview.apk, the one to install by hand or give to someone. It only changes files.
 Committing and pushing the public/ files is what deploys the website, and verify-update.ps1 then checks what is
-really being served. See README.md, "Publishing an update".
+really being served. See mobile/README.md, "Publishing an update".
 
-  .\publish-update.ps1                     # the preview build from build.ps1
+  .\publish-update.ps1                     # the preview build from build-android.ps1 -Variant preview
   .\publish-update.ps1 -Apk C:\path\x.apk  # another build of the same package
 #>
 param([string]$Apk = (Join-Path (Split-Path $PSScriptRoot -Parent) 'android\app\build\outputs\apk\release\app-release.apk'))
@@ -16,8 +16,8 @@ $repository = Split-Path $mobile -Parent
 $website = Join-Path $repository 'public'
 $pin = Join-Path $mobile 'update-signer.sha256'
 $package = 'com.plaxlabs.news.preview'      # the one build distributed from the website
-$origin = 'https://plax-rouge.vercel.app/news'   # keep in step with AppUpdates.ORIGIN
-$minimumSdk = 26                            # keep in step with minSdk in app/build.gradle
+$origin = 'https://plax-rouge.vercel.app/news'   # keep in step with PRODUCTION_SITE in src/build.ts
+$minimumSdk = 26                            # keep in step with minSdkVersion in app.config.js
 $sizeLimit = 95MB                           # the app refuses anything larger
 
 $sdk = if ($env:ANDROID_HOME) { $env:ANDROID_HOME } else { Join-Path $env:LOCALAPPDATA 'Android\Sdk' }

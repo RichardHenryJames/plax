@@ -1,9 +1,9 @@
 // The Plax "P", drawn once, and the two colours of the app icon.
 //
 // The P is the brand logo (public/plaxlabs_logo.png) traced into an outline: a bowl and a stem, each one closed shape, in a box
-// about 35 units tall. The Android app draws exactly these two paths (res/drawable/ic_launcher_foreground.xml, ic_plax.xml and
-// the two ic_splash.xml files), and the website draws them in its share-card pictures and made its icons from them, so the P is
-// the same everywhere. brand.test.mjs here and BrandTest in the Android project fail if a copy drifts.
+// about 35 units tall. The Android app draws exactly these two paths (the "plax" icon of mobile/src/ui/icons.ts, and the launcher and
+// splash pictures that mobile/scripts/gen-assets.mjs makes from them), and the website draws them in its share-card pictures and made
+// its icons from them, so the P is the same everywhere. brand.test.mjs fails if a copy drifts.
 
 export const P_BOWL =
   'M15.92,8.03 C14.6,8.14 13.95,9.39 14.9,9.99 L21.24,13.5 C23.33,14.66 24.19,15.85 24.48,17.97 C24.54,18.39 24.54,18.39 24.55,24.49 C24.57,31.15 24.55,30.69 24.72,30.88 C25.02,31.21 27.47,31.14 28.93,30.75 C34.87,29.17 38.5,23.3 37.28,17.25 C36.26,12.2 32.22,8.55 27.1,8.05 L15.92,8.03 Z'
@@ -14,7 +14,7 @@ export const P_STEM =
 /** The P's bounding box in those coordinates. Its proportions (26.02 : 34.92) are the logo's own, 1026 : 1380 pixels. */
 export const P_BOX = { x: 11.49, y: 8.03, width: 26.02, height: 34.92 } as const
 
-/** The app icon: a dark P on amber (res/values/colors.xml launcher_background and the fill of ic_launcher_foreground.xml). */
+/** The app icon: a dark P on amber (the launcher's background in mobile/app.config.js, and the ink of the pictures mobile/scripts/gen-assets.mjs makes). */
 export const BRAND = { iconBackground: '#F59E0B', iconInk: '#1A1203' } as const
 
 // How tall the P is in an icon, as a share of the icon's height. On the phone the launcher shows the middle 72 of the icon's 108

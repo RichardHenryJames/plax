@@ -1,5 +1,5 @@
-// What a card shows under its headline, without the headline said twice. A port of Story.body() in the
-// Android app (android/app/src/main/java/com/plaxlabs/news/Story.java), so both read alike.
+// What a card shows under its headline, without the headline said twice. The Android app uses this very function
+// (mobile/src/data/story.ts, as @shared/story-body; it began as Story.body() of the native app), so both read alike.
 const MINIMUM_BODY = 12
 
 // Two spellings of one sentence compare equal: case, spacing and a trailing full stop or ellipsis do not matter.

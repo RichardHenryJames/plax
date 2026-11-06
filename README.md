@@ -4,34 +4,36 @@
 
 A short-form reading platform that delivers personalized microessays, quotes, explainers, and fascinating facts — optimized for addictive, distraction-free reading.
 
-## Native Android preview
+## Android app (React Native)
 
-The independent [Android project](android/README.md) (version 1.4.1 preview)
-provides native swipeable Plax news cards in English or Hindi, topics, a **For you**
-feed built from topics you choose, light and dark themes (following the phone by default), an on-device feed cache for
-instant start and offline reading, Go deeper with English/Hindi translation,
-bookmarks, sharing and publisher links. **Share sends a link to Plax's own page for the story**, which previews well in chat apps
-and is found through the site's sitemap (see *Share a story* below). Stories you have already looked at do not come
-back when you reopen the app, and the same event reported by several outlets is shown
-once. It tells you when a newer build is published and lets you download it from the
-app (the browser saves the APK and Android asks you to confirm; nothing installs by
-itself): the feed and APK are served by this website, see *Android update feed* in
-[TECH.md](TECH.md#android-update-feed-publicupdatesjson). It works without a login;
-signing in with Google is optional and only syncs your
-topics and saved stories with the same account the website uses (see
-[SUPABASE_SETUP.md](SUPABASE_SETUP.md): the account service is currently down, so that
-part is unverified end to end). It uses the public feed and go-deeper endpoints plus two
-small routes added for sign-in, `/news/api/auth-config` and `/news/auth/app`, and the
-static update feed. Go deeper (the ✨ button) asks `/api/deeper`, the same endpoint the website uses; the app has no
-AI brief any more. The app works against the current backend.
-Open `android` in Android Studio or run `android\build.ps1` on Windows.
-This is a debug-signed preview, not a published Play Store release.
+The Android app lives in [`mobile/`](mobile/README.md) (Expo SDK 55, React Native 0.83, TypeScript). It shows the same swipeable Plax
+news cards as this website, in English or Hindi: topics, a **For you** feed built from the topics you choose, light and dark themes
+(following the phone by default), an on-device feed cache for instant start and offline reading, Go deeper with English/Hindi
+translation, bookmarks, sharing and publisher links. **Share sends a link to Plax's own page for the story**, which previews well in
+chat apps and is found through the site's sitemap (see *Share a story* below). Stories you have already looked at do not come back
+when you reopen the app, and the same event reported by several outlets is shown once. It works without a login; signing in with
+Google is optional and only syncs your topics and saved stories with the same account the website uses (see
+[SUPABASE_SETUP.md](SUPABASE_SETUP.md)).
+
+It uses this website's public feed and go-deeper endpoints (`/api/deeper`, the one the website uses), two small routes added for
+sign-in, `/news/api/auth-config` and `/news/auth/app`, and two static files: the settings file `public/app-config.json` (topics,
+switches, a notice, a few numbers: data only) and the update feed `public/updates.json`. Several rules are the website's own modules,
+imported by the app as `@shared/…` from `src/lib` (the card layout, the text cut, the no-repeat engine, the settings rules), so the
+two cannot differ.
+
+**Updates without a new bundle.** The app's JavaScript is published over the air (`eas update`) and applied the next time the app
+starts, which is what makes a fix or a change reach the Google Play build without a new release; anything that changes the native
+layer needs a new bundle, and a guard in the tests says so before one can be published by mistake. See
+[mobile/README.md](mobile/README.md) for how to publish, how to test and how to build.
+
+The native Java app that came before it (versions up to 1.7.1) is kept in this repository's history as the tag
+`native-android-1.7.1`.
 
 ## 🚀 Live
 
 **[plax-rouge.vercel.app/news](https://plax-rouge.vercel.app/news)**
 
-The site moved here when its first domain, plaxlabs.com, expired. The address is one constant (`src/lib/site.ts`, mirrored in the Android app as `FeedApi.SITE`), and tests fail if either side, or a file the apps run from, names the old one.
+The site moved here when its first domain, plaxlabs.com, expired. The address is one constant (`src/lib/site.ts`, mirrored in the Android app as `PRODUCTION_SITE` in `mobile/src/build.ts`), and tests fail if either side, or a file the apps run from, names the old one.
 
 ## ✨ Features
 
@@ -46,7 +48,7 @@ The site moved here when its first domain, plaxlabs.com, expired. The address is
 - **♾️ Infinite scroll** — Auto-fetches more content as you approach the end of your card stack
 - **🌙 Dark and light themes** — Warm marigold on near-black, or on paper. **System** is the default, like the app; Light and Dark are one tap away
 - **🎨 The same design as the app** — Serif headlines and a plain-sans text, the picture first, a soft tag and `Source · age · read time` line with Listen, Save and Share at its right end, and a Go deeper row under the text. The headline is the link to the full story. On desktop the same column sits between a left and a right panel
-- **📢 Google ads, off until configured** — A strip at the foot of the page and a full-page ad after every fifth story, on the website (AdSense) and in the Android app (AdMob): the next story is one swipe away, the ad is labelled, and where the law asks, readers are asked about their ad choices first. **Nothing is shown before an ad has actually come** (no empty bar, card or labelled blank while an ad account has not approved the app or the site), and a place that is never served is left alone for hours. With no ids set there is no script, no strip, no ad card and nothing is sent to Google (see [TECH.md](TECH.md#ads--adstriptsx-adcardtsx-adslottsx-adsruntimetsx-adchoicestsx), [android/README.md](android/README.md) and `.env.example`)
+- **📢 Google ads, off until configured** — A strip at the foot of the page and a full-page ad after every fifth story, on the website (AdSense) and in the Android app (AdMob): the next story is one swipe away, the ad is labelled, and where the law asks, readers are asked about their ad choices first. **Nothing is shown before an ad has actually come** (no empty bar, card or labelled blank while an ad account has not approved the app or the site), and a place that is never served is left alone for hours. With no ids set there is no script, no strip, no ad card and nothing is sent to Google (see [TECH.md](TECH.md#ads--adstriptsx-adcardtsx-adslottsx-adsruntimetsx-adchoicestsx), [mobile/README.md](mobile/README.md) and `.env.example`)
 - **🔗 Share a story** — Share and Copy make a link to **Plax's own page** for the story (`/news/s/<headline>-<id>`) instead of the publisher's: it previews as a card with the headline in WhatsApp and elsewhere, shows a short summary with its source and a link to the full report, and is listed in the sitemap. Only a story this server signed can become a page, so nobody can put words of their own on the domain; if anything fails, the publisher's link is shared as before. See [TECH.md](TECH.md#shared-story-pages)
 
 ### Content Sources (All Free, No API Keys Required)
@@ -203,11 +205,11 @@ plax/
 │       ├── ads-verdict.ts             # What a browser has learned about whether Google serves the ads: a place never served and asked in vain rests 6 h, so no empty ad card, strip or panel on every visit; unit-tested
 │       ├── sentence.ts                # Where a sentence ends (not after Dr., an initial or U.S.), shared by the server and the browser
 │       ├── story-order.ts             # The news stream's order (full cards first) and which telling of one event is kept; unit-tested
-│       ├── text-fit.ts                # Where a summary ends when its room does: at a sentence or a word that can end a text, never through one; unit-tested (TextFit.java is its port)
+│       ├── text-fit.ts                # Where a summary ends when its room does: at a sentence or a word that can end a text, never through one; unit-tested (the Android app uses it too)
 │       ├── brand.ts                   # The one "P" outline, its colours and proportions: the icons and share cards are drawn from it
 │       ├── brand-tile.tsx             # The "P" on the amber tile, for the share cards
 │       ├── cache.ts                   # In-memory server cache (Map-based)
-│       ├── card-fit.ts                # How a card spends its height, as the app's CardFit.java does; unit-tested
+│       ├── card-fit.ts                # How a card spends its height, which the Android app does with this very module; unit-tested
 │       ├── cloud-sync.ts              # Supabase CRUD: prefs, bookmarks, engagements
 │       ├── database.types.ts          # Supabase generated types
 │       ├── deadline.ts                # Per-source time limit for the feed fetchers
@@ -231,7 +233,7 @@ plax/
 │       ├── types.ts                   # RawContent, ProcessedCard, category maps
 │       └── wikipedia-quality.ts       # Drops Wikipedia disambiguation pages
 ├── assets/og/                         # Newsreader Bold (SIL OFL) for the share preview picture
-├── android/                           # Native Android app (see android/README.md)
+├── mobile/                            # The Android app: React Native (Expo), with its tests and release scripts (see mobile/README.md)
 │   └── plaxlabs_logo.png             # App logo
 ├── scripts/                           # brand-icons.mjs draws the icons from brand.ts; also the local Supabase stack and account check
 ├── supabase-schema.sql               # Full database schema
@@ -257,7 +259,7 @@ plax/
      when it is not set), and `NEXT_PUBLIC_ADS_POLICY=true` when the Android release with ads goes out. Never set
      `NEXT_PUBLIC_ADS_PREVIEW` here.
 3. Domain: the site is served from the project's Vercel domain, `plax-rouge.vercel.app` (**Vercel → Settings → Domains**). The address
-   is built into the Android app (`FeedApi.SITE`) and the website (`src/lib/site.ts`), so adding a custom domain later means changing both
+   is built into the Android app (`PRODUCTION_SITE` in `mobile/src/build.ts`) and the website (`src/lib/site.ts`), so adding a custom domain later means changing both
    and shipping a new app; installed apps cannot be redirected from the server.
 
 ## 🗄️ Database

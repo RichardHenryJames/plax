@@ -21,8 +21,8 @@ const card = () => ({
   section: 'india',
 })
 
-// What the Android app's feed parser does to a card before it can send it back: it trims every text field and decodes
-// HTML-escaped ampersands in the two addresses (FeedParser.stripped / FeedParser.url).
+// What the app's feed parser does to a card before it can send it back: it trims every text field and decodes
+// HTML-escaped ampersands in the two addresses (mobile/src/data/feed-parser.ts, with fixUrl).
 const androidView = (c) => {
   const strip = (s) => (s ?? '').replace(/^[ \t\r\n]+|[ \t\r\n]+$/g, '')
   const url = (s) => strip(s).replace(/&#038;/g, '&').replace(/&#38;/g, '&').replace(/&amp;/g, '&')
@@ -177,8 +177,8 @@ test('descriptions are cut at a word', () => {
   assert.equal(excerpt('  spaced \n\n out  ', 50), 'spaced out')
 })
 
-test('what the Android app sends back for a story is accepted as that very story (golden vector shared with ShareLinksTest)', () => {
-  const vector = JSON.parse(readFileSync(new URL('../../android/app/src/test/resources/share-vector.json', import.meta.url), 'utf8'))
+test('what the app sends back for a story is accepted as that very story (golden vector shared with the app\'s share-links test)', () => {
+  const vector = JSON.parse(readFileSync(new URL('./share-vector.json', import.meta.url), 'utf8'))
   const key = signingKey({ SHARE_SECRET: vector.secret })
   assert.equal(signCard(vector.served, key), vector.sig, 'the server signs the served story as recorded')
   assert.equal(vector.served.sig, vector.sig)

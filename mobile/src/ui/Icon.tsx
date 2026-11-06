@@ -1,7 +1,7 @@
 import Svg, { Path } from 'react-native-svg'
-import { ICONS, type IconName } from './icons.generated'
+import { ICONS, type IconName } from './icons'
 
-export type { IconName } from './icons.generated'
+export type { IconName } from './icons'
 
 /** One of the app's icons, drawn in one colour. It is decoration: its button or its text carries the meaning, so a screen reader skips it. */
 export function Icon({ name, size = 24, color }: { name: IconName; size?: number; color: string }) {

@@ -2,8 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fitText, ELLIPSIS, SENTENCE_SLACK_LINES } from './text-fit.ts'
 
-// The cases mirror TextFitTest.java in the Android app: the same texts and widths give the same cuts on both. A text is measured as a
-// column of 40 characters would hold it (words are not broken, as in a browser and a layout).
+// The cases are the ones the native Android app's TextFitTest had; the app now uses this very module, so the same texts and widths give the same
+// cuts on both. A text is measured as a column of 40 characters would hold it (words are not broken, as in a browser and a layout).
 const COLUMN = 40
 const countLines = (text) => {
   let lines = 1

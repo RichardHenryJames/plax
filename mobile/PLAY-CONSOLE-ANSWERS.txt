@@ -1,0 +1,128 @@
+PLAX - GOOGLE PLAY CONSOLE: WHAT TO KNOW BEFORE UPLOADING VERSION 2.0.0 (CODE 20), THE REACT NATIVE APP
+Prepared: 6 November 2026. Nothing here has been submitted: the Play Console is your account, and only you can answer its forms.
+This file is the delta on two older ones, kept in docs\: PLAY-CONSOLE-ANSWERS-1.5.5.txt (the full answers for a bundle with no ads: listing
+text, Data safety, declarations, reviewer text) and PLAY-CONSOLE-ANSWERS-ADS.txt (what changed when ads arrived in 1.6.0, and in 1.7.x).
+Everything they say about ads, the advertising ID, the News declaration and the Data safety form still holds, except what section 5 and
+section 8 below change.
+
+State key: READY = taken from the code, check it once. OWNER = only you can do it or decide it. NOT CHECKED = said plainly in section 11.
+
+
+1. ORDER OF WORK
+================
+  1. READY  Build the bundle:  pwsh scripts\build-android.ps1 -Variant play -Clean   (needs the upload key in %USERPROFILE%\.plax-signing).
+  2. READY  Check it:  node scripts\check-bundle.mjs   (it must end with "all checks passed"; it writes artifacts\aab-verification.json).
+  3. OWNER  Upload artifacts\plax-2.0.0-play.aab to the production track (or to testing first). The package is com.plaxlabs.news, the same
+            as the native app, signed by the same upload key, with version code 20 (the native 1.7.1 was 18): Play accepts it as the next
+            version of the same app, and every install is updated in place (section 9).
+  4. OWNER  When the Console shows the advertising ID message, choose "Release without permission" (section 2).
+  5. OWNER  Section 5 (one line in Data safety), section 6 (release notes), section 8 (the publisher's name).
+  6. OWNER  After the release is live: look at "App bundle explorer" for the version codes that are still active, and at the pre-launch report.
+
+
+2. THE ADVERTISING ID MESSAGE ("Release without permission")
+============================================================
+What it says: "Your advertising ID declaration says that your app uses advertising ID. A manifest file in one of your active artifacts doesn't
+include the com.google.android.gms.permission.AD_ID permission", with two buttons, "Update declaration" and "Release without permission".
+Why it appears: Play checks every active artifact of every track, not only the one being uploaded. The 2.0.0 bundle has the permission (the Google
+Mobile Ads library adds it, and check-bundle.mjs fails if it is missing). An older artifact that is still active on some track does not: the
+ad-free 1.5.x builds, which never held it. It is a warning about that old artifact, not a fault in the new bundle.
+What to press: "Release without permission". It acknowledges that the older artifact has its advertising ID zeroed out on Android 13 and later,
+which an ad-free build never reads. Do NOT press "Update declaration" and answer that the app does not use the advertising ID: 2.0.0 shows ads and
+does use it, and a No there, with the permission in the manifest, is refused (and would be untrue).
+When it goes away: when the old artifact is no longer active, that is, when a bundle with the permission has replaced it on every track that held it.
+If you pressed "Release without permission" for an earlier upload, nothing needs undoing.
+
+
+3. PERMISSIONS IN THE BUNDLE
+============================
+Asked for by the app: INTERNET, ACCESS_NETWORK_STATE. Added by libraries it uses (the Google Mobile Ads SDK, AndroidX work and the update library):
+com.google.android.gms.permission.AD_ID, ACCESS_ADSERVICES_AD_ID, ACCESS_ADSERVICES_ATTRIBUTION, ACCESS_ADSERVICES_TOPICS, WAKE_LOCK,
+FOREGROUND_SERVICE and the app's own DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION. Written into the manifest as removed: READ and WRITE_EXTERNAL_STORAGE,
+SYSTEM_ALERT_WINDOW, VIBRATE, RECORD_AUDIO, CAMERA and REQUEST_INSTALL_PACKAGES (a store app may not install packages; the website's build
+installs APKs through the browser, never through a permission). check-bundle.mjs stops on any permission outside that list.
+FOREGROUND_SERVICE is an ordinary permission and the app starts no foreground service; if the Console asks, say so.
+The native app's seven ads permissions are all still there; the permission list is the same as 1.6.x to 1.7.1, so no new permission answer is due.
+
+
+4. PLAY CONSOLE: APP CONTENT
+============================
+  Ads .................. YES, "my app contains ads". READY.
+  Advertising ID ....... YES. READY. Purposes as in section 2 of PLAX-CONSOLE-ANSWERS-ADS.txt: Advertising or marketing; Analytics; Fraud prevention,
+                         security, and compliance.
+  Target audience ...... Unchanged: 13 and over, not children.
+  News and magazines ... Unchanged answers, but read section 8 first.
+  Content rating ....... The questionnaire is yours; it asks whether the app shows ads.
+
+
+5. DATA SAFETY: ONE THING IS NEW
+================================
+Every answer of section 3 of PLAX-CONSOLE-ANSWERS-ADS.txt still holds: the ads library collects approximate location (IP address), app interactions,
+diagnostics and device or other IDs, for advertising, analytics and fraud prevention, and shares them with Google; Plax collects name and email (with
+Google sign-in), the account id, the picture address, topics and saved stories; nothing is sold; data is encrypted in transit; the account can be deleted
+in the app and at https://plax-rouge.vercel.app/news/delete-account.
+
+New in 2.0.0: when the app opens it asks Expo's update service (u.expo.dev) whether newer JavaScript is ready. The request carries the app's package version
+and runtime version, the platform, the channel, the ids of the bundles it holds, and a random installation number made by the update library (EAS-Client-ID).
+It carries no name, email, account, advertising ID or reading history (read from the library's own source, node_modules\expo-updates\...\FileDownloader.kt).
+In the form this is an identifier ("Device or other IDs", which is already declared as collected) sent to a service provider that processes it for the app
+(Expo), for "App functionality". Google does not count a transfer to a service provider that works on your behalf as "sharing", but the mapping is yours to decide
+against the form's wording on the day. The privacy policy (updated 6 November 2026) and the app's About screen say so.
+
+
+6. STORE LISTING AND RELEASE NOTES
+==================================
+Nothing in the listing text has to change. Suggested release notes (English, then Hindi if you use it):
+  "Plax 2.0: a faster, rebuilt app. The same swipeable stories, topics, For you, saved stories, Go deeper and sharing, now with smoother paging, and
+   fixes can reach you without a new download. Your saved stories, topics and language carry over. If you were signed in, sign in again: your topics and
+   saved stories come back from your account."
+Keep "Contains ads" as Play shows it, and do not say the ads are "non-intrusive".
+
+
+7. PRIVACY POLICY
+=================
+https://plax-rouge.vercel.app/news/privacy was updated on 6 November 2026 for the update service (section 5). It is deployed with the website, so it must be
+live before the bundle is released: check that the page says "Updates to the app's own code" and the date.
+
+
+8. THE PUBLISHER'S NAME AND THE NEWS DECLARATION  (the owner's decision, with its risk)
+=======================================================================================
+What the code does: no card shows a publisher's name, in any build, the Google Play one too. The headline is the link to the story at its publisher (its
+description for a screen reader gives the publisher's domain), and a story with no picture is headed by "Plax" on its poster. This is the owner's decision,
+made on 6 November 2026 so that the app and the website match. The switch is features.sourceName in public\app-config.json (false now), with SHOW_SOURCE_NAME in
+src\lib\app-features.ts for the website; a test keeps them equal. Setting both to true and pushing main brings the name back on the website and in the app, with no new bundle.
+The native app's Google Play build behaved differently: it named the publisher whatever the file said, because of the policy below.
+The risk: Google Play's News policy for aggregators says they "must provide users with clear information about the publishing sources of third-party content"
+(support.google.com/googleplay/android-developer/answer/16189314). Plax is declared an aggregator, and the News declaration says each card shows the source name (1.5.5 file,
+section 9). With no name on the card the app does not do what the declaration says, which Google may notice at review or later; Google has already sent Plax one News-policy
+notice (16 October 2026, about contact details). Some publishers' feed terms also ask for a credit.
+What to do, OWNER, one of:
+  (a) accept the risk and leave the declaration as it is (what the code does today);
+  (b) turn the names back on (two lines and a push) before or after the release; or
+  (c) change the declaration to say that the source is shown on the story page (the link) and not on the card, and be sure Google accepts that.
+Nothing was tried against Google's review: this is a description of a risk, not a finding.
+
+
+9. UPDATING IN PLACE FROM THE NATIVE APP
+========================================
+Play updates an install of 1.x to 2.0.0 in place: same package, same app signing, higher version code. On the first start the app takes over, once, from the native
+app's files: saved stories, the list of stories already seen, the language, the theme, the topics chosen for For you and the last feed. A signed-in reader signs in again (the native app sealed
+the session with a key the new app cannot read); their topics and saved stories come back from their account. This was tried on the emulator, from a native 1.7.1 build (the website's
+preview build, signed with the debug key) to the 2.0.0 preview build. It was not tried through Google Play itself.
+The first start after the update is slower than later ones (the app starts its JavaScript and reads the old files); the emulator measured about 2 to 5 seconds to the first story.
+
+
+10. OVER-THE-AIR UPDATES AND GOOGLE PLAY'S POLICY
+=================================================
+From 2.0.0 the JavaScript of the app can be updated without a new bundle (mobile\README.md, "Updates without a new bundle"). Google Play's "Device and Network Abuse" policy forbids an app to
+download executable code (dex, JAR, native libraries) from anywhere but Google Play; it makes an exception for code run by an interpreter or virtual machine that gives only indirect access
+to Android's APIs, and names JavaScript in a web view or browser as an example. The app's JavaScript runs in Hermes, an interpreter, and reaches Android only through React Native's modules; Expo's
+documentation says EAS Update is for exactly this. That is Expo's and the owner's reading, not a ruling by Google. The native layer cannot be updated this way and never is: it comes only in a bundle.
+What an update can change is limited by a check before it is published (native-fingerprint.js): a change to the native layer stops it.
+
+
+11. WHAT WAS NOT CHECKED
+========================
+Not checked, and not claimed: that Google Play's review accepts the app, its ads, the News declaration without the publisher's name, or the over-the-air updates; that AdMob approves the app (a real ad has
+never been served to this app: every run used Google's sample units); the consent message for a reader in the EEA; how the app runs on any physical phone (all runs were on an Android 16 emulator
+with software rendering); and Google sign-in against the live account service. See mobile\README.md, "What was and was not verified".

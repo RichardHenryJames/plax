@@ -31,6 +31,15 @@ class PlaxNativeModule : Module() {
     Function("confirm") {
       feedback(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) HapticFeedbackConstants.CONFIRM else HapticFeedbackConstants.VIRTUAL_KEY)
     }
+
+    // Tells the system the first stories are on the screen: the time Google Play's vitals call "time to full display".
+    Function("reportFullyDrawn") {
+      try {
+        appContext.currentActivity?.reportFullyDrawn()
+      } catch (ignored: Exception) {
+        // A phone that does not take the report is no worse off.
+      }
+    }
   }
 
   private fun feedback(kind: Int) {

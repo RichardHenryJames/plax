@@ -67,9 +67,14 @@ test('the website asks for a card\'s text with the card flag, and the app no lon
   for (const request of requests) assert.match(request, /card: true/)
   // The app has Go deeper, not an AI brief: it asks /api/deeper, and nothing in it asks /api/summarize (older installed apps still do,
   // which is why the route keeps the longer form for a request without the flag).
-  const folder = here('../../android/app/src/main/java/com/plaxlabs/news/')
-  const files = fs.readdirSync(folder).filter((name) => name.endsWith('.java'))
-  assert.ok(files.includes('DeeperApi.java'))
-  for (const name of files) assert.doesNotMatch(fs.readFileSync(new URL(name, folder), 'utf8'), /api\/summarize/, `${name} must not ask for a brief`)
-  assert.match(fs.readFileSync(new URL('DeeperApi.java', folder), 'utf8'), /\/api\/deeper/)
+  const folder = here('../../mobile/src/')
+  const sources = (directory) => fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = new URL(`${entry.name}${entry.isDirectory() ? '/' : ''}`, directory)
+    if (entry.isDirectory()) return entry.name === '__tests__' ? [] : sources(path)
+    return /\.tsx?$/.test(entry.name) ? [path] : []
+  })
+  const files = sources(folder)
+  assert.ok(files.some((path) => path.pathname.endsWith('/deeper-api.ts')))
+  for (const path of files) assert.doesNotMatch(fs.readFileSync(path, 'utf8'), /api\/summarize/, `${path.pathname} must not ask for a brief`)
+  assert.match(fs.readFileSync(new URL('data/deeper-api.ts', folder), 'utf8'), /\/api\/deeper/)
 })

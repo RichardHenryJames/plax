@@ -2,10 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { planFit, grownHero, MIN_BODY_LINES, MIN_TITLE_LINES } from './card-fit.ts'
 
-// The cases mirror CardFitTest.java in the Android app: the same numbers give the same plan on both. They are the pixels of a
-// phone page of 744 high: a 40 source line, a 58 action row, headline lines of 32 under 10 of space, summary lines of 28 under
-// 12 of space, a picture of between 117 and 262 (262 is the most it is given in these cases; the real most, 4:5 and 60% of the
-// card, is in useCardFit and StoryPage, and a test keeps the two alike).
+// The cases are the ones the native Android app's CardFitTest had; the app now uses this very module, so the same numbers give the same plan on
+// both. They are the pixels of a phone page of 744 high: a 40 source line, a 58 action row, headline lines of 32 under 10 of space, summary
+// lines of 28 under 12 of space, a picture of between 117 and 262 (262 is the most it is given in these cases; the real most, 4:5 and 60% of
+// the card, is in useCardFit and in the app's layout.ts, and a test keeps the two alike).
 
 const page = (height, titleNatural, bodyNatural) => ({
   height, meta: 40, metaBare: 40, actions: 58, titleTop: 10, titleLine: 32, titleNatural, titleMax: 4,

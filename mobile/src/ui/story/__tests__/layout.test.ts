@@ -1,7 +1,8 @@
 import { ELLIPSIS } from '@shared/text-fit'
+import { LAYOUT_RANGES } from '@shared/app-config-rules'
 import {
   BOTTOM, DEFAULT_LAYOUT_CONFIG, HEADLINE_SCALES, LONG_HEADLINE_LINES, MENU_TOUCH, TOP, ageParts, bodyCutter, bodyLineHeight, computeStoryLayout, isRoomy, lineStarts, pageGeometry,
-  titleLineHeight, typeSizes, type Box, type LayoutInput, type MeasuredLine,
+  titleLineHeight, typeSizes, type Box, type LayoutConfig, type LayoutInput, type MeasuredLine,
 } from '../layout'
 
 // A phone in which every character is 8 dp wide, so that how a text breaks into lines can be worked out here.
@@ -201,6 +202,28 @@ describe('a story page', () => {
     const base = computeStoryLayout(input(392, 780, 60, 700))
     const small = computeStoryLayout(input(392, 780, 60, 700, { config: { heroMaxWidth: 1, heroMaxHeight: 0.4, photoMinWidth: 0.4, photoMinHeight: 0.2 } }))
     expect(small.hero.height).toBeLessThan(base.hero.height)
+  })
+
+  it('keeps every part on the page, and a photograph on a 360 by 640 phone at text size 1.3, at both ends of every range the website may send', () => {
+    // The settings file may move each number anywhere inside its bounds without a new app, so that whatever it sends must still lay out.
+    const keys = Object.keys(LAYOUT_RANGES) as (keyof typeof LAYOUT_RANGES)[]
+    let pages = 0
+    for (let corner = 0; corner < 2 ** keys.length; corner++) {
+      const config = Object.fromEntries(keys.map((key, index) => [key, LAYOUT_RANGES[key][(corner >> index) & 1]])) as unknown as LayoutConfig
+      for (const [width, height] of [[360, 640], [392, 780], [412, 850]]) {
+        for (const [titleLength, bodyLength] of [[40, 160], [160, 1500], [220, 3000]]) {
+          const where = JSON.stringify({ config, width, height, titleLength, bodyLength })
+          const layout = computeStoryLayout(input(width, height, titleLength, bodyLength, { fontScale: 1.3, config }))
+          expect([where, layout.bottom <= height - BOTTOM + 0.5]).toEqual([where, true])
+          for (const box of [layout.hero, layout.meta, layout.title, layout.body]) {
+            expect([where, box.left >= -0.5 && box.left + box.width <= width + 0.5 && box.top >= TOP - 0.5 && bottomOf(box) <= height - BOTTOM + 0.5]).toEqual([where, true])
+          }
+          expect([where, layout.hero.height > 0]).toEqual([where, true])
+          pages++
+        }
+      }
+    }
+    expect(pages).toBe(16 * 3 * 3)
   })
 })
 

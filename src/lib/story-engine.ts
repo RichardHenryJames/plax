@@ -2,9 +2,10 @@
 // already seen. Pure logic (no DOM, no Node APIs, no dependencies), so it runs in the browser, in
 // route handlers and under Node's type stripping.
 //
-// A port of Similarity.java, SeenStore.java and FeedMerge.java in
-// android/app/src/main/java/com/plaxlabs/news, so the website and the Android app make the same
-// decisions. Change a constant, word list or rule there and here together.
+// The Android app imports the rules for what counts as the same event from this very module (mobile/src/data/similarity.ts, as
+// @shared/story-engine), and keeps the history and the merge in its own seen-store.ts and feed-merge.ts, which follow the SeenStore
+// and the merge here (all of it began as Similarity.java, SeenStore.java and FeedMerge.java of the native app), so the website and the
+// app make the same decisions. Change a constant, word list or rule here, and the app's tests say what else must follow.
 
 export interface EngineStory {
   id: string

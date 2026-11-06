@@ -3,15 +3,15 @@
 export const LEGAL = {
   operator: 'Plax Labs',
   contactEmail: 'richardhenryjames64@gmail.com',
-  updated: '5 November 2026',
+  updated: '6 November 2026',
   // The same day, for the sitemap. Change both when the policy changes.
-  updatedIso: '2026-11-05',
+  updatedIso: '2026-11-06',
   // How long an emailed deletion request may take. Deleting from the app or from the website is immediate.
   emailDeletionDays: 30,
   // The contact page (/contact) has its own date: Google Play's news policy wants contact details that are up to date.
   contactUpdated: '5 November 2026',
   contactUpdatedIso: '2026-11-05',
-  // The address of that page in the Android app (FeedApi.CONTACT_URL), which shows the same email; ContactTest keeps them equal.
+  // The address of that page in the Android app (Contact.pageUrl in mobile/src/ui/screens/ContactSheet.tsx), which shows the same email; the app's contact-sheet test keeps them equal.
   contactPath: '/contact',
 } as const
 

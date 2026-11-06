@@ -1,6 +1,7 @@
 // Keeps over-the-air updates safe: an update is JavaScript, and it may only reach apps whose native layer has what that JavaScript uses.
 // `runtimeVersion` in app.config.js is that promise. This computes a fingerprint of everything that decides what the native layer is (the
-// native packages and their versions, app.config.js without the version numbers, the config plugins, the app's own native modules), compares it with the one recorded in
+// native packages and their versions, what app.config.js resolves to for each build without its version numbers, the config plugins, the
+// app's own native modules), compares it with the one recorded in
 // native-fingerprint.json, and fails when the native layer changed while runtimeVersion did not (an update would then reach apps that
 // cannot run it).
 //
@@ -54,14 +55,27 @@ function moduleSources(folder = path.join(mobile, 'modules'), prefix = '') {
   return parts
 }
 
-/** app.config.js with the numbers that change with every release left out: they say nothing about the native layer. */
-function configSource() {
-  return fs
-    .readFileSync(path.join(mobile, 'app.config.js'), 'utf8')
-    .replace(/\r\n/g, '\n')
-    .replace(/const RUNTIME_VERSION = '[^']*'/, "const RUNTIME_VERSION = ''")
-    .replace(/const VERSION = '[^']*'/, "const VERSION = ''")
-    .replace(/const VERSION_CODE = \d+/, 'const VERSION_CODE = 0')
+/**
+ * What app.config.js says for each of the builds, as data, with the numbers that change with every release left out: they say nothing about the
+ * native layer. The comments and the layout of the file do not count, only what it resolves to.
+ */
+function resolvedConfigs(factory = require(path.join(mobile, 'app.config.js')), base = require(path.join(mobile, 'app.json')).expo) {
+  const configs = {}
+  const before = process.env.PLAX_VARIANT
+  try {
+    for (const variant of factory.VARIANT_NAMES) {
+      process.env.PLAX_VARIANT = variant
+      const config = factory({ config: JSON.parse(JSON.stringify(base)) })
+      delete config.version
+      delete config.runtimeVersion
+      if (config.android) delete config.android.versionCode
+      configs[variant] = config
+    }
+  } finally {
+    if (before === undefined) delete process.env.PLAX_VARIANT
+    else process.env.PLAX_VARIANT = before
+  }
+  return configs
 }
 
 function runtimeVersion() {
@@ -70,7 +84,7 @@ function runtimeVersion() {
 
 function computeFingerprint() {
   const hash = crypto.createHash('sha256')
-  for (const part of [JSON.stringify(nativePackages()), configSource(), ...pluginSources(), ...moduleSources()]) hash.update(part).update('\0')
+  for (const part of [JSON.stringify(nativePackages()), JSON.stringify(resolvedConfigs()), ...pluginSources(), ...moduleSources()]) hash.update(part).update('\0')
   return hash.digest('hex')
 }
 
@@ -86,7 +100,7 @@ function check() {
   return { ok: false, current, recorded, reason: `RUNTIME_VERSION is now ${current.runtimeVersion} (it was ${recorded.runtimeVersion}): record the new fingerprint with \`node scripts/native-fingerprint.js --update\`.` }
 }
 
-module.exports = { computeFingerprint, nativePackages, moduleSources, check, RECORD }
+module.exports = { computeFingerprint, nativePackages, moduleSources, resolvedConfigs, check, RECORD }
 
 if (require.main === module) {
   if (process.argv.includes('--update')) {

@@ -1,7 +1,9 @@
+import { bodyWithoutHeadline } from '@shared/story-body'
+
 /**
  * A story as the feed serves it and as the phone keeps it (saved, cached, shared): plain text and numbers, no behaviour. The rules
- * about a story (its body without the headline repeated, its reading time, its link) are the functions below. A port of Story.java of
- * the native app (1.7.1), with the same rules and test cases.
+ * about a story (its body without the headline repeated, its reading time, its link) are the functions below. They are the rules of
+ * Story.java of the native app (1.7.1), with the same test cases; the body is the website's own (src/lib/story-body.ts).
  */
 export interface Story {
   readonly id: string
@@ -18,8 +20,6 @@ export interface Story {
   /** The server's signature over the story as it served it (32 lower-case hexadecimal digits), or '' when it has none. */
   readonly sig: string
 }
-
-const MINIMUM_BODY = 12
 
 export const CAUGHT_UP_ID = '__caught_up__'
 
@@ -73,30 +73,12 @@ export function headlineKey(story: Story): string {
   return story.title.trim() === '' ? story.id : story.title.trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
-/** What sets a repeated headline apart from the text after it: a colon, full stop, bar, dash, ellipsis or danda. */
-const AFTER_HEADLINE = /^(?:\s*[:.|\u2013\u2014\u2026\u0964]|\s+-)[\s:.|\u2013\u2014\u2026\u0964-]*/
-
-const comparable = (value: string): string => value.toLowerCase().replace(/\s+/g, ' ').replace(/[.\u2026\s]+$/, '')
-
 /**
  * Body text without the headline repeated: the feed often returns it again as the whole text, or as a first sentence set apart by a
  * separator. A sentence that merely begins with the headline stays whole, so "Evolution" over "Evolution is the change in..." never
  * becomes "is the change in...".
  */
-export function bodyOf(story: Story): string {
-  const text = story.content.trim()
-  const lead = story.title.trim()
-  if (lead === '') return text
-  if (comparable(text) === comparable(lead)) return ''
-  if (text.length > lead.length && text.slice(0, lead.length).toLowerCase() === lead.toLowerCase()) {
-    const separator = AFTER_HEADLINE.exec(text.slice(lead.length))
-    if (separator) {
-      const rest = text.slice(lead.length + separator[0].length).trim()
-      return rest.length < MINIMUM_BODY ? '' : rest
-    }
-  }
-  return text
-}
+export const bodyOf = (story: Story): string => bodyWithoutHeadline(story.title, story.content)
 
 /** An https address with a host, and no user name, password or port. Anything else is not a link the app opens or loads. */
 export function isWebLink(value: string): boolean {

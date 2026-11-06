@@ -4,7 +4,7 @@
 import zlib from 'node:zlib'
 
 const SECTIONS = ['india', 'world', 'us', 'tech', 'business', 'science']
-const SOURCES = ['The Hindu', 'NDTV', 'BBC News', 'Al Jazeera', 'India Today', 'The Hindu Business']
+export const SOURCES = ['The Hindu', 'NDTV', 'BBC News', 'Al Jazeera', 'India Today', 'The Hindu Business']
 
 const EN_TITLES = [
   'Rupee steadies against the dollar',

@@ -4,7 +4,7 @@ import { Chip, DangerButton, IconButton, LineButton, MenuButton, PrimaryButton, 
 import { LanguageProvider } from '../i18n-context'
 import { DARK_PALETTE, LIGHT_PALETTE, ThemeProvider, resolveTheme, useTheme } from '../theme'
 import { Dialog, Sheet, SidePanel, ToastProvider, useToast } from '../overlays'
-import { ICONS } from '../icons.generated'
+import { ICONS } from '../icons'
 import { Icon } from '../Icon'
 
 const wrap = (node: React.ReactNode, mode: 'light' | 'dark' = 'light', lang: 'en' | 'hi' = 'en') => (

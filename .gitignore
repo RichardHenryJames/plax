@@ -36,7 +36,7 @@ next-env.d.ts
 # IDE
 .idea/
 
-# Standalone Android app
+# Leftovers of the retired native Android app (its source is gone; the device tests' emulator disk still lives in android/.tools)
 /android/.gradle/
 /android/**/build/
 /android/local.properties

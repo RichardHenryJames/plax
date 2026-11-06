@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { SITE_DISPLAY, SITE_HOST, SITE_URL } from './site.ts'
 import { BASE_PATH } from './base-path.ts'
 
-// The address the Plax website and both Android apps use. It stopped working once before: the domain they were built
+// The address the Plax website and the Android app use. It stopped working once before: the domain they were built
 // around expired, and every installed app lost its stories and its sign-in at once. These tests keep the address in one
 // place and fail if a different one, or the expired one, is left anywhere the apps or the site run from.
 
@@ -24,10 +24,10 @@ test('the site address is one https origin under the base path, and the written 
   assert.equal(SITE_DISPLAY, SITE_URL.slice('https://'.length), 'the address without its scheme')
 })
 
-test('the Android app has the same address built in', () => {
-  const source = read('android/app/src/main/java/com/plaxlabs/news/FeedApi.java')
-  const built = /static final String SITE = "([^"]+)";/.exec(source)
-  assert.ok(built, 'FeedApi.SITE not found')
+test('the app has the same address built in', () => {
+  const source = read('mobile/src/build.ts')
+  const built = /export const PRODUCTION_SITE = '([^']+)'/.exec(source)
+  assert.ok(built, 'PRODUCTION_SITE not found in mobile/src/build.ts')
   assert.equal(built[1], SITE_URL, 'the app would talk to a different address from the one the site publishes')
 })
 
@@ -38,9 +38,11 @@ test('the update feed names a file on this site, with the version in the name', 
 })
 
 // Where the site and the apps are built from. Documentation and test fixtures are free to mention history.
-const RUNS_FROM = ['src', 'next.config.js', 'vercel.json', 'public/updates.json', 'android/app/build.gradle', 'android/app/src/main',
-  'android/publish-update.ps1', 'android/verify-update.ps1', 'scripts']
-const EXTENSIONS = /\.(ts|tsx|js|mjs|json|css|java|xml|gradle|ps1|yml|properties)$/
+const RUNS_FROM = ['src', 'next.config.js', 'vercel.json', 'public/updates.json', 'mobile/src', 'mobile/app.config.js', 'mobile/app.json',
+  'mobile/modules', 'mobile/plugins', 'mobile/scripts', 'mobile/e2e', 'scripts']
+const EXTENSIONS = /\.(ts|tsx|js|mjs|json|css|kt|java|xml|gradle|ps1|yml|properties)$/
+// What a build writes is not where anything is made from.
+const BUILD_FOLDERS = new Set(['node_modules', 'build', '.gradle', '.cxx'])
 // The two files that explain the history of the address.
 const EXEMPT = new Set(['src/lib/site.ts', 'src/lib/site.test.mjs'])
 
@@ -50,7 +52,7 @@ function files(path) {
   if (statSync(full).isFile()) return [path]
   return readdirSync(full, { withFileTypes: true }).flatMap((entry) => {
     const child = `${path}/${entry.name}`
-    if (entry.isDirectory()) return entry.name === 'node_modules' ? [] : files(child)
+    if (entry.isDirectory()) return BUILD_FOLDERS.has(entry.name) ? [] : files(child)
     return EXTENSIONS.test(entry.name) ? [child] : []
   })
 }

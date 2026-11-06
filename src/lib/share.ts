@@ -6,7 +6,7 @@
 // the site's domain: a card with a different headline, text or link no longer matches its signature.
 //
 // This file has no dependencies, so the browser, the server and the unit tests all use the same rules. The Android app
-// follows the same canonical form (see ShareLinks.java): clients may trim text and decode "&amp;" in addresses, as the
+// follows the same canonical form (see mobile/src/data/share-links.ts): clients may trim text and decode "&amp;" in addresses, as the
 // app's feed parser does, and the signature still matches because both sides canonicalise first.
 
 export const SHARE_VERSION = 'plax-share-v1'

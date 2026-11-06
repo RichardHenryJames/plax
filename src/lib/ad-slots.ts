@@ -1,6 +1,6 @@
 // Where the ads go in a feed. A reader gets one full-page ad after every fifth story: never before the fifth, so the first five
-// stories are clean, and never as the last thing in the list, so the feed does not end on an ad. The Android app has the same
-// rule (AdSlots.java), so a phone and a browser count alike.
+// stories are clean, and never as the last thing in the list, so the feed does not end on an ad. The Android app uses this very
+// module (mobile/src/ads/ad-slots.ts), so a phone and a browser count alike.
 //
 // Pure arithmetic on a count, so it can be tested without a browser. The slots are numbered from 1, and a slot keeps its number
 // when more stories are loaded after it, so whatever was loaded for it (an ad) stays with it.

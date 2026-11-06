@@ -5,6 +5,7 @@ interface PlaxNative {
   readLegacyPreferences(): Promise<string | null>
   tick(): void
   confirm(): void
+  reportFullyDrawn(): void
 }
 
 const native = (): PlaxNative | null => requireOptionalNativeModule<PlaxNative>('PlaxNative')
@@ -33,5 +34,14 @@ export function confirm(): void {
     native()?.confirm()
   } catch {
     // Feedback is a nicety.
+  }
+}
+
+/** The first stories are on the screen: the system is told, so that the time the app took to show them is measured (Google Play's vitals read it). */
+export function reportFullyDrawn(): void {
+  try {
+    native()?.reportFullyDrawn()
+  } catch {
+    // A measurement is a nicety.
   }
 }

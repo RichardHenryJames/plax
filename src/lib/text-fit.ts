@@ -4,8 +4,8 @@
 // never so early that the card is left with a hole: a sentence is a better place to stop than a word only when it is within `slack`
 // lines of the room.
 //
-// Pure, with the measuring passed in (how many lines a text takes at the card's width), so that it can be tested without a browser. A
-// port of TextFit.java in the Android app (android/app/src/main/java/com/plaxlabs/news/TextFit.java); useCardFit measures with the
+// Pure, with the measuring passed in (how many lines a text takes at the card's width), so that it can be tested without a browser. The
+// Android app uses this very module (as @shared/text-fit; it began as TextFit.java of the native app): useCardFit measures with the
 // page, the app with a layout, and both cut alike.
 import { endsSentence, trimWeakTail } from './sentence.ts'
 

@@ -18,7 +18,8 @@ const VARIANTS = {
 }
 
 // The native layer's version. An update published for one runtime version reaches only builds that have it, so it is changed
-// (and src/native-deps.snapshot.json with it) whenever a native dependency or a native setting changes, and never otherwise.
+// (and native-fingerprint.json with it, by `node scripts/native-fingerprint.js --update`) whenever a native dependency or a native
+// setting changes after a build with it has shipped, and never otherwise.
 const RUNTIME_VERSION = '2.0.0'
 const VERSION = '2.0.0'
 const VERSION_CODE = 20
@@ -118,3 +119,6 @@ module.exports = ({ config }) => {
     },
   }
 }
+
+// For scripts/native-fingerprint.js, which resolves the configuration of every build.
+module.exports.VARIANT_NAMES = Object.keys(VARIANTS)

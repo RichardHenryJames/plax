@@ -1,7 +1,7 @@
 import * as Clipboard from 'expo-clipboard'
 import * as WebBrowser from 'expo-web-browser'
 import { BackHandler, Linking, Platform, Share } from 'react-native'
-import { confirm, tick } from '../platform/native'
+import { confirm, reportFullyDrawn, tick } from '../platform/native'
 
 /** What the app asks of the phone itself: the browser, the mail app, the clipboard, the share sheet. The shell takes it as a parameter, so that a test can stand in for the phone. */
 export interface Host {
@@ -17,6 +17,8 @@ export interface Host {
   /** The touch feedback the native app gave: a light tick as a page changes, a firmer one when a story is saved. */
   tick(): void
   confirm(): void
+  /** The first stories are on the screen (once per start): the system measures the time the app took to show them. */
+  fullyDrawn(): void
   /** The phone's Android API level. */
   readonly sdk: number
 }
@@ -36,5 +38,6 @@ export const phoneHost: Host = {
   exit: () => BackHandler.exitApp(),
   tick,
   confirm,
+  fullyDrawn: reportFullyDrawn,
   sdk: Number(Platform.Version),
 }

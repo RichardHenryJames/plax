@@ -38,7 +38,7 @@ interface Vector {
 }
 // The golden vector the website's own test (src/lib/share.test.mjs) signs and verifies: one story as the feed serves it, and what the
 // app must send back for it.
-const vector = require('../../../../android/app/src/test/resources/share-vector.json') as Vector
+const vector = require('../../../../src/lib/share-vector.json') as Vector
 
 beforeEach(() => resetShareLinks())
 

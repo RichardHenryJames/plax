@@ -26,8 +26,8 @@ export function AboutDialog({ visible, versionName, withAds, storeBuild, onPriva
   const { t } = useT()
   let text = t(withAds ? 'about_text_ads' : 'about_text', versionName, Contact.EMAIL)
   if (!storeBuild) text += `\n\n${t('about_updates')}`
-  // Both builds read the website's settings (topics, sections, notices), and say so.
-  text += `\n\n${t('about_settings')}`
+  // Both builds read the website's settings (topics, sections, notices) and ask the update service for newer JavaScript, and say so.
+  text += `\n\n${t('about_settings')}\n\n${t('about_code')}`
   return (
     <Dialog
       visible={visible}

@@ -25,14 +25,14 @@ const nextConfig = {
   },
 
   // The Android app's update feed and the APK it points to are static files in public/ (see
-  // android/README.md, "Publishing an update"). The app reads the feed with an exact JSON type and
+  // mobile/README.md, "Publishing an update"). The app reads the feed with an exact JSON type and
   // a no-store request, so the feed must never be cached by anything between the site and the phone.
   // The APK is not cacheable either: on 10 October 2026 a request for its first two bytes (Range: bytes=0-1)
   // was stored by the shared cache in front of this site as if it were the whole file, and every later
   // download got those 2 bytes for an hour. Probe files showed that with "public, max-age" a ranged request
   // arriving first poisons later plain downloads, and that with no-store it does not (two samples).
   // app-config.json is the same kind of file: data the app (both builds) reads at run time, so that a topic, a switch or a
-  // notice can change without a new bundle (see android/README.md, "What the website can change without a new app").
+  // notice can change without a new bundle (see mobile/README.md, "What the website can change without a new app").
   async headers() {
     return [
       {

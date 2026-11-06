@@ -9,13 +9,12 @@ import {
 
 // public/app-config.json is data the Android app reads at run time (and the website reads for the numbers it shares with the
 // app), so that a topic, a switch, a notice or a number can change without a new Google Play bundle. A bad file must never get
-// out: these tests apply the app's rules to the real file, and run the same cases as AppConfigTest in the app, so that what
-// passes here is what the app takes whole.
+// out: these tests apply the app's rules to the real file, and run the same cases as the app's own test
+// (mobile/src/config/__tests__/app-config.test.ts), so that what passes here is what the app takes whole.
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url))
 const read = (path) => readFileSync(join(ROOT, path), 'utf8')
 const FILE = read('public/app-config.json')
-const LIBRARY = read('android/app/src/main/java/com/plaxlabs/news/AppConfig.java')
 
 test('the published file is plain strict JSON, small, and passes every rule of the app', () => {
   assert.ok(Buffer.byteLength(FILE, 'utf8') <= MAX_BYTES, `at most ${MAX_BYTES} bytes: the app refuses a larger one`)
@@ -111,14 +110,15 @@ test('the website shows a publisher\'s name exactly when the file the app reads 
   assert.match(read('src/components/SavedScreen.tsx'), /SHOW_SOURCE_NAME && card\.source/, 'the saved list does not ask SHOW_SOURCE_NAME')
 })
 
-test('the Google Play build names the publisher whatever the file says', () => {
-  // Google Play's News policy asks an aggregator for clear information about the publishing sources of what it shows, and Plax's
-  // declaration says each card shows its source. The website and the website's build follow features.sourceName; the Google Play build
-  // does not (AppConfig.Features.namesSource, run by AppConfigTest). If this is ever changed on purpose, change the declaration too.
-  const library = read('android/app/src/main/java/com/plaxlabs/news/AppConfig.java')
-  assert.match(library, /boolean namesSource\(boolean playBuild\) \{ return playBuild \|\| sourceName; \}/, 'the Google Play build no longer always names the publisher')
-  const adapter = read('android/app/src/main/java/com/plaxlabs/news/StoryAdapter.java')
-  assert.match(adapter, /features\(\)\.namesSource\(MainActivity\.playBuild\)/, 'the credit line does not ask namesSource')
+test('the app names a publisher exactly when the file says so, in every build, the Google Play one too', () => {
+  // The native app's Google Play build (1.7.1 and before) named the publisher whatever the file said, for Google Play's News policy on
+  // aggregators, which asks for clear information about the publishing sources of what is shown. The React Native app does what the
+  // website does: the one switch decides, and flipping features.sourceName to true brings the name back with no new bundle. If a build
+  // is ever to name it whatever the file says, change this test, the declaration in Play Console and showsSourceName together.
+  const config = read('mobile/src/config/app-config.ts')
+  assert.match(config, /export const showsSourceName = \(config: AppConfig\): boolean => config\.features\.sourceName\s*$/m, 'the app no longer follows features.sourceName alone')
+  assert.match(read('mobile/src/app/FeedView.tsx'), /const namesSource = showsSourceName\(config\)/, 'the credit line does not ask showsSourceName')
+  assert.doesNotMatch(read('mobile/src/app/story-text.ts'), /isPlayBuild|playBuild/, 'the credit line looks at the build')
 })
 
 test('the news sections the file lists are the ones the website has, in the same order', () => {
@@ -131,11 +131,11 @@ test('the news sections the file lists are the ones the website has, in the same
   assert.deepEqual(listed, website, 'a section on the website that the app does not list (or the other way round)')
 })
 
-test('the list of sites a link may open is the same in the website and in the app', () => {
-  const written = /LINK_HOSTS\s*=\s*Set\.of\(([^)]*)\)/.exec(LIBRARY)
-  assert.ok(written, 'LINK_HOSTS not found in AppConfig.java')
-  const hosts = [...written[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]).sort()
-  assert.deepEqual(hosts, [...LINK_HOSTS].sort())
+test('the app takes its rules, and the list of sites a link may open, from this file\'s own module', () => {
+  // The app imports app-config-rules.ts (as @shared/app-config-rules) instead of keeping a copy, so the two cannot differ.
+  assert.match(read('mobile/src/config/app-config.ts'), /from '@shared\/app-config-rules'/)
+  assert.match(read('mobile/src/updates/apk-updates.ts'), /from '@shared\/app-config-rules'/)
+  assert.ok(LINK_HOSTS.length >= 1 && LINK_HOSTS.every((host) => /^[a-z0-9.-]+$/.test(host)), 'LINK_HOSTS is a list of host names')
 })
 
 test('the server sends the file as JSON that no cache keeps', () => {

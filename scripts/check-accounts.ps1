@@ -97,7 +97,7 @@ $settings = Json $settingsResponse.Text
 # 3. Google sign-in
 Check 'Google sign-in is switched on' ($settings -and $settings.external.google -eq $true) '' "Dashboard > Authentication > Providers > Google > enable, with the Google client id and secret ($runbook, steps 4 and 5)."
 Check 'new readers may sign up' ($settings -and $settings.disable_signup -ne $true) '' "Dashboard > Authentication > Sign In / Providers: turn on 'Allow new users to sign up'. Otherwise only people who already have an account can sign in."
-# The page Supabase must return the reader to: the one the installed app asks for (FeedApi.SITE + /auth/app), whatever -Site is.
+# The page Supabase must return the reader to: the one the installed app asks for (PRODUCTION_SITE of mobile/src/build.ts + /auth/app), whatever -Site is.
 $returnPage = 'https://plax-rouge.vercel.app/news/auth/app?app=com.plaxlabs.news.preview'
 $redirect = [uri]::EscapeDataString($returnPage)
 $authorize = Send 'GET' "$Url/auth/v1/authorize?provider=google&redirect_to=$redirect&code_challenge=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ&code_challenge_method=s256"

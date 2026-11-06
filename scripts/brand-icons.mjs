@@ -2,7 +2,7 @@
 //   npm i --no-save playwright-core     (once; only this script needs it, so it is not a dependency)
 //   node scripts/brand-icons.mjs        (set BROWSER to a Chromium, Chrome or Edge executable if none is found)
 // It rewrites src/app/icon.png, src/app/apple-icon.png, public/icon-192.png, public/icon-512.png and, for the Play listing,
-// android/artifacts/play/icon-512.png (git-ignored). src/lib/brand.test.mjs checks their sizes and colour types.
+// mobile/artifacts/play/icon-512.png (git-ignored). src/lib/brand.test.mjs checks their sizes and colour types.
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -44,7 +44,7 @@ const OUTPUTS = [
   { file: join(ROOT, 'src', 'app', 'apple-icon.png'), size: 180, radius: 0, share: P_IN_TILE, transparent: false },
   { file: join(ROOT, 'public', 'icon-192.png'), size: 192, radius: 0, share: P_IN_FULL_BLEED, transparent: false },
   { file: join(ROOT, 'public', 'icon-512.png'), size: 512, radius: 0, share: P_IN_FULL_BLEED, transparent: false },
-  { file: join(ROOT, 'android', 'artifacts', 'play', 'icon-512.png'), size: 512, radius: 0, share: P_IN_TILE, canvas: true },
+  { file: join(ROOT, 'mobile', 'artifacts', 'play', 'icon-512.png'), size: 512, radius: 0, share: P_IN_TILE, canvas: true },
 ]
 
 const browser = await chromium.launch({ executablePath, headless: true })

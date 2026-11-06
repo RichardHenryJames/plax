@@ -2,14 +2,15 @@ import { SITE_HOST } from './site.ts'
 import { BASE_PATH } from './base-path.ts'
 
 // The rules of public/app-config.json, the file the Plax website serves to the Android app (at /news/app-config.json) and
-// that the website itself reads for the numbers it shares with the app. The app (AppConfig.java) applies the same rules to
-// what it receives and keeps its built-in value for anything that breaks one; this is the same check for the owner, run by
-// the tests before a bad file can be published. app-config.test.mjs runs the same cases (app-config-cases.json) through
-// this and through the app's parser, so the two cannot drift apart.
+// that the website itself reads for the numbers it shares with the app. The app (mobile/src/config/app-config.ts) imports these same
+// rules (as @shared/app-config-rules) and applies them to what it receives, keeping its built-in value for anything that breaks one;
+// this is the same check for the owner, run by the tests before a bad file can be published. app-config.test.mjs runs the cases
+// (app-config-cases.json) through this, and the app's own test runs the same cases through the app's parser, so the two cannot drift
+// apart.
 //
 // The file is DATA ONLY. It can switch things off, change a number within its bounds, list the topics, show one notice,
 // say that a newer version is on Google Play, and add a few links. It never holds code, so it cannot fix a bug, change a
-// screen or add a feature: those need a new app version (Google Play does not allow an app to download code).
+// screen or add a feature: those need a new app version, or an over-the-air update of the app's JavaScript (mobile/README.md).
 
 export const SCHEMA_VERSION = 1
 export const MAX_BYTES = 16 * 1024
@@ -282,7 +283,7 @@ function linkOk(value: unknown): boolean {
 }
 
 /**
- * What the app would not take from this document (already read with parseStrict), by the names AppConfig.java uses. A
+ * What the app would not take from this document (already read with parseStrict), by the names the app's parser uses. A
  * document whose schemaVersion is not 1 is refused whole.
  */
 export function checkAppConfig(root: unknown): Checked {
@@ -324,8 +325,8 @@ export function checkAppConfig(root: unknown): Checked {
     else {
       // Each number is judged on its own. The ranges keep a picture's least (at most 70% of the column, 35% of the page) below its
       // most (at least 100% and 40%), so the two can never cross; and the least is kept small enough that a story with a long
-      // headline and a long summary still keeps its photograph on a 360 x 640 page at a 1.3 text size (FitDeviceTest lays every
-      // story out at both ends of every range).
+      // headline and a long summary still keeps its photograph on a 360 x 640 page at a 1.3 text size (the app's layout test,
+      // mobile/src/ui/story/__tests__/layout.test.ts, lays stories out at both ends of every range).
       for (const [key, value] of layout) {
         const range = (LAYOUT_RANGES as Record<string, readonly [number, number]>)[key]
         if (!range) { unknown.push(`unknown:layout.${key}`); continue }

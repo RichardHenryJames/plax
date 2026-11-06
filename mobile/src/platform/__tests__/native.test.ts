@@ -1,4 +1,4 @@
-import { confirm, readLegacyPreferences, tick } from '../native'
+import { confirm, readLegacyPreferences, reportFullyDrawn, tick } from '../native'
 
 jest.mock('expo', () => ({
   requireOptionalNativeModule: () => (globalThis as { __plaxNative?: unknown }).__plaxNative ?? null,
@@ -30,28 +30,28 @@ describe('the app’s own native module', () => {
   })
 
   it('ticks and confirms through the module', () => {
-    const module = { tick: jest.fn(), confirm: jest.fn() }
+    const module = { tick: jest.fn(), confirm: jest.fn(), reportFullyDrawn: jest.fn() }
     provide(module)
     tick()
     tick()
     confirm()
+    reportFullyDrawn()
     expect(module.tick).toHaveBeenCalledTimes(2)
     expect(module.confirm).toHaveBeenCalledTimes(1)
+    expect(module.reportFullyDrawn).toHaveBeenCalledTimes(1)
   })
 
-  it('never throws for feedback: a phone that cannot tick just does not', () => {
-    provide({
-      tick: () => {
-        throw new Error('no vibrator')
-      },
-      confirm: () => {
-        throw new Error('no vibrator')
-      },
-    })
+  it('never throws for feedback or for the measurement: a phone that cannot tick just does not', () => {
+    const fail = () => {
+      throw new Error('no vibrator')
+    }
+    provide({ tick: fail, confirm: fail, reportFullyDrawn: fail })
     expect(() => tick()).not.toThrow()
     expect(() => confirm()).not.toThrow()
+    expect(() => reportFullyDrawn()).not.toThrow()
     provide(undefined)
     expect(() => tick()).not.toThrow()
     expect(() => confirm()).not.toThrow()
+    expect(() => reportFullyDrawn()).not.toThrow()
   })
 })

@@ -8,8 +8,8 @@
 // card too short for the minimum picture and a few lines of summary has no picture, and before the summary is cut below three lines
 // the headline gives up lines, but never below two.
 //
-// Pure arithmetic in pixels, so it can be tested without a browser. A port of CardFit.java in the Android app
-// (android/app/src/main/java/com/plaxlabs/news/CardFit.java), so both lay a story out alike; useCardFit measures the
+// Pure arithmetic in pixels, so it can be tested without a browser. The Android app uses this very module (mobile/src/ui/story/layout.ts,
+// as @shared/card-fit; it began as CardFit.java of the native app), so both lay a story out alike; useCardFit measures the
 // text and applies the plan.
 
 /** The least of the summary worth showing before the headline gives up a line to make room for it. */
