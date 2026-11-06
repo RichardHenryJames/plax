@@ -40,7 +40,9 @@ Asked for by the app: INTERNET, ACCESS_NETWORK_STATE. Added by libraries it uses
 com.google.android.gms.permission.AD_ID, ACCESS_ADSERVICES_AD_ID, ACCESS_ADSERVICES_ATTRIBUTION, ACCESS_ADSERVICES_TOPICS, WAKE_LOCK,
 FOREGROUND_SERVICE and the app's own DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION. Written into the manifest as removed: READ and WRITE_EXTERNAL_STORAGE,
 SYSTEM_ALERT_WINDOW, VIBRATE, RECORD_AUDIO, CAMERA and REQUEST_INSTALL_PACKAGES (a store app may not install packages; the website's build
-installs APKs through the browser, never through a permission). check-bundle.mjs stops on any permission outside that list.
+installs APKs through the browser, never through a permission), and three that libraries add for features the app does not use: USE_BIOMETRIC and
+USE_FINGERPRINT (expo-secure-store's optional biometric prompt; the app keeps its session in the Android Keystore without one) and
+com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE (Google Play's install referrer). check-bundle.mjs stops on any permission outside the list.
 FOREGROUND_SERVICE is an ordinary permission and the app starts no foreground service; if the Console asks, say so.
 The native app's seven ads permissions are all still there; the permission list is the same as 1.6.x to 1.7.1, so no new permission answer is due.
 

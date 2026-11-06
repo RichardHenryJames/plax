@@ -162,7 +162,7 @@ check('it asks for no permission beyond INTERNET, the connection state and what 
 check('it does not ask to install packages (a store app may not update itself)', !permissions.includes('android.permission.REQUEST_INSTALL_PACKAGES'))
 check('the advertising ID permission is declared, as the Play Console declaration says the app uses it', permissions.includes('com.google.android.gms.permission.AD_ID'))
 check("the AdMob application id is the owner's, not Google's sample (without one the ad SDK stops the app at start-up)", manifest.includes(LIVE_APP_ID) && !manifest.includes(SAMPLE_APP_ID))
-check('over-the-air updates are on, for the production channel of this project', manifest.includes(`https://u.expo.dev/${PROJECT_ID}`) && /expo-channel-name[^"]*production/.test(manifest.replace(/&quot;/g, '"')))
+check('over-the-air updates are on, for the production channel of this project', manifest.includes(`https://u.expo.dev/${PROJECT_ID}`) && /expo-channel-name"\s*:\s*"production"/.test(manifest.replace(/&quot;/g, '"')))
 check(`the runtime version of the updates is ${RUNTIME_VERSION}`, manifest.includes('expo.modules.updates.EXPO_RUNTIME_VERSION'))
 
 const zip = readZip(bundle)
@@ -175,7 +175,13 @@ if (script) {
   check('the script is Hermes bytecode, not plain text', zip.read(script).readUInt32LE(0) === 0x1f1903c1 || !/^\s*(var|!function|__d\()/.test(code.slice(0, 40)))
 }
 const forbidden = names.filter((name) => /\.(pem|jks|keystore|p12|env)$|google-services\.json$|upload\.properties$/i.test(name))
-check('no key, certificate or private setting is packed into the bundle', forbidden.length === 0, forbidden.join(', '))
+// expo-updates ships Expo's own public root certificate (it checks manifests signed by Expo with it). That holds no secret, which is read here and not assumed.
+const secretLooking = forbidden.filter((name) => {
+  if (name !== 'base/assets/expo-root.pem') return true
+  const text = zip.read(zip.entries.find((entry) => entry.name === name)).toString('utf8')
+  return !/^-----BEGIN CERTIFICATE-----/.test(text.trim()) || /PRIVATE KEY/.test(text)
+})
+check('no key, certificate or private setting is packed into the bundle (Expo\'s public root certificate is the one file of that kind)', secretLooking.length === 0, secretLooking.join(', '))
 
 const libraries = zip.entries.filter((entry) => /^base\/lib\/[^/]+\/[^/]+\.so$/.test(entry.name))
 check('it has native libraries for the four processors', ['armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'].every((abi) => libraries.some((entry) => entry.name.startsWith(`base/lib/${abi}/`))))

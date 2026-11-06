@@ -65,10 +65,12 @@ try {
         # `expo prebuild` adds to the project that is there, so a build for another variant would keep what the first one wrote (its package, its
         # scheme). The project is made again from nothing, and the work of the last build is put back into it.
         $switching = (Test-Path $android) -and -not $Clean -and $previous -ne $Variant
-        if ($switching) {
-            # Gradle's daemon holds on to the folders that are put aside.
+        if (($Clean -or $switching) -and (Test-Path $android)) {
+            # Gradle's daemon holds on to the folders that are put aside or wiped.
             $wrapper = Join-Path $android 'gradlew.bat'
             if (Test-Path $wrapper) { & $wrapper --stop 2>&1 | Out-Null }
+        }
+        if ($switching) {
             foreach ($rel in $kept) {
                 $from = Join-Path $android $rel
                 if (-not (Test-Path $from)) { continue }
@@ -95,7 +97,11 @@ try {
         $task = if ($Format -eq 'aab') { ':app:bundleRelease' } else { ':app:assembleRelease' }
         & .\gradlew.bat --console=plain $task "-PreactNativeArchitectures=$Abis"
         if ($LASTEXITCODE -ne 0) { throw "Gradle failed ($task)" }
-    } finally { Pop-Location }
+    } finally {
+        # A daemon left running keeps the build folders locked, and the next build that wipes them (a clean one, or one for another variant) fails.
+        & .\gradlew.bat --stop 2>&1 | Out-Null
+        Pop-Location
+    }
 
     $built = if ($Format -eq 'aab') { 'android\app\build\outputs\bundle\release\app-release.aab' } else { 'android\app\build\outputs\apk\release\app-release.apk' }
     $built = Join-Path $mobile $built

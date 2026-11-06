@@ -67,8 +67,9 @@ npm run test:device                                # the device tests (they inst
 ```
 
 The Android project in `android\` is made by `expo prebuild` from `app.config.js` and `plugins\` every time and is not committed. When the build is switched from one
-variant to the other the script keeps Gradle's work and renames only what has to be renamed. If something holds the build folder (a Gradle daemon), run
-`android\gradlew.bat --stop` and try again. Packages land in `artifacts\` (not committed) as `plax-<version>-<variant>.apk|aab`.
+variant to the other the script keeps Gradle's work and renames only what has to be renamed. The script stops Gradle's daemon before it wipes the project and again when it
+finishes (a daemon left running keeps the folders locked); if something else holds them (Android Studio, a stray `java.exe`), stop it and run the build again. Packages land in
+`artifacts\` (not committed) as `plax-<version>-<variant>.apk|aab`.
 
 ## Tests
 
