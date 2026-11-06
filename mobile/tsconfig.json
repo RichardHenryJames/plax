@@ -1,0 +1,17 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@shared/*": ["../src/lib/*"]
+    },
+    "types": ["jest", "node"]
+  },
+  "include": ["src", "e2e", "scripts", "*.ts", "*.tsx", "expo-env.d.ts"],
+  "exclude": ["node_modules", "android", "ios"]
+}

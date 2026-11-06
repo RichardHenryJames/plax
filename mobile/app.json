@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "Plax",
+    "slug": "plax",
+    "owner": "richardhenryjames",
+    "version": "2.0.0",
+    "extra": {
+      "eas": {
+        "projectId": "a2e9c463-e79d-4af6-96a9-00035d24d97f"
+      }
+    }
+  }
+}
