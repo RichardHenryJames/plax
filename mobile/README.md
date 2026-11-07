@@ -222,7 +222,10 @@ An install of the native app (1.x) is updated in place by this one: the same pac
   ids, cleartext traffic and backups off, 16 KiB alignment, Hermes bytecode in the bundle.
 - **An over-the-air update through Expo's real service:** a marker update was published to the test-only channel `e2e`; a fresh install of the device-test build started on its embedded bundle (no marker), downloaded the update in
   the background and ran it after the next start (marker shown). The update was then deleted; the `production` branch was never written to.
-- The website's pages build (`next build`), with the privacy page, the settings file and the update feed as committed.
+- **The website's update, live:** the installed native 1.7.1 website build found the 2.0.0 feed on the live site by itself and offered it ("Plax 2.0.0 is ready…"); Download handed the exact APK address to the browser; the file the
+  site serves matched the feed's size and SHA-256 and installed over the native build; the new build opened with a feed, did not offer the update again, showed the age with no publisher name, and the phone logged no crash and no
+  "not responding". `scripts\verify-update.ps1` passed all 19 of its checks against the deployed site (feed, headers, size, SHA-256, package, version, signer).
+- The website's pages build (`next build`), with the privacy page, the settings file and the update feed as committed; the website's own tests (`npm test` at the root, 532).
 
 **Not verified:** a physical phone of any make; a real (not sample) ad being served, its revenue, or AdMob's and Google Play's review of the app (including Play's reading of an app that shows no publisher names, section 8 of
 `PLAY-CONSOLE-ANSWERS.txt`); the real consent message for a reader in the EEA; Google sign-in against the live account service (the project behind it was unavailable; the code runs against a real Supabase stack on the developer's
