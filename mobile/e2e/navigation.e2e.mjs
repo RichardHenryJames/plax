@@ -66,7 +66,8 @@ describe('the places of the app', () => {
     await world.press({ id: 'interest-science' })
     await world.press({ id: 'interest-space' })
     await world.press({ id: 'interests-save' })
-    await world.until(/Topics saved/, { timeout: 8_000 })
+    // The toast that says so lives two seconds, less than a look at the screen takes on the emulator: the unit tests have its words. What the
+    // reader is left with is the proof here: For you, filled with the two topics.
     await world.untilStory()
     const categories = world.asked('/news/api/feed').map((entry) => entry.query.categories)
     assert.ok(categories.some((value) => value === 'science,space'), `a mix of the two was asked for (${categories.join(' | ')})`)

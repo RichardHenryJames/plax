@@ -6,6 +6,10 @@ import { PKG, d, mkdirShots, openWorld } from './lib/app.mjs'
 import { pageView } from './lib/fit.mjs'
 
 let world
+const titleOf = (nodes) => {
+  const node = pageView(nodes).pick('headline')
+  return node ? node.desc || node.text : ''
+}
 before(async () => {
   mkdirShots()
   world = await openWorld()
@@ -84,22 +88,36 @@ describe('with stories on the screen', () => {
   })
 
   it('goes on reading with no connection, then asks for more when it is back', async () => {
-    await world.fresh()
+    // The website gives five stories and is gone by the time the reader nears the fifth: those five are all there is to read.
+    await world.fresh({ launch: false })
+    world.server.setFeed({ cap: 5 })
+    await world.launch()
     world.server.setFeed({ mode: 'drop' })
-    // Swipes until the stories the app has run out (it cannot ask for more): then a swipe moves nothing.
     let nodes = await world.settle()
-    let moved = 0
-    for (let swipe = 0; swipe < 14; swipe += 1) {
-      const before = world.pageKey(nodes)
-      nodes = await world.swipe('up', { timeout: 12_000 })
-      if (world.pageKey(nodes) === before) break
-      moved += 1
+    const read = [titleOf(nodes)]
+    for (let swipe = 0; swipe < 4; swipe += 1) {
+      nodes = await world.swipe('up')
+      read.push(titleOf(nodes))
     }
-    assert.ok(moved >= 5, `it went through the stories it had (${moved} swipes moved)`)
+    assert.equal(new Set(read.filter(Boolean)).size, 5, `the five stories were read (${read.join(' | ')})`)
+    // At the end of what it has, a swipe moves nothing, and the line over the stories says why.
+    const end = world.pageName(nodes)
+    nodes = await world.swipe('up', { expectChange: false, timeout: 8_000 })
+    assert.equal(world.pageName(nodes), end, 'the last story stays where it is')
+    await world.until(/You are offline/, { timeout: 20_000 })
     assert.ok(d.pidOf(PKG), 'the app is still running')
-    const { pick } = pageView(nodes)
-    assert.ok(pick('headline') || pick('ad-page') || pick('caught-up') || world.find({ id: 'feed-empty' }), 'a page is on the screen')
+    world.shot('offline-at-the-end')
+    // The website is back: the line over the stories asks again, and the reader goes on to a story not read yet.
     world.server.setFeed({ mode: 'ok' })
+    world.server.clearLog()
+    await world.press({ id: 'feed-banner' })
+    await world.untilGone({ id: 'feed-banner' }, { timeout: 30_000 })
+    // An ad page may stand between the fifth story and the sixth.
+    let next = titleOf(await world.swipe('up'))
+    if (next === '') next = titleOf(await world.swipe('up'))
+    assert.ok(next && !read.includes(next), `a story that was not read follows (${next})`)
+    const [asked] = world.asked('/news/api/feed')
+    assert.ok(asked?.query.exclude, 'the app told the website which stories it already had')
     assert.deepEqual(world.health(), { crashes: 0, anrs: 0, jsErrors: 0 })
   })
 })

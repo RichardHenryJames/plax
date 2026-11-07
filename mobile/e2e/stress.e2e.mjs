@@ -82,9 +82,14 @@ describe('while the app is open', () => {
     await world.swipe('up')
     d.home()
     await d.sleep(1200)
-    d.shell(`am kill ${PKG}`)
-    await d.sleep(800)
-    assert.equal(d.pidOf(PKG), '', 'the process is gone')
+    // The phone ends only a process that is in the background and cached: asked again until it has, as it would when it needs the memory.
+    await d.waitFor(
+      () => {
+        d.shell(`am kill ${PKG}`)
+        return d.pidOf(PKG) === ''
+      },
+      { timeout: 20_000, interval: 1_000, label: 'the phone to end the process' },
+    )
     d.startApp(PKG)
     await world.untilStory()
     // What was looked at does not come back, so the app opens on the next story it had not shown.

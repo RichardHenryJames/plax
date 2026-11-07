@@ -75,7 +75,8 @@ function story(index, { category, lang, now, ageMinutes }) {
   const source = SOURCES[index % SOURCES.length]
   return {
     id: idBase,
-    title: hindi ? title : `${title}${index >= titles.length ? ` (${Math.floor(index / titles.length) + 1})` : ''}`,
+    // The mark of a repeat comes first: the app compares only the first 160 characters of a headline, and a long one would lose a mark at its end.
+    title: index >= titles.length ? `(${Math.floor(index / titles.length) + 1}) ${title}` : title,
     content,
     category,
     section,
@@ -88,10 +89,16 @@ function story(index, { category, lang, now, ageMinutes }) {
   }
 }
 
-/** The whole pool of one category in one language: newest first, about 70 stories of news and 40 of every other topic. */
+/**
+ * The whole pool of one category in one language: newest first, about 70 stories of news and 40 of every other topic. A headline comes round
+ * again every few stories, 17 hours further back: the app takes headlines that agree and are less than 16 hours apart for one event and shows
+ * one of them, so closer repeats would leave the feed with only as many stories as there are headlines.
+ */
 export function pool(category, lang, now) {
   const size = category === 'news' ? 70 : 40
-  return Array.from({ length: size }, (_, index) => story(index, { category, lang, now, ageMinutes: 3 + index * 17 }))
+  const headlines = (lang === 'hi' ? HI_TITLES : EN_TITLES).length
+  const ageOf = (index) => 3 + (index % headlines) * 17 + Math.floor(index / headlines) * 17 * 60
+  return Array.from({ length: size }, (_, index) => story(index, { category, lang, now, ageMinutes: ageOf(index) }))
 }
 
 export const CATEGORIES = ['news', ...TOPIC_CATEGORIES]

@@ -32,17 +32,56 @@ export function assertTestEmulator() {
 
 export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
-/** Repeats a check until it is true (or gives back something), up to a time; null when it never is. */
+/**
+ * Repeats a check until it is true (or gives back something), up to a time; null when it never is. When the time is up and the phone is
+ * showing the "not responding" dialog of another process (the phone's own System UI, slow on an emulator that draws in software), that
+ * dialog is waited out with its own Wait button and the wait goes on, once more: the app under test has not failed.
+ */
 export async function waitFor(check, { timeout = 20_000, interval = 400, label = '' } = {}) {
-  const end = Date.now() + timeout
-  let last
-  do {
-    last = await check()
+  let end = Date.now() + timeout
+  let waitedOut = false
+  for (;;) {
+    const last = await check()
     if (last) return last
+    if (Date.now() >= end) {
+      if (waitedOut || !waitOutSystemAnr()) break
+      waitedOut = true
+      end = Date.now() + timeout
+      continue
+    }
     await sleep(interval)
-  } while (Date.now() < end)
+  }
   if (label) throw new Error(`Timed out after ${timeout} ms waiting for ${label}`)
   return null
+}
+
+/** Seconds since the phone started. */
+export const uptime = () => Number(shell('cat /proc/uptime', { allowFailure: true }).trim().split(/\s+/)[0]) || 0
+
+/**
+ * A phone that has just started is busy for minutes with work of its own (installing, optimising, updating), and Android shows "not
+ * responding" for its own processes meanwhile. Waits until it has been up for `minutes`; a phone that has been up longer does not wait.
+ */
+export async function untilSettled(minutes = 8) {
+  const left = minutes * 60 - uptime()
+  if (left > 0) await sleep(left * 1000)
+}
+
+/**
+ * The "not responding" dialog of the phone's own (System UI, the launcher) is pressed away with its Wait button. The dialog of the app
+ * under test is never touched: that is a failure the tests must see. Tells whether a dialog was pressed.
+ */
+export function waitOutSystemAnr() {
+  try {
+    const owner = /Application Not Responding: (\S+)/.exec(focus())?.[1]
+    if (!owner || owner.startsWith('com.plaxlabs.')) return false
+    const wait = find(dump(), 'Wait')
+    if (!wait) return false
+    tap(wait)
+    return true
+  } catch {
+    return false
+  }
 }
 
 const attr = (tag, name) => {
@@ -115,11 +154,32 @@ export function find(nodes, query) {
 export const findAll = (nodes, query) => nodes.filter((node) => find([node], query))
 
 export const tapXY = (x, y) => void shell(`input tap ${Math.round(x)} ${Math.round(y)}`)
-export const tap = (node) => tapXY(node.cx, node.cy)
 
-/** Looks for the element until it is on the screen, then presses it. */
+/**
+ * Where a tap on an element lands: its middle, or the middle of what the status bar does not cover when the element reaches up under it
+ * (a line at the top of a page is laid out under the status bar, and a tap on the status bar goes to the status bar, not to the app).
+ */
+export function tapPoint(node) {
+  if (node.bounds.top >= 200) return { x: node.cx, y: node.cy }
+  const bar = Number(/type=statusBars frame=\[\d+,\d+\]\[\d+,(\d+)\]/.exec(shell('dumpsys window displays', { allowFailure: true }))?.[1] ?? 0)
+  return { x: node.cx, y: node.bounds.top < bar && node.bounds.bottom > bar ? Math.round((bar + node.bounds.bottom) / 2) : node.cy }
+}
+
+export const tap = (node) => {
+  const { x, y } = tapPoint(node)
+  tapXY(x, y)
+}
+
+/**
+ * Looks for the element until it is on the screen, then presses it. When it never comes, the error says what was in front and on the screen
+ * (a crash dialog, the launcher, another page), since "not found" alone does not tell a wrong page from a phone that has lost the app.
+ */
 export async function press(query, { timeout = 15_000 } = {}) {
-  const node = await waitFor(() => find(dump(), query), { timeout, label: `${JSON.stringify(query)} to press` })
+  let last = []
+  const node = await waitFor(() => find((last = dump()), query), { timeout })
+  if (!node) {
+    throw new Error(`Timed out after ${timeout} ms waiting for ${JSON.stringify(query)} to press. In front: ${focus() || '(nothing)'}. On the screen: ${labels(last).slice(0, 16).join(' | ') || '(nothing)'}`)
+  }
   tap(node)
   return node
 }
@@ -132,12 +192,21 @@ export function screenSize() {
   return { width: Number(match[1]), height: Number(match[2]) }
 }
 
-/** A swipe from the foot of the screen to near the top (to the next story), or the reverse (to the one before). */
-export function swipePage(direction = 'up', { ms = 220, from = 0.78, to = 0.22 } = {}) {
+/**
+ * A swipe from the foot of the screen to near the top (to the next story), or the reverse (to the one before); with `area` (the bounds of
+ * the pager) from its foot to its head, which keeps the swipe off the ad strip and the status bar however the phone is turned. The path is
+ * long, and the swipe not too quick: the emulator draws in software and takes the touch events one at a time, so a short, quick swipe may
+ * reach the page as two or three events, the last of them short of the half of a page that turns it, and the page falls back to where it was.
+ */
+export function swipePage(direction = 'up', { ms = 420, from = 0.86, to = 0.1, area = null } = {}) {
   const { width, height } = screenSize()
   const x = width / 2
-  if (direction === 'up') swipe(x, height * from, x, height * to, ms)
-  else swipe(x, height * to, x, height * from, ms)
+  const top = area ? area.top : 0
+  const room = area ? area.bottom - area.top : height
+  const start = top + room * (area ? 0.94 : from)
+  const end = top + room * (area ? 0.05 : to)
+  if (direction === 'up') swipe(x, start, x, end, ms)
+  else swipe(x, end, x, start, ms)
 }
 
 export const back = () => void shell('input keyevent KEYCODE_BACK')

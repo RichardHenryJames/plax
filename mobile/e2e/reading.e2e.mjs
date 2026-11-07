@@ -103,13 +103,19 @@ describe('swiping', () => {
     assert.ok(d.pidOf(PKG) !== '', 'the app is still running')
   })
 
-  it('asks for more stories as the reader nears the end, and never shows the same story twice in a row', async () => {
+  it('asks for more stories as the reader nears the end, and never shows a story twice', async () => {
     world.phone({})
-    await world.fresh()
+    // A website that gives ten stories at a time: the end of what the app has is near enough to reach, and it has to ask again.
+    await world.fresh({ launch: false })
+    world.server.setFeed({ cap: 10 })
+    await world.launch()
     const seen = [titleOf(await world.settle())]
     for (let swipe = 0; swipe < 25; swipe += 1) seen.push(titleOf(await world.swipe('up')))
     const asked = world.asked('/news/api/feed')
-    assert.ok(asked.length >= 2, `the feed was asked for more (${asked.length} requests)`)
-    for (let index = 1; index < seen.length; index += 1) if (seen[index]) assert.notEqual(seen[index], seen[index - 1], `page ${index}: ${seen.join(' | ')}`)
+    assert.ok(asked.length >= 3, `the feed was asked for the first stories, and then twice more (${asked.length} requests)`)
+    // The pages with no headline are the ads, which stand between the stories.
+    const stories = seen.filter(Boolean)
+    assert.ok(stories.length >= 18, `most pages are stories (${stories.length} of ${seen.length})`)
+    assert.equal(new Set(stories).size, stories.length, `a story came twice: ${seen.join(' | ')}`)
   })
 })

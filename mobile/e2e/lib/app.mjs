@@ -23,6 +23,8 @@ export async function openWorld({ install = true, port = 8787 } = {}) {
   const server = createMockServer({ port })
   await server.start()
   d.wake()
+  // A phone that has just started is busy with its own work for minutes and shows "not responding" for its own processes: it is left alone.
+  await d.untilSettled()
   if (install && !(process.env.PLAX_E2E_SKIP_INSTALL === '1')) d.installApk(APK)
   const world = new World(server)
   world.phone()
@@ -96,8 +98,9 @@ export class World {
     return d.waitFor(() => !d.find(d.dump(), query), { timeout, label: label ?? `${JSON.stringify(query)} to go` })
   }
 
+  /** Waits for a story's headline to be in view: a headline of the page next to it, cut off by the pager, is not the first story. */
   async untilStory(timeout = 25_000) {
-    return this.until({ id: 'headline' }, { timeout, label: 'the first story' })
+    return d.waitFor(() => pageView(d.dump()).pick('headline'), { timeout, label: 'the first story' })
   }
 
   async press(query, options) {
@@ -118,6 +121,13 @@ export class World {
     await d.sleep(500)
   }
 
+  /** What the page in view is, wherever it stands on the screen: its kind and its headline (an ad page has none). */
+  pageName(nodes = d.dump()) {
+    const { pick } = pageView(nodes)
+    const node = pick('headline') ?? pick('ad-page') ?? pick('caught-up')
+    return node ? `${node.id}|${node.desc || node.text}` : ''
+  }
+
   /** What the pager shows now, as one string: which page, and where it stands. */
   pageKey(nodes = d.dump()) {
     const { pick } = pageView(nodes)
@@ -127,8 +137,9 @@ export class World {
 
   /**
    * Waits until the pager is at rest on a page: what is in view is the same, in the same place, in two looks in a row (a swipe takes seconds on
-   * the emulator, which draws in software: its frames take 50 to 150 ms). `from` is a page that must have been left first (a swipe that has not
-   * begun to move the pager yet is not at rest). Gives back the screen of the last look.
+   * the emulator, which draws in software: its frames take 50 to 150 ms). `from` is the name of a page that must have been left first (a swipe
+   * that has not begun to move the pager yet is not at rest; and a page that only moved on the screen, when the line over the stories came or
+   * went and the pager grew or shrank under the finger, has not been left). Gives back the screen of the last look.
    */
   async settle({ timeout = 25_000, from = null } = {}) {
     const end = Date.now() + timeout
@@ -136,7 +147,7 @@ export class World {
     let nodes = d.dump()
     while (Date.now() < end) {
       const key = this.pageKey(nodes)
-      if (key !== '' && key === before && key !== from) return nodes
+      if (key !== '' && key === before && this.pageName(nodes) !== from) return nodes
       before = key
       nodes = d.dump()
     }
@@ -144,14 +155,24 @@ export class World {
   }
 
   /**
-   * One swipe, and then the wait for the page to come to rest (somewhere else than where it was, unless `expectChange` is false: a swipe at the
+   * One swipe, and then the wait for the page to come to rest (another page than the one it was, unless `expectChange` is false: a swipe at the
    * end of the list moves nothing, and `timeout` is how long to wait for a page that does not come). Gives back the screen once it has.
+   * A swipe that the slow emulator handled too poorly to turn the page leaves the page where it was, as it does a reader who lets go early;
+   * with `expectChange` it is made again, longer and slower, up to `tries` times, and only a page that takes none of them has failed.
    */
-  async swipe(direction = 'up', { expectChange = true, timeout = 25_000 } = {}) {
-    const from = expectChange ? this.pageKey() : null
-    d.swipePage(direction)
-    await d.sleep(300)
-    return this.settle({ from, timeout })
+  async swipe(direction = 'up', { expectChange = true, timeout = 25_000, tries = 3 } = {}) {
+    const start = d.dump()
+    const from = expectChange ? this.pageName(start) : null
+    const area = pageView(start).pager?.bounds ?? null
+    const attempts = expectChange ? tries : 1
+    let nodes
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      d.swipePage(direction, { area, ...(attempt === 0 ? {} : { ms: 600 + 200 * attempt }) })
+      await d.sleep(300)
+      nodes = await this.settle({ from, timeout: attempt + 1 < attempts ? Math.min(timeout, 12_000) : timeout })
+      if (!expectChange || this.pageName(nodes) !== from) break
+    }
+    return nodes
   }
 
   /** What the page in view holds, as a reader reads it. */
@@ -172,14 +193,15 @@ export class World {
   }
 
   /**
-   * The app is in front again after something else was in front of it: back out of it (a mail or browser app may take more than one press, with
-   * a first-run screen of its own) and, if that does not do it, open the app again.
+   * The app is in front again after something else was in front of it (the caller has pressed back once): waits for it, since it comes to the
+   * front a moment after the press, and a second press before it has would close what the app itself has open (a sheet); then, if it does not
+   * come, backs out of it again (a mail or browser app may take more than one press, with a first-run screen of its own) and, if that does not
+   * do it, opens the app again.
    */
   async backInApp() {
     for (let attempt = 0; attempt < 4; attempt += 1) {
-      if (d.focus().includes(PKG)) return
+      if (await d.waitFor(() => d.focus().includes(PKG), { timeout: 5_000, interval: 500 })) return
       d.back()
-      await d.sleep(1500)
     }
     if (!d.focus().includes(PKG)) d.startApp(PKG)
     await d.waitFor(() => d.focus().includes(PKG), { timeout: 10_000, label: 'the app to come back' })

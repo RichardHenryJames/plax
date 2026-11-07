@@ -8,6 +8,7 @@
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:device": "node --test --test-concurrency=1 e2e/*.e2e.mjs",
+    "test:device-lib": "node --test e2e/lib/*.test.mjs",
     "fingerprint": "node scripts/native-fingerprint.js"
   },
   "dependencies": {

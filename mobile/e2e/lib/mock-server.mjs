@@ -1,6 +1,6 @@
 // The mock website the test build talks to (10.0.2.2:8787 from the emulator): the same routes and answers as the real site for what the app uses,
 // with fixed stories and settings, and a way for a test to change what it answers (an error, a slow answer, a dropped connection, new stories,
-// another settings file) and to see what the app asked for.
+// another settings file, a feed that gives no more than `cap` stories at a time) and to see what the app asked for.
 import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
@@ -64,7 +64,7 @@ export function createMockServer({ port = 8787 } = {}) {
   function cardsFor(url) {
     const categories = (url.searchParams.get('categories') ?? 'news').split(',').filter((c) => CATEGORIES.includes(c))
     const lang = url.searchParams.get('lang') === 'hi' ? 'hi' : 'en'
-    const limit = Math.max(1, Math.min(60, Number(url.searchParams.get('limit') ?? 30)))
+    const limit = Math.max(1, Math.min(state.feed.cap ?? 60, Math.min(60, Number(url.searchParams.get('limit') ?? 30))))
     const exclude = new Set((url.searchParams.get('exclude') ?? '').split(',').filter(Boolean))
     let cards = []
     for (const category of categories) cards.push(...(state.fresh.get(`${category}/${lang}`) ?? []), ...pool(category, lang, state.now))

@@ -135,14 +135,16 @@ describe('Contact us', () => {
   it('never leaves the reader with nothing: the address is copied when the phone has no mail app', async () => {
     await world.until({ id: 'contact-sheet' })
     await world.press({ id: 'contact-email' })
-    await d.sleep(1500)
-    // Either a mail app opened (the reader writes), or the address was copied and the app says so.
-    const mailOpened = !d.focus().includes(PKG)
-    if (mailOpened) {
+    // Either a mail app opened (the reader writes), or the address was copied and the app says so for a few seconds: looked for at once and
+    // again and again, since a look at the screen takes seconds on the emulator.
+    const mailOpened = await d.waitFor(() => !d.focus().includes(PKG) || (/No email app is available/.test(d.labels(d.dump()).join(' ')) ? 'noted' : false), {
+      timeout: 8_000,
+      interval: 0,
+      label: 'a mail app, or the note that the address was copied',
+    })
+    if (mailOpened !== 'noted') {
       d.back()
       await backInApp()
-    } else {
-      assert.match(world.words().join(' '), /No email app is available/)
     }
   })
 })

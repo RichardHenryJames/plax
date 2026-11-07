@@ -32,6 +32,32 @@ test('a personalised mix interleaves its topics', async () => {
   assert.deepEqual(body.cards.map((c) => c.category), ['science', 'space', 'books', 'science', 'space', 'books'])
 })
 
+test('a feed with a cap gives no more than that many stories at a time, and goes on from where the app is', async () => {
+  server.setFeed({ cap: 5 })
+  const first = await (await get('/news/api/feed?categories=news&limit=30&lang=en')).json()
+  assert.equal(first.cards.length, 5)
+  const ids = first.cards.map((c) => c.id)
+  const rest = await (await get(`/news/api/feed?categories=news&limit=30&lang=en&exclude=${ids.join(',')}`)).json()
+  assert.equal(rest.cards.length, 5)
+  assert.ok(rest.cards.every((c) => !ids.includes(c.id)))
+  server.setFeed({ cap: undefined })
+  assert.equal((await (await get('/news/api/feed?categories=news&limit=30&lang=en')).json()).cards.length, 30)
+})
+
+test('no two stories of a pool are one event to the app, which would show only one of them', async () => {
+  // The app's own rule, the website's story-engine: stories with the same headline less than 16 hours apart are one event.
+  const engine = await import('../../../src/lib/story-engine.ts')
+  for (const lang of ['en', 'hi']) {
+    for (const category of ['news', 'science']) {
+      const stories = pool(category, lang, Date.now())
+      const prints = stories.map((story) => engine.printOf(story))
+      for (let a = 0; a < stories.length; a += 1) {
+        for (let b = a + 1; b < stories.length; b += 1) assert.equal(engine.sameEvent(prints[a], prints[b]), false, `${category}/${lang}: stories ${a} and ${b} are one event`)
+      }
+    }
+  }
+})
+
 test('a story is valid for the app: unique ids, https links, a 32-digit signature, text within limits', () => {
   const all = pool('news', 'en', Date.now())
   assert.equal(new Set(all.map((c) => c.id)).size, all.length)

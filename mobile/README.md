@@ -86,8 +86,27 @@ website that can be told to answer well, slowly, wrongly or not at all (`e2e/lib
 theme settings, in Hindi and on its side; one swipe is one story), the menu and the places of the app, saved stories, every sheet, the network going away and
 coming back, the background, the website's settings and notices, ads, and a reader who taps anywhere for a while. Each test also asserts that the phone logged no crash,
 no "not responding" and no JavaScript error. The tests refuse to touch any emulator but `Plax_News_Test` (they check its name). It is a Pixel 5 (1080 x 2340, 440 dpi), Android 16 (API 36,
-`google_apis_playstore`, x86_64), 2 GB of memory, with no GPU: it draws in software, so a swipe takes seconds, and the tests wait for a page to come to rest instead of for a fixed time.
-Its disk is `android\.tools\plax-news-avd` (the folder of the retired native project: **do not delete `android\.tools`**); start it with `emulator -avd Plax_News_Test -port 5590 -no-snapshot-save`.
+`google_apis_playstore`, x86_64), 4 GB of memory and 6 processors (`hw.ramSize=4096` in its `config.ini`, in megabytes: `4G` is not understood and gives 2 GB, on which the phone swapped and every
+look at the screen took longer), with no GPU: it draws in software, so a swipe takes seconds, and the tests wait for a page to come to rest instead of for a fixed time.
+Its disk is `android\.tools\plax-news-avd` (the folder of the retired native project: **do not delete `android\.tools`**); start it with `emulator -avd Plax_News_Test -port 5590 -no-snapshot`.
+A whole run takes about 55 to 75 minutes, and the computer should do nothing else meanwhile (a test run, a type check or a build at the same time makes the emulator slow enough to fail tests that are right).
+Run it detached, so that an interrupted terminal does not take the emulator and the run with it. `npm run test:device-lib` runs the tests of the harness itself (the mock website and its stories) and needs no phone.
+
+**Last full run (7 November 2026, build 2.0.0 (20), e2e variant):** 88 tests in 24 suites, 87 passed, 0 failed, 1 skipped on purpose (saving 200 stories to reach the limit takes too long by hand; the limit is
+covered by the unit tests), 53 minutes. Unit and component tests: 88 suites, 1,996 tests passed, 14 skipped (the opt-in local-stack suite and the like). `npm run typecheck` is clean and the native layer matches `native-fingerprint.json`.
+
+What the slow, software-drawn emulator taught the harness (`e2e/lib`), so that a failure means the app and not the test:
+
+- **A swipe is long and not quick**, along the pager (never over the ad strip or the status bar), and is made again, longer, up to three times if the page did not turn. The emulator takes touch events one
+  at a time, so a short, quick swipe can reach the page as two or three events, the last short of the half of a page that turns it, and the page falls back. A page has **turned** when its kind or
+  headline is another; its place on the screen is not the page (the line "Finding more stories…" comes and goes over the stories, and the pager grows and shrinks under it).
+- **A tap on something that reaches under the status bar** (the line over the stories) lands below the status bar: a tap on the status bar goes to the status bar.
+- **A toast lives two seconds**, less than one look at the screen takes here, so the device tests do not wait for one; the unit tests check what each says, and the device tests check what it leaves behind.
+- **The mock website's stories are all different events to the app** (`mock-server.test.mjs` checks this against the website's own rule, `src/lib/story-engine.ts`): a headline repeated within 16 hours of
+  itself would be shown once, and the feed would have as many stories as headlines. The mock can also be told to give a few stories at a time (`setFeed({ cap })`), to reach the end of a page of stories.
+- **A phone that has just started is left alone** (`openWorld` waits until it has been up for 8 minutes). Its own System UI can show "System UI isn't responding" in that time, and the dialog then stays in front of
+  the app for the whole run. If one appears anyway, the harness presses its **Wait** button when a wait runs out; a "not responding" dialog of the app under test is never pressed, it is a failure. A failed tap says
+  what was in front and on the screen, so that a lost app, a crash dialog and a wrong page can be told apart.
 
 ## Updates without a new bundle
 
@@ -192,7 +211,20 @@ An install of the native app (1.x) is updated in place by this one: the same pac
 
 ## What was and was not verified
 
-Verified (on an Android 16 emulator, API 36, x86_64, and by the tests above): see the test sections. **Not verified:** a physical phone of any make; a real (not sample) ad being served, its revenue, or AdMob's and Google Play's review of the app;
-the real consent message for a reader in the EEA; Google sign-in against the live account service (the project behind it was unavailable; the code runs against a real Supabase stack on the developer's machine and against fakes);
-an over-the-air update applied on a Google Play install (only on the website's and the device tests' builds); a bundle that crashes as it starts being set aside by the update library; and Hermes on every phone's
-Android version.
+**Verified**, on an Android 16 emulator (API 36, x86_64), 6 and 7 November 2026:
+
+- The unit and component tests and the device tests above (88 device tests, 87 passed and 1 skipped on purpose, in one run); the types; the native-layer fingerprint.
+- **The move from the native app:** the native 1.7.1 website build was given a dark theme, two topics for For you and a saved story, then the 2.0.0 website build was installed over it (`adb install -r`, the same signer,
+  `3a47d0db…41c69`): the dark theme, the topics (Science, Space) and the saved story came across.
+- **The Google Play bundle as Play installs it:** `plax-2.0.0-play.aab` turned into the APK set for the emulator with bundletool and installed (`com.plaxlabs.news`, 2.0.0, code 20). The first start after the
+  install showed its first story fully drawn at 11.2 s, the next three at 3.4, 3.0 and 2.0 s (the emulator draws in software); the menu is as the website's, with Google's sample ad strip, and the phone logged no crash.
+- **The bundle's gate** (`node scripts\check-bundle.mjs`): 25 checks passed, among them one signer, the upload key, package and version, the permission list with the advertising ID permission present, the owner's AdMob
+  ids, cleartext traffic and backups off, 16 KiB alignment, Hermes bytecode in the bundle.
+- **An over-the-air update through Expo's real service:** a marker update was published to the test-only channel `e2e`; a fresh install of the device-test build started on its embedded bundle (no marker), downloaded the update in
+  the background and ran it after the next start (marker shown). The update was then deleted; the `production` branch was never written to.
+- The website's pages build (`next build`), with the privacy page, the settings file and the update feed as committed.
+
+**Not verified:** a physical phone of any make; a real (not sample) ad being served, its revenue, or AdMob's and Google Play's review of the app (including Play's reading of an app that shows no publisher names, section 8 of
+`PLAY-CONSOLE-ANSWERS.txt`); the real consent message for a reader in the EEA; Google sign-in against the live account service (the project behind it was unavailable; the code runs against a real Supabase stack on the developer's
+machine and against fakes); an over-the-air update applied on a Google Play install (only on the device tests' build; the Play and website builds use the same library and differ only in the channel name `production`); a bundle that
+crashes as it starts being set aside by the update library; the move from the native app for a reader who was signed in (the session is not carried over, by design); and Hermes on every phone's Android version.
