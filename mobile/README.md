@@ -185,6 +185,9 @@ A bad feed, or an APK signed with the wrong key, would leave every installed cop
 5. When the deployment is Ready, `pwsh scripts\verify-update.ps1` fetches the live feed and APK the way the app does (HTTPS, no cache), re-applies the app's own rules and checks the headers, the size, the SHA-256,
    the package, the version, the signer and that what is served is what was committed. It writes `artifacts\update-verification.json`.
 
+**Its size.** An APK cannot be split per phone as a bundle is, so the website's APK holds the native libraries of all four processor types (66.2 MB, stored uncompressed) besides 11.2 MB of code and assets: 77.4 MB, against 3.8 MB for the native 1.7.1. Every download counts against the website's bandwidth,
+and every version stays in Git's history for good (GitHub warns about a file this size). Built for `arm64-v8a` and `armeabi-v7a` only (`pwsh scripts\build-android.ps1 -Variant preview -Abis armeabi-v7a,arm64-v8a`) it is 40.4 MB, and for `arm64-v8a` alone about 28 MB; the cost is that Intel phones, tablets and emulators are left out (ARM translation may or may not run it), and `arm64-v8a` alone also leaves out the 32-bit phones. Not done: a different file for a published version code is refused by `publish-update.ps1`, so it would be a new version. JavaScript changes go over the air and need no new APK, so this size is paid once per reader.
+
 **Never send a Range request to the production APK** (not from a script, a test or `curl -r`): on 10 October 2026 the shared cache in front of the site stored the 2-byte answer to `bytes=0-1` as the file and served it to every
 download for an hour. The APK is `no-store` for that reason. To roll back, revert the commit that changed `updates.json`; copies that already updated stay updated, because Android will not install a lower version code over a higher one,
 so a broken build is fixed by publishing a higher version.
@@ -200,6 +203,33 @@ publishes) and the JDK, and stops unless: the bundle validates; it has exactly o
 traffic and backups are off; it asks for no permission outside the list in the script (`INTERNET`, `ACCESS_NETWORK_STATE` and what the ads library adds: `AD_ID`, the three `ACCESS_ADSERVICES_*`, `WAKE_LOCK`, `FOREGROUND_SERVICE`) and never
 `REQUEST_INSTALL_PACKAGES`; its AdMob application id and ad units are the owner's, not Google's sample ones; its native libraries are aligned for 16 KiB pages; the update URL and runtime version are the app's; and the JavaScript bundle is in it.
 It writes `artifacts\aab-verification.json`.
+
+**Size: why the file is 55 MB and a phone downloads 14 MB.** Measured on 7 November 2026 with Google's bundletool on `plax-2.0.0-play.aab` (here MB is 1,048,576 bytes, as Windows shows it; in the thousands-based MB the file is 57.9 MB and the download 14.6 MB).
+
+| | the file | a 64-bit phone downloads (Android 12 or 16) | a 32-bit phone (Android 9) |
+|---|---|---|---|
+| native 1.7.1 (code 18) | 7.2 MB | 3.2 MB | 3.2 MB |
+| React Native 2.0.0 (code 20) | 55.2 MB | 13.9 MB | 13.1 MB |
+
+The file holds more than any phone gets: **18.7 MB of native debug symbols** and **4.4 MB of R8's name mapping** (the Play Console keeps them to read crash reports; no phone receives them) and **the native libraries of four processor types, 22.9 MB**, of which a phone gets the one it has (about 5.7 MB).
+What every phone gets is about 9 MB: the code (5.7 MB; 35 % of it the Google Mobile Ads SDK and the Play services it needs, which 1.7.1 had too, 16 % androidx, 12 % Kotlin, 11 % React Native, 7 % Expo), the JavaScript (0.8 MB of Hermes bytecode), the resources (1 MB) and
+1.2 MB of files that BouncyCastle, a library the update library brings, carries and nothing in Plax uses. The rise from 3.2 MB is React Native's own runtime, which a native app has no need of (sizes before compression, for a 64-bit phone): its core library 6.0 MB, the Hermes engine 2.0 MB,
+the image decoders it ships (AVIF, WebP, GIF) 2.5 MB, and the libraries of Expo and of the screens, SVG and safe-area packages 4.7 MB. This is the floor of a React Native app and not a fault: code shrinking and resource shrinking are on (the mapping file is the proof), the JavaScript is Hermes bytecode, and it is only 0.8 MB.
+Google Play sends an update as the difference from the installed version, and a JavaScript update over the air is about a megabyte.
+
+```powershell
+# What one phone downloads. A device spec says which phone; bundletool is the one check-bundle.mjs downloaded into .tools\ (run it with the JDK 21 that script uses).
+'{"supportedAbis":["arm64-v8a","armeabi-v7a"],"supportedLocales":["en"],"screenDensity":440,"sdkVersion":36}' | Set-Content artifacts\phone.json
+java -jar .tools\bundletool-all-1.18.3.jar build-apks --bundle=artifacts\plax-2.0.0-play.aab --output=artifacts\size.apks --device-spec=artifacts\phone.json --overwrite
+java -jar .tools\bundletool-all-1.18.3.jar get-size total --apks=artifacts\size.apks --device-spec=artifacts\phone.json     # MIN,MAX in bytes
+```
+
+What could still be cut, and what each costs (none of it is done):
+
+- **BouncyCastle's unused post-quantum tables** (`org/bouncycastle/pqc/crypto/picnic/*.bin.properties`): -1.2 MB for every phone and for the website's APK. It is a change to the native packaging, so a new fingerprint, a new bundle and a new APK with a higher version: do it with the next native release, not alone.
+- **Native debug symbols off** (`ndk.debugSymbolLevel` `NONE`): -18.7 MB from the file; no phone downloads less, and the Play Console can then no longer name native functions in a crash report.
+- **The two Intel processor types left out of the bundle** (`x86`, `x86_64`): -21.9 MB from the file (12.4 MB of libraries and 9.6 MB of their symbols; 33.3 MB would be left); no phone downloads less, and an Intel emulator or Chromebook could then run the app only through ARM translation, if at all. The device tests drive an `x86_64` build of their own, so they would not change.
+- Nothing else is cheap: the ads SDK is a third of the code, and Hermes and the image decoders come with React Native.
 
 **What only you can do in the Play Console**, and what to enter: [PLAY-CONSOLE-ANSWERS.txt](PLAY-CONSOLE-ANSWERS.txt) for this release, with the older answers it builds on in [docs/](docs/). Nothing is submitted for you.
 

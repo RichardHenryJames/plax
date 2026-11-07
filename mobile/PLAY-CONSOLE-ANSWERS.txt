@@ -18,6 +18,7 @@ State key: READY = taken from the code, check it once. OWNER = only you can do i
   4. OWNER  When the Console shows the advertising ID message, choose "Release without permission" (section 2).
   5. OWNER  Section 5 (one line in Data safety), section 6 (release notes), section 8 (the publisher's name).
   6. OWNER  After the release is live: look at "App bundle explorer" for the version codes that are still active, and at the pre-launch report.
+            The size the Console shows for a phone is the download size, about 14 MB, not the file's 55 MB (section 12).
 
 
 2. THE ADVERTISING ID MESSAGE ("Release without permission")
@@ -128,3 +129,17 @@ What an update can change is limited by a check before it is published (native-f
 Not checked, and not claimed: that Google Play's review accepts the app, its ads, the News declaration without the publisher's name, or the over-the-air updates; that AdMob approves the app (a real ad has
 never been served to this app: every run used Google's sample units); the consent message for a reader in the EEA; how the app runs on any physical phone (all runs were on an Android 16 emulator
 with software rendering); and Google sign-in against the live account service. See mobile\README.md, "What was and was not verified".
+
+
+12. SIZE: WHY THE FILE IS 55 MB AND A PHONE DOWNLOADS 14 MB
+============================================================
+Measured on 7 November 2026 with Google's bundletool on plax-2.0.0-play.aab (MB here is 1,048,576 bytes, as Windows shows it; in the thousands-based MB the file is 57.9 MB, the download 14.6 MB).
+                                 the file   a 64-bit phone downloads   a 32-bit phone
+  native 1.7.1 (code 18)          7.2 MB     3.2 MB                     3.2 MB
+  React Native 2.0.0 (code 20)   55.2 MB    13.9 MB                    13.1 MB
+The file holds what Play keeps for itself and what Play splits per phone: 18.7 MB of native debug symbols and 4.4 MB of R8's name mapping (the Console uses them to read crash reports; no phone receives
+them), and the native libraries of four processor types, 22.9 MB, of which a phone gets the one it has (about 5.7 MB). Every phone gets the other 9 MB or so: the code (5.7 MB), the JavaScript (0.8 MB), the
+resources (1 MB) and 1.2 MB of BouncyCastle files that nothing in Plax uses. The rise from 3.2 MB is React Native's own runtime (its core library, the Hermes engine, the image decoders it ships): the floor of a
+React Native app, with code and resource shrinking already on. Google Play sends an update as the difference from the installed version. Nothing is changed for this: the file's size does not matter to Play.
+What could be cut, and what it costs, is in mobile\README.md, "Publishing to Google Play", "Size"; the website's APK (77.4 MB, all four processor types, because an APK is not split per phone) is under
+"Publishing the website's APK", "Its size".
