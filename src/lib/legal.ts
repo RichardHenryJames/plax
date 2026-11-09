@@ -3,9 +3,9 @@
 export const LEGAL = {
   operator: 'Plax Labs',
   contactEmail: 'richardhenryjames64@gmail.com',
-  updated: '6 November 2026',
+  updated: '8 November 2026',
   // The same day, for the sitemap. Change both when the policy changes.
-  updatedIso: '2026-11-06',
+  updatedIso: '2026-11-08',
   // How long an emailed deletion request may take. Deleting from the app or from the website is immediate.
   emailDeletionDays: 30,
   // The contact page (/contact) has its own date: Google Play's news policy wants contact details that are up to date.

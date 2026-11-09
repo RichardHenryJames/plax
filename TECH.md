@@ -229,6 +229,8 @@ AI-powered content summarization. Runtime: `edge`.
 
 `card: true` is sent by the website for the text of a card (`Feed.tsx`, both the card shown and the warm-up of the other language, so that they share one cache entry). For `category: "news"` it asks for a **short brief** of 55–85 words, as full as the source allows (it was 35–60 until 2 November 2026, which left a hole under a Hindi card now that the picture no longer grows to fill it), so that the story fits one screen together with its picture (`lib/summary-prompt.ts`; in Hindi the 70–110 word brief came to 600–800 characters, 14 to 17 lines on a phone, and left no room for the picture). Without the flag, which is how versions of the Android app before Go deeper called it (their on-demand AI brief; the app has Go deeper now, and the older apps are still installed, so the route keeps this form) and how every other category is asked for, the prompts are exactly the earlier ones (checked once, byte for byte, against the original route for 15 categories, both languages and several sources; `summary-prompt.test.mjs` keeps the ranges and the scope of the flag under test). The short brief has its own cache version (`v3-brief`), so a long brief cached for the same story is never served in its place.
 
+**The Android app calls this route too, for one thing: to translate.** In Hindi, the feed of Hindi has stories of its own for the news and for almost every topic, but for Stocks and (partly) Books it answers with the English stories, so the app (`mobile/src/data/translate-api.ts`, `translations.ts`) sends each such story the way the website sends a card in Hindi, with the same fields (`content`, `title`, `type: "microessay"`, `lang: "hi"`, `category`, `card: true`; `summary-prompt.test.mjs` keeps them equal) so that one cache entry serves both. It accepts the answer only if it is Hindi, since this route answers `200` with the English as it was when every service it tries is out. See `mobile/README.md`, "Reading in Hindi".
+
 **Response:**
 
 ```json
@@ -431,7 +433,7 @@ Added on 4 November 2026 at the owner's request: stock-market news from all over
 - **The screen.** The tag reads STOCKS (`Card.tsx`), and so does the "Now reading" badge of the right panel. The News chips (US, India, World, ...) are **not** shown on the Stocks feed, on desktop or in the phone's menu: they narrow the general news (`feedHasNews`, `isGeneralNews`), and a story of Stocks is not in any of those sections. A shared Stocks story is tagged Stocks and its page links to `/topics/stocks` (`app/s/[slug]`).
 - **A bug that this exposed, fixed with it.** The chosen News chip was never cleared when the reader moved to another topic, and the feed hid every card that was not in that section, so a reader who left News with a chip on saw "No new stories right now" for any other topic. Since the 4 November change that starts a US reader on the US chip, that was every US reader who went from the headlines to a topic. Now `setFeedFilter` in `lib/ui-store.ts` clears the chip when the topic changes (`sectionAfterTopicChange`), and `Feed.tsx` applies a chip only to a feed that has the news in it (a deep link such as `/?topic=science&section=us` used to do the same).
 - **To change the list.** Fetch the feed with the server's User-Agent at a low concurrency (a few at a time, so that a feed is not starved by the others) and keep it only if it answers within a few seconds with at least three fresh items that carry a description of 40 characters or more. Add it to `STOCK_FEEDS` with its region and whether it is a markets feed; `stocks.test.mjs` checks that the list is sound and covers every region. There is nothing else to change.
-- **Not built.** Region chips (US, India, Europe, ...) on the Stocks feed: the cards do not carry a region, and adding a field means changing the signature and the app's parser. A live, server-rendered `/headlines/stocks` page like the News sections' (today `/topics/stocks` is evergreen copy, so the fresh stories are not visible to a crawler). Stock news in Hindi (the Hindi feeds are general news). In the Android app a session ends at 180 stories (`FeedViewModel.STORY_LIMIT`) and the exclude list is at most 200 ids in the address, so the app's Stocks feed is shorter than the website's; making it as long needs the app to send a `POST` and a new bundle.
+- **Not built.** Region chips (US, India, Europe, ...) on the Stocks feed: the cards do not carry a region, and adding a field means changing the signature and the app's parser. A live, server-rendered `/headlines/stocks` page like the News sections' (today `/topics/stocks` is evergreen copy, so the fresh stories are not visible to a crawler). Stock news in Hindi (the Hindi feeds are general news, so the feed of Hindi answers a Stocks request with the English stories; the website translates them card by card, and the Android app does the same since 8 November 2026, before which it showed a Hindi tag over English text). In the Android app a session ends at 180 stories (`FeedViewModel.STORY_LIMIT`) and the exclude list is at most 200 ids in the address, so the app's Stocks feed is shorter than the website's; making it as long needs the app to send a `POST` and a new bundle.
 
 ---
 
@@ -586,7 +588,10 @@ Feed({ categories })   categories = ['news'] (Feed tab), one topic, or the reade
 
 6. Languages: the feed is always fetched in English and each card is AI-translated in
    place, so switching language never changes which stories are shown (a card keeps its
-   `originalTitle`, which is what the no-repeat engine fingerprints)
+   `originalTitle`, which is what the no-repeat engine fingerprints). The Android app asks the
+   feed for the language and gets stories of their own in Hindi for almost every topic; the
+   English-only ones (Stocks, some Books) it translates in place the same way, one story at a time
+   as the reader nears it (`mobile/src/data/translations.ts`)
 ```
 
 ---

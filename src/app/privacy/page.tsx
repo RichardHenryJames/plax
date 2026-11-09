@@ -64,7 +64,7 @@ export default function PrivacyPage() {
         </P>
         <P>
           <strong>Go deeper, translations and quizzes.</strong> When you ask Plax to go deeper on a story, take a quiz or read
-          a story in Hindi on the website, the text of that story (its headline and summary) is sent to Plax&apos;s servers and from
+          a story in Hindi on the website or in the app, the text of that story (its headline and summary) is sent to Plax&apos;s servers and from
           there to the AI and translation services that write the result. Depending on availability these can be Google (Gemini),
           Groq, OpenRouter, Microsoft (Azure Translator) and MyMemory. The request does not carry your name, email or account. The
           result may be kept and shown to other readers of the same story, so that it is only written once. AI text can contain

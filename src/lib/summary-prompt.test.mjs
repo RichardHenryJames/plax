@@ -59,14 +59,16 @@ test('the route sends the flag only through wantsShortBrief and keeps its own ca
   assert.match(route, /buildPrompt\(category, content, type, undefined, shortBrief\)/)
 })
 
-test('the website asks for a card\'s text with the card flag, and the app no longer asks for a brief at all', () => {
+test('the website asks for a card\'s text with the card flag, and so does the app, which asks only to translate and nowhere else', () => {
   const feed = fs.readFileSync(here('../components/Feed.tsx'), 'utf8')
   const requests = feed.match(/JSON\.stringify\(\{ content: baseContent[^}]*\}\)/g) ?? []
   // enhanceCard and prewarmOppositeLang: the warm-up must hit the same cache entry as the card that is shown later.
   assert.equal(requests.length, 2)
   for (const request of requests) assert.match(request, /card: true/)
-  // The app has Go deeper, not an AI brief: it asks /api/deeper, and nothing in it asks /api/summarize (older installed apps still do,
-  // which is why the route keeps the longer form for a request without the flag).
+  // The app has Go deeper, not an AI brief: it asks /api/deeper. The one thing it asks /api/summarize for is the translation of a story the feed of
+  // Hindi has only in English (data/translate-api.ts), as the website does for every card it shows in Hindi, and with the same fields and the card flag,
+  // so that the server's cache, which is keyed by them, answers both. Nothing else in it may ask for a brief (older installed apps still ask for the
+  // on-demand one, which is why the route keeps the longer form for a request without the flag).
   const folder = here('../../mobile/src/')
   const sources = (directory) => fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = new URL(`${entry.name}${entry.isDirectory() ? '/' : ''}`, directory)
@@ -75,6 +77,10 @@ test('the website asks for a card\'s text with the card flag, and the app no lon
   })
   const files = sources(folder)
   assert.ok(files.some((path) => path.pathname.endsWith('/deeper-api.ts')))
-  for (const path of files) assert.doesNotMatch(fs.readFileSync(path, 'utf8'), /api\/summarize/, `${path.pathname} must not ask for a brief`)
+  const askers = files.filter((path) => /api\/summarize/.test(fs.readFileSync(path, 'utf8'))).map((path) => path.pathname.slice(path.pathname.indexOf('/mobile/src/') + '/mobile/src/'.length))
+  assert.deepEqual(askers, ['data/translate-api.ts'], 'only the translations ask /api/summarize')
   assert.match(fs.readFileSync(new URL('data/deeper-api.ts', folder), 'utf8'), /\/api\/deeper/)
+  const translate = fs.readFileSync(new URL('data/translate-api.ts', folder), 'utf8')
+  const body = /export function translateRequestBody[\s\S]*?\n\}/.exec(translate)?.[0] ?? ''
+  for (const field of ['content:', 'title:', "type: 'microessay'", 'lang,', 'category: story.category', 'card: true']) assert.ok(body.includes(field), `the app's request has ${field}`)
 })
