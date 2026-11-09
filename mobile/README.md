@@ -30,7 +30,7 @@ app's 18); they are the only numbers to raise for a release.
 
 | Folder | What it holds |
 |---|---|
-| `src/data/` | the feed: stories, parsing, the cache, the no-repeat history, the engine that decides what comes next, saved stories, Go deeper, share links, the move from the native app's files |
+| `src/data/` | the feed: stories, parsing, the cache, the no-repeat history, the engine that decides what comes next, saved stories, Go deeper, share links, the translations of stories the feed has only in English (below), the move from the native app's files |
 | `src/config/` | the website's settings file (`app-config.json`): reading it under the website's own rules, remembering it, the notices and prompts it can raise |
 | `src/account/` | the optional Google sign-in (PKCE through the system browser), the sealed session, cloud sync of topics and saved stories, deleting the account |
 | `src/ads/` | consent (Google's UMP), the banner and the full-page native ad, when to ask for one and when to drop it |
@@ -63,7 +63,7 @@ pwsh scripts\build-android.ps1 -Variant play -Clean   # the same from nothing (a
 node scripts\check-bundle.mjs                      # check the .aab before it is uploaded
 
 $env:PLAX_E2E_SERIAL = 'emulator-5590'             # the emulator named Plax_News_Test; the tests refuse any other
-npm run test:device                                # the device tests (they install the e2e build themselves)
+npm run test:device                                # the device tests, one suite at a time; the first puts the e2e build on the phone (see Tests)
 ```
 
 The Android project in `android\` is made by `expo prebuild` from `app.config.js` and `plugins\` every time and is not committed. When the build is switched from one
@@ -92,8 +92,17 @@ Its disk is `android\.tools\plax-news-avd` (the folder of the retired native pro
 A whole run takes about 55 to 75 minutes, and the computer should do nothing else meanwhile (a test run, a type check or a build at the same time makes the emulator slow enough to fail tests that are right).
 Run it detached, so that an interrupted terminal does not take the emulator and the run with it. `npm run test:device-lib` runs the tests of the harness itself (the mock website and its stories) and needs no phone.
 
-**Last full run (7 November 2026, build 2.0.0 (20), e2e variant):** 88 tests in 24 suites, 87 passed, 0 failed, 1 skipped on purpose (saving 200 stories to reach the limit takes too long by hand; the limit is
-covered by the unit tests), 53 minutes. Unit and component tests: 88 suites, 1,996 tests passed, 14 skipped (the opt-in local-stack suite and the like). `npm run typecheck` is clean and the native layer matches `native-fingerprint.json`.
+`npm run test:device` goes through `scripts\run-device-tests.mjs` (`node scripts\run-device-tests.mjs library sheets` runs only those suites), which runs the suites one at a time and watches the wall clock against the
+computer's uptime. A computer that sleeps or hibernates in the middle of a run pauses the test and the emulator for hours, adb times out, and the run reports a dozen failures that are not the app's (on 8 November 2026 a run of
+75 minutes took 13 hours and 13 tests failed, three of them tests that had passed twice before). A suite cut by a sleep does not count and is run again on an emulator started afresh; a suite that fails with no sleep in it is a
+failure, is reported, and is never run again, so that a test that fails now and then is not hidden. An emulator that has been up for more than five hours is started afresh before a suite as well: after ten hours it had a
+gigabyte of its memory swapped out, and swipes no longer turned the pages. Its record is in `artifacts\e2e-driver\` (`results.jsonl`, and the TAP output of every suite), and its exit code is 0 only when
+every suite ran undisturbed with nothing failed or cancelled. `npm run test:device-plain` is the plain runner, for a computer that stays awake.
+
+**Last full run (8 and 9 November 2026, build 2.0.0 (20), e2e variant, one suite at a time through `npm run test:device`):** 103 tests in 29 suites, 102 passed, 0 failed, 0 cancelled, 1 skipped on purpose (saving 200 stories to reach
+the limit takes too long by hand; the limit is covered by the unit tests); the suites add up to 114 minutes on a computer shared with another emulator. `reading` was run a second time, on an emulator started afresh: its first
+run lost its first test to adb's server not answering and a swipe test to an emulator that had been up for ten hours; both passed on a healthy one. Unit and component tests: 92 suites, 2,075 tests passed, 14 skipped (the opt-in
+local-stack suite and the like); the harness's own tests (`npm run test:device-lib`): 37; the website's: 532. `npm run typecheck` is clean and the native layer matches `native-fingerprint.json`.
 
 What the slow, software-drawn emulator taught the harness (`e2e/lib`), so that a failure means the app and not the test:
 
@@ -101,12 +110,21 @@ What the slow, software-drawn emulator taught the harness (`e2e/lib`), so that a
   at a time, so a short, quick swipe can reach the page as two or three events, the last short of the half of a page that turns it, and the page falls back. A page has **turned** when its kind or
   headline is another; its place on the screen is not the page (the line "Finding more stories…" comes and goes over the stories, and the pager grows and shrinks under it).
 - **A tap on something that reaches under the status bar** (the line over the stories) lands below the status bar: a tap on the status bar goes to the status bar.
+- **The first thing done with a page waits for the ad strip, and a button is pressed once it has stayed where it is for two looks in a row.** On a first run no room is kept for the strip: it comes 7 to 13 seconds after the
+  first story, the story shrinks to make room, and the buttons under it go up. A look takes about three seconds here, so a tap aimed with the place found before the strip came landed on something else (the first Save and the first
+  Share after a fresh start failed this way in run after run). `world.press` and `world.swipe` first wait until the strip is there, for at most 30 seconds, and not at all on a phone on its side (no strip under 500 dp) or where no
+  story is in view; `press` in `device.mjs` then taps only what two looks in a row found in the same place (`steady: false` presses at once what is on the screen only for a moment).
 - **A toast lives two seconds**, less than one look at the screen takes here, so the device tests do not wait for one; the unit tests check what each says, and the device tests check what it leaves behind.
 - **The mock website's stories are all different events to the app** (`mock-server.test.mjs` checks this against the website's own rule, `src/lib/story-engine.ts`): a headline repeated within 16 hours of
   itself would be shown once, and the feed would have as many stories as headlines. The mock can also be told to give a few stories at a time (`setFeed({ cap })`), to reach the end of a page of stories.
 - **A phone that has just started is left alone** (`openWorld` waits until it has been up for 8 minutes). Its own System UI can show "System UI isn't responding" in that time, and the dialog then stays in front of
   the app for the whole run. If one appears anyway, the harness presses its **Wait** button when a wait runs out; a "not responding" dialog of the app under test is never pressed, it is a failure. A failed tap says
   what was in front and on the screen, so that a lost app, a crash dialog and a wrong page can be told apart.
+- **Ask about the page in view, not about the tree.** The pages on either side of the one in view are in the accessibility tree too, cut off by the pager, so "is there a headline?" can be answered by the next story's
+  while the one in view is still a placeholder. `world.inView(id)`, `world.untilInView(id)` and `world.untilStory()` look only at what lies mostly inside the pager.
+- **The emulator starts with `-no-window`** when the computer has no desktop session open (after a restart, over a disconnected remote session): with its window it never finishes starting, and sits at 0 % CPU.
+- **The mock website lives in the test's own process**, and every look at the phone (`d.dump()`, a tap) is a synchronous call that holds that process for seconds. A script that does nothing else never lets the website answer,
+  and the app says "Could not load stories". Wait for something (`await d.sleep(...)`) between looks, as `waitFor` does.
 
 ## Updates without a new bundle
 
@@ -144,7 +162,7 @@ and by starting a build twice: the first start downloads, the second runs it (th
 that fails as it starts; that has not been tried on this app.
 
 **What is sent.** The request to `u.expo.dev` carries the app's package version and runtime version, the platform, the channel, the ids of the bundles it has, and a random installation number that the library makes
-(`EAS-Client-ID`). No name, email, account, advertising ID or anything the reader read or saved. The privacy policy and the About screen say so (policy updated 6 November 2026).
+(`EAS-Client-ID`). No name, email, account, advertising ID or anything the reader read or saved. The privacy policy and the About screen say so (policy updated 8 November 2026).
 
 ## What the website can change without a new app
 
@@ -233,6 +251,27 @@ What could still be cut, and what each costs (none of it is done):
 
 **What only you can do in the Play Console**, and what to enter: [PLAY-CONSOLE-ANSWERS.txt](PLAY-CONSOLE-ANSWERS.txt) for this release, with the older answers it builds on in [docs/](docs/). Nothing is submitted for you.
 
+## Reading in Hindi
+
+The feed of Hindi has stories of its own for the news and for almost every topic, but not for **Stocks** and **Books**: for those it answers with the English stories. (Checked against the live feed on 7 November
+2026: of 249 stories in 18 topics, 213 were Hindi and 36, all of Stocks and Books, were English; none was a mix.) 2.0.0 as it first shipped showed those as a Hindi menu and a Hindi topic tag over an English headline
+and summary. The website never does: it reads the English feed and translates each card as it is read, through `/api/summarize`. The app now translates what the feed has only in English, the way the website does:
+
+- **What needs it** (`needsTranslation`, `src/data/translations.ts`): in Hindi, a story whose text has at least 40 characters and is not Hindi (under 30 % of its letters are Devanagari; Hindi that names a company or a ticker in Latin letters is
+  still Hindi). English is never translated, nor an ad, nor the caught-up page, nor a story that is Hindi already, so the 16 topics that arrive in Hindi take exactly the path they took before.
+- **How:** the same call the website makes (`POST /api/summarize` with `content`, `title`, `type: "microessay"`, `lang`, `category`, `card: true`, `src/data/translate-api.ts`), so the server's own cache, which is keyed by
+  those fields, answers the app and the website from the same entries (the first translation of a story takes 4 to 6 seconds; the next is instant). The answer is accepted only if it is Hindi: when every service the server tries
+  is out it answers 200 with the English as it was, and that is a failure here. The Markdown emphasis in the AI's draft (`**bold**`) is dropped, since a page sets its text in one run.
+- **What the reader sees:** a placeholder where the headline and the summary will be (bars, and "Translating…" / "अनुवाद हो रहा है…"; a screen reader hears it, busy), never the English; then the Hindi, laid out as any other text.
+  A page is never left waiting: a request that fails is made again after 1.5 s and after 4 s more, then the story is shown as the feed gave it, and asked for again on a visit two minutes later or more.
+- **When:** the story in view and the four after it (as the website looks four ahead), three at a time, the nearest first; one the reader has gone far from and that was still waiting is let go. What came is kept in memory (200), so
+  a story seen again, or Hindi chosen again, is not asked for twice.
+- **What it does not touch:** the feed engine, the cache, the history of what has been read, the saved stories, sharing and Go deeper. The page is given the translation to show and the feed's own story for its buttons: **Save
+  keeps the English story** (shown translated while the reader reads in Hindi), and **Share** makes the website's page from the English headline and text with the signature the feed gave them (a translated text would not
+  match its signature).
+- **Privacy:** the text of such a story (public news text, with its topic and the language) goes to Plax Labs and from there to the AI and translation services the privacy policy names, as it does on the website when a story is
+  read in Hindi; no name, email, account or identifier is sent. The About text (both languages) and the privacy policy (updated 8 November 2026) say so.
+
 ## Moving from the native app
 
 An install of the native app (1.x) is updated in place by this one: the same package, the same signing, a higher version code. What the new app takes over, once, from the native app's files on the phone
@@ -241,9 +280,9 @@ An install of the native app (1.x) is updated in place by this one: the same pac
 
 ## What was and was not verified
 
-**Verified**, on an Android 16 emulator (API 36, x86_64), 6 and 7 November 2026:
+**Verified**, on an Android 16 emulator (API 36, x86_64), 6 to 9 November 2026:
 
-- The unit and component tests and the device tests above (88 device tests, 87 passed and 1 skipped on purpose, in one run); the types; the native-layer fingerprint.
+- The unit and component tests and the device tests above (103 device tests, 102 passed and 1 skipped on purpose; the last full run, above); the types; the native-layer fingerprint.
 - **The move from the native app:** the native 1.7.1 website build was given a dark theme, two topics for For you and a saved story, then the 2.0.0 website build was installed over it (`adb install -r`, the same signer,
   `3a47d0db…41c69`): the dark theme, the topics (Science, Space) and the saved story came across.
 - **The Google Play bundle as Play installs it:** `plax-2.0.0-play.aab` turned into the APK set for the emulator with bundletool and installed (`com.plaxlabs.news`, 2.0.0, code 20). The first start after the

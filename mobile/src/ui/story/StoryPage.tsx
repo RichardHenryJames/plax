@@ -2,6 +2,7 @@ import { memo, useEffect, useMemo, useState } from 'react'
 import { PixelRatio, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { Image } from 'expo-image'
 import { bodyOf, hasImage as storyHasImage, hasSource, type Story } from '../../data/story'
+import type { Translation } from '../../data/translations'
 import { imageCandidates } from '../../data/image-sizing'
 import { Icon } from '../Icon'
 import { imageUri } from '../../platform/images'
@@ -11,12 +12,20 @@ import { useTheme } from '../theme'
 import { BREAKING, bodyTextStyle, titleTextStyle, useMeasured } from './measure'
 import { bodyCutter, computeStoryLayout, pageGeometry, typeSizes, type LayoutConfig } from './layout'
 import { Poster, PosterBackground } from './Poster'
+import { TranslatingBars } from './TranslatingBars'
 
 /** The widest a picture is asked for, in pixels: what the native app's ImageLoader decoded at most. */
 const MAX_PICTURE_PX = 1080
 
 export interface StoryPageProps {
   readonly story: Story
+  /**
+   * The words to show in place of the story's own headline and summary, in Hindi when the feed has the story only in English: a placeholder
+   * while the translation is on its way, then the translation. Nothing for a story that is shown as it is. The story stays the feed's own:
+   * it is what the buttons act on.
+   */
+  readonly translation?: Translation
+
   /** The size of the page: the screen between the system bars, and above the strip of ads. */
   readonly width: number
   readonly height: number
@@ -45,17 +54,21 @@ export interface StoryPageProps {
  * StoryPage). The headline is the link to the full story.
  */
 function StoryPageView(props: StoryPageProps) {
-  const { story, width, height, tag, credit, saved, saveEnabled, showDeeper, layoutConfig, masthead } = props
+  const { story, translation, width, height, tag, credit, saved, saveEnabled, showDeeper, layoutConfig, masthead } = props
   const { palette } = useTheme()
   const { t, lang } = useT()
   const { fontScale, height: screenHeight } = useWindowDimensions()
   const { titleSp, bodySp } = typeSizes(screenHeight)
   const geometry = pageGeometry(width, height)
-  const title = story.title.trim()
-  const body = bodyOf(story)
+  // In Hindi a story the feed has only in English is shown translated. Until then the page is laid out for the words it has and a placeholder
+  // stands where they will be, so the page is never in the wrong language; the translation, when it comes, is laid out as any other text.
+  const translated = translation?.status === 'ready' ? translation : undefined
+  const translating = translation?.status === 'pending'
+  const title = (translated ? translated.title : story.title).trim()
+  const body = bodyOf(translated ? { ...story, title: translated.title, content: translated.content } : story)
   const includePadding = lang === 'hi'
 
-  const key = [story.id, width, height, fontScale, lang, titleSp, bodySp, title.length, body.length].join('|')
+  const key = [story.id, width, height, fontScale, lang, titleSp, bodySp, title.length, body.length, translated ? 'T' : ''].join('|')
   const { measured, measurers } = useMeasured({ key, columnWidth: geometry.columnWidth, title, body, titleSp, bodySp, includePadding })
 
   // A picture that cannot be loaded is replaced by the poster, and the page is laid out again for it.
@@ -156,7 +169,9 @@ function StoryPageView(props: StoryPageProps) {
             <LineButton icon="share" label={t('share')} onPress={() => props.onShare(story)} fill={palette.surfaceAlt} tint={palette.text} testID="share" />
           </View>
 
-          {title !== '' ? (
+          {translating ? <TranslatingBars title={layout.title} body={layout.body} hasBody={layout.bodyLines > 0} /> : null}
+
+          {title !== '' && !translating ? (
             <Pressable
               testID="headline"
               disabled={!linked}
@@ -177,7 +192,7 @@ function StoryPageView(props: StoryPageProps) {
             </Pressable>
           ) : null}
 
-          {layout.bodyLines > 0 ? (
+          {layout.bodyLines > 0 && !translating ? (
             <View style={{ position: 'absolute', left: layout.body.left, top: layout.body.top, width: layout.body.width, height: layout.body.height, paddingTop: 14 }} testID="body-box">
               <Text
                 {...BREAKING}
@@ -198,7 +213,7 @@ function StoryPageView(props: StoryPageProps) {
 
 /** A page is drawn again only when something it shows changed. */
 export const StoryPage = memo(StoryPageView, (before, after) =>
-  before.story === after.story && before.width === after.width && before.height === after.height && before.tag === after.tag && before.credit === after.credit &&
+  before.story === after.story && before.translation === after.translation && before.width === after.width && before.height === after.height && before.tag === after.tag && before.credit === after.credit &&
   before.saved === after.saved && before.saveEnabled === after.saveEnabled && before.showDeeper === after.showDeeper && before.layoutConfig === after.layoutConfig &&
   before.masthead === after.masthead && before.onMenu === after.onMenu && before.onSave === after.onSave && before.onShare === after.onShare &&
   before.onDeeper === after.onDeeper && before.onOpenSource === after.onOpenSource)

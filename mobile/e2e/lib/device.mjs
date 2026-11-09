@@ -11,8 +11,27 @@ export const ADB = process.env.ADB ?? path.join(SDK, 'platform-tools', process.p
 export const SERIAL = process.env.PLAX_E2E_SERIAL ?? 'emulator-5590'
 export const AVD = 'Plax_News_Test'
 
+/** What adb says when its own server on this computer is not answering: it starts itself again, and the same command a moment later is answered. */
+const SERVER_DOWN = /cannot connect to daemon|daemon still not running|daemon not running|failed to start daemon|server didn't ACK/i
+
+const pauseSync = (ms) => void Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
+
+/**
+ * Runs a command (`run` gives what spawnSync does) again while adb's server is down, up to `tries` times with a pause between: a run of the
+ * device tests for an hour is not a failure of the app because adb's server stopped answering for a moment. Any other failure, a command that
+ * timed out, and one that could not be started are given back at once.
+ */
+export function whileServerDown(run, { tries = 4, pauseMs = 3000, pause = pauseSync } = {}) {
+  for (let attempt = 1; ; attempt += 1) {
+    const result = run()
+    if (result.error || result.status === 0 || attempt >= tries) return result
+    if (!SERVER_DOWN.test(`${result.stdout ?? ''}${result.stderr ?? ''}`)) return result
+    pause(pauseMs)
+  }
+}
+
 export function adb(args, options = {}) {
-  const result = spawnSync(ADB, ['-s', SERIAL, ...args], { encoding: options.binary ? 'buffer' : 'utf8', maxBuffer: 256 * 1024 * 1024, timeout: options.timeout ?? 90_000, input: options.input })
+  const result = whileServerDown(() => spawnSync(ADB, ['-s', SERIAL, ...args], { encoding: options.binary ? 'buffer' : 'utf8', maxBuffer: 256 * 1024 * 1024, timeout: options.timeout ?? 90_000, input: options.input }))
   if (result.error) throw result.error
   if (!options.allowFailure && result.status !== 0 && !options.quiet) {
     const out = options.binary ? '' : `${result.stdout}${result.stderr}`
@@ -170,13 +189,33 @@ export const tap = (node) => {
   tapXY(x, y)
 }
 
+/** Whether two looks found an element in the same place. */
+export const samePlace = (a, b) => a.bounds.left === b.bounds.left && a.bounds.top === b.bounds.top && a.bounds.right === b.bounds.right && a.bounds.bottom === b.bounds.bottom
+
 /**
- * Looks for the element until it is on the screen, then presses it. When it never comes, the error says what was in front and on the screen
+ * A look for an element that answers only once two looks in a row have found it in the same place. A page that is still being laid out moves what is
+ * on it: the ad strip comes some seconds after the first story (7 to 13 s on the emulator), the story shrinks to make room, and its buttons go up
+ * with it. A look takes seconds, so a button found in one look is somewhere else by the tap, and the tap lands on something else or on nothing.
+ */
+export function steady(look) {
+  let before = null
+  return () => {
+    const node = look() ?? null
+    const held = node !== null && before !== null && samePlace(node, before)
+    before = node
+    return held ? node : null
+  }
+}
+
+/**
+ * Looks for the element until it is on the screen and has stayed where it is for two looks, then presses it (`steady: false` presses it as soon
+ * as it is seen, for what is on the screen only for a moment). When it never comes, the error says what was in front and on the screen
  * (a crash dialog, the launcher, another page), since "not found" alone does not tell a wrong page from a phone that has lost the app.
  */
-export async function press(query, { timeout = 15_000 } = {}) {
+export async function press(query, { timeout = 15_000, steady: wait = true } = {}) {
   let last = []
-  const node = await waitFor(() => find((last = dump()), query), { timeout })
+  const look = () => find((last = dump()), query)
+  const node = await waitFor(wait ? steady(look) : look, { timeout })
   if (!node) {
     throw new Error(`Timed out after ${timeout} ms waiting for ${JSON.stringify(query)} to press. In front: ${focus() || '(nothing)'}. On the screen: ${labels(last).slice(0, 16).join(' | ') || '(nothing)'}`)
   }

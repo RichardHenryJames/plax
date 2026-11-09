@@ -18,6 +18,17 @@ export { d }
 /** Everything the app puts on its first page, found by the test ids the app gives them. */
 const STORY = ['headline', 'tag', 'credit', 'body', 'save', 'share', 'menu-button']
 
+/**
+ * How long the ad strip is waited for after a start. On a first run no room is kept for it: it comes 7 to 13 seconds after the first story on the
+ * emulator, the story shrinks to make room, and the buttons under it go up. Whatever is found or tapped in those seconds may be somewhere else by the time
+ * the tap lands, so the first thing done with a page waits for the strip (the app keeps it, once it has come, wherever a story is).
+ */
+const STRIP_WAIT_MS = 30_000
+const stripIn = (nodes) => {
+  const strip = d.find(nodes, { id: 'ad-strip' })
+  return Boolean(strip && strip.height > 0)
+}
+
 export async function openWorld({ install = true, port = 8787 } = {}) {
   d.assertTestEmulator()
   const server = createMockServer({ port })
@@ -34,6 +45,9 @@ export async function openWorld({ install = true, port = 8787 } = {}) {
 export class World {
   constructor(server) {
     this.server = server
+    /** When the app last started, while it is not known yet whether the ad strip has come (see STRIP_WAIT_MS). */
+    this.stripWaitFrom = null
+    this.upright = true
   }
 
   /** The phone as a reader would have it: upright, English, light, text at its normal size. */
@@ -43,6 +57,7 @@ export class World {
     d.setRotation(landscape)
     d.setLocale(locale)
     d.shell('settings put global window_animation_scale 1')
+    this.upright = !landscape
   }
 
   async close() {
@@ -68,7 +83,32 @@ export class World {
     d.forceStop(PKG)
     d.logcatClear()
     d.startApp(PKG)
-    if (story) await this.untilStory()
+    this.stripWaitFrom = Date.now()
+    if (story) {
+      await this.untilStory()
+      this.stripWaitFrom = Date.now()
+    }
+  }
+
+  /**
+   * Waits, before the first thing is done with a page after a start, until the ad strip has come and the story has made room for it, or until it is
+   * clear that it will not come: no story in view (the strip belongs under one), a phone on its side (no strip on a screen under 500 dp), or
+   * STRIP_WAIT_MS gone.
+   */
+  async untilLaidOut() {
+    const from = this.stripWaitFrom
+    this.stripWaitFrom = null
+    if (from === null || !this.upright) return
+    const end = from + STRIP_WAIT_MS
+    if (Date.now() >= end) return
+    await d.waitFor(
+      () => {
+        if (Date.now() >= end) return true
+        const nodes = d.dump()
+        return !pageView(nodes).pick('headline') || stripIn(nodes)
+      },
+      { timeout: STRIP_WAIT_MS + 20_000 },
+    )
   }
 
   /** The app is closed (swiped away) and opened again, with everything it kept. */
@@ -104,6 +144,7 @@ export class World {
   }
 
   async press(query, options) {
+    await this.untilLaidOut()
     const node = await d.press(query, options)
     await d.sleep(350)
     return node
@@ -161,6 +202,7 @@ export class World {
    * with `expectChange` it is made again, longer and slower, up to `tries` times, and only a page that takes none of them has failed.
    */
   async swipe(direction = 'up', { expectChange = true, timeout = 25_000, tries = 3 } = {}) {
+    await this.untilLaidOut()
     const start = d.dump()
     const from = expectChange ? this.pageName(start) : null
     const area = pageView(start).pager?.bounds ?? null
@@ -185,6 +227,19 @@ export class World {
   headline() {
     const node = pageView(d.dump()).pick('headline')
     return node?.desc || node?.text || ''
+  }
+
+  /**
+   * The element with this test id on the page in view, or nothing. The pages on either side of it are in the accessibility tree too (cut off
+   * by the pager), so asking the whole tree for "a headline" can answer with the next story's while the one in view is still a placeholder.
+   */
+  inView(id, nodes = d.dump()) {
+    return pageView(nodes).pick(id)
+  }
+
+  /** Waits until the page in view has an element with this test id, and gives it back. */
+  untilInView(id, { timeout = 15_000, label } = {}) {
+    return d.waitFor(() => this.inView(id), { timeout, label: label ?? `${id} on the page in view` })
   }
 
   /** Waits for the browser to come in front: a cold Chrome takes seconds on the emulator. */

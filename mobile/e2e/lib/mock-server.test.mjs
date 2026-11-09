@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
 import { createMockServer } from './mock-server.mjs'
-import { imageFor, pool } from './fixtures.mjs'
+import { ENGLISH_ONLY_IN_HINDI, hindiTranslation, imageFor, pool } from './fixtures.mjs'
 
 const server = createMockServer({ port: 8799 })
 const get = (path) => fetch(`http://127.0.0.1:8799${path}`)
@@ -112,6 +112,79 @@ test('what the app asked for is kept for a test to look at', async () => {
   const [entry] = server.requests('/news/api/feed')
   assert.equal(entry.query.lang, 'hi')
   assert.equal(entry.query.limit, '7')
+})
+
+test('the feed of Hindi has stories of its own for the news and most topics, and only the English ones for Stocks and Books, as the live feed has', async () => {
+  const devanagari = /[\u0900-\u097f]/
+  for (const category of ['news', 'science', 'space', 'history']) {
+    const { cards } = await (await get(`/news/api/feed?categories=${category}&limit=30&lang=hi`)).json()
+    assert.ok(cards.length > 0 && cards.every((c) => devanagari.test(c.title) && devanagari.test(c.content)), `${category} is in Hindi`)
+  }
+  for (const category of ENGLISH_ONLY_IN_HINDI) {
+    const { cards } = await (await get(`/news/api/feed?categories=${category}&limit=30&lang=hi`)).json()
+    assert.ok(cards.length > 0 && cards.every((c) => !devanagari.test(c.title) && !devanagari.test(c.content)), `${category} is in English in Hindi mode`)
+    assert.ok(cards.every((c) => c.content.length >= 40), 'with text enough to be translated')
+    const english = await (await get(`/news/api/feed?categories=${category}&limit=30&lang=en`)).json()
+    assert.deepEqual(cards.map((c) => c.id), english.cards.map((c) => c.id), 'the very stories of the English feed')
+  }
+  assert.deepEqual(ENGLISH_ONLY_IN_HINDI, ['stocks', 'books'])
+})
+
+const post = (path, body) => fetch(`http://127.0.0.1:8799${path}`, { method: 'POST', body: typeof body === 'string' ? body : JSON.stringify(body) })
+const asked = (title = 'Markets close higher as banks lead the gains', content = 'Analysts said the rally was led by banks and large technology companies, with small caps lagging behind.') => ({ title, content, type: 'microessay', lang: 'hi', category: 'stocks', card: true })
+
+test('the endpoint that translates a card answers in the real one’s shape: Hindi words with Markdown emphasis, the same for the same request', async () => {
+  server.setSummarize({ mode: 'ok', delayMs: 0, failFirst: 0 })
+  const first = await (await post('/news/api/summarize', asked())).json()
+  assert.deepEqual(Object.keys(first).sort(), ['content', 'title', 'translated', 'type'])
+  assert.match(first.title, /[\u0900-\u097f]/)
+  assert.match(first.content, /^\*\*[^*]+\*\*/)
+  assert.equal(first.translated, true)
+  assert.deepEqual(await (await post('/news/api/summarize', asked())).json(), first)
+  const other = await (await post('/news/api/summarize', asked('Government extends deadline for filing returns'))).json()
+  assert.notEqual(other.title, first.title)
+  assert.deepEqual(hindiTranslation(asked()), first)
+})
+
+test('the endpoint that translates a card can fail in the ways the real one does', async () => {
+  const status = async (body = asked()) => (await post('/news/api/summarize', body)).status
+  server.setSummarize({ mode: 'error500' })
+  assert.equal(await status(), 500)
+  server.setSummarize({ mode: 'error429' })
+  assert.equal(await status(), 429)
+  server.setSummarize({ mode: 'invalid' })
+  assert.equal(await (await post('/news/api/summarize', asked())).text(), 'this is not json')
+  server.setSummarize({ mode: 'english' })
+  const english = await (await post('/news/api/summarize', asked())).json()
+  assert.equal(english.content, asked().content, 'the English as it was, with a 200')
+  server.setSummarize({ mode: 'drop' })
+  await assert.rejects(post('/news/api/summarize', asked()))
+  server.setSummarize({ mode: 'ok' })
+  assert.equal(await status({ title: 'x' }), 400, 'no content is refused')
+})
+
+test('the endpoint that translates a card can fail only its first requests, and take its time', async () => {
+  server.setSummarize({ mode: 'ok', failFirst: 2, delayMs: 0 })
+  assert.deepEqual([(await post('/news/api/summarize', asked())).status, (await post('/news/api/summarize', asked())).status, (await post('/news/api/summarize', asked())).status], [500, 500, 200])
+  server.setSummarize({ delayMs: 120 })
+  const started = Date.now()
+  await post('/news/api/summarize', asked())
+  assert.ok(Date.now() - started >= 100)
+  server.setSummarize({ delayMs: 0 })
+})
+
+test('the translation is kept in the log with what was asked for', async () => {
+  server.clearLog()
+  await post('/news/api/summarize', asked())
+  const [entry] = server.requests('/news/api/summarize')
+  assert.equal(entry.method, 'POST')
+  assert.deepEqual(Object.keys(JSON.parse(entry.body)).sort(), ['card', 'category', 'content', 'lang', 'title', 'type'])
+})
+
+test('the state of the endpoint is put back by a reset', async () => {
+  server.setSummarize({ mode: 'error500', failFirst: 3, delayMs: 50 })
+  server.reset()
+  assert.deepEqual(server.state.summarize, { mode: 'ok', delayMs: 0, failFirst: 0 })
 })
 
 test('Go deeper and Share answer as the real site does', async () => {

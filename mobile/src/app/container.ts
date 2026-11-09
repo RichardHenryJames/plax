@@ -13,6 +13,8 @@ import { importLegacyData, type LegacyFiles } from '../data/legacy-import'
 import { Prefs } from '../data/prefs'
 import { SavedStories } from '../data/saved-stories'
 import { createShareLinks, type ShareSource } from '../data/share-links'
+import { Translations } from '../data/translations'
+import { createTranslateApi, type TranslateSource } from '../data/translate-api'
 import type { RequestFn } from '../config/site-file'
 import { systemClock, type Clock } from '../platform/clock'
 import { readLegacyPreferences } from '../platform/native'
@@ -35,6 +37,8 @@ export interface Services {
   readonly engine: FeedEngine
   readonly deeper: DeeperSource
   readonly share: ShareSource
+  /** The translations of the stories the feed has only in English, which Hindi shows translated. */
+  readonly translations: Translations
   /**
    * Gets the app ready, in the order it needs: what the native 1.x app left on the phone is taken over (once), the settings and what the
    * reader has been told are read, the account's session is opened (no network), and the feed engine starts. Never throws.
@@ -60,6 +64,8 @@ export interface ServiceOverrides {
   readonly request?: RequestFn
   readonly deeper?: DeeperSource
   readonly share?: ShareSource
+  /** Where the translations of stories come from (default: the website's endpoint). */
+  readonly translate?: TranslateSource
   /** The account (default: the real one, signing in through the phone's browser). */
   readonly account?: AccountManager
   readonly engine?: Partial<FeedEngineOptions>
@@ -118,8 +124,9 @@ export function createServices(overrides: ServiceOverrides = {}): Services {
 
   let stopOta: (() => void) | undefined
   let started: Promise<void> | undefined
+  const translations = new Translations({ source: overrides.translate ?? createTranslateApi() })
   return {
-    clock, storage, prefs, appConfig, prompts, apkUpdates, ota, account, engine,
+    clock, storage, prefs, appConfig, prompts, apkUpdates, ota, account, engine, translations,
     deeper: overrides.deeper ?? createDeeperApi(),
     share: overrides.share ?? createShareLinks(),
     start() {
@@ -136,6 +143,7 @@ export function createServices(overrides: ServiceOverrides = {}): Services {
     stop() {
       stopOta?.()
       stopOta = undefined
+      translations.stop()
     },
   }
 }

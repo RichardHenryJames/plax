@@ -70,7 +70,12 @@ and runtime version, the platform, the channel, the ids of the bundles it holds,
 It carries no name, email, account, advertising ID or reading history (read from the library's own source, node_modules\expo-updates\...\FileDownloader.kt).
 In the form this is an identifier ("Device or other IDs", which is already declared as collected) sent to a service provider that processes it for the app
 (Expo), for "App functionality". Google does not count a transfer to a service provider that works on your behalf as "sharing", but the mapping is yours to decide
-against the form's wording on the day. The privacy policy (updated 6 November 2026) and the app's About screen say so.
+against the form's wording on the day. The privacy policy (updated 8 November 2026) and the app's About screen say so.
+
+Also new after 2.0.0, as an over-the-air change of 8 November 2026 (mobile\README.md, "Reading in Hindi"): in Hindi the app sends the text of a story the feed has only in English (Stocks, Books) to
+Plax Labs to be translated, as Go deeper sends the text it is asked about and as the website does when a story is read in Hindi. It is public news text with its topic and the language, and nothing that identifies the
+reader (no name, email, account, advertising ID or installation number). On my reading it is not data the app collects about the reader, so no new line in the form is due; the mapping is yours to decide against the
+form's wording on the day. The privacy policy and the About screen (both languages) say so.
 
 
 6. STORE LISTING AND RELEASE NOTES
@@ -84,8 +89,8 @@ Keep "Contains ads" as Play shows it, and do not say the ads are "non-intrusive"
 
 7. PRIVACY POLICY
 =================
-https://plax-rouge.vercel.app/news/privacy was updated on 6 November 2026 for the update service (section 5). It is deployed with the website, so it must be
-live before the bundle is released: check that the page says "Updates to the app's own code" and the date.
+https://plax-rouge.vercel.app/news/privacy was updated on 6 November 2026 for the update service (section 5), and again on 8 November 2026 to say that reading in Hindi in the app, as on the website,
+sends a story's text to be translated. It is deployed with the website, so it must be live before the bundle is released: check that the page says "Updates to the app's own code" and the date.
 
 
 8. THE PUBLISHER'S NAME AND THE NEWS DECLARATION  (the owner's decision, with its risk)

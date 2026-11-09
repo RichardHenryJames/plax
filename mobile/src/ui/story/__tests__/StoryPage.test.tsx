@@ -183,3 +183,121 @@ describe('a story page', () => {
     expect(screen.queryByText('Court gives ministry two weeks to respond')).toBeNull()
   })
 })
+
+describe('a story page in Hindi for a story the feed has only in English', () => {
+  const HINDI_TITLE = 'कोका-कोला इंडिया ने ड्राफ्ट आईपीओ प्रॉस्पेक्टस दाखिल किया'
+  const HINDI_BODY = 'हिंदुस्तान कोका-कोला होल्डिंग्स ने सेबी के पास ड्राफ्ट रेड हेरिंग प्रॉस्पेक्टस दाखिल किया है। प्रस्तावित लेनदेन में प्रमोटर अपनी हिस्सेदारी का एक भाग बेचेगा।'
+  const ready = { status: 'ready', title: HINDI_TITLE, content: HINDI_BODY } as const
+  const pending = { status: 'pending' } as const
+
+  it('stands a placeholder where the headline and the summary will be, and no words in English, while the translation is on its way', () => {
+    render(page(props({ translation: pending }), 'hi'))
+    measureEverything(360)
+    expect(screen.getByTestId('translating')).toBeTruthy()
+    expect(screen.queryByTestId('headline')).toBeNull()
+    expect(screen.queryByTestId('body')).toBeNull()
+    expect(screen.queryByText('Court gives ministry two weeks to respond')).toBeNull()
+    expect(screen.queryByText(/The court said on Thursday/)).toBeNull()
+  })
+
+  it('says to a screen reader that it is translating, in the reader\u2019s language, and that it is busy', () => {
+    render(page(props({ translation: pending }), 'hi'))
+    measureEverything(360)
+    const bars = screen.getByTestId('translating')
+    expect(bars.props.accessibilityLabel).toBe('अनुवाद हो रहा है…')
+    expect(bars.props.accessibilityRole).toBe('progressbar')
+    expect(bars.props.accessibilityState).toEqual({ busy: true })
+    expect(screen.getAllByText('अनुवाद हो रहा है…').length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('keeps the rest of the page as it is meanwhile: the menu, the tag, the age, the picture and the buttons', () => {
+    render(page(props({ translation: pending }), 'hi'))
+    measureEverything(360)
+    expect(screen.getByTestId('tag')).toHaveTextContent('INDIA')
+    expect(screen.getByTestId('credit')).toHaveTextContent('5 min ago')
+    expect(screen.getByTestId('hero')).toBeTruthy()
+    expect(screen.getByTestId('translating')).toBeTruthy()
+    expect(screen.getAllByRole('button').length).toBeGreaterThanOrEqual(4)
+  })
+
+  it('keeps the placeholder inside the room the headline and the summary had', () => {
+    render(page(props({ translation: pending }), 'hi'))
+    measureEverything(360)
+    const style = Object.assign({}, ...[screen.getByTestId('translating').props.style].flat(3)) as { top: number; height: number; overflow: string }
+    expect(style.overflow).toBe('hidden')
+    expect(style.height).toBeGreaterThan(0)
+    expect(style.top + style.height).toBeLessThanOrEqual(780)
+  })
+
+  it('shows the translation, laid out as any other text, once it is there', () => {
+    const { rerender } = render(page(props({ translation: pending }), 'hi'))
+    measureEverything(360)
+    rerender(page(props({ translation: ready }), 'hi'))
+    measureEverything(360)
+    expect(screen.queryByTestId('translating')).toBeNull()
+    expect(screen.getByText(HINDI_TITLE)).toBeTruthy()
+    expect(screen.getByTestId('body')).toHaveTextContent(HINDI_BODY)
+    expect(screen.queryByText('Court gives ministry two weeks to respond')).toBeNull()
+  })
+
+  it('lays the translation out at once on a page that was never the placeholder, and cuts it where its room ends', () => {
+    render(page(props({ translation: { status: 'ready', title: HINDI_TITLE, content: `${HINDI_BODY} `.repeat(30) } }), 'hi'))
+    measureEverything(360)
+    const body = screen.getByTestId('body')
+    expect(body.props.numberOfLines).toBeGreaterThanOrEqual(3)
+    expect(String(body.props.children).length).toBeLessThan(`${HINDI_BODY} `.repeat(30).length)
+    expect(screen.getByText(HINDI_TITLE)).toBeTruthy()
+  })
+
+  it('keeps the story it was given for the buttons: what is saved, shared, opened and gone deeper on is the feed\u2019s own, not the translation', () => {
+    const p = props({ translation: ready })
+    render(page(p, 'hi'))
+    measureEverything(360)
+    fireEvent.press(screen.getByTestId('save'))
+    fireEvent.press(screen.getByTestId('share'))
+    fireEvent.press(screen.getByTestId('deeper'))
+    fireEvent.press(screen.getByTestId('headline'))
+    expect(p.onSave).toHaveBeenCalledWith(p.story)
+    expect(p.onShare).toHaveBeenCalledWith(p.story)
+    expect(p.onDeeper).toHaveBeenCalledWith(p.story)
+    expect(p.onOpenSource).toHaveBeenCalledWith(p.story)
+    expect(p.story.title).toBe('Court gives ministry two weeks to respond')
+    expect(screen.getByTestId(`story-${p.story.id}`)).toBeTruthy()
+  })
+
+  it('has no headline to open while it is the placeholder, and the buttons still work', () => {
+    const p = props({ translation: pending })
+    render(page(p, 'hi'))
+    measureEverything(360)
+    expect(screen.queryByTestId('headline')).toBeNull()
+    fireEvent.press(screen.getByTestId('save'))
+    expect(p.onSave).toHaveBeenCalledWith(p.story)
+  })
+
+  it('is drawn again when the translation comes, and not when the same one is told again', () => {
+    const { rerender } = render(page(props({ translation: pending }), 'hi'))
+    measureEverything(360)
+    const first = screen.getByTestId('translating')
+    const same = props({ translation: pending })
+    rerender(page({ ...same, story: props().story }, 'hi'))
+    expect(screen.getByTestId('translating')).toBe(first)
+    rerender(page(props({ translation: ready }), 'hi'))
+    measureEverything(360)
+    expect(screen.queryByTestId('translating')).toBeNull()
+  })
+
+  it('is as it always was for a story that has no translation to show', () => {
+    render(page(props({ translation: undefined }), 'hi'))
+    measureEverything(360)
+    expect(screen.queryByTestId('translating')).toBeNull()
+    expect(screen.getByTestId('headline')).toBeTruthy()
+    expect(screen.getByText('Court gives ministry two weeks to respond')).toBeTruthy()
+  })
+
+  it('takes the headline from the translation only when it has one, and the body from it always', () => {
+    render(page(props({ translation: { status: 'ready', title: 'Court gives ministry two weeks to respond', content: HINDI_BODY } }), 'hi'))
+    measureEverything(360)
+    expect(screen.getByText('Court gives ministry two weeks to respond')).toBeTruthy()
+    expect(screen.getByTestId('body')).toHaveTextContent(/^हिंदुस्तान/)
+  })
+})

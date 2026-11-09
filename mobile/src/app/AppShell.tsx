@@ -305,7 +305,7 @@ export function AppShell({ services, host = phoneHost, themeMode, onThemeMode }:
           />
         ) : null}
         {showFeed ? (
-          <FeedView key={state.screen} state={state} engine={engine} config={config} ads={ads} actions={actions} onMovingChange={onMovingChange} onTick={host.tick} />
+          <FeedView key={state.screen} state={state} engine={engine} translations={services.translations} config={config} ads={ads} actions={actions} onMovingChange={onMovingChange} onTick={host.tick} />
         ) : null}
         <RefreshSpinner visible={state.refreshing} />
         <NewStoriesPill visible={state.fresh} onPress={() => engine.applyFresh()} />

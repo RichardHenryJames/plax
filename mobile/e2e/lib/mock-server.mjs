@@ -1,11 +1,11 @@
 // The mock website the test build talks to (10.0.2.2:8787 from the emulator): the same routes and answers as the real site for what the app uses,
 // with fixed stories and settings, and a way for a test to change what it answers (an error, a slow answer, a dropped connection, new stories,
-// another settings file, a feed that gives no more than `cap` stories at a time) and to see what the app asked for.
+// another settings file, a feed that gives no more than `cap` stories at a time, a translation that fails) and to see what the app asked for.
 import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { CATEGORIES, imageFor, pool } from './fixtures.mjs'
+import { CATEGORIES, ENGLISH_ONLY_IN_HINDI, hindiTranslation, imageFor, pool } from './fixtures.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const REPO = path.resolve(here, '..', '..', '..')
@@ -17,6 +17,7 @@ export function createMockServer({ port = 8787 } = {}) {
     feed: { mode: 'ok', delayMs: 0 },
     deeper: { mode: 'ok', delayMs: 0 },
     share: { mode: 'ok', delayMs: 0 },
+    summarize: { mode: 'ok', delayMs: 0, failFirst: 0 },
     config: { mode: 'file', body: null },
     updates: { mode: 'none', body: null },
     fresh: new Map(),
@@ -30,6 +31,7 @@ export function createMockServer({ port = 8787 } = {}) {
     state.feed = { mode: 'ok', delayMs: 0 }
     state.deeper = { mode: 'ok', delayMs: 0 }
     state.share = { mode: 'ok', delayMs: 0 }
+    state.summarize = { mode: 'ok', delayMs: 0, failFirst: 0 }
     state.config = { mode: 'file', body: null }
     state.updates = { mode: 'none', body: null }
     state.fresh.clear()
@@ -67,7 +69,7 @@ export function createMockServer({ port = 8787 } = {}) {
     const limit = Math.max(1, Math.min(state.feed.cap ?? 60, Math.min(60, Number(url.searchParams.get('limit') ?? 30))))
     const exclude = new Set((url.searchParams.get('exclude') ?? '').split(',').filter(Boolean))
     let cards = []
-    for (const category of categories) cards.push(...(state.fresh.get(`${category}/${lang}`) ?? []), ...pool(category, lang, state.now))
+    for (const category of categories) cards.push(...(state.fresh.get(`${category}/${lang}`) ?? []), ...pool(category, lang === 'hi' && ENGLISH_ONLY_IN_HINDI.includes(category) ? 'en' : lang, state.now))
     // A personalised mix interleaves its topics, as the real feed does.
     if (categories.length > 1) {
       const byCategory = categories.map((category) => cards.filter((card) => card.category === category))
@@ -127,6 +129,24 @@ export function createMockServer({ port = 8787 } = {}) {
       const body = JSON.parse(entry.body || '{}')
       return send(response, 200, { insights: [`First, the **${String(body.title ?? '').slice(0, 30)}** story in context.`, 'Second, what it changes for readers.', 'Third, what to watch next.'] })
     }
+    if (route === `${BASE}/api/summarize` && request.method === 'POST') {
+      if (state.summarize.delayMs) await delay(state.summarize.delayMs)
+      if (state.summarize.failFirst > 0) {
+        state.summarize.failFirst -= 1
+        return send(response, 500, { error: 'Summarization failed' })
+      }
+      const mode = state.summarize.mode
+      if (mode === 'drop') return request.socket.destroy()
+      if (mode === 'hang') return undefined
+      if (mode === 'error500') return send(response, 500, { error: 'Summarization failed' })
+      if (mode === 'error429') return send(response, 429, { error: 'Too many requests' })
+      if (mode === 'invalid') return send(response, 200, 'this is not json', 'text/html')
+      const body = JSON.parse(entry.body || '{}')
+      if (!body.content) return send(response, 400, { error: 'Content required' })
+      // What the real endpoint answers when every service it tries is out: the English as it was, with a 200.
+      if (mode === 'english' || body.lang !== 'hi') return send(response, 200, { title: body.title ?? '', content: body.content, type: body.type ?? 'microessay' })
+      return send(response, 200, hindiTranslation(body))
+    }
     if (route === `${BASE}/api/share` && request.method === 'POST') {
       if (state.share.delayMs) await delay(state.share.delayMs)
       if (state.share.mode === 'error') return send(response, 500, { error: 'No' })
@@ -151,7 +171,7 @@ export function createMockServer({ port = 8787 } = {}) {
     const action = url.pathname.replace('/__control', '') || '/'
     const body = entry.body ? JSON.parse(entry.body) : {}
     if (action === '/state' && request.method === 'POST') {
-      for (const key of ['feed', 'deeper', 'share', 'config', 'updates']) if (body[key]) Object.assign(state[key], body[key])
+      for (const key of ['feed', 'deeper', 'share', 'summarize', 'config', 'updates']) if (body[key]) Object.assign(state[key], body[key])
       return send(response, 200, { ok: true })
     }
     if (action === '/reset') return (reset(), send(response, 200, { ok: true }))
@@ -176,6 +196,7 @@ export function createMockServer({ port = 8787 } = {}) {
     requests: (prefix = '') => state.log.filter((entry) => entry.path.startsWith(prefix)),
     clearLog: () => void (state.log.length = 0),
     setFeed: (patch) => void Object.assign(state.feed, patch),
+    setSummarize: (patch) => void Object.assign(state.summarize, patch),
     setConfig: (config) => void (Object.assign(state.config, typeof config === 'string' ? { mode: 'raw', body: config } : config === null ? { mode: 'file', body: null } : { mode: 'object', body: config })),
     start: () => new Promise((resolve, reject) => {
       server.once('error', reject)

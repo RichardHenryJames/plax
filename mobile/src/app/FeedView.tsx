@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { View } from 'react-native'
 import { Image } from 'expo-image'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -19,6 +19,7 @@ import { showsSourceName } from '../config/app-config'
 import { feedBanner } from '../data/feed-banner'
 import type { FeedEngine, FeedState } from '../data/feed-engine'
 import { adOrdinal, adStory, hasImage, isAd, isCaughtUp, type Story } from '../data/story'
+import type { Translations } from '../data/translations'
 import { imageUri } from '../platform/images'
 import { useT } from '../ui/i18n-context'
 import { MenuButton } from '../ui/primitives'
@@ -41,6 +42,8 @@ export interface StoryActions {
 export interface FeedViewProps {
   readonly state: FeedState
   readonly engine: FeedEngine
+  /** The translations of the stories that the feed has only in English, which Hindi shows translated. */
+  readonly translations: Translations
   readonly config: AppConfig
   readonly ads: Ads
   readonly actions: StoryActions
@@ -64,6 +67,9 @@ export function pagerTarget(item: number, onAd: number, slots: readonly number[]
 /** How many of the stories after the one in view have their picture asked for ahead of time. */
 const PREFETCH_AHEAD = 2
 
+/** How many of the stories after the one in view are translated ahead of the reader (the website looks four ahead too). */
+const TRANSLATE_AHEAD = 4
+
 function prefetchPictures(stories: readonly Story[], item: number): void {
   for (let next = item + 1; next <= item + PREFETCH_AHEAD && next < stories.length; next++) {
     const story = stories[next]
@@ -81,7 +87,7 @@ function prefetchPictures(stories: readonly Story[], item: number): void {
  * has one ready; they are put in, and taken out, only while the pager is still, so that nothing moves under a swipe. The engine's own
  * position is the reader's place in its list of stories; the pager's page is made from it and from the ads that are in.
  */
-export function FeedView({ state, engine, config, ads, actions, onMovingChange, onTick }: FeedViewProps) {
+export function FeedView({ state, engine, translations, config, ads, actions, onMovingChange, onTick }: FeedViewProps) {
   const { t, lang } = useT()
   const { palette } = useTheme()
   const insets = useSafeAreaInsets()
@@ -113,6 +119,12 @@ export function FeedView({ state, engine, config, ads, actions, onMovingChange, 
   }, [adPages, ads.controller, item, stories.length, onAd])
 
   useEffect(() => prefetchPictures(stories, item), [stories, item])
+
+  // In Hindi the stories the feed has only in English are translated, the one in view first and then those the reader is about to reach.
+  const translationsVersion = useSyncExternalStore(translations.subscribe, translations.getVersion, translations.getVersion)
+  useEffect(() => {
+    translations.want(stories.slice(item, item + 1 + TRANSLATE_AHEAD), state.lang)
+  }, [translations, stories, item, state.lang])
 
   const onIndexChange = useCallback(
     (next: number) => {
@@ -179,6 +191,7 @@ export function FeedView({ state, engine, config, ads, actions, onMovingChange, 
       return (
         <StoryPage
           story={story}
+          translation={translations.view(story, state.lang)}
           width={size.width}
           height={size.height}
           tag={storyTag(story, config, lang, t)}
@@ -196,7 +209,7 @@ export function FeedView({ state, engine, config, ads, actions, onMovingChange, 
         />
       )
     },
-    [ads.controller, adTheme, lang, t, actions, earlierCount, check, earlier, config, namesSource, savedIds, saveEnabled, minute],
+    [ads.controller, adTheme, lang, t, actions, earlierCount, check, earlier, config, namesSource, savedIds, saveEnabled, minute, translations, translationsVersion, state.lang],
   )
 
   const banner = feedBanner(state, item)

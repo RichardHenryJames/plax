@@ -10,6 +10,8 @@ import { FakeSource, stories as makeStories } from '../../data/__tests__/helpers
 import type { DeeperSource } from '../../data/deeper-api'
 import type { ShareSource } from '../../data/share-links'
 import type { Story } from '../../data/story'
+import { TranslateError, type TranslateSource, type Translated } from '../../data/translate-api'
+import type { Lang } from '../../i18n'
 import { fakeClock } from '../../platform/clock'
 import { createStore } from '../../state/store'
 import { flushPromises, setVariant } from '../../test/helpers'
@@ -19,6 +21,34 @@ import { Root } from '../Root'
 
 export const SITE = 'https://plax-rouge.vercel.app/news'
 export const NOW = 1_780_000_000_000
+
+/** What a translation of a story is in the tests: Hindi words that carry the story's id, so that a test can tell whose they are. */
+export const hindiOf = (story: Story): Translated => ({ title: `हिंदी शीर्षक ${story.id}`, content: `हिंदी में ख़बर ${story.id}। यह अनुवाद है, और यह पूरे पेज के लिए काफ़ी लंबा पाठ है जिसे कई पंक्तियों में रखा जाता है।` })
+
+/**
+ * The translations the app asks for, which a test answers: at once (default), with a failure, or not at all until it says so. Nothing in the
+ * tests reaches the website: whatever the app asks for is written down here.
+ */
+export class FakeTranslate implements TranslateSource {
+  readonly calls: { story: Story; lang: Lang }[] = []
+  mode: 'ok' | 'fail' | 'hold' = 'ok'
+  private readonly held: { story: Story; resolve: (value: Translated) => void; reject: (error: unknown) => void }[] = []
+
+  translate(story: Story, lang: Lang, signal?: AbortSignal): Promise<Translated> {
+    this.calls.push({ story, lang })
+    if (this.mode === 'ok') return Promise.resolve(hindiOf(story))
+    if (this.mode === 'fail') return Promise.reject(new TranslateError('Request refused'))
+    return new Promise((resolve, reject) => {
+      this.held.push({ story, resolve, reject })
+      signal?.addEventListener('abort', () => reject(new TranslateError('Request failed', true)))
+    })
+  }
+
+  /** Answers the requests that are being held. */
+  release(): void {
+    for (const request of this.held.splice(0)) request.resolve(hindiOf(request.story))
+  }
+}
 
 export interface FakeAccount extends AccountManager {
   readonly calls: string[]
@@ -107,6 +137,8 @@ export interface AppRig {
   readonly host: FakeHost
   readonly account: FakeAccount
   readonly source: FakeSource
+  /** The translations the app asked for (Hindi shows the stories the feed has only in English translated). */
+  readonly translate: FakeTranslate
   readonly storage: MemoryStorage
   readonly clock: ReturnType<typeof fakeClock>
   readonly network: FakeNetwork
@@ -131,6 +163,8 @@ export interface MountOptions {
   storage?: Record<string, string>
   deeper?: DeeperSource
   share?: ShareSource
+  /** How translations are answered (default: at once, in Hindi). */
+  translateMode?: FakeTranslate['mode']
   /** Shows the app at once with the pager drawn (the first page loaded); default true. */
   stories?: readonly Story[] | null
   bannerOn?: boolean
@@ -218,6 +252,8 @@ export async function mountApp(options: MountOptions = {}): Promise<AppRig> {
   const storage = memoryStorage(options.storage)
   const clock = fakeClock(NOW)
   const source = new FakeSource()
+  const translate = new FakeTranslate()
+  translate.mode = options.translateMode ?? 'ok'
   const account = fakeAccount()
   const host = fakeHost()
   const network = new FakeNetwork()
@@ -240,6 +276,7 @@ export async function mountApp(options: MountOptions = {}): Promise<AppRig> {
     account,
     deeper: options.deeper,
     share: options.share,
+    translate,
     legacyFiles: { readText: async () => null },
     playBuild: (options.variant ?? 'preview') === 'play',
     installed: 20,
@@ -261,6 +298,7 @@ export async function mountApp(options: MountOptions = {}): Promise<AppRig> {
     host,
     account,
     source,
+    translate,
     storage,
     clock,
     network,

@@ -103,6 +103,29 @@ export function pool(category, lang, now) {
 
 export const CATEGORIES = ['news', ...TOPIC_CATEGORIES]
 
+/**
+ * The topics that the live feed of Hindi has no stories of its own for: it answers with the English ones (checked against the live site on
+ * 7 November 2026: every other topic, and the news, came back in Hindi). The app shows these translated.
+ */
+export const ENGLISH_ONLY_IN_HINDI = ['stocks', 'books']
+
+/**
+ * What the website's endpoint that writes and translates a card answers for a request in Hindi: Hindi words made from the request (the same
+ * request gives the same words, a different story other words), in the shape the real one has, Markdown emphasis in the text and a headline
+ * of its own. A test can work out what a story's translation is, to see that the page shows it.
+ */
+export function hindiTranslation({ title = '', content = '' }) {
+  let h = 7
+  for (const character of `${title}\n${content}`) h = (h * 31 + character.codePointAt(0)) >>> 0
+  const sentences = (count) => Array.from({ length: count }, (_, n) => HI_SENTENCES[(h + n) % HI_SENTENCES.length]).join(' ')
+  return {
+    title: `${HI_TITLES[h % HI_TITLES.length]} ${h % 997}`,
+    content: `**${HI_TITLES[(h + 1) % HI_TITLES.length]}**। ${sentences(content.length > 500 ? 6 : 3)}`,
+    type: 'microessay',
+    translated: true,
+  }
+}
+
 // Pictures -----------------------------------------------------------------------------------------------------------------------------------
 const crcTable = (() => {
   const table = new Uint32Array(256)
