@@ -104,8 +104,9 @@ export function waitOutSystemAnr() {
 }
 
 const attr = (tag, name) => {
-  const match = new RegExp(`\\s${name}="([^"]*)"`).exec(tag)
-  return match ? match[1] : ''
+  // UI Automator writes a value between double quotes, and between single quotes when the value has a double quote in it (a story's text that quotes someone).
+  const match = new RegExp(`\\s${name}=(?:"([^"]*)"|'([^']*)')`).exec(tag)
+  return match ? (match[1] ?? match[2]) : ''
 }
 const unescapeXml = (text) => text.replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos);/gi, (whole, body) => {
   if (body[0] === '#') return String.fromCodePoint(body[1].toLowerCase() === 'x' ? parseInt(body.slice(2), 16) : parseInt(body.slice(1), 10))

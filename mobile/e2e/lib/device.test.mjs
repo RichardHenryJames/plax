@@ -2,7 +2,7 @@
 // a command is run again when adb's own server stops answering for a moment. The rest of the driver needs a phone, and is proved by the device tests.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { samePlace, steady, whileServerDown } from './device.mjs'
+import { labels, parseNodes, samePlace, steady, whileServerDown } from './device.mjs'
 
 const at = (left, top, right = left + 100, bottom = top + 50) => ({ bounds: { left, top, right, bottom } })
 
@@ -115,4 +115,41 @@ test('output that is not text (a screenshot) is not read for a failure that is n
   const { seen, run, options } = server(picture)
   assert.equal(whileServerDown(run, options), picture)
   assert.equal(seen.runs, 1)
+})
+
+/** A value as UI Automator writes it: between double quotes, and between single quotes when it has a double quote in it. */
+const quoted = (value) => (value.includes('"') ? `'${value}'` : `"${value}"`)
+const uiNode = ({ text = '', id = '', desc = '', bounds = '[0,0][100,50]' }) =>
+  `<node index="0" text=${quoted(text)} resource-id=${quoted(id)} class="android.widget.TextView" package="p" content-desc=${quoted(desc)} checkable="false" checked="false" clickable="true" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="${bounds}" />`
+const hierarchy = (...nodes) => `<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><hierarchy rotation="0">${nodes.join('')}</hierarchy>`
+
+test('the text of an element is read whether UI Automator wrote it between double quotes or, because it has a double quote in it, between single quotes', () => {
+  const quote = 'Musk ने Sequoia के मूल्यांकन का समर्थन किया कि Huang की कार्रवाइयाँ "अत्यंत मूर्खतापूर्ण" और "अमेरिका के लिए ख़राब" थीं।'
+  const nodes = parseNodes(hierarchy(uiNode({ text: 'शेयर बाज़ार', id: 'tag' }), uiNode({ text: quote, id: 'body', bounds: '[44,1488][1036,2082]' })))
+  assert.equal(nodes.length, 2)
+  assert.equal(nodes[0].text, 'शेयर बाज़ार')
+  assert.equal(nodes[1].text, quote, 'the text that quotes someone is not lost: it was read as empty, and a page in Hindi looked as if it had no summary')
+  assert.equal(nodes[1].id, 'body')
+  assert.deepEqual(nodes[1].bounds, { left: 44, top: 1488, right: 1036, bottom: 2082 })
+})
+
+test('a description with a double quote in it is read too, and the other attributes of that element are not disturbed', () => {
+  const [node] = parseNodes(hierarchy(uiNode({ id: 'headline', desc: 'The court said "no" to the petition', bounds: '[10,20][110,70]' })))
+  assert.equal(node.desc, 'The court said "no" to the petition')
+  assert.equal(node.text, '')
+  assert.equal(node.id, 'headline')
+  assert.equal(node.clickable, true)
+  assert.equal(node.enabled, true)
+  assert.deepEqual([node.cx, node.cy, node.width, node.height], [60, 45, 100, 50])
+})
+
+test('the escapes of XML are undone in a value between single quotes as in one between double quotes', () => {
+  const [single, double] = parseNodes(hierarchy(uiNode({ text: 'It&apos;s "fine" &amp; done &lt;3&#10;next' }), uiNode({ text: 'Tom &amp; Jerry &quot;live&quot;' })))
+  assert.equal(single.text, 'It\'s "fine" & done <3\nnext')
+  assert.equal(double.text, 'Tom & Jerry "live"')
+})
+
+test('what a screen reader would say is the text of each element, whichever quotes it came in', () => {
+  const nodes = parseNodes(hierarchy(uiNode({ text: 'plain' }), uiNode({ text: 'He said "yes"' }), uiNode({ desc: 'Share story' }), uiNode({})))
+  assert.deepEqual(labels(nodes), ['plain', 'He said "yes"', 'Share story'])
 })

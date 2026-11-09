@@ -102,7 +102,7 @@ every suite ran undisturbed with nothing failed or cancelled. `npm run test:devi
 **Last full run (8 and 9 November 2026, build 2.0.0 (20), e2e variant, one suite at a time through `npm run test:device`):** 103 tests in 29 suites, 102 passed, 0 failed, 0 cancelled, 1 skipped on purpose (saving 200 stories to reach
 the limit takes too long by hand; the limit is covered by the unit tests); the suites add up to 114 minutes on a computer shared with another emulator. `reading` was run a second time, on an emulator started afresh: its first
 run lost its first test to adb's server not answering and a swipe test to an emulator that had been up for ten hours; both passed on a healthy one. Unit and component tests: 92 suites, 2,075 tests passed, 14 skipped (the opt-in
-local-stack suite and the like); the harness's own tests (`npm run test:device-lib`): 37; the website's: 532. `npm run typecheck` is clean and the native layer matches `native-fingerprint.json`.
+local-stack suite and the like); the harness's own tests (`npm run test:device-lib`): 41; the website's: 532. `npm run typecheck` is clean and the native layer matches `native-fingerprint.json`.
 
 What the slow, software-drawn emulator taught the harness (`e2e/lib`), so that a failure means the app and not the test:
 
@@ -125,6 +125,8 @@ What the slow, software-drawn emulator taught the harness (`e2e/lib`), so that a
 - **The emulator starts with `-no-window`** when the computer has no desktop session open (after a restart, over a disconnected remote session): with its window it never finishes starting, and sits at 0 % CPU.
 - **The mock website lives in the test's own process**, and every look at the phone (`d.dump()`, a tap) is a synchronous call that holds that process for seconds. A script that does nothing else never lets the website answer,
   and the app says "Could not load stories". Wait for something (`await d.sleep(...)`) between looks, as `waitFor` does.
+- **UI Automator writes a value between single quotes when it has a double quote in it** (`text='… "अत्यंत मूर्खतापूर्ण" …'`), which is every story that quotes someone. The parser reads both; when it read only the double-quoted ones,
+  a page in Hindi that was drawn in full looked as if it had no summary, and only for the stories that quoted (found on the Google Play build against the live site, where the text is not the mock's).
 
 ## Updates without a new bundle
 
@@ -290,13 +292,18 @@ An install of the native app (1.x) is updated in place by this one: the same pac
 - **The bundle's gate** (`node scripts\check-bundle.mjs`): 25 checks passed, among them one signer, the upload key, package and version, the permission list with the advertising ID permission present, the owner's AdMob
   ids, cleartext traffic and backups off, 16 KiB alignment, Hermes bytecode in the bundle.
 - **An over-the-air update through Expo's real service:** a marker update was published to the test-only channel `e2e`; a fresh install of the device-test build started on its embedded bundle (no marker), downloaded the update in
-  the background and ran it after the next start (marker shown). The update was then deleted; the `production` branch was never written to.
+  the background and ran it after the next start (marker shown). The update was then deleted; that test never wrote to the `production` branch (its first update is the Hindi fix, below).
 - **The website's update, live:** the installed native 1.7.1 website build found the 2.0.0 feed on the live site by itself and offered it ("Plax 2.0.0 is ready…"); Download handed the exact APK address to the browser; the file the
   site serves matched the feed's size and SHA-256 and installed over the native build; the new build opened with a feed, did not offer the update again, showed the age with no publisher name, and the phone logged no crash and no
   "not responding". `scripts\verify-update.ps1` passed all 19 of its checks against the deployed site (feed, headers, size, SHA-256, package, version, signer).
 - The website's pages build (`next build`), with the privacy page, the settings file and the update feed as committed; the website's own tests (`npm test` at the root, 532).
+- **The Hindi translation fix, on the Google Play build as a reader gets it (9 November 2026).** The bundle's own build (`com.plaxlabs.news`, 2.0.0, code 20: the AAB of 7 November, not rebuilt and not uploaded again) showed Stocks in
+  Hindi as a Hindi menu and tag over an English headline and summary: the bug, reproduced against the live site. The fix went over the air to `production` (update group `ddb84d6e-755e-4fa7-8165-a3784cf948aa`, runtime 2.0.0,
+  commit `e1fe681`) after the checks above, with the privacy policy's new sentence live. On fresh data the Play build started on its embedded bundle, downloaded the update in the background, ran it after the next start, and
+  showed the Stocks stories with the tag, the headline and the summary all in Hindi: six fresh-data runs and three warm ones, with no crash and no "not responding". A reader who installs the AAB fresh starts on the embedded bundle
+  and has the fix from the second start.
 
 **Not verified:** a physical phone of any make; a real (not sample) ad being served, its revenue, or AdMob's and Google Play's review of the app (including Play's reading of an app that shows no publisher names, section 8 of
 `PLAY-CONSOLE-ANSWERS.txt`); the real consent message for a reader in the EEA; Google sign-in against the live account service (the project behind it was unavailable; the code runs against a real Supabase stack on the developer's
-machine and against fakes); an over-the-air update applied on a Google Play install (only on the device tests' build; the Play and website builds use the same library and differ only in the channel name `production`); a bundle that
+machine and against fakes); an install from Google Play's own store listing (the bundle was installed on the emulator with bundletool and took the update from `production`, but the store was not involved); a bundle that
 crashes as it starts being set aside by the update library; the move from the native app for a reader who was signed in (the session is not carried over, by design); and Hermes on every phone's Android version.
