@@ -31,7 +31,10 @@ try {
     Step 'Unit tests' { npx jest --silent }
     Step 'Signed in to Expo' { npx eas whoami }
     Step "Publish to the $Branch channel ($Rollout %)" {
-        npx eas update --branch $Branch --message $Message --platform android --rollout-percentage $Rollout --non-interactive
+        $publish = @('eas', 'update', '--branch', $Branch, '--message', $Message, '--platform', 'android', '--non-interactive')
+        # EAS takes 1 to 99 for a staged rollout and refuses 100: an update for everyone is the one published without the flag.
+        if ($Rollout -lt 100) { $publish += @('--rollout-percentage', "$Rollout") }
+        npx @publish
     }
     Write-Output "Published. Check it with: npx eas update:list --branch $Branch"
 }
