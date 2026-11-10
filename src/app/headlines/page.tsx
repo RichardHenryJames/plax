@@ -113,6 +113,12 @@ export default async function NewsHubPage() {
           <Link href="/?topic=news" className="text-[color:var(--signal)] hover:underline">open the live news feed</Link>.
           Prefer Hindi? <Link href="/samachar" className="text-[color:var(--signal)] hover:underline">आज की ताज़ा खबरें पढ़ें</Link>.
         </p>
+        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-dark-subtle">
+          Every headline here comes from a named publisher and links to its original story. Read how Plax picks and summarises stories in
+          the <Link href="/editorial-policy" className="text-[color:var(--signal)] hover:underline">editorial policy</Link>, and how to weigh
+          what you read in our guide{' '}
+          <Link href="/learn/how-to-read-the-news-critically" className="text-[color:var(--signal)] hover:underline">How to read the news critically</Link>.
+        </p>
       </header>
 
       {/* Section quick-links */}

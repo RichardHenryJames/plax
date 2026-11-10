@@ -4,6 +4,7 @@ import { NEWS_SECTIONS } from '@/lib/types'
 import { sharePath } from '@/lib/share'
 import { recentShares } from '@/lib/share-store'
 import { LEGAL } from '@/lib/legal'
+import { GUIDES, LEARN_UPDATED } from '@/lib/guides'
 
 // Shared stories join the sitemap as they appear; an hour's delay is fine for a page that never changes.
 export const revalidate = 3600
@@ -39,6 +40,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'hourly',
       priority: 0.95,
     },
+    // The site's own writing: the Learn guides and the pages that say who makes Plax and how. They change when a guide is edited, so they say when.
+    {
+      url: `${SITE_URL}/learn`,
+      lastModified: new Date(LEARN_UPDATED),
+      changeFrequency: 'weekly',
+      priority: 0.85,
+    },
+    {
+      url: `${SITE_URL}/about`,
+      lastModified: new Date(LEGAL.aboutUpdatedIso),
+      changeFrequency: 'monthly',
+      priority: 0.6,
+    },
+    {
+      url: `${SITE_URL}/editorial-policy`,
+      lastModified: new Date(LEGAL.aboutUpdatedIso),
+      changeFrequency: 'monthly',
+      priority: 0.6,
+    },
     // The policy pages Google Play requires; they change rarely, so they say when.
     {
       url: `${SITE_URL}${LEGAL.contactPath}`,
@@ -67,6 +87,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.85,
   }))
 
+  const guideRoutes: MetadataRoute.Sitemap = GUIDES.map((guide) => ({
+    url: `${SITE_URL}/learn/${guide.slug}`,
+    lastModified: new Date(guide.updated),
+    changeFrequency: 'monthly',
+    priority: 0.75,
+  }))
+
   const topicRoutes: MetadataRoute.Sitemap = TOPIC_SEO.map((t) => ({
     url: `${SITE_URL}/topics/${t.id}`,
     lastModified: now,
@@ -83,5 +110,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }))
 
-  return [...staticRoutes, ...newsSectionRoutes, ...topicRoutes, ...storyRoutes]
+  return [...staticRoutes, ...guideRoutes, ...newsSectionRoutes, ...topicRoutes, ...storyRoutes]
 }

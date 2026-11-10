@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { SITE_URL, TOPIC_SEO, getTopicSeo } from '@/lib/seo'
+import { guidesForTopic, readingMinutes } from '@/lib/guides'
+import { TOPIC_OVERVIEWS } from '@/lib/topic-overviews'
 import { BrandMark } from '@/components/BrandMark'
 import { SiteLinks } from '@/components/SiteLinks'
 
@@ -47,6 +49,8 @@ export default async function TopicPage({ params }: Params) {
 
   const url = `${SITE_URL}/topics/${t.id}`
   const related = TOPIC_SEO.filter((x) => x.id !== t.id).slice(0, 6)
+  const overview = TOPIC_OVERVIEWS[t.id] ?? []
+  const guides = guidesForTopic(t.id)
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -123,21 +127,44 @@ export default async function TopicPage({ params }: Params) {
           </ul>
         </section>
 
-        {/* Why Plax */}
-        <section className="mt-12">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-dark-subtle mb-4">
-            Learn {t.label} the smart way
-          </h2>
-          <div className="card-elevated p-6 leading-relaxed text-dark-text/85">
-            <p>
-              Every {t.label.toLowerCase()} card on Plax is short, clear and designed to be read in
-              under a minute. Our AI distills long articles into crisp takeaways with the key points
-              in <strong className="text-white">bold</strong>, so you absorb more in less time. Swipe
-              through a personalized feed, save what matters, and watch your knowledge compound —
-              five minutes at a time.
+        {/* What this section is for, in Plax's own words (a different text for every topic: lib/topic-overviews.ts) */}
+        {overview.length > 0 && (
+          <section className="mt-12" aria-labelledby="about-heading">
+            <h2 id="about-heading" className="text-sm font-semibold uppercase tracking-wider text-dark-subtle mb-4">
+              About {t.label} on Plax
+            </h2>
+            <div className="card-elevated p-6 leading-relaxed text-dark-text/85 space-y-3">
+              {overview.map((paragraph) => (
+                <p key={paragraph}>{paragraph}</p>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Where to start reading about it: the guides in Learn on this topic */}
+        {guides.length > 0 && (
+          <section className="mt-12" aria-labelledby="guides-heading">
+            <h2 id="guides-heading" className="text-sm font-semibold uppercase tracking-wider text-dark-subtle mb-4">
+              Start with {guides.length === 1 ? 'this guide' : 'these guides'}
+            </h2>
+            <ul className="space-y-3">
+              {guides.map((guide) => (
+                <li key={guide.slug} className="card-elevated p-4">
+                  <Link href={`/learn/${guide.slug}`} className="focus-ring font-semibold text-white hover:underline rounded">
+                    {guide.title}
+                  </Link>
+                  <p className="mt-1 text-[15px] leading-relaxed text-dark-muted">{guide.summary}</p>
+                  <p className="mt-1.5 text-xs text-dark-subtle">{readingMinutes(guide)} min read</p>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 text-sm">
+              <Link href="/learn" className="focus-ring font-semibold text-[color:var(--signal-text)] hover:underline rounded">
+                All Plax guides
+              </Link>
             </p>
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* Related topics */}
         <section className="mt-12">

@@ -47,6 +47,10 @@ export default async function Page() {
           <Link href="/headlines" tabIndex={-1}>All headlines</Link>
           {' · '}
           <Link href="/samachar" tabIndex={-1}>हिन्दी में ताज़ा खबरें</Link>
+          {' · '}
+          <Link href="/learn" tabIndex={-1}>Learn: guides to the subjects behind the news</Link>
+          {' · '}
+          <Link href="/about" tabIndex={-1}>About Plax</Link>
         </p>
       </section>
     </>

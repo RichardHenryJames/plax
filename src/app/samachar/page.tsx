@@ -88,6 +88,10 @@ export default async function SamacharPage() {
           <Link href="/?topic=news&lang=hi" className="text-[color:var(--signal)] hover:underline">लाइव समाचार फ़ीड खोलें</Link>.
           {' '}Read in English? <Link href="/headlines" className="text-[color:var(--signal)] hover:underline">Latest news today</Link>.
         </p>
+        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-dark-subtle">
+          यहाँ हर शीर्षक किसी नामित प्रकाशक से आता है और उसकी मूल ख़बर से जुड़ा है। Plax ख़बरें कैसे चुनता और संक्षेप में लिखता है, यह जानने के लिए{' '}
+          <Link href="/editorial-policy" lang="en" className="text-[color:var(--signal)] hover:underline">Editorial policy</Link> (अंग्रेज़ी में) पढ़ें।
+        </p>
       </header>
 
       {items.length === 0 ? (

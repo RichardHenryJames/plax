@@ -88,6 +88,11 @@ export function LeftRail() {
           label={t('profileStats')}
           icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.25a8.25 8.25 0 0115 0" />}
         />
+        <NavItem
+          href="/learn"
+          label={t('learn')}
+          icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />}
+        />
       </nav>
 
       {/* Language switcher (desktop parity with the mobile tune-icon editor) */}
@@ -235,6 +240,7 @@ export function LeftRail() {
           </span>
         </button>
         <div className={`mt-1 px-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold ${lang === 'hi' ? 'lang-hi' : ''}`}>
+          <Link href="/about" className="focus-ring text-dark-muted hover:text-white underline rounded">{t('aboutPlax')}</Link>
           <Link href="/contact" className="focus-ring text-dark-muted hover:text-white underline rounded">{t('contactUs')}</Link>
           <Link href="/privacy" className="focus-ring text-dark-muted hover:text-white underline rounded">{t('privacyPolicy')}</Link>
         </div>

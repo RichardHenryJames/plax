@@ -13,6 +13,10 @@ export const LEGAL = {
   contactUpdatedIso: '2026-11-05',
   // The address of that page in the Android app (Contact.pageUrl in mobile/src/ui/screens/ContactSheet.tsx), which shows the same email; the app's contact-sheet test keeps them equal.
   contactPath: '/contact',
+  // The pages about the publisher (/about and /editorial-policy) and the Learn guides' own dates are in lib/guides.ts; these two pages
+  // carry the date they were last changed, and the sitemap uses the same day.
+  aboutUpdated: '10 November 2026',
+  aboutUpdatedIso: '2026-11-10',
 } as const
 
 export const CONTACT_MAILTO = `mailto:${LEGAL.contactEmail}?subject=${encodeURIComponent('Plax feedback')}`

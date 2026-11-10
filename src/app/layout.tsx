@@ -124,6 +124,9 @@ export default function RootLayout({
         <nav aria-label="Browse topics" className="sr-only">
           <a href={withBase('/')}>Home</a>
           <a href={withBase('/topics')}>Explore all topics</a>
+          <a href={withBase('/learn')}>Learn: guides to the subjects behind the news</a>
+          <a href={withBase('/about')}>About Plax</a>
+          <a href={withBase('/editorial-policy')}>Editorial policy</a>
           <a href={withBase('/privacy')}>Privacy policy</a>
           <a href={withBase('/contact')}>Contact us</a>
           {TOPIC_SEO.map((t) => (

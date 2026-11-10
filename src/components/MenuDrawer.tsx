@@ -305,6 +305,12 @@ export function MenuDrawer() {
 
               {/* The pages every reader may look for, as quiet links at the foot of the menu */}
               <div className={`flex flex-wrap items-center gap-x-5 gap-y-2 px-3 pt-5 pb-1 text-[13px] text-dark-muted ${hindi}`}>
+                <Link href="/learn" onClick={close} className="focus-ring rounded underline-offset-4 hover:text-dark-text hover:underline">
+                  {t('learn')}
+                </Link>
+                <Link href="/about" onClick={close} className="focus-ring rounded underline-offset-4 hover:text-dark-text hover:underline">
+                  {t('aboutPlax')}
+                </Link>
                 <Link href="/contact" onClick={close} className="focus-ring rounded underline-offset-4 hover:text-dark-text hover:underline">
                   {t('contactUs')}
                 </Link>

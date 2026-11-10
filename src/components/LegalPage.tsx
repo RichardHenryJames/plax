@@ -5,7 +5,7 @@ import { BrandMark } from '@/components/BrandMark'
 // The frame and type of the policy pages (privacy, delete account), in the same voice as the story pages: the mark,
 // a serif headline, plain body text and a way back to the news.
 
-export function LegalPage({ title, updated, children }: { title: string; updated?: string; children: ReactNode }) {
+export function LegalPage({ title, updated, eyebrow, children }: { title: string; updated?: string; eyebrow?: ReactNode; children: ReactNode }) {
   return (
     <main className="min-h-screen bg-dark-bg text-dark-text">
       <div className="max-w-2xl mx-auto px-5 sm:px-8 pt-5 pb-16">
@@ -17,12 +17,16 @@ export function LegalPage({ title, updated, children }: { title: string; updated
         </header>
 
         <article>
+          {eyebrow && <div className="mb-3">{eyebrow}</div>}
           <h1 className="headline text-[30px] sm:text-[40px] text-white mb-2">{title}</h1>
           {updated && <p className="text-sm text-dark-subtle mb-8">Last updated {updated}</p>}
           {children}
         </article>
 
         <nav aria-label="Plax policies" className="mt-12 pt-6 border-t border-white/[0.08] flex flex-wrap gap-x-6 gap-y-2 text-sm font-semibold">
+          <Link href="/learn" className="focus-ring text-[color:var(--signal-text)] hover:underline rounded">Learn</Link>
+          <Link href="/about" className="focus-ring text-[color:var(--signal-text)] hover:underline rounded">About Plax</Link>
+          <Link href="/editorial-policy" className="focus-ring text-[color:var(--signal-text)] hover:underline rounded">Editorial policy</Link>
           <Link href="/contact" className="focus-ring text-[color:var(--signal-text)] hover:underline rounded">Contact us</Link>
           <Link href="/privacy" className="focus-ring text-[color:var(--signal-text)] hover:underline rounded">Privacy policy</Link>
           <Link href="/delete-account" className="focus-ring text-[color:var(--signal-text)] hover:underline rounded">Delete your account</Link>

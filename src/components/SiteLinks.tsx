@@ -1,8 +1,8 @@
 import Link from 'next/link'
 
 const WORDS = {
-  en: { contact: 'Contact us', privacy: 'Privacy policy', label: 'Plax information' },
-  hi: { contact: 'हमसे संपर्क करें', privacy: 'गोपनीयता नीति', label: 'Plax की जानकारी' },
+  en: { learn: 'Learn', about: 'About Plax', contact: 'Contact us', privacy: 'Privacy policy', label: 'Plax information' },
+  hi: { learn: 'Learn', about: 'Plax के बारे में', contact: 'हमसे संपर्क करें', privacy: 'गोपनीयता नीति', label: 'Plax की जानकारी' },
 }
 
 /**
@@ -14,6 +14,9 @@ export function SiteLinks({ lang = 'en', className = '' }: { lang?: 'en' | 'hi';
   const link = 'focus-ring font-semibold text-[color:var(--signal-text)] hover:underline rounded'
   return (
     <nav aria-label={words.label} lang={lang === 'hi' ? 'hi' : undefined} className={`flex flex-wrap gap-x-6 gap-y-2 text-sm ${className}`}>
+      {/* The guides are in English, so on a page in Hindi the link says so to a screen reader. */}
+      <Link href="/learn" lang={lang === 'hi' ? 'en' : undefined} className={link}>{words.learn}</Link>
+      <Link href="/about" className={link}>{words.about}</Link>
       <Link href="/contact" className={link}>{words.contact}</Link>
       <Link href="/privacy" className={link}>{words.privacy}</Link>
     </nav>

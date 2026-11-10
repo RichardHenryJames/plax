@@ -25,4 +25,5 @@ test('the contact page has a path of its own and says who runs Plax', () => {
 test('each date shown on a page is the same day as the one the sitemap uses', () => {
   assert.equal(isoOf(LEGAL.updated), LEGAL.updatedIso)
   assert.equal(isoOf(LEGAL.contactUpdated), LEGAL.contactUpdatedIso)
+  assert.equal(isoOf(LEGAL.aboutUpdated), LEGAL.aboutUpdatedIso)
 })
